@@ -10,7 +10,6 @@ import (
 type Plugin interface {
 	Identifier() string
 	Init(context.Context) error
-	Context() context.Context
 	AddObserver(PluginObserver)
 	RemoveObserver(PluginObserver)
 	Sources() map[string]source.Plugin
