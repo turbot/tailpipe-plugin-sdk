@@ -18,7 +18,8 @@ import (
 
 // ServeOpts are the configurations to serve a plugin.
 type ServeOpts struct {
-	PluginFunc PluginFunc
+	//PluginFunc PluginFunc
+	Plugin TailpipePlugin
 }
 
 type PluginFunc func(context.Context) TailpipePlugin
@@ -42,6 +43,8 @@ func Serve(opts *ServeOpts) error {
 		}
 	}()
 
+	// TODO should we encpasulate the plugin to hide all protobuf details from the plugin - and map between plugin types and protobuf types
+	// in that wrapper???
 	// create the logger
 	//logger := setupLogger()
 
@@ -49,7 +52,7 @@ func Serve(opts *ServeOpts) error {
 
 	// call plugin function to build a plugin object
 	ctx := context.Background()
-	p := opts.PluginFunc(ctx)
+	p := opts.Plugin //opts.PluginFunc(ctx)
 
 	// initialise the plugin - create the connection config map, set plugin pointer on all tables
 	if err := p.Init(ctx); err != nil {

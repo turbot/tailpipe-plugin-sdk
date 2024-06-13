@@ -12,7 +12,7 @@ type Row struct {
 }
 
 // ToProto implements plugin.Event
-func (r *Row) ToProto() (*proto.Event, error) {
+func (r Row) ToProto() (*proto.Event, error) {
 	row, err := proto.RowToProto(r.Row)
 	if err != nil {
 		return nil, err

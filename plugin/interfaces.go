@@ -11,11 +11,11 @@ type TailpipePlugin interface {
 	shared.TailpipePluginServer
 
 	// Init is called when the plugin is started
-	// it may be overridden by the plugin - there is an empty implementation in PluginBase
+	// it may be overridden by the plugin - there is an empty implementation in Base
 	Init(context.Context) error
 
 	// Shutdown is called when the plugin is stopped
-	// it may be overridden by the plugin - there is an empty implementation in PluginBase
+	// it may be overridden by the plugin - there is an empty implementation in Base
 	Shutdown(context.Context) error
 	// Identifier this must be implemented by the plugin
 	Identifier() string
@@ -27,5 +27,5 @@ type EventStream interface {
 }
 
 type Event interface {
-	ToProto() *proto.Event
+	ToProto() (*proto.Event, error)
 }

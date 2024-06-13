@@ -2,21 +2,27 @@ package plugin
 
 import (
 	"context"
+	"errors"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"log"
 	"sync"
 )
 
-// PluginBase should be embedded in all tailpipe plugin implementations
-type PluginBase struct {
+// Base should be embedded in all tailpipe plugin implementations
+type Base struct {
 	observerLock sync.RWMutex
 	// Observers is a list of all Observers that are currently connected
 	// for now these are just the GRPC stream corresponding to the AddObserver call
 	Observers []EventStream
 }
 
+func (t *Base) GetSchema() (*proto.GetSchemaResponse, error) {
+	// TODO build JSON schemas from parquet tags
+	return nil, nil
+}
+
 // AddObserver is the GRPC handler for the AddObserver call
-func (p *PluginBase) AddObserver(stream proto.TailpipePlugin_AddObserverServer) error {
+func (p *Base) AddObserver(stream proto.TailpipePlugin_AddObserverServer) error {
 	log.Println("[INFO] AddObserver")
 	// add to list of Observers
 	p.observerLock.Lock()
@@ -29,19 +35,26 @@ func (p *PluginBase) AddObserver(stream proto.TailpipePlugin_AddObserverServer) 
 	return nil
 }
 
-func (p *PluginBase) NotifyObservers(e Event) {
+func (p *Base) NotifyObservers(e Event) error {
 	p.observerLock.RLock()
 	defer p.observerLock.RUnlock()
+	var notifyErrors []error
 	for _, observer := range p.Observers {
-		observer.Send(e.ToProto())
+		ep, err := e.ToProto()
+		if err != nil {
+			notifyErrors = append(notifyErrors, err)
+			continue
+		}
+		observer.Send(ep)
 	}
 
+	return errors.Join(notifyErrors...)
 }
 
-func (p *PluginBase) Init(context.Context) error {
+func (p *Base) Init(context.Context) error {
 	return nil
 }
 
-func (p *PluginBase) Shutdown(context.Context) error {
+func (p *Base) Shutdown(context.Context) error {
 	return nil
 }
