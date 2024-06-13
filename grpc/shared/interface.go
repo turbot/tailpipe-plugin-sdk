@@ -3,9 +3,8 @@ package shared
 import (
 	"context"
 	"github.com/hashicorp/go-plugin"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"google.golang.org/grpc"
-
-	"github.com/turbot/tailpipe-plugin/grpc/proto"
 )
 
 // Handshake is a common handshake that is shared by plugin and host.
@@ -16,26 +15,18 @@ var Handshake = plugin.HandshakeConfig{
 	MagicCookieValue: "tailpipe plugin",
 }
 
-// todo build dynamically as per steampipe
-// PluginMap is the map of plugins we can dispense.
-var PluginMap = map[string]plugin.Plugin{
-	"tailpipe_plugin": &TailpipeGRPCPlugin{},
-}
-
 // TailpipePluginServer is the service interface that we're exposing as a plugin.
-type TailpipePluginWrapperServer interface {
+type TailpipePluginServer interface {
 	GetSchema() (*proto.GetSchemaResponse, error)
 	AddObserver(stream proto.TailpipePlugin_AddObserverServer) error
-
-	// TODO add collect params
 	Collect(req *proto.CollectRequest) error
 }
 
-// TailpipePlugin is the client interface that we're exposing as a plugin.
-type TailpipePluginWrapperClient interface {
+// TailpipePluginClient is the client interface that we're exposing as a plugin.
+type TailpipePluginClient interface {
 	GetSchema() (*proto.GetSchemaResponse, error)
 	AddObserver() (proto.TailpipePlugin_AddObserverClient, error)
-	// TODO add collect params
+
 	Collect(req *proto.CollectRequest) error
 }
 
@@ -45,7 +36,7 @@ type TailpipeGRPCPlugin struct {
 	plugin.Plugin
 	// Concrete implementation, written in Go. This is only used for plugins
 	// that are written in Go.
-	Impl TailpipePluginWrapperServer
+	Impl TailpipePluginServer
 }
 
 func (p *TailpipeGRPCPlugin) GRPCServer(broker *plugin.GRPCBroker, s *grpc.Server) error {

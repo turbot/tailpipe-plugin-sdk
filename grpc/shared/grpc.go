@@ -2,7 +2,8 @@ package shared
 
 import (
 	"context"
-	"github.com/turbot/tailpipe-plugin/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+
 	"log"
 )
 
@@ -25,7 +26,7 @@ func (c TailpipePluginClientWrapper) Collect(req *proto.CollectRequest) error {
 type TailpipePluginServerWrapper struct {
 	proto.UnimplementedTailpipePluginServer
 	// This is the real implementation
-	Impl TailpipePluginWrapperServer
+	Impl TailpipePluginServer
 }
 
 func (s TailpipePluginServerWrapper) GetSchema(_ context.Context, _ *proto.GetSchemaRequest) (*proto.GetSchemaResponse, error) {
@@ -39,6 +40,7 @@ func (s TailpipePluginServerWrapper) AddObserver(_ *proto.AddObserverRequest, se
 
 	return s.Impl.AddObserver(server)
 }
+
 func (s TailpipePluginServerWrapper) Collect(_ context.Context, req *proto.CollectRequest) (*proto.Empty, error) {
 	return nil, s.Impl.Collect(req)
 }
