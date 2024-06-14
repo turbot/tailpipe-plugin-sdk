@@ -3,7 +3,9 @@ package plugin
 import (
 	"context"
 	"errors"
+	"github.com/turbot/tailpipe-plugin-sdk/collection"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/source"
 	"log"
 	"sync"
 )
@@ -16,8 +18,11 @@ type Base struct {
 	Observers []EventStream
 }
 
-func (t *Base) GetSchema() (*proto.GetSchemaResponse, error) {
-	// TODO build JSON schemas from parquet tags
+// GetSchema is the GRPC handler for the GetSchema call
+// it builds JSON schemas from parquet tags
+// this can be done automatically so there is no need for each plugin to implement this
+func (p *Base) GetSchema() (*proto.GetSchemaResponse, error) {
+	// TODO implement
 	return nil, nil
 }
 
@@ -35,17 +40,29 @@ func (p *Base) AddObserver(stream proto.TailpipePlugin_AddObserverServer) error 
 	return nil
 }
 
-func (p *Base) NotifyObservers(e Event) error {
+// TODO define artifact IF?
+
+func (p *Base) NotifyRow(row collection.Row, artifact source.Artifact) error {
+	// construct proto event
+	e, err := proto.NewRowEvent(row, artifact)
+	if err != nil {
+		return err
+	}
+
+	return p.notifyObservers(e)
+}
+
+func (p *Base) NotifyComplete(err error) error {
+	// construct proto event
+	return p.notifyObservers(proto.NewCompleteEvent(err))
+}
+
+func (p *Base) notifyObservers(e *proto.Event) error {
 	p.observerLock.RLock()
 	defer p.observerLock.RUnlock()
 	var notifyErrors []error
 	for _, observer := range p.Observers {
-		ep, err := e.ToProto()
-		if err != nil {
-			notifyErrors = append(notifyErrors, err)
-			continue
-		}
-		observer.Send(ep)
+		observer.Send(e)
 	}
 
 	return errors.Join(notifyErrors...)

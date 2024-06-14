@@ -19,6 +19,7 @@ func (r Row) ToProto() (*proto.Event, error) {
 
 	}
 	e := &proto.Event{
+		Type: proto.EventType_ROW_EVENT,
 		Event: &proto.Event_RowEvent{
 			RowEvent: &proto.EventRow{
 				Artifact: r.Artifact.ToProto(),
@@ -28,6 +29,15 @@ func (r Row) ToProto() (*proto.Event, error) {
 	}
 	return e, nil
 }
+
+//
+//func RowFromProto(p *proto.EventRow) *Row {
+//	return &Row{
+//		Artifact: source.ArtifactFromProto(p.GetArtifact()), // Assuming ArtifactFromProto is implemented
+//		// TODO
+//		//Row:      collection.RowFromProto(p.GetRow()),    // Assuming RowFromProto is implemented
+//	}
+//}
 
 //
 //type ExtractRowsStart struct {
