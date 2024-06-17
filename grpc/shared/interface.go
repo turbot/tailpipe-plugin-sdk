@@ -17,16 +17,15 @@ var Handshake = plugin.HandshakeConfig{
 
 // TailpipePluginServer is the service interface that we're exposing as a plugin.
 type TailpipePluginServer interface {
-	GetSchema() (*proto.GetSchemaResponse, error)
+	//GetSchema() (*proto.GetSchemaResponse, error)
 	AddObserver(stream proto.TailpipePlugin_AddObserverServer) error
 	Collect(req *proto.CollectRequest) error
 }
 
 // TailpipePluginClient is the client interface that we're exposing as a plugin.
 type TailpipePluginClient interface {
-	GetSchema() (*proto.GetSchemaResponse, error)
+	//GetSchema() (*proto.GetSchemaResponse, error)
 	AddObserver() (proto.TailpipePlugin_AddObserverClient, error)
-
 	Collect(req *proto.CollectRequest) error
 }
 
