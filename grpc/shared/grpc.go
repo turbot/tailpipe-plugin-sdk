@@ -42,5 +42,10 @@ func (s TailpipePluginServerWrapper) AddObserver(_ *proto.AddObserverRequest, se
 }
 
 func (s TailpipePluginServerWrapper) Collect(_ context.Context, req *proto.CollectRequest) (*proto.Empty, error) {
+	// validate the request
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
 	return nil, s.Impl.Collect(req)
 }
