@@ -1,20 +1,27 @@
 package proto
 
-func NewStartedEvent() *Event {
+func NewStartedEvent(executionId string) *Event {
 	return &Event{
-		Type: EventType_STARTED_EVENT,
 		Event: &Event_StartedEvent{
-			StartedEvent: &EventStarted{},
+			StartedEvent: &EventStarted{
+				ExecutionId: executionId,
+			},
 		},
 	}
 }
 
-func NewCompleteEvent(err error) *Event {
+func NewCompleteEvent(executionId string, rowCount int, chunkSize int, err error) *Event {
+	errString := ""
+	if err != nil {
+		errString = err.Error()
+	}
 	return &Event{
-		Type: EventType_COMPLETE_EVENT,
 		Event: &Event_CompleteEvent{
 			CompleteEvent: &EventComplete{
-				Error: err.Error(),
+				ExecutionId: executionId,
+				RowCount:    int64(rowCount),
+				ChunkSize:   int32(chunkSize),
+				Error:       errString,
 			},
 		},
 	}

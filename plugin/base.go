@@ -7,12 +7,14 @@ import (
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
 )
 
 // TODO we need validate the rows types provided by the plugin to ensure they are valid
+// maybe the plugin should register collections and there should be validation code to validate each collection entity
 /*
 GetConnection() string
 	GetYear() int
@@ -35,14 +37,11 @@ type Base struct {
 	// row buffer keyed by execution id
 	// each row buffer is used to write a JSONL file
 	rowBufferMap map[string][]any
-	// mutex for row buffer
+	// mutex for row buffer map AND rowCountMap
 	rowBufferLock sync.RWMutex
 
-	// map of chunk indexes keyed by execution id
-	// each chunk index represents a JSON
-	chunkIndexMap map[string]int
-	// mutex for chunk index
-	chunkIndexLock sync.RWMutex
+	// map of row counts keyed by execution id
+	rowCountMap map[string]int
 }
 
 //// GetSchema is the GRPC handler for the GetSchema call
@@ -67,38 +66,58 @@ func (p *Base) AddObserver(stream proto.TailpipePlugin_AddObserverServer) error 
 	return nil
 }
 
-func (p *Base) NotifyStarted() error {
-	// construct proto event
-	return p.notifyObservers(proto.NewStartedEvent())
-}
-
-func (p *Base) OnRow(row any, req *proto.CollectRequest) error {
+func (p *Base) OnRow(row any, req *proto.CollectRequest) (int, error) {
 	if p.rowBufferMap == nil {
 		// this musty mean the plugin has overridden the Init function and not called the base
-		return errors.New("Base.Init must be called from the plugin Init function")
+		return 0, errors.New("Base.Init must be called from the plugin Init function")
 	}
 
 	// add row to row buffer
 	p.rowBufferLock.Lock()
-	p.rowBufferMap[req.ExecutionId] = append(p.rowBufferMap[req.ExecutionId], row)
+
+	rowCount := p.rowCountMap[req.ExecutionId]
+	if row != nil {
+		p.rowBufferMap[req.ExecutionId] = append(p.rowBufferMap[req.ExecutionId], row)
+		rowCount++
+		p.rowCountMap[req.ExecutionId] = rowCount
+	}
+
 	var rowsToWrite []any
-	if len(p.rowBufferMap[req.ExecutionId]) == JSONLChunkSize {
+	if row == nil || len(p.rowBufferMap[req.ExecutionId]) == JSONLChunkSize {
 		rowsToWrite = p.rowBufferMap[req.ExecutionId]
 		p.rowBufferMap[req.ExecutionId] = nil
-		p.rowBufferLock.Unlock()
 	}
 	p.rowBufferLock.Unlock()
 
-	if len(rowsToWrite) > 0 {
+	if numRows := len(rowsToWrite); numRows > 0 {
+		// determine chunk number from rowCountMap
+		chunkNumber := int(rowCount / JSONLChunkSize)
+		slog.Info("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
+
 		// convert row to a JSONL file
-		return p.writeJSONL(rowsToWrite, req)
+		err := p.writeJSONL(rowsToWrite, req, chunkNumber)
+		if err != nil {
+			return rowCount, fmt.Errorf("failed to write JSONL file: %w", err)
+		}
 	}
-	return nil
+	return rowCount, nil
 }
 
-func (p *Base) NotifyComplete(err error) error {
+func (p *Base) OnStarted(req *proto.CollectRequest) error {
 	// construct proto event
-	return p.notifyObservers(proto.NewCompleteEvent(err))
+	return p.notifyObservers(proto.NewStartedEvent(req.ExecutionId))
+}
+
+func (p *Base) OnComplete(req *proto.CollectRequest, err error) error {
+	// write any  remaining rows (call OnRow with a nil row)
+	// NOTE: this returns the row count
+	rowCount, err := p.OnRow(nil, req)
+	if err != nil {
+		return err
+	}
+
+	// notify observers of completion
+	return p.notifyObservers(proto.NewCompleteEvent(req.ExecutionId, rowCount, JSONLChunkSize, err))
 }
 
 func (p *Base) notifyObservers(e *proto.Event) error {
@@ -114,7 +133,7 @@ func (p *Base) notifyObservers(e *proto.Event) error {
 
 func (p *Base) Init(context.Context) error {
 	p.rowBufferMap = make(map[string][]any)
-	p.chunkIndexMap = make(map[string]int)
+	p.rowCountMap = make(map[string]int)
 	return nil
 }
 
@@ -122,17 +141,12 @@ func (p *Base) Shutdown(context.Context) error {
 	return nil
 }
 
-func (p *Base) writeJSONL(rows []any, req *proto.CollectRequest) error {
+func (p *Base) writeJSONL(rows []any, req *proto.CollectRequest, chunkNumber int) error {
 	executionId := req.ExecutionId
-	destPath := req.SourceFilePath
-	// increment the chunk index
-	p.chunkIndexLock.Lock()
-	chunkIndex := p.chunkIndexMap[executionId] + 1
-	p.chunkIndexMap[executionId] = chunkIndex
-	p.chunkIndexLock.Unlock()
+	destPath := req.OutputPath
 
 	// generate the filename
-	filename := filepath.Join(destPath, fmt.Sprintf("%s-%d.jsonl", executionId, chunkIndex))
+	filename := filepath.Join(destPath, ExecutionIdToFileName(executionId, chunkNumber))
 
 	// Open the file for writing
 	file, err := os.Create(filename)
