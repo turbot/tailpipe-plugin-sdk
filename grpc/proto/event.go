@@ -10,6 +10,17 @@ func NewStartedEvent(executionId string) *Event {
 	}
 }
 
+func NewChunkWrittenEvent(executionId string, chunkNumber int) *Event {
+	return &Event{
+		Event: &Event_ChunkWrittenEvent{
+			ChunkWrittenEvent: &EventChunkWritten{
+				ExecutionId: executionId,
+				ChunkNumber: int32(chunkNumber),
+			},
+		},
+	}
+}
+
 func NewCompleteEvent(executionId string, rowCount int, chunkCount int, err error) *Event {
 	errString := ""
 	if err != nil {

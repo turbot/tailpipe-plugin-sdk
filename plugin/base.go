@@ -108,6 +108,8 @@ func (p *Base) OnRow(row any, req *proto.CollectRequest) (int, error) {
 		if err != nil {
 			return rowCount, fmt.Errorf("failed to write JSONL file: %w", err)
 		}
+
+		p.OnChunk(req, chunkNumber)
 	}
 	return rowCount, nil
 }
@@ -117,6 +119,12 @@ func (p *Base) OnRow(row any, req *proto.CollectRequest) (int, error) {
 func (p *Base) OnStarted(req *proto.CollectRequest) error {
 	// construct proto event
 	return p.notifyObservers(proto.NewStartedEvent(req.ExecutionId))
+}
+
+// OnChunk is called by the plugin when it has written a chunk of rows to a JSONL file
+func (p *Base) OnChunk(req *proto.CollectRequest, chunkNumber int) error {
+	// construct proto event
+	return p.notifyObservers(proto.NewChunkWrittenEvent(req.ExecutionId, chunkNumber))
 }
 
 // OnComplete is called by the plugin when it has finished processing a collection request
@@ -174,5 +182,6 @@ func (p *Base) writeJSONL(rows []any, req *proto.CollectRequest, chunkNumber int
 			return fmt.Errorf("failed to encode item: %w", err)
 		}
 	}
+
 	return nil
 }
