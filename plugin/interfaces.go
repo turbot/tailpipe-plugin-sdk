@@ -25,7 +25,3 @@ type TailpipePlugin interface {
 type EventStream interface {
 	Send(*proto.Event) error
 }
-
-type Event interface {
-	ToProto() (*proto.Event, error)
-}

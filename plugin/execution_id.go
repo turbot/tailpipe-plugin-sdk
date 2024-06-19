@@ -3,6 +3,7 @@ package plugin
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -14,17 +15,22 @@ func ExecutionIdToFileName(executionId string, chunkNumber int) string {
 
 // FileNameToExecutionId convert a filename to an execution id
 // assuming a convention of <executionId>-<chunkNumber>.jsonl
-func FileNameToExecutionId(filename string) (string, error) {
+func FileNameToExecutionId(filename string) (string, int, error) {
 	// remove path
 	filename = filepath.Base(filename)
 	// remove extension
 	filename = filename[:len(filename)-len(".jsonl")]
-	// remove chunk number
+	// get  chunk number
+
 	// find the last dash
 	lastDash := strings.LastIndex(filename, "-")
 	if lastDash == -1 {
-		return "", fmt.Errorf("invalid filename %s", filename)
+		return "", 0, fmt.Errorf("invalid filename %s", filename)
 	}
 	executionId := filename[:lastDash]
-	return executionId, nil
+	chunkNumber, err := strconv.Atoi(filename[lastDash+1:])
+	if err != nil {
+		return "", 0, fmt.Errorf("invalid filename %s", filename)
+	}
+	return executionId, chunkNumber, nil
 }

@@ -10,7 +10,7 @@ func NewStartedEvent(executionId string) *Event {
 	}
 }
 
-func NewCompleteEvent(executionId string, rowCount int, chunkSize int, err error) *Event {
+func NewCompleteEvent(executionId string, rowCount int, chunkCount int, err error) *Event {
 	errString := ""
 	if err != nil {
 		errString = err.Error()
@@ -20,7 +20,7 @@ func NewCompleteEvent(executionId string, rowCount int, chunkSize int, err error
 			CompleteEvent: &EventComplete{
 				ExecutionId: executionId,
 				RowCount:    int64(rowCount),
-				ChunkSize:   int32(chunkSize),
+				ChunkCount:  int32(chunkCount),
 				Error:       errString,
 			},
 		},

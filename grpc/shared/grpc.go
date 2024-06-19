@@ -10,10 +10,6 @@ import (
 // TailpipePluginClientWrapper is an implementation of TailpipePlugin that talks over GRPC.
 type TailpipePluginClientWrapper struct{ client proto.TailpipePluginClient }
 
-//func (c TailpipePluginClientWrapper) GetSchema() (*proto.GetSchemaResponse, error) {
-//	return c.client.GetSchema(context.Background(), &proto.GetSchemaRequest{})
-//}
-
 func (c TailpipePluginClientWrapper) AddObserver() (proto.TailpipePlugin_AddObserverClient, error) {
 	return c.client.AddObserver(context.Background(), &proto.AddObserverRequest{})
 }
@@ -28,12 +24,6 @@ type TailpipePluginServerWrapper struct {
 	// This is the real implementation
 	Impl TailpipePluginServer
 }
-
-//func (s TailpipePluginServerWrapper) GetSchema(_ context.Context, _ *proto.GetSchemaRequest) (*proto.GetSchemaResponse, error) {
-//	log.Println("[INFO] TailpipePluginServerWrapper AddObserver")
-//
-//	return s.Impl.GetSchema()
-//}
 
 func (s TailpipePluginServerWrapper) AddObserver(_ *proto.AddObserverRequest, server proto.TailpipePlugin_AddObserverServer) error {
 	log.Println("[INFO] TailpipePluginServerWrapper AddObserver")
