@@ -18,6 +18,7 @@ import (
 
 // ServeOpts are the configurations to serve a plugin.
 type ServeOpts struct {
+	// todo will we need a ctor rather than an instance? will we have some form if 'dynamic' plugin?
 	//PluginFunc PluginFunc
 	Plugin TailpipePlugin
 }

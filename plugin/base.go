@@ -27,6 +27,7 @@ GetConnection() string
 // TODO configure?
 const JSONLChunkSize = 1000
 
+// TODO rather than Base, maybe this should be EventManager or something?
 // Base should be embedded in all tailpipe plugin implementations
 type Base struct {
 	observerLock sync.RWMutex
