@@ -101,6 +101,10 @@ func (p *Base) OnRow(row any, req *proto.CollectRequest) (int, error) {
 	if numRows := len(rowsToWrite); numRows > 0 {
 		// determine chunk number from rowCountMap
 		chunkNumber := int(rowCount / JSONLChunkSize)
+		// check for final partial chunk
+		if rowCount%JSONLChunkSize > 0 {
+			chunkNumber++
+		}
 		slog.Info("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
 
 		// convert row to a JSONL file
