@@ -3,12 +3,14 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"github.com/turbot/go-kit/helpers"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/logging"
 	"google.golang.org/grpc"
+	"log"
 	"log/slog"
 	"net"
 	"net/http"
@@ -48,6 +50,8 @@ func Serve(opts *ServeOpts) error {
 
 	// initialize logger
 	logging.Initialize(p.Identifier())
+
+	return NewPluginServer(opts).Serve()
 
 	slog.Info("Serve")
 

@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -27,13 +29,9 @@ GetConnection() string
 // TODO configure?
 const JSONLChunkSize = 10000
 
-// TODO rather than Base, maybe this should be EventManager or something?
 // Base should be embedded in all tailpipe plugin implementations
 type Base struct {
-	observerLock sync.RWMutex
-	// Observers is a list of all Observers that are currently connected
-	// for now these are just the GRPC stream corresponding to the AddObserver call
-	Observers []EventStream
+	observable.Base
 
 	// row buffer keyed by execution id
 	// each row buffer is used to write a JSONL file
@@ -58,26 +56,12 @@ func (p *Base) Shutdown(context.Context) error {
 	return nil
 }
 
-// AddObserver implements shared.TailpipePluginServer
-// It is the GRPC handler for the AddObserver call
-func (p *Base) AddObserver(stream proto.TailpipePlugin_AddObserverServer) error {
-	// add to list of Observers
-	p.observerLock.Lock()
-	p.Observers = append(p.Observers, stream)
-	p.observerLock.Unlock()
-
-	// hold stream open
-	// TODO do we need a remove observer function, in which case this could wait on a waitgroup associated with the observer?
-	select {}
-	return nil
-}
-
 // OnRow is called by the plugin for every row which it produces
 // the row is buffered and written to a JSONL file when the buffer is full
-func (p *Base) OnRow(row any, req *proto.CollectRequest) (int, error) {
+func (p *Base) OnRow(row any, req *proto.CollectRequest) error {
 	if p.rowBufferMap == nil {
 		// this musty mean the plugin has overridden the Init function and not called the base
-		return 0, errors.New("Base.Init must be called from the plugin Init function")
+		return errors.New("Base.Init must be called from the plugin Init function")
 	}
 
 	// add row to row buffer
@@ -109,36 +93,63 @@ func (p *Base) OnRow(row any, req *proto.CollectRequest) (int, error) {
 		// convert row to a JSONL file
 		err := p.writeJSONL(rowsToWrite, req, chunkNumber)
 		if err != nil {
-			return rowCount, fmt.Errorf("failed to write JSONL file: %w", err)
+			return fmt.Errorf("failed to write JSONL file: %w", err)
 		}
 
 		p.OnChunk(req, chunkNumber)
 	}
-	return rowCount, nil
+	return nil
+}
+
+// Notify implemnents observable.Observer
+func (p *Base) Notify(event events.Event) error {
+	switch e := event.(type) {
+	case *events.Row:
+		return p.OnRow(e.Row, e.Request)
+	case *events.Started:
+		return p.OnStarted(e.Request)
+	case *events.Chunk:
+		return p.OnChunk(e.Request, e.ChunkNumber)
+	case *events.Completed:
+		return p.OnComplete(e.Request, e.Err)
+
+	default:
+
+	}
 }
 
 // OnStarted is called by the plugin when it starts processing a collection request
 // any observers are notified
 func (p *Base) OnStarted(req *proto.CollectRequest) error {
 	// construct proto event
-	return p.notifyObservers(proto.NewStartedEvent(req.ExecutionId))
+	return p.NotifyObservers(events.NewStarted(req.ExecutionId))
 }
 
 // OnChunk is called by the plugin when it has written a chunk of rows to a JSONL file
 func (p *Base) OnChunk(req *proto.CollectRequest, chunkNumber int) error {
 	// construct proto event
-	return p.notifyObservers(proto.NewChunkWrittenEvent(req.ExecutionId, chunkNumber))
+	return p.NotifyObservers(events.NewChunk(req.ExecutionId, chunkNumber))
 }
 
 // OnComplete is called by the plugin when it has finished processing a collection request
 // remaining rows are written and any observers are notified
 func (p *Base) OnComplete(req *proto.CollectRequest, err error) error {
-	// write any  remaining rows (call OnRow with a nil row)
-	// NOTE: this returns the row count
-	rowCount, err := p.OnRow(nil, req)
-	if err != nil {
-		return err
+	if err == nil {
+		// write any  remaining rows (call OnRow with a nil row)
+		// NOTE: this returns the row count
+		err = p.OnRow(nil, req)
 	}
+
+	rowCount, chunksWritten := p.getRowCount(req)
+
+	return p.NotifyObservers(events.NewCompleted(req.ExecutionId, rowCount, chunksWritten, err))
+}
+
+func (p *Base) getRowCount(req *proto.CollectRequest) (int, int) {
+	// get rowcount
+	p.rowBufferLock.RLock()
+	rowCount := p.rowCountMap[req.ExecutionId]
+	p.rowBufferLock.RUnlock()
 
 	// notify observers of completion
 	// figure out the number of chunks written, including partial chunks
@@ -146,19 +157,7 @@ func (p *Base) OnComplete(req *proto.CollectRequest, err error) error {
 	if rowCount%JSONLChunkSize > 0 {
 		chunksWritten++
 	}
-
-	return p.notifyObservers(proto.NewCompleteEvent(req.ExecutionId, rowCount, chunksWritten, err))
-}
-
-func (p *Base) notifyObservers(e *proto.Event) error {
-	p.observerLock.RLock()
-	defer p.observerLock.RUnlock()
-	var notifyErrors []error
-	for _, observer := range p.Observers {
-		observer.Send(e)
-	}
-
-	return errors.Join(notifyErrors...)
+	return rowCount, chunksWritten
 }
 
 func (p *Base) writeJSONL(rows []any, req *proto.CollectRequest, chunkNumber int) error {
