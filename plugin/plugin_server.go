@@ -2,10 +2,12 @@ package plugin
 
 import (
 	"context"
+	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
+	"github.com/turbot/tailpipe-plugin-sdk/logging"
 	"os"
 )
 
@@ -59,7 +61,8 @@ func (s PluginServer) Serve() error {
 	// use plugin provided in opts
 	ctx := context.Background()
 
-	//time.Sleep(10 * time.Second)
+	// initialize logger
+	logging.Initialize(s.impl.Identifier())
 
 	// initialise the plugin
 	if err := s.impl.Init(ctx); err != nil {
@@ -79,6 +82,8 @@ func (s PluginServer) Serve() error {
 		Plugins:         pluginMap,
 		GRPCServer:      newGRPCServer,
 		HandshakeConfig: shared.Handshake,
+		// disable server logging
+		Logger: hclog.New(&hclog.LoggerOptions{Level: hclog.Off}),
 	})
 	return nil
 }
