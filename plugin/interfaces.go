@@ -24,10 +24,10 @@ type TailpipePlugin interface {
 	Identifier() string
 }
 
-// RowPublisher is the interface that all plugins must implement to publish rows
-type RowPublisher interface {
-	OnRow(any, *proto.CollectRequest) error
-}
+//// RowPublisher is the interface that all plugins must implement to publish rows
+//type RowPublisher interface {
+//	OnRow(any, *proto.CollectRequest) error
+//}
 
 // RowEnricher muyst be implemented by collections - it is called with raw rows, itr must enrich them
 // and send to their publisher
@@ -59,10 +59,11 @@ type Collection interface {
 // - Webhook source
 // Sources may be configured with data transfo
 type Source interface {
+	Observable
 	// Collect is called to start collecting data,
 	// it accepts a RowEnricher that will be called for each raw row of data
 	// Collect will send raw rows which will need enriching by the collection
-	Collect(context.Context, *proto.CollectRequest) (observable.Observer, error)
+	Collect(context.Context, *proto.CollectRequest) error
 }
 
 type Observable interface {

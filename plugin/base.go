@@ -56,6 +56,22 @@ func (p *Base) Shutdown(context.Context) error {
 	return nil
 }
 
+// Notify implements observable.Observer
+func (p *Base) Notify(event events.Event) error {
+	switch e := event.(type) {
+	case *events.Row:
+		return p.OnRow(e.Row, e.Request)
+	case *events.Started:
+		return p.OnStarted(e.Request)
+	case *events.Chunk:
+		return p.OnChunk(e.Request, e.ChunkNumber)
+	case *events.Completed:
+		return p.OnComplete(e.Request, e.Err)
+	default:
+		return fmt.Errorf("unknown event type: %T", e)
+	}
+}
+
 // OnRow is called by the plugin for every row which it produces
 // the row is buffered and written to a JSONL file when the buffer is full
 func (p *Base) OnRow(row any, req *proto.CollectRequest) error {
@@ -101,34 +117,17 @@ func (p *Base) OnRow(row any, req *proto.CollectRequest) error {
 	return nil
 }
 
-// Notify implemnents observable.Observer
-func (p *Base) Notify(event events.Event) error {
-	switch e := event.(type) {
-	case *events.Row:
-		return p.OnRow(e.Row, e.Request)
-	case *events.Started:
-		return p.OnStarted(e.Request)
-	case *events.Chunk:
-		return p.OnChunk(e.Request, e.ChunkNumber)
-	case *events.Completed:
-		return p.OnComplete(e.Request, e.Err)
-
-	default:
-
-	}
-}
-
 // OnStarted is called by the plugin when it starts processing a collection request
 // any observers are notified
 func (p *Base) OnStarted(req *proto.CollectRequest) error {
 	// construct proto event
-	return p.NotifyObservers(events.NewStarted(req.ExecutionId))
+	return p.NotifyObservers(events.NewStartedEvent(req))
 }
 
-// OnChunk is called by the plugin when it has written a chunk of rows to a JSONL file
+// OnChunk is called by the plugin when it has written a chunk of enriched rows to a [JSONL/CSV] file
 func (p *Base) OnChunk(req *proto.CollectRequest, chunkNumber int) error {
 	// construct proto event
-	return p.NotifyObservers(events.NewChunk(req.ExecutionId, chunkNumber))
+	return p.NotifyObservers(events.NewChunkEvent(req, chunkNumber))
 }
 
 // OnComplete is called by the plugin when it has finished processing a collection request
@@ -142,7 +141,7 @@ func (p *Base) OnComplete(req *proto.CollectRequest, err error) error {
 
 	rowCount, chunksWritten := p.getRowCount(req)
 
-	return p.NotifyObservers(events.NewCompleted(req.ExecutionId, rowCount, chunksWritten, err))
+	return p.NotifyObservers(events.NewCompletedEvent(req, rowCount, chunksWritten, err))
 }
 
 func (p *Base) getRowCount(req *proto.CollectRequest) (int, int) {
