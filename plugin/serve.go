@@ -46,32 +46,6 @@ func Serve(opts *ServeOpts) error {
 	logging.Initialize(p.Identifier())
 
 	return NewPluginServer(opts).Serve()
-
-	slog.Info("Serve")
-
-	// initialise the plugin - create the connection config map, set plugin pointer on all tables
-	ctx := context.Background()
-	if err := p.Init(ctx); err != nil {
-		return err
-	}
-	// shutdown the plugin when done
-	defer p.Shutdown(ctx)
-
-	if _, found := os.LookupEnv("TAILPIPE_PPROF"); found {
-		setupPprof()
-	}
-
-	pluginMap := map[string]plugin.Plugin{
-		p.Identifier(): &shared.TailpipeGRPCPlugin{Impl: p},
-	}
-	plugin.Serve(&plugin.ServeConfig{
-		Plugins:         pluginMap,
-		GRPCServer:      newGRPCServer,
-		HandshakeConfig: shared.Handshake,
-		// disable server logging
-		Logger: hclog.New(&hclog.LoggerOptions{Level: hclog.Off}),
-	})
-	return nil
 }
 
 func newGRPCServer(options []grpc.ServerOption) *grpc.Server {
