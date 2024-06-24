@@ -50,9 +50,6 @@ func Serve(opts *ServeOpts) error {
 
 	slog.Info("Serve")
 
-	// write to stderr
-	fmt.Fprintf(os.Stderr, " TEST______")
-
 	// initialise the plugin - create the connection config map, set plugin pointer on all tables
 	ctx := context.Background()
 	if err := p.Init(ctx); err != nil {
