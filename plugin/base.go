@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -26,7 +25,7 @@ GetConnection() string
 
 // how may rows to write in each JSONL file
 // TODO configure?
-const JSONLChunkSize = 100 //0
+const JSONLChunkSize = 1000
 
 // Base should be embedded in all tailpipe plugin implementations
 type Base struct {
@@ -61,7 +60,6 @@ func (p *Base) Shutdown(context.Context) error {
 // AddObserver implements shared.TailpipePluginServer
 // It is the GRPC handler for the AddObserver call
 func (p *Base) AddObserver(stream proto.TailpipePlugin_AddObserverServer) error {
-	log.Println("[INFO] AddObserver")
 	// add to list of Observers
 	p.observerLock.Lock()
 	p.Observers = append(p.Observers, stream)
@@ -105,7 +103,7 @@ func (p *Base) OnRow(row any, req *proto.CollectRequest) (int, error) {
 		if rowCount%JSONLChunkSize > 0 {
 			chunkNumber++
 		}
-		slog.Info("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
+		slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
 
 		// convert row to a JSONL file
 		err := p.writeJSONL(rowsToWrite, req, chunkNumber)
