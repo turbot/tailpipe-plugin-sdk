@@ -7,7 +7,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"os"
-	"time"
 )
 
 // PluginServer is a wrapper for the actual plugin
@@ -60,7 +59,7 @@ func (s PluginServer) Serve() error {
 	// use plugin provided in opts
 	ctx := context.Background()
 
-	time.Sleep(10 * time.Second)
+	//time.Sleep(10 * time.Second)
 
 	// initialise the plugin
 	if err := s.impl.Init(ctx); err != nil {
