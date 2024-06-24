@@ -3,12 +3,14 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"github.com/turbot/go-kit/helpers"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/logging"
 	"google.golang.org/grpc"
+	"log"
 	"log/slog"
 	"net"
 	"net/http"
@@ -49,34 +51,8 @@ func Serve(opts *ServeOpts) error {
 	// initialize logger
 	logging.Initialize(p.Identifier())
 
-	slog.Info("Serve")
+	return NewPluginServer(opts).Serve()
 
-	// write to stderr
-	fmt.Fprintf(os.Stderr, " TEST______")
-
-	// initialise the plugin - create the connection config map, set plugin pointer on all tables
-	ctx := context.Background()
-	if err := p.Init(ctx); err != nil {
-		return err
-	}
-	// shutdown the plugin when done
-	defer p.Shutdown(ctx)
-
-	if _, found := os.LookupEnv("TAILPIPE_PPROF"); found {
-		setupPprof()
-	}
-
-	pluginMap := map[string]plugin.Plugin{
-		p.Identifier(): &shared.TailpipeGRPCPlugin{Impl: p},
-	}
-	plugin.Serve(&plugin.ServeConfig{
-		Plugins:         pluginMap,
-		GRPCServer:      newGRPCServer,
-		HandshakeConfig: shared.Handshake,
-		// disable server logging
-		Logger: hclog.New(&hclog.LoggerOptions{Level: hclog.Off}),
-	})
-	return nil
 }
 
 func newGRPCServer(options []grpc.ServerOption) *grpc.Server {
