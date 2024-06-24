@@ -25,7 +25,7 @@ GetConnection() string
 
 // how may rows to write in each JSONL file
 // TODO configure?
-const JSONLChunkSize = 1000
+const JSONLChunkSize = 10000
 
 // Base should be embedded in all tailpipe plugin implementations
 type Base struct {
