@@ -1,7 +1,7 @@
 package collection
 
 import (
-	"context"
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -10,48 +10,32 @@ import (
 // Base should be embedded in all tailpipe collection implementations
 type Base struct {
 	observable.Base
+	// TODO validate this is set (or validate that data coming back is suitably enriched)
+	EnrichFunc func(any, string) (any, error)
 }
 
-// Init implements TailpipePlugin. It is called by Serve when the plugin is started
-// if the plugin overrides this function it must call the base implementation
-func (p *Base) Init(context.Context) error {
-	return nil
+// Notify implements observable.Observer
+// it handles all events which collections may receive
+func (p *Base) Notify(event events.Event) error {
+	switch e := event.(type) {
+	case *events.Row:
+		return p.HandleRowEvent(e.Row, e.Connection, e.Request)
+	default:
+		return fmt.Errorf("collection does not handle event type: %T", e)
+	}
 }
 
-// Shutdown implements TailpipePlugin. It is called by Serve when the plugin exits
-func (p *Base) Shutdown(context.Context) error {
-	return nil
-}
+// HandleRowEvent is invoked when a Row event is received - enrich the row and publish it
+func (p *Base) HandleRowEvent(row any, connection string, req *proto.CollectRequest) error {
+	// if an enrich func is set, use it to enrich the row
+	if p.EnrichFunc == nil {
+		// error!
+		return fmt.Errorf("no enrich function set")
+	}
+	enrichedRow, err := p.EnrichFunc(row, connection)
+	if err != nil {
+		return err
+	}
 
-// OnStarted is called by the plugin when it starts processing a collection request
-// any observers are notified
-func (p *Base) OnStarted(req *proto.CollectRequest) error {
-	// construct proto event
-	return p.NotifyObservers(events.NewStarted(req.ExecutionId))
+	return p.NotifyObservers(events.NewRowEvent(req, connection, enrichedRow))
 }
-func (p *Base) OnRow(row any, req *proto.CollectRequest) error {
-	// construct proto event
-	// TODO
-	return p.NotifyObservers(events.NewRow(req.ExecutionId, row))
-}
-
-//
-//// OnComplete is called by the plugin when it has finished processing a collection request
-//// remaining rows are written and any observers are notified
-//func (p *Base) OnComplete(req *proto.CollectRequest, rowCount, chunksWritten int, err error) error {
-//	//// write any  remaining rows (call OnRow with a nil row)
-//	//// NOTE: this returns the row count
-//	//rowCount, err := p.OnRow(nil, req)
-//	//if err != nil {
-//	//	return err
-//	//}
-//	//
-//	//// notify observers of completion
-//	//// figure out the number of chunks written, including partial chunks
-//	//chunksWritten := int(rowCount / JSONLChunkSize)
-//	//if rowCount%JSONLChunkSize > 0 {
-//	//	chunksWritten++
-//	//}
-//
-//	return p.NotifyObservers(events.NewCompleted(req.ExecutionId, rowCount, chunksWritten, err))
-//}

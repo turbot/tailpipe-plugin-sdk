@@ -7,7 +7,10 @@ import (
 	"sync"
 )
 
-// Base should be embedded in all tailpipe plugin/source implementations
+// Base provides a base implementation of the Observable interface
+// it should be embedded in all tailpipe plugin, collection and source implementations
+// (via collection.Base, source.Base and plugin.Base)
+
 type Base struct {
 	observerLock sync.RWMutex
 	// Observers is a list of all Observers that are currently connected

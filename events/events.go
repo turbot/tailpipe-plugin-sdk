@@ -7,14 +7,16 @@ type Event interface {
 }
 
 type Row struct {
-	ExecutionId string
-	Row         any
+	Request    *proto.CollectRequest
+	Connection string
+	Row        any
 }
 
-func NewRow(executionId string, row any) *Row {
+func NewRowEvent(request *proto.CollectRequest, connection string, row any) *Row {
 	return &Row{
-		ExecutionId: executionId,
-		Row:         row,
+		Request:    request,
+		Connection: connection,
+		Row:        row,
 	}
 }
 
@@ -26,46 +28,46 @@ func (r *Row) ToProto() *proto.Event {
 }
 
 type Chunk struct {
-	ExecutionId string
+	Request     *proto.CollectRequest
 	ChunkNumber int
 }
 
-func NewChunk(executionId string, chunkNumber int) *Chunk {
+func NewChunkEvent(request *proto.CollectRequest, chunkNumber int) *Chunk {
 	return &Chunk{
-		ExecutionId: executionId,
+		Request:     request,
 		ChunkNumber: chunkNumber,
 	}
 }
 
 // ToProto converts the event to a proto.Event
 func (r *Chunk) ToProto() *proto.Event {
-	return proto.NewChunkWrittenEvent(r.ExecutionId, r.ChunkNumber)
+	return proto.NewChunkWrittenEvent(r.Request.ExecutionId, r.ChunkNumber)
 }
 
 type Started struct {
-	ExecutionId string
+	Request *proto.CollectRequest
 }
 
-func NewStarted(executionId string) *Started {
+func NewStartedEvent(request *proto.CollectRequest) *Started {
 	return &Started{
-		ExecutionId: executionId,
+		Request: request,
 	}
 }
 
 func (s *Started) ToProto() *proto.Event {
-	return proto.NewStartedEvent(s.ExecutionId)
+	return proto.NewStartedEvent(s.Request.ExecutionId)
 }
 
 type Completed struct {
-	ExecutionId   string
+	Request       *proto.CollectRequest
 	RowCount      int
 	ChunksWritten int
 	Err           error
 }
 
-func NewCompleted(executionId string, rowCount int, chunksWritten int, err error) *Completed {
+func NewCompletedEvent(request *proto.CollectRequest, rowCount int, chunksWritten int, err error) *Completed {
 	return &Completed{
-		ExecutionId:   executionId,
+		Request:       request,
 		RowCount:      rowCount,
 		ChunksWritten: chunksWritten,
 		Err:           err,
@@ -73,5 +75,5 @@ func NewCompleted(executionId string, rowCount int, chunksWritten int, err error
 }
 
 func (c *Completed) ToProto() *proto.Event {
-	return proto.NewCompleteEvent(c.ExecutionId, c.RowCount, c.ChunksWritten, c.Err)
+	return proto.NewCompleteEvent(c.Request.ExecutionId, c.RowCount, c.ChunksWritten, c.Err)
 }
