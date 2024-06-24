@@ -4,18 +4,12 @@ import (
 	"context"
 	"fmt"
 	"github.com/turbot/go-kit/helpers"
-	"github.com/hashicorp/go-hclog"
-	"github.com/hashicorp/go-plugin"
-	"github.com/turbot/go-kit/helpers"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/logging"
 	"google.golang.org/grpc"
-	"log"
 	"log/slog"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"os"
 )
 
 // ServeOpts are the configurations to serve a plugin.
