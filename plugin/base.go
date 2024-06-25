@@ -8,7 +8,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -104,7 +103,7 @@ func (p *Base) OnRow(row any, req *proto.CollectRequest) error {
 		if rowCount%JSONLChunkSize > 0 {
 			chunkNumber++
 		}
-		slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
+		//slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
 
 		// convert row to a JSONL file
 		err := p.writeJSONL(rowsToWrite, req, chunkNumber)
