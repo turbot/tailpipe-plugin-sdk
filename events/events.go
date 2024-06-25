@@ -7,16 +7,17 @@ type Event interface {
 }
 
 type Row struct {
-	Request    *proto.CollectRequest
-	Connection string
-	Row        any
+	Request *proto.CollectRequest
+	// this is a map of values passed from teh source to the collection to include in the enrichment process
+	EnrichmentFields map[string]any
+	Row              any
 }
 
-func NewRowEvent(request *proto.CollectRequest, connection string, row any) *Row {
+func NewRowEvent(request *proto.CollectRequest, row any, sourceEnrichmentFields map[string]any) *Row {
 	return &Row{
-		Request:    request,
-		Connection: connection,
-		Row:        row,
+		Request:          request,
+		EnrichmentFields: sourceEnrichmentFields,
+		Row:              row,
 	}
 }
 

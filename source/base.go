@@ -12,6 +12,6 @@ type Base struct {
 }
 
 // OnRow is called by the source when it has a row to send
-func (p *Base) OnRow(req *proto.CollectRequest, conn string, row any) error {
-	return p.NotifyObservers(events.NewRowEvent(req, conn, row))
+func (p *Base) OnRow(req *proto.CollectRequest, row any, sourceEnrichmentFields map[string]any) error {
+	return p.NotifyObservers(events.NewRowEvent(req, row, sourceEnrichmentFields))
 }
