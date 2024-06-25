@@ -9,6 +9,7 @@ import (
 // TailpipePlugin is the interface that all tailpipe plugins must implement
 type TailpipePlugin interface {
 	// GRPC interface functions
+
 	AddObserver(observable.Observer) error
 	Collect(*proto.CollectRequest) error
 
@@ -24,26 +25,22 @@ type TailpipePlugin interface {
 	Identifier() string
 }
 
-//// RowPublisher is the interface that all plugins must implement to publish rows
-//type RowPublisher interface {
-//	OnRow(any, *proto.CollectRequest) error
-//}
-
-// RowEnricher muyst be implemented by collections - it is called with raw rows, itr must enrich them
-// and send to their publisher
+// RowEnricher must be implemented by collections - it is called with raw rows, which it enriches and returns
 type RowEnricher interface {
-	Observable
-	//// OnRow is called with a raw row of data, and must enrich it and send it to the publisher
-	//// the row enricher needs to know the 'connection' - this is a plugin-specific field which
-	//// must be populated by the client of this call (the source)
-	//OnRow(row any, connection string, req *proto.CollectRequest) error
-
+	// EnrichRow is called for each raw row of data, it must enrich the row and return it
+	EnrichRow(row any, sourceEnrichmentFields map[string]any) (any, error)
 }
 
 // Collection is the interface that represents a single schema/'table' provided by a plugin.
 // A plugin may support multiple collections
 type Collection interface {
+	// Observable must be implemented by collections (it is implemented by collection.Base)
 	Observable
+	// RowEnricher must be implemented by collections
+	RowEnricher
+	// Identifier must return the collection name
+	Identifier() string
+
 	// Collect is called to start collecting data,
 	// it accepts a RowPublisher that will be called for each row of data
 	// Collect will send enriched rows which satisfy the tailpipe row requirements (todo link/document
@@ -59,7 +56,10 @@ type Collection interface {
 // - Webhook source
 // Sources may be configured with data transfo
 type Source interface {
+	// Observable must be implemented by collections (it is implemented by collection.Base)
 	Observable
+	// Identifier must return the source name
+	Identifier() string
 	// Collect is called to start collecting data,
 	// it accepts a RowEnricher that will be called for each raw row of data
 	// Collect will send raw rows which will need enriching by the collection
