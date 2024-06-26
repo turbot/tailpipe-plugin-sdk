@@ -13,17 +13,6 @@ import (
 	"sync"
 )
 
-// TODO we need validate the rows types provided by the plugin to ensure they are valid
-// maybe the plugin should register collections and there should be validation code to validate each collection entity
-/*
-GetConnection() string
-	GetYear() int
-	GetMonth() int
-	GetDay() int
-	GetTpID() string
-	GetTpTimestamp() int64
-*/
-
 // how may rows to write in each JSONL file
 // TODO configure?
 const JSONLChunkSize = 10000
