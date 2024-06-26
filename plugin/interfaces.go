@@ -13,6 +13,10 @@ type TailpipePlugin interface {
 	AddObserver(observable.Observer) error
 	Collect(*proto.CollectRequest) error
 
+	//// GetSchema returns the schema (i.e. an instance of the row struct) for all collections
+	//// it is used primarily to validate the row structs provide the reuired fields
+	//GetSchema(collection string) map[string]any
+
 	// Init is called when the plugin is started
 	// it may be overridden by the plugin - there is an empty implementation in Base
 	Init(context.Context) error
