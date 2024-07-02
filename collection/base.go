@@ -19,9 +19,13 @@ type Base struct {
 	enricher plugin.RowEnricher
 }
 
-func (b *Base) Init(source plugin.Source, enricher plugin.RowEnricher) {
+func (b *Base) Init(enricher plugin.RowEnricher) {
 	b.enricher = enricher
+}
+
+func (b *Base) AddSource(source plugin.Source) {
 	b.Source = source
+
 	// add ourselves as an observer to our Source
 	b.Source.AddObserver(b)
 }

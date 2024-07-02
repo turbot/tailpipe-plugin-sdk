@@ -3,7 +3,7 @@ package proto;
 option go_package = ".;proto";
 
 service TailpipePlugin {
-//  rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
+  rpc GetSchema(GetSchemaRequest) returns (GetSchemaResponse);
   rpc AddObserver(AddObserverRequest) returns (stream Event);
   rpc Collect(CollectRequest) returns (Empty);
  }
@@ -21,6 +21,32 @@ message CollectRequest {
 }
 
 message Empty {}
+
+message GetSchemaRequest {
+}
+
+message GetSchemaResponse {
+  // Map of schemas keyed by collection name
+  map<string, Schema> schemas = 1;
+}
+
+// schema
+message Schema {
+  // Map of source field name to column name and type
+  repeated ColumnSchema columns = 1;
+}
+
+message ColumnSchema {
+  // The type of the column - must be a valid DuckDB type
+  string type = 1;
+  // The name of the source field
+  string source_name = 2;
+  // The name of the column
+  string column_name = 3;
+  // child fields (for a struct
+  repeated ColumnSchema child_fields = 4;
+}
+
 
 // events
 

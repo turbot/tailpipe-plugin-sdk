@@ -51,10 +51,29 @@ func (s PluginServer) Collect(req *proto.CollectRequest) error {
 	return s.impl.Collect(req)
 }
 
-func NewPluginServer(opts *ServeOpts) *PluginServer {
-	return &PluginServer{
-		impl: opts.Plugin,
+// GetSchema returns the schema for the plugin
+func (s PluginServer) GetSchema() (*proto.GetSchemaResponse, error) {
+	schemaMap := s.impl.GetSchema()
+
+	// convert the schema to proto
+
+	resp := &proto.GetSchemaResponse{
+		Schemas: schemaMap.ToProto(),
 	}
+	return resp, nil
+}
+
+func NewPluginServer(opts *ServeOpts) (*PluginServer, error) {
+	// retrieve the plugin from the opts
+	p, err := opts.PluginFunc()
+	if err != nil {
+		return nil, err
+	}
+
+	s := &PluginServer{
+		impl: p,
+	}
+	return s, nil
 }
 
 func (s PluginServer) Serve() error {

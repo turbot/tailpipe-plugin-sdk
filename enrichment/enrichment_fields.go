@@ -2,8 +2,8 @@ package enrichment
 
 import "github.com/turbot/tailpipe-plugin-sdk/helpers"
 
-type EnrichmentFields struct {
-	// Metadata
+// CommonFields represents the common fields with JSON tags
+type CommonFields struct {
 	TpID              string             `json:"tp_id"`
 	TpSourceType      string             `json:"tp_source_type"`
 	TpSourceName      string             `json:"tp_source_name"`

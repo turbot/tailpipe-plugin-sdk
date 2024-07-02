@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 // TailpipePlugin is the interface that all tailpipe plugins must implement
@@ -13,9 +14,8 @@ type TailpipePlugin interface {
 	AddObserver(observable.Observer) error
 	Collect(*proto.CollectRequest) error
 
-	//// GetSchema returns the schema (i.e. an instance of the row struct) for all collections
-	//// it is used primarily to validate the row structs provide the reuired fields
-	//GetSchema(collection string) map[string]any
+	// GetSchema returns the parquet schema for all collections
+	GetSchema() schema.SchemaMap
 
 	// Init is called when the plugin is started
 	// it may be overridden by the plugin - there is an empty implementation in Base
@@ -42,6 +42,8 @@ type Collection interface {
 	Observable
 	// RowEnricher must be implemented by collections
 	RowEnricher
+
+	Init(config any) error
 	// Identifier must return the collection name
 	Identifier() string
 
@@ -49,6 +51,8 @@ type Collection interface {
 	// it accepts a RowPublisher that will be called for each row of data
 	// Collect will send enriched rows which satisfy the tailpipe row requirements (todo link/document
 	Collect(context.Context, *proto.CollectRequest) error
+	// GetRowStruct returns an instance of the row struct returned by the collection
+	GetRowStruct() any
 }
 
 // Source is the interface that represents a data source

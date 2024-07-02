@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"log"
 )
 
 // TailpipePluginClientWrapper is an implementation of TailpipePlugin that talks over GRPC.
@@ -14,6 +15,9 @@ func (c TailpipePluginClientWrapper) AddObserver() (proto.TailpipePlugin_AddObse
 func (c TailpipePluginClientWrapper) Collect(req *proto.CollectRequest) error {
 	_, err := c.client.Collect(context.Background(), req)
 	return err
+}
+func (c TailpipePluginClientWrapper) GetSchema() (*proto.GetSchemaResponse, error) {
+	return c.client.GetSchema(context.Background(), &proto.GetSchemaRequest{})
 }
 
 // TailpipePluginServerWrapper is the gRPC server that TailpipePluginClient talks to.
@@ -34,4 +38,10 @@ func (s TailpipePluginServerWrapper) Collect(_ context.Context, req *proto.Colle
 	}
 
 	return nil, s.Impl.Collect(req)
+}
+
+func (s TailpipePluginServerWrapper) GetSchema(_ context.Context, _ *proto.GetSchemaRequest) (*proto.GetSchemaResponse, error) {
+	log.Println("[INFO] TailpipePluginServerWrapper AddObserver")
+
+	return s.Impl.GetSchema()
 }
