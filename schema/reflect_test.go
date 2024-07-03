@@ -73,7 +73,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					{SourceName: "Uint32Field", ColumnName: "uint_32_field", Type: "UINTEGER"},
 					{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "UBIGINT"},
 					{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "BLOB"},
-					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "ARRAY", ChildFields: []*ColumnSchema{{Type: "VARCHAR"}}},
+					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "VARCHAR[]"},
 				},
 			},
 			wantErr: false,
@@ -115,7 +115,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					{
 						SourceName: "StructSliceField",
 						ColumnName: "struct_slice_field",
-						Type:       "ARRAY",
+						Type:       "STRUCT[]",
 						ChildFields: []*ColumnSchema{
 							{
 								Type: "STRUCT",

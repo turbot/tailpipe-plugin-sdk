@@ -125,8 +125,11 @@ func getColumnSchemaType(t reflect.Type) (ColumnType, error) {
 		if err != nil {
 			c.Type = ""
 		}
-		c.Type = "ARRAY"
-		c.ChildFields = []*ColumnSchema{{Type: listType.Type, ChildFields: listType.ChildFields}}
+		c.Type = fmt.Sprintf("%s[]", listType.Type)
+		// for struct types, we need to wrap the child fields in a new ColumnSchema
+		if listType.Type == "STRUCT" {
+			c.ChildFields = []*ColumnSchema{{Type: listType.Type, ChildFields: listType.ChildFields}}
+		}
 	case reflect.Struct:
 		// check if this is a time.Time
 		if t == reflect.TypeOf(time.Time{}) {
@@ -157,7 +160,6 @@ func getColumnSchemaType(t reflect.Type) (ColumnType, error) {
 
 		return c, fmt.Errorf("unsupported type %s", t)
 	}
-
 	return c, nil
 }
 
