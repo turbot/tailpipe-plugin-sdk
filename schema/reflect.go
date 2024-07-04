@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/iancoleman/strcase"
 	"reflect"
+	"strings"
 	"time"
 )
 
@@ -32,6 +33,15 @@ func SchemaFromType(t reflect.Type) (*RowSchema, error) {
 		var p = &ParquetTag{}
 		var err error
 
+		// if there is a JSON tag, use to populate the source name - otherwise ise the property name
+		sourceName := field.Name
+		if jsonTag := field.Tag.Get("json"); jsonTag != "" {
+			split := strings.Split(jsonTag, ",")
+			sourceName = split[0]
+		}
+
+		var c *ColumnSchema
+		// look for a parquet tag - this may override the name and/or type
 		if tag := field.Tag.Get("parquet"); tag != "" {
 
 			p, err = ParseParquetTag(tag)
@@ -44,13 +54,10 @@ func SchemaFromType(t reflect.Type) (*RowSchema, error) {
 				continue
 			}
 		}
-
 		// if the tag does not specify a name, use the field name
 		if p.Name == "" {
 			p.Name = strcase.ToSnake(field.Name)
 		}
-
-		var c *ColumnSchema
 		// if the tag does not specify a type, infer from the field type
 		if p.Type != "" {
 			// type explicitly set in the tag (struct not supported)
@@ -66,7 +73,7 @@ func SchemaFromType(t reflect.Type) (*RowSchema, error) {
 				continue
 			}
 			c = &ColumnSchema{
-				SourceName:  field.Name,
+				SourceName:  sourceName,
 				ColumnName:  p.Name,
 				Type:        columnType.Type,
 				ChildFields: columnType.ChildFields,
