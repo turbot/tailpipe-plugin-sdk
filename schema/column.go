@@ -1,7 +1,9 @@
 package schema
 
 import (
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"strings"
 )
 
 type SchemaMap map[string]*RowSchema
@@ -60,8 +62,8 @@ type ColumnSchema struct {
 	SourceName string
 	ColumnName string
 	Type       string
-	// for structs
-	ChildFields []*ColumnSchema
+	// for struct and struct[]
+	StructFields []*ColumnSchema
 }
 type ColumnType struct {
 	// DuckDB type`
@@ -70,17 +72,41 @@ type ColumnType struct {
 	ChildFields []*ColumnSchema
 }
 
-// toproto
 func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 	p := &proto.ColumnSchema{
 		SourceName: c.SourceName,
 		ColumnName: c.ColumnName,
 		Type:       c.Type,
 	}
-	for _, child := range c.ChildFields {
+	for _, child := range c.StructFields {
 		p.ChildFields = append(p.ChildFields, child.toProto())
 	}
 	return p
+}
+
+func (c *ColumnSchema) FullType() string {
+	if c.Type == "STRUCT" {
+		return c.structDef()
+	}
+	if c.Type == "STRUCT[]" {
+		return fmt.Sprintf("%s[]", c.structDef())
+	}
+	return c.Type
+}
+
+func (c *ColumnSchema) structDef() string {
+	//STRUCT(StructStringField VARCHAR, StructIntField INTEGER)[]
+	var str strings.Builder
+	str.WriteString("STRUCT(")
+	for i, column := range c.StructFields {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(fmt.Sprintf("%s %s", column.SourceName, column.Type))
+
+	}
+	str.WriteString(")")
+	return str.String()
 }
 
 // ColumnFromProto creates a new ColumnSchema from proto
@@ -91,7 +117,7 @@ func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
 		Type:       p.Type,
 	}
 	for _, child := range p.ChildFields {
-		c.ChildFields = append(c.ChildFields, ColumnFromProto(child))
+		c.StructFields = append(c.StructFields, ColumnFromProto(child))
 	}
 	return c
 }

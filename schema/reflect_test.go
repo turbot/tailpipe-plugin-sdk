@@ -90,14 +90,14 @@ func TestSchemaFromStruct(t *testing.T) {
 						SourceName: "StructField",
 						ColumnName: "struct_field",
 						Type:       "STRUCT",
-						ChildFields: []*ColumnSchema{
+						StructFields: []*ColumnSchema{
 							{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
 							{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
 							{
 								SourceName: "InnerStructField",
 								ColumnName: "inner_struct_field",
 								Type:       "STRUCT",
-								ChildFields: []*ColumnSchema{
+								StructFields: []*ColumnSchema{
 									{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
 								},
 							},
@@ -107,7 +107,7 @@ func TestSchemaFromStruct(t *testing.T) {
 						SourceName: "StringToStringMap",
 						ColumnName: "string_to_string_map",
 						Type:       "MAP",
-						ChildFields: []*ColumnSchema{
+						StructFields: []*ColumnSchema{
 							{Type: "VARCHAR"},
 							{Type: "VARCHAR"},
 						},
@@ -116,17 +116,17 @@ func TestSchemaFromStruct(t *testing.T) {
 						SourceName: "StructSliceField",
 						ColumnName: "struct_slice_field",
 						Type:       "STRUCT[]",
-						ChildFields: []*ColumnSchema{
+						StructFields: []*ColumnSchema{
 							{
 								Type: "STRUCT",
-								ChildFields: []*ColumnSchema{
+								StructFields: []*ColumnSchema{
 									{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
 									{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
 									{
 										SourceName: "InnerStructField",
 										ColumnName: "inner_struct_field",
 										Type:       "STRUCT",
-										ChildFields: []*ColumnSchema{
+										StructFields: []*ColumnSchema{
 											{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
 										},
 									},
@@ -138,18 +138,18 @@ func TestSchemaFromStruct(t *testing.T) {
 					{
 						SourceName: "StringToStructMap",
 						ColumnName: "string_to_struct_map",
-						Type:       "MAP", ChildFields: []*ColumnSchema{
+						Type:       "MAP", StructFields: []*ColumnSchema{
 							{Type: "VARCHAR"},
 							{
 								Type: "STRUCT",
-								ChildFields: []*ColumnSchema{
+								StructFields: []*ColumnSchema{
 									{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
 									{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
 									{
 										SourceName: "InnerStructField",
 										ColumnName: "inner_struct_field",
 										Type:       "STRUCT",
-										ChildFields: []*ColumnSchema{
+										StructFields: []*ColumnSchema{
 											{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
 										},
 									},
@@ -161,29 +161,24 @@ func TestSchemaFromStruct(t *testing.T) {
 						SourceName: "StringToStructSliceMap",
 						ColumnName: "string_to_struct_slice_map",
 						Type:       "MAP",
-						ChildFields: []*ColumnSchema{
+						StructFields: []*ColumnSchema{
 							{Type: "VARCHAR"},
 							{
-								Type: "ARRAY",
-								ChildFields: []*ColumnSchema{
+								Type: "STRUCT[]",
+								StructFields: []*ColumnSchema{
+									{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
+									{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
 									{
-										Type: "STRUCT",
-										ChildFields: []*ColumnSchema{
+										SourceName: "InnerStructField",
+										ColumnName: "inner_struct_field",
+										Type:       "STRUCT",
+										StructFields: []*ColumnSchema{
 											{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-											{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
-											{
-												SourceName: "InnerStructField",
-												ColumnName: "inner_struct_field",
-												Type:       "STRUCT",
-												ChildFields: []*ColumnSchema{
-													{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-												},
-											},
 										},
 									},
 								},
-							}},
-					},
+							},
+						}},
 				},
 			},
 
@@ -209,8 +204,8 @@ func TestSchemaFromStruct(t *testing.T) {
 					t.Errorf("SchemaFromStruct() = %v, want SourceName %v", c.SourceName, w.SourceName)
 				}
 				if c.Type == "ARRAY" || c.Type == "STRUCT" {
-					if !reflect.DeepEqual(c.ChildFields, w.ChildFields) {
-						t.Errorf("SchemaFromStruct() = %v, want ChildFields %v", c.ChildFields, w.ChildFields)
+					if !reflect.DeepEqual(c.StructFields, w.StructFields) {
+						t.Errorf("SchemaFromStruct() = %v, want StructFields %v", c.StructFields, w.StructFields)
 					}
 				}
 			}

@@ -73,10 +73,10 @@ func SchemaFromType(t reflect.Type) (*RowSchema, error) {
 				continue
 			}
 			c = &ColumnSchema{
-				SourceName:  sourceName,
-				ColumnName:  p.Name,
-				Type:        columnType.Type,
-				ChildFields: columnType.ChildFields,
+				SourceName:   sourceName,
+				ColumnName:   p.Name,
+				Type:         columnType.Type,
+				StructFields: columnType.ChildFields,
 			}
 		}
 
@@ -135,7 +135,7 @@ func getColumnSchemaType(t reflect.Type) (ColumnType, error) {
 		c.Type = fmt.Sprintf("%s[]", listType.Type)
 		// for struct types, we need to wrap the child fields in a new ColumnSchema
 		if listType.Type == "STRUCT" {
-			c.ChildFields = []*ColumnSchema{{Type: listType.Type, ChildFields: listType.ChildFields}}
+			c.ChildFields = listType.ChildFields
 		}
 	case reflect.Struct:
 		// check if this is a time.Time
@@ -162,7 +162,7 @@ func getColumnSchemaType(t reflect.Type) (ColumnType, error) {
 		if err != nil {
 			return c, err
 		}
-		c.ChildFields = []*ColumnSchema{{Type: keyType.Type, ChildFields: keyType.ChildFields}, {Type: valueType.Type, ChildFields: valueType.ChildFields}}
+		c.ChildFields = []*ColumnSchema{{Type: keyType.Type, StructFields: keyType.ChildFields}, {Type: valueType.Type, StructFields: valueType.ChildFields}}
 	default:
 
 		return c, fmt.Errorf("unsupported type %s", t)
