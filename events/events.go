@@ -1,6 +1,9 @@
 package events
 
-import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+import (
+	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+)
 
 type Event interface {
 	ToProto() *proto.Event
@@ -8,12 +11,12 @@ type Event interface {
 
 type Row struct {
 	Request *proto.CollectRequest
-	// this is a map of values passed from teh source to the collection to include in the enrichment process
-	EnrichmentFields map[string]any
+	// enrichment values passed from the source to the collection to include in the enrichment process
+	EnrichmentFields *enrichment.CommonFields
 	Row              any
 }
 
-func NewRowEvent(request *proto.CollectRequest, row any, sourceEnrichmentFields map[string]any) *Row {
+func NewRowEvent(request *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) *Row {
 	return &Row{
 		Request:          request,
 		EnrichmentFields: sourceEnrichmentFields,

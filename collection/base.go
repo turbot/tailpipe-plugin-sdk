@@ -3,6 +3,7 @@ package collection
 import (
 	"context"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -47,7 +48,7 @@ func (b *Base) Notify(event events.Event) error {
 }
 
 // HandleRowEvent is invoked when a Row event is received - enrich the row and publish it
-func (b *Base) HandleRowEvent(req *proto.CollectRequest, row any, sourceEnrichmentFields map[string]any) error {
+func (b *Base) HandleRowEvent(req *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
 	// tell enricher to enrich the row
 
 	// todo #validation move to validate

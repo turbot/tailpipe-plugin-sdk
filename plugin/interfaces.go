@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -32,7 +33,7 @@ type TailpipePlugin interface {
 // RowEnricher must be implemented by collections - it is called with raw rows, which it enriches and returns
 type RowEnricher interface {
 	// EnrichRow is called for each raw row of data, it must enrich the row and return it
-	EnrichRow(row any, sourceEnrichmentFields map[string]any) (any, error)
+	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)
 }
 
 // Collection is the interface that represents a single schema/'table' provided by a plugin.
