@@ -102,7 +102,7 @@ func (c *ColumnSchema) structDef() string {
 		if i > 0 {
 			str.WriteString(", ")
 		}
-		str.WriteString(fmt.Sprintf("%s %s", column.SourceName, column.FullType()))
+		str.WriteString(fmt.Sprintf(`"%s" %s`, column.SourceName, column.FullType()))
 
 	}
 	str.WriteString(")")

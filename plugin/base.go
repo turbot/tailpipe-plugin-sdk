@@ -10,6 +10,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
@@ -105,11 +106,12 @@ func (b *Base) OnRow(row any, req *proto.CollectRequest) error {
 		if rowCount%JSONLChunkSize > 0 {
 			chunkNumber++
 		}
-		//slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
+		slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
 
 		// convert row to a JSONL file
 		err := b.writeJSONL(rowsToWrite, req, chunkNumber)
 		if err != nil {
+			slog.Error("failed to write JSONL file", "error", err)
 			return fmt.Errorf("failed to write JSONL file: %w", err)
 		}
 
@@ -174,6 +176,7 @@ func (b *Base) writeJSONL(rows []any, req *proto.CollectRequest, chunkNumber int
 	}
 	defer file.Close()
 
+	slog.Debug("writing JSONL file", "file", filename, "rows", len(rows))
 	// Create a JSON encoder
 	encoder := json.NewEncoder(file)
 
