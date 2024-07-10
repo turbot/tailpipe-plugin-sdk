@@ -16,6 +16,11 @@ message CollectRequest {
 //  dest path for jsonl files
   string output_path= 2;
 
+  // temp?
+  string collection_name = 3;
+  // temp = will be in connection config
+  repeated string paths = 4;
+
   // todo add collection config
 
 }
