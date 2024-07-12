@@ -61,6 +61,7 @@ message Event {
     EventStarted started_event = 1;
     EventChunkWritten chunk_written_event = 2;
     EventComplete complete_event = 3;
+    EventError error_event = 4;
   }
 }
 
@@ -70,6 +71,10 @@ message EventStarted {
 message EventChunkWritten {
   string execution_id = 1;
   int32 chunk_number = 2;
+}
+message EventError {
+  string execution_id = 1;
+  string error = 2;
 }
 
 message EventComplete {

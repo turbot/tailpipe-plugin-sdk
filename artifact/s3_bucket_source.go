@@ -160,7 +160,6 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, req *proto.Col
 
 	return s.OnArtifactDownloaded(req, downloadInfo)
 
-	// TODO WHO WILL DELETE THE TEMP FILES
 	return nil
 }
 
@@ -182,34 +181,3 @@ func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {
 	s3Client := s3.NewFromConfig(cfg)
 	return s3Client, nil
 }
-
-//
-//func (s *AwsS3BucketSource) getBucketRegion(ctx context.Context, bucketName string) (string, error) {
-//		// Load the default configuration
-//		cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-east-1"))
-//		if err != nil {
-//			return "", fmt.Errorf("unable to load SDK config, %w", err)
-//		}
-//
-//		// Create an S3 client
-//		s3Client := s3.NewFromConfig(cfg)
-//
-//		// Get the bucket location
-//		output, err := s3Client.GetBucketLocation(ctx, &s3.GetBucketLocationInput{
-//			Bucket: aws.String(bucketName),
-//		})
-//		if err != nil {
-//			return "", fmt.Errorf("unable to get bucket location, %w", err)
-//		}
-//
-//		// Map the location constraint to the region
-//		region := string(output.LocationConstraint)
-//		if region == "" {
-//			region = "us-east-1" // Default region if location constraint is empty
-//		}
-//
-//		return region, nil
-//}
-//
-//
-//

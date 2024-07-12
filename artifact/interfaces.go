@@ -59,28 +59,13 @@ Eg for CloudTrail s3 bucket gzipped logs
 
 */
 
-type Extractor interface {
-	observable.Observable
-	observable.Observer
-
-	// functions which report whether this extractor is a source/mapper/sink
-
-	//IsSource() bool
-	//IsMapper() bool
-	//IsSink() bool
+type Loader interface {
+	// Load loads artifact data and pass it on to the next extractor in the chain
+	Load(context.Context, *types.ArtifactInfo) ([]any, error)
 }
 
-type ExtractorSource interface {
-	// ExtractArtifact loads artifact data and pass it on to the next extractor in the chain
-	ExtractArtifact(context.Context, *proto.CollectRequest, *types.ArtifactInfo) error
-}
-
-type ExtractorMapper interface {
-	// MapArtifact converts artifact data to a different format and pass it on to the next extractor in the chain
-	MapArtifact(context.Context, *proto.CollectRequest, *types.Artifact) error
-}
-
-type ExtractorSink interface {
-	// ExtractArtifactRows converts artifact data to a set of rows
-	ExtractArtifactRows(context.Context, *proto.CollectRequest, *types.Artifact) error
+type Mapper interface {
+	// Map converts artifact data to a different format and either return it as rows,
+	// or pass it on to the next mapper in the chain
+	Map(context.Context, *proto.CollectRequest, any) ([]any, error)
 }

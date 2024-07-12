@@ -65,48 +65,50 @@ and the source may need to be configured to know how to extract the log rows fro
 
 The artifact row source is split into two parts:
 ##### Artifact source
-Responsible for locating and downloading the artifact from storage. 
+Responsible for locating and downloading the artifact from storage. THe artifact is downloaded to a temp local location. 
 
 Examples: 
 - `artifact.FileSystemSource`
 - `artifact.S3BucketSource`
 - `artifact.CloudwatchSource`
 
+##### Artifact loader
+Responsible for loading the locally downloaded artifact and potentially performing some initial processing on it.
+
+
 ##### Artifact extractor
-Responsible for extracting the log rows from the artifact
+Responsible for performing additional processing on the loaded artifact to extract the log rows. (note - several extractors may be chained together)
 
-An extractor takes input and generates output
 
-Possible inputs:
-- a file path (which may be a local copy of a downloaded file)
-- an (unknown) artifact in the form of a go interface{}
-- a stream of bytes (???
-  
+##### Artifact extraction flow
 
-Possible outputs:
-- a deserialized object (passed in an ArtifactExtracted event)
-- a stream of Row events
-- a stream of bytes (???)
+- The source discovers artifacts and raises an ArtifactDiscovered event, which is handled by the parent ArtifactRowSource.
+- The ArtifactRowSource determines whether the artifact has already been downloaded (TODO - maintain a state file of downloaded artifacts). 
+If not it tells the source to download it.  
+- The source downloads the artifact and raises an ArtifactDownloaded event, which is handled by the parent ArtifactRowSource.
+- The ArtifactRowSource tells the loader to load the artifact, passing an `ArtifactInfo` containing the local file path.
+- The loader loads the artifact and performs and processing it needs to and returns the result
+- If any mappers are configured, they are called in turn, passing the result along
+- The final result is published in a `Row` event.
 
-Perhaps 3 types of extractor
-- extractor source (takes a file location and generates intermediate data (interface{})
-- extractor mapper (takes intermediate data and generates intermediate data )
-- extractor sink (takes intermediate data and generates rows)
-  NOTE: an extractor may could be source AND sink, i.e. a single extraction stage
 
-QUESTIONS
-how do we advertise/check the properties of each extractor
-- and how do we verify that a given extractor chain is valid
+_Note: a mapper is not always necessary - sometimes the output of the loader will be raw rows. 
+An example of this is when FlowLog collection uses the GzipExtractorSource, which simply unzips the artifact, 
+splits it into texting and passes the raw rows to the collection._ 
+
 
 Eg for CloudTrail local file gzipped logs
 
 	Artifact source: FileSystemSource
-	Artifact extractors: GzipExtractorSource, CloudTrailExtractor
+	Artifact loader:  GzipExtractorSource (loader)
+      CloudTrailExtractor (mapper
 
 Eg for CloudTrail s3 bucket gzipped logs
 
 	Artifact source: S3BucketArtifactSource
-	Artifact extractors: GzipExtractorSource, CloudTrailExtractor
+	Artifact extractors: 
+      GzipExtractorSource (loader)
+      CloudTrailExtractor (mapper)
 
 
 Eg for VPC FlowLog local file gzipped logs

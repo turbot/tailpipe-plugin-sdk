@@ -37,3 +37,14 @@ func NewCompleteEvent(executionId string, rowCount int, chunkCount int, err erro
 		},
 	}
 }
+
+func NewErrorEvent(executionId string, err error) *Event {
+	return &Event{
+		Event: &Event_ErrorEvent{
+			ErrorEvent: &EventError{
+				ExecutionId: executionId,
+				Error:       err.Error(),
+			},
+		},
+	}
+}
