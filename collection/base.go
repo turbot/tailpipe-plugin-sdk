@@ -8,6 +8,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/plugin"
+	"log/slog"
+	"sync"
 )
 
 // Base should be embedded in all tailpipe collection implementations
@@ -18,6 +20,7 @@ type Base struct {
 	Source plugin.RowSource
 
 	enricher plugin.RowEnricher
+	rowWg    sync.WaitGroup
 }
 
 func (b *Base) Init(enricher plugin.RowEnricher) {
@@ -32,12 +35,23 @@ func (b *Base) AddSource(source plugin.RowSource) {
 }
 
 func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
+	slog.Info("Start collection")
 	// tell our source to collect - we will calls to EnrichRow for each row
-	return b.Source.Collect(ctx, req)
+	if err := b.Source.Collect(ctx, req); err != nil {
+		return err
+
+	}
+
+	slog.Info("Source collection complete - waiting for enrichment")
+	// wait for all rows to be processed
+	b.rowWg.Wait()
+
+	slog.Info("Enrichment complete")
+	return nil
 }
 
 // Notify implements observable.Observer
-// it handles all events which collections may receive
+// it handles all events which collections may receive (these will all come from the source)
 func (b *Base) Notify(event events.Event) error {
 	switch e := event.(type) {
 	case *events.Row:
@@ -49,8 +63,12 @@ func (b *Base) Notify(event events.Event) error {
 
 // HandleRowEvent is invoked when a Row event is received - enrich the row and publish it
 func (b *Base) HandleRowEvent(req *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
-	// tell enricher to enrich the row
+	// TODO maybe row events should include multiple rows
 
+	b.rowWg.Add(1)
+	defer b.rowWg.Done()
+
+	// tell enricher to enrich the row
 	// todo #validation move to validate
 	if b.enricher == nil {
 		// error!

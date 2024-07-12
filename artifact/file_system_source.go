@@ -28,6 +28,10 @@ func NewFileSystemSource(config *FileSystemSourceConfig) *FileSystemSource {
 	}
 }
 
+func (s FileSystemSource) Identifier() string {
+	return "file_system"
+}
+
 func (s FileSystemSource) DiscoverArtifacts(ctx context.Context, req *proto.CollectRequest) error {
 	// TODO async????
 

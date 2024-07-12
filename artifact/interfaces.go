@@ -9,6 +9,8 @@ import (
 
 type Source interface {
 	observable.Observable
+	Identifier() string
+
 	Close() error
 	DiscoverArtifacts(context.Context, *proto.CollectRequest) error
 	DownloadArtifact(context.Context, *proto.CollectRequest, *types.ArtifactInfo) error
@@ -60,11 +62,13 @@ Eg for CloudTrail s3 bucket gzipped logs
 */
 
 type Loader interface {
+	Identifier() string
 	// Load loads artifact data and pass it on to the next extractor in the chain
 	Load(context.Context, *types.ArtifactInfo) ([]any, error)
 }
 
 type Mapper interface {
+	Identifier() string
 	// Map converts artifact data to a different format and either return it as rows,
 	// or pass it on to the next mapper in the chain
 	Map(context.Context, *proto.CollectRequest, any) ([]any, error)

@@ -53,6 +53,10 @@ func NewAwsS3BucketSource(config *AwsS3BucketSourceConfig) (*AwsS3BucketSource, 
 	return s, nil
 }
 
+func (s *AwsS3BucketSource) Identifier() string {
+	return "aws_s3_bucket"
+}
+
 func (s *AwsS3BucketSource) Close() error {
 	// delete the temp dir and all files
 	return os.RemoveAll(s.TmpDir)
@@ -159,8 +163,6 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, req *proto.Col
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
 	return s.OnArtifactDownloaded(req, downloadInfo)
-
-	return nil
 }
 
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {

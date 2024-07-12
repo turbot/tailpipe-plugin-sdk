@@ -9,16 +9,17 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"log/slog"
+	"sync"
 )
 
 // ArtifactRowSource is a RowSource that uses an
 // artifact.Source to discover artifacts and an artifact.Extractor to extract rows from those artifacts
 type ArtifactRowSource struct {
 	Base
-	Source artifact.Source
-	Loader artifact.Loader
-	Mappers []artifact.Mapper
-
+	Source     artifact.Source
+	Loader     artifact.Loader
+	Mappers    []artifact.Mapper
+	artifactWg sync.WaitGroup
 }
 
 func NewArtifactRowSource(artifactSource artifact.Source, loader artifact.Loader, mappers ...artifact.Mapper) (*ArtifactRowSource, error) {
@@ -30,9 +31,9 @@ func NewArtifactRowSource(artifactSource artifact.Source, loader artifact.Loader
 	}
 
 	res := &ArtifactRowSource{
-		Source:             artifactSource,
-		Loader:             loader,
-		Mappers:            mappers,
+		Source:  artifactSource,
+		Loader:  loader,
+		Mappers: mappers,
 	}
 
 	// add ourselves as observer to res
@@ -57,16 +58,25 @@ func (a *ArtifactRowSource) Notify(event events.Event) error {
 	case *events.ArtifactDiscovered:
 		// TODO check state to see if we need to download this artifact
 		// for now just download
-		go func(){
-			if err := a.Source.DownloadArtifact(context.Background(), e.Request, e.Info); err != nil {
-				// TODO raise error event
+
+		// increment the wait group - this weill be decremented when the artifact is extracted (or there is an error
+		a.artifactWg.Add(1)
+
+		go func() {
+			err := a.Source.DownloadArtifact(context.Background(), e.Request, e.Info)
+			if err != nil {
+				a.artifactWg.Done()
 				a.NotifyObservers(events.NewErrorEvent(e.Request, err))
 			}
 		}()
 	case *events.ArtifactDownloaded:
 		//extract
 		go func() {
-			if err := a.extractArtifact(e); err != nil {
+			// TODO #err make sure errors handles and bubble back
+			err := a.extractArtifact(e)
+			a.artifactWg.Done()
+
+			if err != nil {
 				a.NotifyObservers(events.NewErrorEvent(e.Request, err))
 			}
 		}()
@@ -80,7 +90,12 @@ func (a *ArtifactRowSource) Notify(event events.Event) error {
 // Collect implements plugin.RowSource
 // tell our ArtifactRowSource to start discovering artifacts
 func (a *ArtifactRowSource) Collect(ctx context.Context, req *proto.CollectRequest) error {
-	return a.Source.DiscoverArtifacts(ctx, req)
+	if err := a.Source.DiscoverArtifacts(ctx, req); err != nil {
+		return err
+	}
+	// now wait for all extractions
+	a.artifactWg.Wait()
+	return nil
 }
 
 func (a *ArtifactRowSource) extractArtifact(e *events.ArtifactDownloaded) error {
@@ -88,22 +103,21 @@ func (a *ArtifactRowSource) extractArtifact(e *events.ArtifactDownloaded) error 
 	data, err := a.Loader.Load(context.Background(), e.Info)
 	if err != nil {
 		// TODO raise error event
-		a.NotifyObservers(events.NewErrorEvent(e.Request, err))Implement simplified
+		a.NotifyObservers(events.NewErrorEvent(e.Request, err))
 	}
 
-	slog.Debug("Artifact loader returned", "co8unt", len(data), "artifact", e.Info.Name)
+	slog.Debug("Artifact loader returned", "count", len(data), "artifact", e.Info.Name)
 
 	// now if we have any mappers, call them
 	var errList []error
 	data, errList = a.mapArtifact(e, data)
 
-	if errCount := len(errList);errCount > 0 {
-		return  fmt.Errorf("%d %s extracting artifact: %w",errCount, utils.Pluralize("error", errCount), errors.Join(errList...))
+	if errCount := len(errList); errCount > 0 {
+		return fmt.Errorf("%d %s extracting artifact: %w", errCount, utils.Pluralize("error", errCount), errors.Join(errList...))
 
 	}
 
 	slog.Debug("Artifact mapper returned", "count", len(data), "artifact", e.Info.Name)
-
 
 	// so data now contains our rows
 	// raise row events
@@ -115,16 +129,21 @@ func (a *ArtifactRowSource) extractArtifact(e *events.ArtifactDownloaded) error 
 
 func (a *ArtifactRowSource) mapArtifact(e *events.ArtifactDownloaded, data []any) ([]any, []error) {
 	var errList []error
+	slog.Debug("Mapping artifact", "artifact", e.Info.Name, "data length", len(data), "mapper count", len(a.Mappers))
 	for _, m := range a.Mappers {
 		var mappedData []any
+
+		slog.Debug("Mapping", "mapper", m.Identifier(), "input count", len(data))
 		for _, dataItem := range data {
 			mapped, err := m.Map(context.Background(), e.Request, dataItem)
 			if err != nil {
 				errList = append(errList, err)
 			} else {
-				mappedData = append(mappedData, mapped)
+				mappedData = append(mappedData, mapped...)
 			}
 		}
+
+		slog.Debug("Mapping complete", "mapper", m.Identifier(), "output count", len(data))
 
 		// replace data with mapped data
 		data = mappedData

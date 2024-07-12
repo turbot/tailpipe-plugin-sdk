@@ -8,6 +8,9 @@ import (
 type Row struct {
 	Base
 	Request *proto.CollectRequest
+
+	// TODO maybe pass multiple rows?
+
 	// enrichment values passed from the source to the collection to include in the enrichment process
 	EnrichmentFields *enrichment.CommonFields
 	Row              any

@@ -1,0 +1,23 @@
+title Plugin collection
+
+participant Collection
+participant RowSource
+participant ArtifactSource
+participant ArtifactLoader
+
+Collection->RowSource:Collect
+activate RowSource
+RowSource->ArtifactSource:DiscoverArtifacts
+activate ArtifactSource
+ArtifactSource->RowSource:Notify(ArtifactDiscovered)
+activate RowSource
+RowSource->ArtifactSource:DownloadArtifact
+deactivate RowSource
+activate ArtifactSource
+ArtifactSource->RowSource:Notify(ArtifactDownloaded)
+
+RowSource->ArtifactLoader:Load
+
+
+deactivate ArtifactSource
+deactivate RowSource
