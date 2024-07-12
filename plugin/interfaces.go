@@ -40,7 +40,7 @@ type RowEnricher interface {
 // A plugin may support multiple collections
 type Collection interface {
 	// Observable must be implemented by collections (it is implemented by collection.Base)
-	Observable
+	observable.Observable
 	// RowEnricher must be implemented by collections
 	RowEnricher
 
@@ -64,17 +64,33 @@ type Collection interface {
 // - File Source
 // - Webhook source
 // Sources may be configured with data transfo
-type Source interface {
-	// Observable must be implemented by collections (it is implemented by collection.Base)
-	Observable
+type RowSource interface {
+	// Observable must be implemented by row sources (it is implemented by row_source.Base)
+	observable.Observable
+
 	// Identifier must return the source name
-	Identifier() string
+	// TODO do we really need this or is it more necessary fr the artifactSource and extractors
+	//Identifier() string
+
+	Close() error
+
 	// Collect is called to start collecting data,
 	// it accepts a RowEnricher that will be called for each raw row of data
-	// Collect will send raw rows which will need enriching by the collection
 	Collect(context.Context, *proto.CollectRequest) error
 }
 
-type Observable interface {
-	AddObserver(observable.Observer) error
+/*
+
+type Plugin interface {
+	Identifier() string
+	Init(context.Context) error
+	Context() context.Context
+	AddObserver(SourceObserver)
+	RemoveObserver(SourceObserver)
+	LoadConfig(raw []byte) error
+	ValidateConfig() error
+	DiscoverArtifacts(context.Context) error
+	DownloadArtifact(context.Context, *ArtifactInfo) error
 }
+
+*/

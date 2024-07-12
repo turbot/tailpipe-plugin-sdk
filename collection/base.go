@@ -15,7 +15,7 @@ type Base struct {
 	observable.Base
 
 	// the row Source
-	Source plugin.Source
+	Source plugin.RowSource
 
 	enricher plugin.RowEnricher
 }
@@ -24,7 +24,7 @@ func (b *Base) Init(enricher plugin.RowEnricher) {
 	b.enricher = enricher
 }
 
-func (b *Base) AddSource(source plugin.Source) {
+func (b *Base) AddSource(source plugin.RowSource) {
 	b.Source = source
 
 	// add ourselves as an observer to our Source

@@ -1,4 +1,4 @@
-package source
+package row_source
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
@@ -7,12 +7,15 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 )
 
-// Base should be embedded in all tailpipe collection implementations
 type Base struct {
 	observable.Base
 }
 
+func (a *Base) Close() error {
+	return nil
+}
+
 // OnRow is called by the source when it has a row to send
-func (p *Base) OnRow(req *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
-	return p.NotifyObservers(events.NewRowEvent(req, row, sourceEnrichmentFields))
+func (a *Base) OnRow(req *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
+	return a.NotifyObservers(events.NewRowEvent(req, row, sourceEnrichmentFields))
 }

@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -32,7 +33,10 @@ func NewObserverWrapper(protoObserver proto.TailpipePlugin_AddObserverServer) Ob
 
 // Notify implements the Observer interface but sends to a proto stream
 func (o ObserverWrapper) Notify(e events.Event) error {
-	return o.protoObserver.Send(e.ToProto())
+	if p, ok := e.(events.ProtoEvent); ok {
+		return o.protoObserver.Send(p.ToProto())
+	}
+	return fmt.Errorf("event %v does not implement ProtoEvent", e)
 }
 
 func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer) error {

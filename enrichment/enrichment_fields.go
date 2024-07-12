@@ -3,7 +3,6 @@ package enrichment
 import "github.com/turbot/tailpipe-plugin-sdk/helpers"
 
 // CommonFields represents the common fields with JSON tags
-// NOTE: DO NOT use omitEmpty tags in this struct - otherwise the parquet conversion fails as the schema is not complete
 type CommonFields struct {
 	TpID              string             `json:"tp_id"`
 	TpSourceType      string             `json:"tp_source_type"`
@@ -24,10 +23,10 @@ type CommonFields struct {
 	TpDay        int32  `json:"tp_day"`
 
 	// Searchable
-	TpAkas      []string `json:"tp_akas"`
-	TpIps       []string `json:"tp_ips"`
-	TpTags      []string `json:"tp_tags"`
-	TpDomains   []string `json:"tp_domains"`
-	TpEmails    []string `json:"tp_emails"`
-	TpUsernames []string `json:"tp_usernames"`
+	TpAkas      []string `json:"tp_akas,omitempty"`
+	TpIps       []string `json:"tp_ips,omitempty"`
+	TpTags      []string `json:"tp_tags,omitempty"`
+	TpDomains   []string `json:"tp_domains,omitempty"`
+	TpEmails    []string `json:"tp_emails,omitempty"`
+	TpUsernames []string `json:"tp_usernames,omitempty"`
 }
