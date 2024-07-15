@@ -54,7 +54,7 @@ func setupPprof() {
 			slog.Error("Error starting pprof", "error", err)
 			return
 		}
-		slog.Info("Check http://localhost:%d/debug/pprof/", listener.Addr().(*net.TCPAddr).Port)
+		slog.Info(fmt.Sprintf("Check http://localhost:%d/debug/pprof/", listener.Addr().(*net.TCPAddr).Port))
 		err = http.Serve(listener, nil)
 		if err != nil {
 			slog.Error("Error starting pprof", "error", err)

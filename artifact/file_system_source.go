@@ -28,11 +28,11 @@ func NewFileSystemSource(config *FileSystemSourceConfig) *FileSystemSource {
 	}
 }
 
-func (s FileSystemSource) Identifier() string {
+func (s *FileSystemSource) Identifier() string {
 	return "file_system"
 }
 
-func (s FileSystemSource) DiscoverArtifacts(ctx context.Context, req *proto.CollectRequest) error {
+func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context, req *proto.CollectRequest) error {
 	// TODO async????
 
 	var errList []error
@@ -70,7 +70,7 @@ func (s FileSystemSource) DiscoverArtifacts(ctx context.Context, req *proto.Coll
 	return nil
 }
 
-func (s FileSystemSource) DownloadArtifact(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
+func (s *FileSystemSource) DownloadArtifact(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
 
 	// TODO consider large/remote files/download progress
 	//s.NotifyObservers(events.NewArtifactDownloadProgress(request, info))

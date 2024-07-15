@@ -1,0 +1,66 @@
+title Plugin collection
+
+
+participant CLI
+participant Collector
+participant PluginManager
+participant Plugin
+participant Collection
+participant RowSource
+
+
+
+[->CLI:Collect
+activate CLI
+CLI->Collector:Collect
+activate Collector
+Collector->PluginManager:Collect
+activate PluginManager
+
+ArtifactSource->RowSource:Notify(ArtifactDiscovered)
+activate RowSource
+RowSource->RowSource:artifactWg.Add(1)
+RowSource->ArtifactSource:DownloadArtifact
+deactivate RowSource
+activate ArtifactSource
+ArtifactSource->RowSource:Notify(ArtifactDownloaded)
+deactivate ArtifactSource
+activate RowSource
+RowSource->ArtifactLoader:Load
+activate ArtifactLoader
+ArtifactLoader-->>RowSource:Data
+deactivate ArtifactLoader
+RowSource->ArtifactMapper:Map
+activate ArtifactMapper
+ArtifactMapper-->>RowSource:Data
+deactivate ArtifactMapper
+RowSource->RowSource:artifactWg.Done()
+RowSource->Collection:Notify(Row)
+deactivate RowSource
+
+
+ArtifactSource->RowSource:Notify(ArtifactDiscovered)
+activate RowSource
+RowSource->RowSource:artifactWg.Add(1)
+RowSource->ArtifactSource:DownloadArtifact
+deactivate RowSource
+activate ArtifactSource
+ArtifactSource->RowSource:Notify(ArtifactDownloaded)
+deactivate ArtifactSource
+activate RowSource
+RowSource->ArtifactLoader:Load
+activate ArtifactLoader
+ArtifactLoader-->>RowSource:Data
+deactivate ArtifactLoader
+RowSource->ArtifactMapper:Map
+activate ArtifactMapper
+ArtifactMapper-->>RowSource:Data
+deactivate ArtifactMapper
+RowSource->RowSource:artifactWg.Done()
+RowSource->Collection:Notify(Row)
+deactivate RowSource
+
+RowSource->RowSource:artifactWg.Wait()
+
+deactivate ArtifactSource
+deactivate RowSource

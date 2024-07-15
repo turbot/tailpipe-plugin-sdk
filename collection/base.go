@@ -27,11 +27,11 @@ func (b *Base) Init(enricher plugin.RowEnricher) {
 	b.enricher = enricher
 }
 
-func (b *Base) AddSource(source plugin.RowSource) {
+func (b *Base) AddSource(source plugin.RowSource) error {
 	b.Source = source
 
 	// add ourselves as an observer to our Source
-	b.Source.AddObserver(b)
+	return b.Source.AddObserver(b)
 }
 
 func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {

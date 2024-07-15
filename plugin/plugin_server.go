@@ -9,6 +9,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/logging"
+	"log/slog"
 	"os"
 )
 
@@ -45,10 +46,12 @@ func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer)
 	if err != nil {
 		return err
 	}
-	// hold stream open
+
 	// TODO do we need a remove observer function, in which case this could wait on a waitgroup associated with the observer?
-	select {}
-	return nil
+	// hold stream open
+	<-stream.Context().Done()
+
+	return stream.Context().Err()
 }
 
 func (s PluginServer) Collect(req *proto.CollectRequest) error {
@@ -92,7 +95,12 @@ func (s PluginServer) Serve() error {
 		return err
 	}
 	// shutdown the plugin when done
-	defer s.impl.Shutdown(ctx)
+	defer func() {
+		if err := s.impl.Shutdown(ctx); err != nil {
+			// TODO #err what to do with this error?
+			slog.Error("failed to shutdown plugin", "error", err)
+		}
+	}()
 
 	if _, found := os.LookupEnv("TAILPIPE_PPROF"); found {
 		setupPprof()

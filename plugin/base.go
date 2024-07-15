@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -53,98 +52,9 @@ func (b *Base) Shutdown(context.Context) error {
 	return nil
 }
 
-// Notify implements observable.Observer
-func (b *Base) Notify(event events.Event) error {
-	switch e := event.(type) {
-	case *events.Row:
-		return b.OnRow(e.Row, e.Request)
-	case *events.Started:
-		return b.OnStarted(e.Request)
-	case *events.Chunk:
-		return b.OnChunk(e.Request, e.ChunkNumber)
-	case *events.Completed:
-		return b.OnComplete(e.Request, e.Err)
-	default:
-		return fmt.Errorf("unknown event type: %T", e)
-	}
-}
-
 // GetSchema implements TailpipePlugin
 func (b *Base) GetSchema() schema.SchemaMap {
 	return b.schemaMap
-}
-
-// OnRow is called by the plugin for every row which it produces
-// the row is buffered and written to a JSONL file when the buffer is full
-func (b *Base) OnRow(row any, req *proto.CollectRequest) error {
-	if b.rowBufferMap == nil {
-		// this musty mean the plugin has overridden the Init function and not called the base
-		return errors.New("Base.Init must be called from the plugin Init function")
-	}
-
-	// add row to row buffer
-	b.rowBufferLock.Lock()
-
-	rowCount := b.rowCountMap[req.ExecutionId]
-	if row != nil {
-		b.rowBufferMap[req.ExecutionId] = append(b.rowBufferMap[req.ExecutionId], row)
-		rowCount++
-		b.rowCountMap[req.ExecutionId] = rowCount
-	}
-
-	var rowsToWrite []any
-	if row == nil || len(b.rowBufferMap[req.ExecutionId]) == JSONLChunkSize {
-		rowsToWrite = b.rowBufferMap[req.ExecutionId]
-		b.rowBufferMap[req.ExecutionId] = nil
-	}
-	b.rowBufferLock.Unlock()
-
-	if numRows := len(rowsToWrite); numRows > 0 {
-		// determine chunk number from rowCountMap
-		chunkNumber := int(rowCount / JSONLChunkSize)
-		// check for final partial chunk
-		if rowCount%JSONLChunkSize > 0 {
-			chunkNumber++
-		}
-		slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
-
-		// convert row to a JSONL file
-		err := b.writeJSONL(rowsToWrite, req, chunkNumber)
-		if err != nil {
-			slog.Error("failed to write JSONL file", "error", err)
-			return fmt.Errorf("failed to write JSONL file: %w", err)
-		}
-
-		b.OnChunk(req, chunkNumber)
-	}
-	return nil
-}
-
-// OnStarted is called by the plugin when it starts processing a collection request
-// any observers are notified
-func (b *Base) OnStarted(req *proto.CollectRequest) error {
-	// construct proto event
-	return b.NotifyObservers(events.NewStartedEvent(req))
-}
-
-// OnChunk is called by the plugin when it has written a chunk of enriched rows to a [JSONL/CSV] file
-func (b *Base) OnChunk(req *proto.CollectRequest, chunkNumber int) error {
-	// construct proto event
-	return b.NotifyObservers(events.NewChunkEvent(req, chunkNumber))
-}
-
-// OnComplete is called by the plugin when it has finished processing a collection request
-// remaining rows are written and any observers are notified
-func (b *Base) OnComplete(req *proto.CollectRequest, err error) error {
-	if err == nil {
-		// write any  remaining rows (call OnRow with a nil row)
-		// NOTE: this returns the row count
-		err = b.OnRow(nil, req)
-	}
-
-	rowCount, chunksWritten := b.getRowCount(req)
-
-	return b.NotifyObservers(events.NewCompletedEvent(req, rowCount, chunksWritten, err))
 }
 
 func (b *Base) getRowCount(req *proto.CollectRequest) (int, int) {

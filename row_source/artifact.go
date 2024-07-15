@@ -37,7 +37,10 @@ func NewArtifactRowSource(artifactSource artifact.Source, loader artifact.Loader
 	}
 
 	// add ourselves as observer to res
-	artifactSource.AddObserver(res)
+	err := artifactSource.AddObserver(res)
+	if err != nil {
+		return nil, err
+	}
 
 	return res, nil
 }
@@ -66,7 +69,10 @@ func (a *ArtifactRowSource) Notify(event events.Event) error {
 			err := a.Source.DownloadArtifact(context.Background(), e.Request, e.Info)
 			if err != nil {
 				a.artifactWg.Done()
-				a.NotifyObservers(events.NewErrorEvent(e.Request, err))
+				err := a.NotifyObservers(events.NewErrorEvent(e.Request, err))
+				if err != nil {
+					slog.Error("Error notifying observers of download error", "download error", err, "notify error", err)
+				}
 			}
 		}()
 	case *events.ArtifactDownloaded:
@@ -74,10 +80,13 @@ func (a *ArtifactRowSource) Notify(event events.Event) error {
 		go func() {
 			// TODO #err make sure errors handles and bubble back
 			err := a.extractArtifact(e)
+			// close wait group whether there is an error or not
 			a.artifactWg.Done()
-
 			if err != nil {
-				a.NotifyObservers(events.NewErrorEvent(e.Request, err))
+				err := a.NotifyObservers(events.NewErrorEvent(e.Request, err))
+				if err != nil {
+					slog.Error("Error notifying observers of extract error", "extract error", err, "notify error", err)
+				}
 			}
 		}()
 	default:
@@ -102,8 +111,7 @@ func (a *ArtifactRowSource) extractArtifact(e *events.ArtifactDownloaded) error 
 	// load artifact data
 	data, err := a.Loader.Load(context.Background(), e.Info)
 	if err != nil {
-		// TODO raise error event
-		a.NotifyObservers(events.NewErrorEvent(e.Request, err))
+		return fmt.Errorf("error extracting artifact: %w", err)
 	}
 
 	slog.Debug("Artifact loader returned", "count", len(data), "artifact", e.Info.Name)
@@ -121,8 +129,14 @@ func (a *ArtifactRowSource) extractArtifact(e *events.ArtifactDownloaded) error 
 
 	// so data now contains our rows
 	// raise row events
+	var notifyErrors []error
 	for _, row := range data {
-		a.NotifyObservers(events.NewRowEvent(e.Request, row, e.Info.EnrichmentFields))
+		if err := a.NotifyObservers(events.NewRowEvent(e.Request, row, e.Info.EnrichmentFields)); err != nil {
+			notifyErrors = append(notifyErrors, err)
+		}
+	}
+	if len(notifyErrors) > 0 {
+		return fmt.Errorf("error notifying %d %s of row event: %w", len(notifyErrors), utils.Pluralize("observer", len(notifyErrors)), errors.Join(notifyErrors...))
 	}
 	return nil
 }
