@@ -55,14 +55,17 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 func (b *Base) Notify(event events.Event) error {
 	switch e := event.(type) {
 	case *events.Row:
-		return b.HandleRowEvent(e.Request, e.Row, e.EnrichmentFields)
+		return b.handleRowEvent(e.Request, e.Row, e.EnrichmentFields)
+		// error
+	case *events.Error:
+		return b.handeErrorEvent(e)
 	default:
 		return fmt.Errorf("collection does not handle event type: %T", e)
 	}
 }
 
-// HandleRowEvent is invoked when a Row event is received - enrich the row and publish it
-func (b *Base) HandleRowEvent(req *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
+// handleRowEvent is invoked when a Row event is received - enrich the row and publish it
+func (b *Base) handleRowEvent(req *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
 	// TODO maybe row events should include multiple rows
 
 	b.rowWg.Add(1)
@@ -81,4 +84,10 @@ func (b *Base) HandleRowEvent(req *proto.CollectRequest, row any, sourceEnrichme
 
 	// row is already enriched - no need to pass enrichment fields
 	return b.NotifyObservers(events.NewRowEvent(req, enrichedRow, nil))
+}
+
+func (b *Base) handeErrorEvent(e *events.Error) error {
+	// todo #err how to bubble up error
+	slog.Error("Collection Base: error event received", "error", e.Err)
+	return nil
 }

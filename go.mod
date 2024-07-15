@@ -7,6 +7,7 @@ toolchain go1.22.3
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.26
+	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.37.3
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.58.2
 	github.com/hashicorp/go-hclog v1.6.2
 	github.com/hashicorp/go-plugin v1.6.1

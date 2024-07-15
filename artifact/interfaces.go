@@ -13,6 +13,7 @@ type Source interface {
 
 	Close() error
 	DiscoverArtifacts(context.Context, *proto.CollectRequest) error
+	// TODO add opts for controlling download - e.g. start/end time, etc
 	DownloadArtifact(context.Context, *proto.CollectRequest, *types.ArtifactInfo) error
 }
 

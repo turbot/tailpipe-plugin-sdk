@@ -22,7 +22,6 @@ message CollectRequest {
   repeated string paths = 4;
 
   // todo add collection config
-
 }
 
 message Empty {}

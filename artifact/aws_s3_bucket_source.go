@@ -34,10 +34,7 @@ type AwsS3BucketSource struct {
 	Config     *AwsS3BucketSourceConfig
 	Extensions types.ExtensionLookup
 	TmpDir     string
-
-	//ctx            context.Context
-	//observers      []source.SourceObserver
-	//observersMutex sync.RWMutex
+	client     *s3.Client
 }
 
 func NewAwsS3BucketSource(config *AwsS3BucketSourceConfig) (*AwsS3BucketSource, error) {
@@ -50,6 +47,14 @@ func NewAwsS3BucketSource(config *AwsS3BucketSourceConfig) (*AwsS3BucketSource, 
 	if err := s.ValidateConfig(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
 	}
+
+	// initialize client
+	client, err := s.getClient(context.Background())
+	if err != nil {
+		return nil, err
+	}
+	s.client = client
+
 	return s, nil
 }
 
@@ -85,19 +90,12 @@ func (s *AwsS3BucketSource) ValidateConfig() error {
 
 func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context, req *proto.CollectRequest) error {
 
-	s3Client, err := s.getClient(ctx)
-	if err != nil {
-		return err
-	}
-
-	paginator := s3.NewListObjectsV2Paginator(s3Client, &s3.ListObjectsV2Input{
+	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
 		Bucket: &s.Config.Bucket,
 		Prefix: &s.Config.Prefix,
 	})
 
 	for paginator.HasMorePages() {
-		// TODO send event???
-
 		output, err := paginator.NextPage(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to get page of S3 objects, %w", err)
@@ -114,7 +112,10 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context, req *proto.Co
 
 				info := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
 				// notify observers of the discovered artifact
-				return s.OnArtifactDiscovered(req, info)
+				if err := s.OnArtifactDiscovered(req, info); err != nil {
+					// TODO #err should we continue or fail?
+					return fmt.Errorf("failed to notify observers of discovered artifact, %w", err)
+				}
 			}
 		}
 	}
@@ -123,13 +124,8 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context, req *proto.Co
 }
 
 func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
-	s3Client, err := s.getClient(ctx)
-	if err != nil {
-		return err
-	}
-
 	// Get the object from S3
-	getObjectOutput, err := s3Client.GetObject(ctx, &s3.GetObjectInput{
+	getObjectOutput, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: &s.Config.Bucket,
 		Key:    &info.Name,
 	})
@@ -138,7 +134,6 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, req *proto.Col
 	}
 	defer getObjectOutput.Body.Close()
 
-	// TODO IS THIS OK/CORRECT
 	// copy the object data to a temp file
 	localFilePath := path.Join(s.TmpDir, info.Name)
 	// ensure the directory exists of the file to write to
@@ -168,10 +163,11 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, req *proto.Col
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {
 	var opts []func(*config.LoadOptions) error
 	// add credentials if provided
+	// TODO handle all credential types
 	if s.Config.AccessKey != "" && s.Config.SecretKey != "" {
 		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.Config.AccessKey, s.Config.SecretKey, s.Config.SessionToken)))
 	}
-	// TODO do we need to specify a region>?
+	// TODO do we need to specify a region?
 	// add with region
 	opts = append(opts, config.WithRegion("us-east-1"))
 
@@ -180,6 +176,6 @@ func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {
 		return nil, fmt.Errorf("unable to load SDK config, %w", err)
 	}
 
-	s3Client := s3.NewFromConfig(cfg)
-	return s3Client, nil
+	client := s3.NewFromConfig(cfg)
+	return client, nil
 }
