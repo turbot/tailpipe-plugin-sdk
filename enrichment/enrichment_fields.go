@@ -30,3 +30,31 @@ type CommonFields struct {
 	TpEmails    []string `json:"tp_emails,omitempty"`
 	TpUsernames []string `json:"tp_usernames,omitempty"`
 }
+
+func (c *CommonFields) Clone() *CommonFields {
+	if c == nil {
+		return &CommonFields{}
+	}
+
+	return &CommonFields{
+		TpID:              c.TpID,
+		TpSourceType:      c.TpSourceType,
+		TpSourceName:      c.TpSourceName,
+		TpSourceLocation:  c.TpSourceLocation,
+		TpIngestTimestamp: c.TpIngestTimestamp,
+		TpTimestamp:       c.TpTimestamp,
+		TpSourceIP:        c.TpSourceIP,
+		TpDestinationIP:   c.TpDestinationIP,
+		TpCollection:      c.TpCollection,
+		TpConnection:      c.TpConnection,
+		TpYear:            c.TpYear,
+		TpMonth:           c.TpMonth,
+		TpDay:             c.TpDay,
+		TpAkas:            append([]string(nil), c.TpAkas...),
+		TpIps:             append([]string(nil), c.TpIps...),
+		TpTags:            append([]string(nil), c.TpTags...),
+		TpDomains:         append([]string(nil), c.TpDomains...),
+		TpEmails:          append([]string(nil), c.TpEmails...),
+		TpUsernames:       append([]string(nil), c.TpUsernames...),
+	}
+}

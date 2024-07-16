@@ -22,25 +22,32 @@ func (g FileRowLoader) Identifier() string {
 
 // Load implements Loader
 // Extracts an object from a  file
-func (g FileRowLoader) Load(ctx context.Context, info *types.ArtifactInfo) ([]any, error) {
+func (g FileRowLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *ArtifactData) error {
 	inputPath := info.Name
 	f, err := os.Open(inputPath)
 	if err != nil {
-		return nil, fmt.Errorf("error opening %s: %w", inputPath, err)
+		return fmt.Errorf("error opening %s: %w", inputPath, err)
 	}
-	defer f.Close()
 
 	scanner := bufio.NewScanner(f)
 
-	var res []any
-	for scanner.Scan() {
-		// check context cancellation
-		if ctx.Err() != nil {
-			return nil, ctx.Err()
+	go func() {
+		defer func() {
+			f.Close()
+			close(dataChan)
+		}()
+
+		for scanner.Scan() {
+			// check context cancellation
+			if ctx.Err() != nil {
+				break
+			}
+			// get the line of text and send
+			dataChan <- &ArtifactData{
+				Data: scanner.Text(),
+			}
 		}
-		// todo stream data / convert to iterator
-		// get the line of text and append to the result
-		res = append(res, scanner.Text())
-	}
-	return res, nil
+
+	}()
+	return nil
 }

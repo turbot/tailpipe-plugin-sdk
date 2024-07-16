@@ -55,7 +55,7 @@ func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context, req *proto.Col
 
 				info := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
 				// notify observers of the discovered artifact
-				return s.OnArtifactDiscovered(req, info)
+				return s.OnArtifactDiscovered(ctx, req, info)
 			}
 			return nil
 		})
@@ -78,5 +78,5 @@ func (s *FileSystemSource) DownloadArtifact(ctx context.Context, req *proto.Coll
 	// notify observers of the discovered artifact
 	// NOTE: for now just pass on the info as is
 	// if the file was downloaded we would update the Name to the local path, leaving OriginalName as the source path
-	return s.OnArtifactDownloaded(req, info)
+	return s.OnArtifactDownloaded(ctx, req, info)
 }

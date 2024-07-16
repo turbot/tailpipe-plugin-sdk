@@ -1,6 +1,7 @@
 package artifact
 
 import (
+	"context"
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
@@ -16,8 +17,14 @@ func (s *SourceBase) Close() error {
 	return nil
 }
 
-func (s *SourceBase) OnArtifactDiscovered(req *proto.CollectRequest, info *types.ArtifactInfo) error {
-	err := s.NotifyObservers(events.NewArtifactDiscoveredEvent(req, info))
+// Mapper implenments the Source interface
+// by default no source specific mapper is required
+func (a *SourceBase) Mapper() func() Mapper {
+	return nil
+}
+
+func (s *SourceBase) OnArtifactDiscovered(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
+	err := s.NotifyObservers(ctx, events.NewArtifactDiscoveredEvent(req, info))
 
 	if err != nil {
 		return fmt.Errorf("error notifying observers of discovered artifact: %w", err)
@@ -25,8 +32,8 @@ func (s *SourceBase) OnArtifactDiscovered(req *proto.CollectRequest, info *types
 	return nil
 }
 
-func (s *SourceBase) OnArtifactDownloaded(req *proto.CollectRequest, info *types.ArtifactInfo) error {
-	err := s.NotifyObservers(events.NewArtifactDownloadedEvent(req, info))
+func (s *SourceBase) OnArtifactDownloaded(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
+	err := s.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(req, info))
 
 	if err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)

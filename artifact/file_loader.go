@@ -22,17 +22,25 @@ func (g FileLoader) Identifier() string {
 
 // Load implements Loader
 // Extracts an object from a  file
-func (g FileLoader) Load(_ context.Context, info *types.ArtifactInfo) ([]any, error) {
+func (g FileLoader) Load(_ context.Context, info *types.ArtifactInfo, dataChan chan *ArtifactData) error {
 	inputPath := info.Name
 	f, err := os.Open(inputPath)
 	if err != nil {
-		return nil, fmt.Errorf("error opening %s: %w", inputPath, err)
+		return fmt.Errorf("error opening %s: %w", inputPath, err)
 	}
 	defer f.Close()
 
 	fileData, err := io.ReadAll(f)
 	if err != nil {
-		return nil, fmt.Errorf("error reading %s: %w", info.Name, err)
+		return fmt.Errorf("error reading %s: %w", info.Name, err)
 	}
-	return []any{fileData}, nil
+
+	go func() {
+		dataChan <- &ArtifactData{
+			Data: fileData,
+		}
+		close(dataChan)
+	}()
+
+	return nil
 }

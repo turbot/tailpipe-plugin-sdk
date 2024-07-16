@@ -52,10 +52,10 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 
 // Notify implements observable.Observer
 // it handles all events which collections may receive (these will all come from the source)
-func (b *Base) Notify(event events.Event) error {
+func (b *Base) Notify(ctx context.Context, event events.Event) error {
 	switch e := event.(type) {
 	case *events.Row:
-		return b.handleRowEvent(e.Request, e.Row, e.EnrichmentFields)
+		return b.handleRowEvent(ctx, e.Request, e.Row, e.EnrichmentFields)
 		// error
 	case *events.Error:
 		return b.handeErrorEvent(e)
@@ -65,7 +65,7 @@ func (b *Base) Notify(event events.Event) error {
 }
 
 // handleRowEvent is invoked when a Row event is received - enrich the row and publish it
-func (b *Base) handleRowEvent(req *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
+func (b *Base) handleRowEvent(ctx context.Context, req *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
 	// TODO maybe row events should include multiple rows
 
 	b.rowWg.Add(1)
@@ -83,7 +83,7 @@ func (b *Base) handleRowEvent(req *proto.CollectRequest, row any, sourceEnrichme
 	}
 
 	// row is already enriched - no need to pass enrichment fields
-	return b.NotifyObservers(events.NewRowEvent(req, enrichedRow, nil))
+	return b.NotifyObservers(ctx, events.NewRowEvent(req, enrichedRow, nil))
 }
 
 func (b *Base) handeErrorEvent(e *events.Error) error {

@@ -10,9 +10,15 @@ import (
 type Source interface {
 	observable.Observable
 	Identifier() string
-
 	Close() error
+
+	// Mapper returns the mapper that should be used to extract data from the artifact
+	// this should be provided in the case of sources which require specific mapping./extraction, e.g. Cloudwatch
+	// artifact.Base provides an empty implementation
+	Mapper() func() Mapper
+
 	DiscoverArtifacts(context.Context, *proto.CollectRequest) error
+
 	// TODO add opts for controlling download - e.g. start/end time, etc
 	DownloadArtifact(context.Context, *proto.CollectRequest, *types.ArtifactInfo) error
 }
@@ -65,12 +71,12 @@ Eg for CloudTrail s3 bucket gzipped logs
 type Loader interface {
 	Identifier() string
 	// Load loads artifact data and pass it on to the next extractor in the chain
-	Load(context.Context, *types.ArtifactInfo) ([]any, error)
+	Load(context.Context, *types.ArtifactInfo, chan *ArtifactData) error
 }
 
 type Mapper interface {
 	Identifier() string
 	// Map converts artifact data to a different format and either return it as rows,
 	// or pass it on to the next mapper in the chain
-	Map(context.Context, *proto.CollectRequest, any) ([]any, error)
+	Map(context.Context, *proto.CollectRequest, *ArtifactData) ([]*ArtifactData, error)
 }

@@ -3,24 +3,21 @@ package artifact
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/aws/ratelimit"
-	typehelpers "github.com/turbot/go-kit/types"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"log/slog"
-	"os"
-	"path"
-	"path/filepath"
-	"strings"
-	"time"
-
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	cloudwatch_types "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	"github.com/sethvargo/go-retry"
+	typehelpers "github.com/turbot/go-kit/types"
+	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"os"
+	"path"
+	"path/filepath"
+	"time"
 )
 
 type AwsCloudWatchSourceConfig struct {
@@ -30,7 +27,9 @@ type AwsCloudWatchSourceConfig struct {
 
 	// the log group to collect
 	// assume a source will be used to fetch a single log group?
-	LogGroupName string
+	LogGroupName   string
+	LogGroupPrefix *string
+
 	// the log stream(s) to collect
 	// or should this be based on what discover artifacts returns
 	//LogStreams []string
@@ -39,16 +38,20 @@ type AwsCloudWatchSourceConfig struct {
 type AwsCloudWatchSource struct {
 	SourceBase
 
-	Config *AwsCloudWatchSourceConfig
-	TmpDir string
-	client *cloudwatchlogs.Client
+	Config  *AwsCloudWatchSourceConfig
+	TmpDir  string
+	client  *cloudwatchlogs.Client
+	limiter *rate_limiter.APILimiter
 }
 
 func NewAwsCloudWatchSource(config *AwsCloudWatchSourceConfig) (*AwsCloudWatchSource, error) {
 	s := &AwsCloudWatchSource{
 		Config: config,
 	}
-	s.TmpDir = path.Join(os.TempDir(), "tailpipe", "cloudwatch")
+	// TODO configure the temp dir location
+	// TODO ensure it is cleaned up
+	p, _ := filepath.Abs(path.Join("." /*os.TempDir()*/, "tailpipe", "cloudwatch"))
+	s.TmpDir = p
 
 	if err := s.ValidateConfig(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
@@ -61,11 +64,24 @@ func NewAwsCloudWatchSource(config *AwsCloudWatchSourceConfig) (*AwsCloudWatchSo
 	}
 	s.client = client
 
+	// TODO NEEDED?
+	s.limiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
+		Name:       "cloudwatch_limiter",
+		FillRate:   5,
+		BucketSize: 5,
+	})
+
 	return s, nil
 }
 
 func (s *AwsCloudWatchSource) Identifier() string {
-	return "aws_cloudwatch"
+	return AWSCloudwatchLoaderIdentifier
+}
+
+// Mapper returns a function that creates a new Mapper required by this source
+// CloudwatchMapper knows how to extract the row and metadata fields from the JSON saved by the AwsCloudWatchSource
+func (s *AwsCloudWatchSource) Mapper() func() Mapper {
+	return NewCloudwatchMapper
 }
 
 func (s *AwsCloudWatchSource) Close() error {
@@ -78,11 +94,12 @@ func (s *AwsCloudWatchSource) ValidateConfig() error {
 }
 
 func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context, req *proto.CollectRequest) error {
-	slog.Debug("AwsCloudWatchSource ")
-
 	input := &cloudwatchlogs.DescribeLogStreamsInput{
 		LogGroupName: &s.Config.LogGroupName,
+		// this may be nil
+		LogStreamNamePrefix: s.Config.LogGroupPrefix,
 	}
+
 	paginator := cloudwatchlogs.NewDescribeLogStreamsPaginator(s.client, input)
 
 	for paginator.HasMorePages() {
@@ -106,7 +123,7 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context, req *proto.
 
 			info := &types.ArtifactInfo{Name: streamName, EnrichmentFields: sourceEnrichmentFields}
 			// notify observers of the discovered artifact
-			if err := s.OnArtifactDiscovered(req, info); err != nil {
+			if err := s.OnArtifactDiscovered(ctx, req, info); err != nil {
 				// TODO #err - should we return an error here or gather all errors?
 				return fmt.Errorf("failed to notify observers of discovered artifact, %w", err)
 			}
@@ -115,13 +132,14 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context, req *proto.
 	return nil
 }
 
-func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
-
+func (s *AwsCloudWatchSource) DownloadArtifactsWithFilter(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
 	// Define the query string to filter logs from the specified log stream
-	queryString := fmt.Sprintf("fields @timestamp, @message | filter @logStream == '%s' | sort @timestamp desc", info.Name)
-	// TODO hacked to fetch last 24 hours
+	queryString := fmt.Sprintf("fields @timestamp as Timestamp, @message as Message, @ingestionTime as IngestionTime | filter @logStream == '%s' | sort @timestamp desc", info.Name)
+
+	// TODO where do these come from
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	endTime := time.Now().Unix()
+
 	startQueryInput := &cloudwatchlogs.StartQueryInput{
 		LogGroupName: &s.Config.LogGroupName,
 		QueryString:  &queryString,
@@ -153,106 +171,143 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, req *proto.C
 	enc := json.NewEncoder(outFile)
 
 	// Poll for query results
-	for {
-		time.Sleep(5 * time.Second)
+	timeout := 5 * time.Minute
+	err = retry.Do(context.Background(), retry.WithMaxDuration(timeout, retry.NewConstant(50*time.Millisecond)), func(ctx context.Context) error {
+		// apply rate limiter
+		// TODO necessary - we can just control backoff?
+		if err := s.limiter.Wait(ctx); err != nil {
+			return fmt.Errorf("error acquiring rate limiter: %w", err)
+		}
 
 		getQueryResultsInput := &cloudwatchlogs.GetQueryResultsInput{
 			QueryId: &queryID,
 		}
 
-		getQueryResultsOutput, err := s.client.GetQueryResults(context.TODO(), getQueryResultsInput)
+		getQueryResultsOutput, err := s.client.GetQueryResults(ctx, getQueryResultsInput)
 		if err != nil {
 			return fmt.Errorf("failed to get query results, %w", err)
 		}
 
-		if getQueryResultsOutput.Status == cloudwatch_types.QueryStatusComplete || getQueryResultsOutput.Status == cloudwatch_types.QueryStatusFailed || getQueryResultsOutput.Status == cloudwatch_types.QueryStatusCancelled {
+		isComplete := getQueryResultsOutput.Status == cloudwatch_types.QueryStatusComplete || getQueryResultsOutput.Status == cloudwatch_types.QueryStatusFailed || getQueryResultsOutput.Status == cloudwatch_types.QueryStatusCancelled
+		if !isComplete {
+			return retry.RetryableError(fmt.Errorf("query not complete, %w", err))
+		}
 
-			for _, result := range getQueryResultsOutput.Results {
-				row := make(map[string]string)
-				for _, field := range result {
-					row[*field.Field] = *field.Value
-				}
-				err := enc.Encode(row)
-				if err != nil {
-					return fmt.Errorf("failed to write event to file, %w", err)
-				}
+		for _, result := range getQueryResultsOutput.Results {
+			row := make(map[string]string)
+			for _, field := range result {
+				row[*field.Field] = *field.Value
+			}
+			err := enc.Encode(row)
+			if err != nil {
+				return fmt.Errorf("failed to write event to file, %w", err)
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("failed to get query results, %w", err)
 	}
 
 	// notify observers of the discovered artifact
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
-	return s.OnArtifactDownloaded(req, downloadInfo)
+	return s.OnArtifactDownloaded(ctx, req, downloadInfo)
 }
 
-//func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
-//	// TODO we need a way of specifying start/end times - an option to DownloadArtifact - or propertied on artifact info?
-//	input := &cloudwatchlogs.GetLogEventsInput{
-//		LogGroupName:  &s.Config.LogGroupName,
-//		LogStreamName: &info.Name,
-//		//StartTime:     &startTime,
-//		//EndTime:       &endTime,
-//		//StartFromHead: true,
-//	}
-//
-//	// TODO IS THIS OK/CORRECT
-//	// copy the object data to a temp file
-//	localFilePath := path.Join(s.TmpDir, info.Name)
-//	// ensure the directory exists of the file to write to
-//	if err := os.MkdirAll(filepath.Dir(localFilePath), 0755); err != nil {
-//		return fmt.Errorf("failed to create directory for file, %w", err)
-//	}
-//
-//	// Create a local file to write the data to
-//	outFile, err := os.Create(localFilePath)
-//	if err != nil {
-//		return fmt.Errorf("failed to create file, %w", err)
-//	}
-//	defer outFile.Close()
-//	enc := json.NewEncoder(outFile)
-//
-//
-//	paginator := cloudwatchlogs.NewGetLogEventsPaginator(s.client, input)
-//	for paginator.HasMorePages() {
-//
-//		// retry the paginator to allow for rate limit errors
-//		// TODO should we rate limit these page calls?
-//		retry.Do(context.Background(), retry.NewConstant(5*time.Second), func(ctx context.Context) error {
-//
-//			output, err := paginator.NextPage(ctx)
-//			if err != nil {
-//				// TODO handle rate limiting errors nicer
-//				// is itr a ratelimit.QuotaExceededError?
-//				if IsRateLimitError(err){
-//					return retry.RetryableError(fmt.Errorf("rate limit exceeded, %w", err))
-//				}
-//				return fmt.Errorf("failed to get log events, %w", err)
-//			}
-//
-//			for _, event := range output.Events {
-//				err := enc.Encode(event)
-//				if err != nil {
-//					return fmt.Errorf("failed to write event to file, %w", err)
-//				}
-//			}
-//			return nil
-//		})
-//
-//		// todo hack
-//		time.Sleep(100*time.Millisecond)
-//	}
-//
-//
-//	// notify observers of the discovered artifact
-//	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
-//
-//	return s.OnArtifactDownloaded(req, downloadInfo)
-//}
+func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
+	// TODO confiug should specify wild cards for log streams
+	// TODO we need a way of specifying start/end times - an option to DownloadArtifact - or propertied on artifact info?
 
-func IsRateLimitError(err error) bool {
-	return errors.Is(err, ratelimit.QuotaExceededError{}) ||
-		strings.Contains(err.Error(), "Rate exceeded")
+	startTime := time.Now().Add(-24 * time.Hour).UnixMilli()
+	endTime := time.Now().Add(-1 * time.Hour).UnixMilli()
+
+	input := &cloudwatchlogs.GetLogEventsInput{
+		LogGroupName:  &s.Config.LogGroupName,
+		LogStreamName: &info.Name,
+		StartTime:     &startTime,
+		EndTime:       &endTime,
+	}
+
+	// copy the object data to a temp file
+	localFilePath := path.Join(s.TmpDir, fmt.Sprintf("%s.json", info.Name))
+	// ensure the directory exists of the file to write to
+	if err := os.MkdirAll(filepath.Dir(localFilePath), 0755); err != nil {
+		return fmt.Errorf("failed to create directory for file, %w", err)
+	}
+
+	// Create a local file to write the data to
+	outFile, err := os.Create(localFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create file, %w", err)
+	}
+	defer outFile.Close()
+	enc := json.NewEncoder(outFile)
+
+	paginator := cloudwatchlogs.NewGetLogEventsPaginator(s.client, input)
+	//for paginator.HasMorePages() {
+	//
+	//	// retry the paginator to allow for rate limit errors
+	//	// TODO should we rate limit these page calls?
+	//	retry.Do(context.Background(), retry.NewConstant(500*time.Millisecond), func(ctx context.Context) error {
+	//
+	//		// apply rate limiter
+	//		if err := s.limiter.Wait(ctx); err != nil {
+	//			return fmt.Errorf("error acquiring rate limiter: %w", err)
+	//		}
+	//
+	//		output, err := paginator.NextPage(ctx)
+	//		if err != nil {
+	//			// TODO handle rate limiting errors nicer
+	//			// is itr a ratelimit.QuotaExceededError?
+	//			if IsRateLimitError(err) {
+	//				return retry.RetryableError(fmt.Errorf("rate limit exceeded, %w", err))
+	//			}
+	//			return fmt.Errorf("failed to get log events, %w", err)
+	//		}
+	//
+	//		for _, event := range output.Events {
+	//			err := enc.Encode(event)
+	//			if err != nil {
+	//				return fmt.Errorf("failed to write event to file, %w", err)
+	//			}
+	//		}
+	//		return nil
+	//	})
+	//
+	//}
+
+	var previousToken *string
+	for paginator.HasMorePages() {
+		// retry the paginator to allow for rate limit errors
+		// TODO should we rate limit these page calls?
+
+		// apply rate limiter
+		if err := s.limiter.Wait(ctx); err != nil {
+			return fmt.Errorf("error acquiring rate limiter: %w", err)
+		}
+		output, err := paginator.NextPage(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to get log events, %w", err)
+		}
+
+		for _, event := range output.Events {
+			if err := enc.Encode(event); err != nil {
+				return fmt.Errorf("failed to write event to file, %w", err)
+			}
+		}
+
+		// Break the loop if the NextToken hasn't changed, indicating all data has been fetched
+		if previousToken != nil && output.NextForwardToken != nil && *previousToken == *output.NextForwardToken {
+			break
+		}
+		previousToken = output.NextForwardToken
+	}
+
+	// notify observers of the discovered artifact
+	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
+
+	return s.OnArtifactDownloaded(ctx, req, downloadInfo)
 }
 
 func (s *AwsCloudWatchSource) getClient(ctx context.Context) (*cloudwatchlogs.Client, error) {

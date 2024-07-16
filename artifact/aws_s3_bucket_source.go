@@ -112,7 +112,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context, req *proto.Co
 
 				info := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
 				// notify observers of the discovered artifact
-				if err := s.OnArtifactDiscovered(req, info); err != nil {
+				if err := s.OnArtifactDiscovered(ctx, req, info); err != nil {
 					// TODO #err should we continue or fail?
 					return fmt.Errorf("failed to notify observers of discovered artifact, %w", err)
 				}
@@ -157,7 +157,7 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, req *proto.Col
 	// notify observers of the discovered artifact
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
-	return s.OnArtifactDownloaded(req, downloadInfo)
+	return s.OnArtifactDownloaded(ctx, req, downloadInfo)
 }
 
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {

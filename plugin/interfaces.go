@@ -13,7 +13,7 @@ type TailpipePlugin interface {
 	// GRPC interface functions
 
 	AddObserver(observable.Observer) error
-	Collect(*proto.CollectRequest) error
+	Collect(context.Context, *proto.CollectRequest) error
 
 	// GetSchema returns the parquet schema for all collections
 	GetSchema() schema.SchemaMap

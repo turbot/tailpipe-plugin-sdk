@@ -1,14 +1,14 @@
 package rate_limiter
 
 import (
+	"context"
 	"fmt"
 	"golang.org/x/sync/semaphore"
 	"golang.org/x/time/rate"
-	"log"
 	"strings"
 )
 
-type HydrateLimiter struct {
+type APILimiter struct {
 	Name string
 
 	// underlying rate limiter
@@ -18,10 +18,8 @@ type HydrateLimiter struct {
 	maxConcurrency int64
 }
 
-func newLimiter(l *Definition, scopeValues map[string]string) *HydrateLimiter {
-	log.Printf("[INFO] newLimiter, defintion: %v, scopeValues %v", l, scopeValues)
-
-	res := &HydrateLimiter{
+func NewAPILimiter(l *Definition) *APILimiter {
+	res := &APILimiter{
 		Name:           l.Name,
 		maxConcurrency: l.MaxConcurrency,
 	}
@@ -33,7 +31,8 @@ func newLimiter(l *Definition, scopeValues map[string]string) *HydrateLimiter {
 	}
 	return res
 }
-func (l *HydrateLimiter) String() string {
+
+func (l *APILimiter) String() string {
 	limiterString := ""
 	concurrencyString := ""
 	if l.limiter != nil {
@@ -45,28 +44,34 @@ func (l *HydrateLimiter) String() string {
 	return strings.Join([]string{limiterString, concurrencyString}, " ")
 }
 
-func (l *HydrateLimiter) tryToAcquireSemaphore() bool {
+func (l *APILimiter) acquireSemaphore(ctx context.Context) error {
+	if l.sem == nil {
+		return nil
+	}
+	return l.sem.Acquire(ctx, 1)
+}
+
+func (l *APILimiter) TryToAcquireSemaphore() bool {
 	if l.sem == nil {
 		return true
 	}
 	return l.sem.TryAcquire(1)
 }
 
-func (l *HydrateLimiter) releaseSemaphore() {
+func (l *APILimiter) Wait(ctx context.Context) error {
+	if err := l.acquireSemaphore(ctx); err != nil {
+		return err
+	}
+	if l.limiter != nil {
+		return l.limiter.Wait(ctx)
+	}
+	return nil
+}
+
+func (l *APILimiter) Release() {
 	if l.sem == nil {
 		return
 	}
 	l.sem.Release(1)
 
-}
-
-func (l *HydrateLimiter) reserve() *rate.Reservation {
-	if l.limiter != nil {
-		return l.limiter.Reserve()
-	}
-	return nil
-}
-
-func (l *HydrateLimiter) hasLimiter() bool {
-	return l.limiter != nil
 }

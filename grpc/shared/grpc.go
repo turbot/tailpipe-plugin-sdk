@@ -31,13 +31,13 @@ func (s TailpipePluginServerWrapper) AddObserver(_ *proto.AddObserverRequest, se
 	return s.Impl.AddObserver(server)
 }
 
-func (s TailpipePluginServerWrapper) Collect(_ context.Context, req *proto.CollectRequest) (*proto.Empty, error) {
+func (s TailpipePluginServerWrapper) Collect(ctx context.Context, req *proto.CollectRequest) (*proto.Empty, error) {
 	// validate the request
 	if err := req.Validate(); err != nil {
 		return nil, err
 	}
 
-	return nil, s.Impl.Collect(req)
+	return nil, s.Impl.Collect(ctx, req)
 }
 
 func (s TailpipePluginServerWrapper) GetSchema(_ context.Context, _ *proto.GetSchemaRequest) (*proto.GetSchemaResponse, error) {

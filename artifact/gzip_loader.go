@@ -23,23 +23,30 @@ func (g GzipLoader) Identifier() string {
 
 // Load implements Loader
 // Extracts an object from a gzip file
-func (g GzipLoader) Load(_ context.Context, info *types.ArtifactInfo) ([]any, error) {
+func (g GzipLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *ArtifactData) error {
 	inputPath := info.Name
 	gzFile, err := os.Open(inputPath)
 	if err != nil {
-		return nil, fmt.Errorf("error opening %s: %w", inputPath, err)
+		return fmt.Errorf("error opening %s: %w", inputPath, err)
 	}
 	defer gzFile.Close()
 
 	gzReader, err := gzip.NewReader(gzFile)
 	if err != nil {
-		return nil, fmt.Errorf("error creating gzip reader for %s: %w", inputPath, err)
+		return fmt.Errorf("error creating gzip reader for %s: %w", inputPath, err)
 	}
 	defer gzReader.Close()
 
 	fileData, err := io.ReadAll(gzReader)
 	if err != nil {
-		return nil, fmt.Errorf("error reading %s: %w", info.Name, err)
+		return fmt.Errorf("error reading %s: %w", info.Name, err)
 	}
-	return []any{fileData}, nil
+	go func() {
+		dataChan <- &ArtifactData{
+			Data: fileData,
+		}
+		close(dataChan)
+	}()
+
+	return nil
 }

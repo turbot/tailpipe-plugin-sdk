@@ -33,7 +33,7 @@ func NewObserverWrapper(protoObserver proto.TailpipePlugin_AddObserverServer) Ob
 }
 
 // Notify implements the Observer interface but sends to a proto stream
-func (o ObserverWrapper) Notify(e events.Event) error {
+func (o ObserverWrapper) Notify(c context.Context, e events.Event) error {
 	if p, ok := e.(events.ProtoEvent); ok {
 		return o.protoObserver.Send(p.ToProto())
 	}
@@ -54,8 +54,8 @@ func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer)
 	return stream.Context().Err()
 }
 
-func (s PluginServer) Collect(req *proto.CollectRequest) error {
-	return s.impl.Collect(req)
+func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) error {
+	return s.impl.Collect(ctx, req)
 }
 
 // GetSchema returns the schema for the plugin

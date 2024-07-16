@@ -1,6 +1,7 @@
 package observable
 
 import (
+	"context"
 	"errors"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"log"
@@ -28,12 +29,12 @@ func (p *Base) AddObserver(o Observer) error {
 	return nil
 }
 
-func (p *Base) NotifyObservers(e events.Event) error {
+func (p *Base) NotifyObservers(ctx context.Context, e events.Event) error {
 	p.observerLock.RLock()
 	defer p.observerLock.RUnlock()
 	var notifyErrors []error
 	for _, observer := range p.Observers {
-		err := observer.Notify(e)
+		err := observer.Notify(ctx, e)
 		if err != nil {
 			notifyErrors = append(notifyErrors, err)
 		}

@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -9,10 +10,10 @@ import (
 )
 
 // Notify implements observable.Observer
-func (b *Base) Notify(event events.Event) error {
+func (b *Base) Notify(ctx context.Context, event events.Event) error {
 	switch e := event.(type) {
 	case *events.Row:
-		return b.handleRowEvent(e.Row, e.Request)
+		return b.handleRowEvent(ctx, e.Row, e.Request)
 	default:
 		return fmt.Errorf("unexpected event type: %T", e)
 	}
@@ -20,33 +21,33 @@ func (b *Base) Notify(event events.Event) error {
 
 // OnStarted is called by the plugin when it starts processing a collection request
 // any observers are notified
-func (b *Base) OnStarted(req *proto.CollectRequest) error {
-	return b.NotifyObservers(events.NewStartedEvent(req))
+func (b *Base) OnStarted(ctx context.Context, req *proto.CollectRequest) error {
+	return b.NotifyObservers(ctx, events.NewStartedEvent(req))
 }
 
 // OnChunk is called by the plugin when it has written a chunk of enriched rows to a [JSONL/CSV] file
-func (b *Base) OnChunk(req *proto.CollectRequest, chunkNumber int) error {
+func (b *Base) OnChunk(ctx context.Context, req *proto.CollectRequest, chunkNumber int) error {
 	// construct proto event
-	return b.NotifyObservers(events.NewChunkEvent(req, chunkNumber))
+	return b.NotifyObservers(ctx, events.NewChunkEvent(req, chunkNumber))
 }
 
 // OnCompleted is called by the plugin when it has finished processing a collection request
 // remaining rows are written and any observers are notified
-func (b *Base) OnCompleted(req *proto.CollectRequest, err error) error {
+func (b *Base) OnCompleted(ctx context.Context, req *proto.CollectRequest, err error) error {
 	if err == nil {
 		// write any  remaining rows (call handleRowEvent with a nil row)
 		// NOTE: this returns the row count
-		err = b.handleRowEvent(nil, req)
+		err = b.handleRowEvent(ctx, nil, req)
 	}
 
 	rowCount, chunksWritten := b.getRowCount(req)
 
-	return b.NotifyObservers(events.NewCompletedEvent(req, rowCount, chunksWritten, err))
+	return b.NotifyObservers(ctx, events.NewCompletedEvent(req, rowCount, chunksWritten, err))
 }
 
 // handleRowEvent is called by the plugin for every row which it produces
 // the row is buffered and written to a JSONL file when the buffer is full
-func (b *Base) handleRowEvent(row any, req *proto.CollectRequest) error {
+func (b *Base) handleRowEvent(ctx context.Context, row any, req *proto.CollectRequest) error {
 	if b.rowBufferMap == nil {
 		// this musty mean the plugin has overridden the Init function and not called the base
 		return errors.New("Base.Init must be called from the plugin Init function")
@@ -85,7 +86,7 @@ func (b *Base) handleRowEvent(row any, req *proto.CollectRequest) error {
 			return fmt.Errorf("failed to write JSONL file: %w", err)
 		}
 
-		return b.OnChunk(req, chunkNumber)
+		return b.OnChunk(ctx, req, chunkNumber)
 	}
 	return nil
 }
