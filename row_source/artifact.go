@@ -8,7 +8,9 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
+	"path/filepath"
 	"sync"
 )
 
@@ -16,24 +18,50 @@ import (
 // artifact.Source to discover artifacts and an artifact.Extractor to extract rows from those artifacts
 type ArtifactRowSource struct {
 	Base
+	// do we expect the a row to be a line of data
+	RowPerLine bool
 	Source     artifact.Source
 	Loader     artifact.Loader
 	Mappers    []artifact.Mapper
+
+	// map of loaders created, keyed by identifier
+	// this is populated lazily if we infer the loader from the file type
+	loaders    map[string]artifact.Loader
+	loaderLock sync.RWMutex
+
 	artifactWg sync.WaitGroup
 }
 
-func NewArtifactRowSource(artifactSource artifact.Source, loader artifact.Loader, mappers ...artifact.Mapper) (*ArtifactRowSource, error) {
+type ArtifactRowSourceOptions func(*ArtifactRowSource)
+
+func WithMapper(mappers ...artifact.Mapper) ArtifactRowSourceOptions {
+	return func(a *ArtifactRowSource) {
+		a.Mappers = mappers
+	}
+}
+func WithLoader(loader artifact.Loader) ArtifactRowSourceOptions {
+	return func(a *ArtifactRowSource) {
+		a.Loader = loader
+	}
+}
+func WithRowPerLine() ArtifactRowSourceOptions {
+	return func(a *ArtifactRowSource) {
+		a.RowPerLine = true
+	}
+}
+
+func NewArtifactRowSource(artifactSource artifact.Source, opts ...ArtifactRowSourceOptions) (*ArtifactRowSource, error) {
 	if artifactSource == nil {
 		return nil, fmt.Errorf("artifactSource cannot be nil")
 	}
-	if loader == nil {
-		return nil, fmt.Errorf("loader cannot be nil")
-	}
-
 	res := &ArtifactRowSource{
 		Source:  artifactSource,
-		Loader:  loader,
-		Mappers: mappers,
+		loaders: make(map[string]artifact.Loader),
+	}
+
+	// apply options
+	for _, opt := range opts {
+		opt(res)
 	}
 
 	// add ourselves as observer to res
@@ -109,7 +137,14 @@ func (a *ArtifactRowSource) Collect(ctx context.Context, req *proto.CollectReque
 
 func (a *ArtifactRowSource) extractArtifact(e *events.ArtifactDownloaded) error {
 	// load artifact data
-	data, err := a.Loader.Load(context.Background(), e.Info)
+
+	// resolve the loader - if one has not been specified, create a default for the file tyoe
+	loader, err := a.resolveLoader(e.Info)
+	if err != nil {
+		return err
+	}
+
+	data, err := loader.Load(context.Background(), e.Info)
 	if err != nil {
 		return fmt.Errorf("error extracting artifact: %w", err)
 	}
@@ -164,4 +199,61 @@ func (a *ArtifactRowSource) mapArtifact(e *events.ArtifactDownloaded, data []any
 	}
 
 	return data, errList
+}
+
+// resolveLoader resolves the loader to use for the artifact
+// - if a loader has been specified, just use that
+// - otherwise create a default loader based on the extension
+func (a *ArtifactRowSource) resolveLoader(info *types.ArtifactInfo) (artifact.Loader, error) {
+
+	// a loader was specified when rcreating the row source - use that
+	if a.Loader != nil {
+		return a.Loader, nil
+	}
+
+	var key string
+	var ctor func() (artifact.Loader, error)
+	// figure out which loader to use based on the file extension
+	switch filepath.Ext(info.Name) {
+	case ".gz":
+		if a.RowPerLine {
+			key = artifact.GzipRowLoaderIdentifier
+			ctor = artifact.NewGzipRowLoader
+		} else {
+			key = artifact.GzipLoaderIdentifier
+			ctor = artifact.NewGzipLoader
+		}
+	default:
+		if a.RowPerLine {
+			key = artifact.FileRowLoaderIdentifier
+			ctor = artifact.NewFileRowLoader
+		} else {
+			key = artifact.FileLoaderIdentifier
+			ctor = artifact.NewFileLoader
+		}
+	}
+
+	// have we already created this loader?
+	a.loaderLock.RLock()
+	l, ok := a.loaders[key]
+	a.loaderLock.RUnlock()
+	if ok {
+		return l, nil
+	}
+
+	// upgrade the lock
+	a.loaderLock.Lock()
+	defer a.loaderLock.Unlock()
+	// check the map again
+	if l, ok = a.loaders[key]; ok {
+		return l, nil
+	}
+
+	// so we do need to create
+	l, err := ctor()
+	if err != nil {
+		return nil, err
+	}
+	a.loaders[key] = l
+	return l, nil
 }

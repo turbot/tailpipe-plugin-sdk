@@ -13,12 +13,12 @@ import (
 type GzipRowLoader struct {
 }
 
-func NewGzipRowLoader() *GzipRowLoader {
-	return &GzipRowLoader{}
+func NewGzipRowLoader() (Loader, error) {
+	return &GzipRowLoader{}, nil
 }
 
 func (g GzipRowLoader) Identifier() string {
-	return "gzip_row_loader"
+	return GzipRowLoaderIdentifier
 }
 
 // Load implements Loader
@@ -45,6 +45,7 @@ func (g GzipRowLoader) Load(ctx context.Context, info *types.ArtifactInfo) ([]an
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
+		// todo stream data / convert to iterator
 		// get the line of text and append to the result
 		res = append(res, scanner.Text())
 	}
