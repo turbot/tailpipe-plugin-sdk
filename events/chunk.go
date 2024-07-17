@@ -4,18 +4,18 @@ import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 
 type Chunk struct {
 	Base
-	Request     *proto.CollectRequest
+	ExecutionId string
 	ChunkNumber int
 }
 
-func NewChunkEvent(request *proto.CollectRequest, chunkNumber int) *Chunk {
+func NewChunkEvent(executionId string, chunkNumber int) *Chunk {
 	return &Chunk{
-		Request:     request,
+		ExecutionId: executionId,
 		ChunkNumber: chunkNumber,
 	}
 }
 
 // ToProto converts the event to a proto.Event
 func (r *Chunk) ToProto() *proto.Event {
-	return proto.NewChunkWrittenEvent(r.Request.ExecutionId, r.ChunkNumber)
+	return proto.NewChunkWrittenEvent(r.ExecutionId, r.ChunkNumber)
 }

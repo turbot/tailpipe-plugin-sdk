@@ -1,0 +1,59 @@
+title Continuation
+
+
+participant CLI
+participant Collector
+participant PluginManager
+participant Plugin
+participant Collection
+participant RowSource
+
+
+[->CLI:Collect
+activate CLI
+CLI->Collector:Collect
+activate Collector
+Collector->Collector:LoadContinuationData
+Collector->PluginManager:Collect(cd-json)
+activate PluginManager
+
+PluginManager->Plugin:Collect(cd-json)
+activate Plugin
+Plugin->Collection:Collect(cd-json)
+activate Collection
+Collection->Collection:ExtractContinuationData
+Collection->RowSource:Collect(cd)
+activate RowSource
+
+RowSource->Collection:Notify(Row, cd)
+activate Collection
+Collection->Collection:Enrich
+activate Collection
+Collection->Plugin:Notify(Row, cd)
+deactivate Collection
+deactivate Collection
+
+
+RowSource->Collection:Notify(Row, cd)
+activate Collection
+Collection->Collection:Enrich
+activate Collection
+Collection->Plugin:Notify(Row, cd)
+deactivate Collection
+deactivate Collection
+
+
+RowSource->Collection:Notify(Row, cd)
+activate Collection
+Collection->Collection:Enrich
+activate Collection
+Collection->Plugin:Notify(Row, cd)
+deactivate Collection
+deactivate Collection
+
+
+Plugin->Plugin:WriteJsonL
+Plugin->Plugin:build continuation data JSON
+Plugin->PluginManager:Notify(Chunk, cd-json)
+PluginManager->Collector:Notify(Chunk, cd-json)
+Collector->Collector:SaveContinuationData

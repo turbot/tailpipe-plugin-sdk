@@ -1,7 +1,6 @@
 package events
 
 import (
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -9,27 +8,27 @@ import (
 
 type ArtifactDiscovered struct {
 	Base
-	Request *proto.CollectRequest
-	Info    *types.ArtifactInfo
+	ExecutionId string
+	Info        *types.ArtifactInfo
 }
 
-func NewArtifactDiscoveredEvent(request *proto.CollectRequest, info *types.ArtifactInfo) *ArtifactDiscovered {
+func NewArtifactDiscoveredEvent(executionId string, info *types.ArtifactInfo) *ArtifactDiscovered {
 	return &ArtifactDiscovered{
-		Request: request,
-		Info:    info,
+		ExecutionId: executionId,
+		Info:        info,
 	}
 }
 
 type ArtifactDownloaded struct {
 	Base
-	Request *proto.CollectRequest
-	Info    *types.ArtifactInfo
+	ExecutionId string
+	Info        *types.ArtifactInfo
 }
 
-func NewArtifactDownloadedEvent(request *proto.CollectRequest, info *types.ArtifactInfo) *ArtifactDownloaded {
+func NewArtifactDownloadedEvent(executionId string, info *types.ArtifactInfo) *ArtifactDownloaded {
 	return &ArtifactDownloaded{
-		Request: request,
-		Info:    info,
+		ExecutionId: executionId,
+		Info:        info,
 	}
 }
 
@@ -37,13 +36,13 @@ func NewArtifactDownloadedEvent(request *proto.CollectRequest, info *types.Artif
 // (but not yet processed it into rows)
 type ArtifactExtracted struct {
 	Base
-	Request  *proto.CollectRequest
-	Artifact *types.Artifact
+	ExecutionId string
+	Artifact    *types.Artifact
 }
 
-func NewArtifactExtractedEvent(request *proto.CollectRequest, a *types.Artifact) *ArtifactExtracted {
+func NewArtifactExtractedEvent(executionId string, a *types.Artifact) *ArtifactExtracted {
 	return &ArtifactExtracted{
-		Request:  request,
-		Artifact: a,
+		ExecutionId: executionId,
+		Artifact:    a,
 	}
 }

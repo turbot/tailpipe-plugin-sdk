@@ -2,7 +2,6 @@ package artifact
 
 import (
 	"context"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -17,10 +16,10 @@ type Source interface {
 	// artifact.Base provides an empty implementation
 	Mapper() func() Mapper
 
-	DiscoverArtifacts(context.Context, *proto.CollectRequest) error
+	DiscoverArtifacts(ctx context.Context) error
 
 	// TODO add opts for controlling download - e.g. start/end time, etc
-	DownloadArtifact(context.Context, *proto.CollectRequest, *types.ArtifactInfo) error
+	DownloadArtifact(context.Context, *types.ArtifactInfo) error
 }
 
 /*
@@ -78,5 +77,5 @@ type Mapper interface {
 	Identifier() string
 	// Map converts artifact data to a different format and either return it as rows,
 	// or pass it on to the next mapper in the chain
-	Map(context.Context, *proto.CollectRequest, *ArtifactData) ([]*ArtifactData, error)
+	Map(context.Context, *ArtifactData) ([]*ArtifactData, error)
 }

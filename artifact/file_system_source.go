@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"os"
 	"path/filepath"
@@ -32,7 +31,7 @@ func (s *FileSystemSource) Identifier() string {
 	return "file_system"
 }
 
-func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context, req *proto.CollectRequest) error {
+func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
 	// TODO async????
 
 	var errList []error
@@ -55,7 +54,7 @@ func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context, req *proto.Col
 
 				info := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
 				// notify observers of the discovered artifact
-				return s.OnArtifactDiscovered(ctx, req, info)
+				return s.OnArtifactDiscovered(ctx, info)
 			}
 			return nil
 		})
@@ -70,7 +69,7 @@ func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context, req *proto.Col
 	return nil
 }
 
-func (s *FileSystemSource) DownloadArtifact(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
+func (s *FileSystemSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 
 	// TODO consider large/remote files/download progress
 	//s.NotifyObservers(events.NewArtifactDownloadProgress(request, info))
@@ -78,5 +77,5 @@ func (s *FileSystemSource) DownloadArtifact(ctx context.Context, req *proto.Coll
 	// notify observers of the discovered artifact
 	// NOTE: for now just pass on the info as is
 	// if the file was downloaded we would update the Name to the local path, leaving OriginalName as the source path
-	return s.OnArtifactDownloaded(ctx, req, info)
+	return s.OnArtifactDownloaded(ctx, info)
 }

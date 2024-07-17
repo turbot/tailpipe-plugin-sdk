@@ -8,7 +8,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"io"
 	"os"
@@ -88,7 +87,7 @@ func (s *AwsS3BucketSource) ValidateConfig() error {
 	return nil
 }
 
-func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context, req *proto.CollectRequest) error {
+func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 
 	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
 		Bucket: &s.Config.Bucket,
@@ -112,7 +111,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context, req *proto.Co
 
 				info := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
 				// notify observers of the discovered artifact
-				if err := s.OnArtifactDiscovered(ctx, req, info); err != nil {
+				if err := s.OnArtifactDiscovered(ctx, info); err != nil {
 					// TODO #err should we continue or fail?
 					return fmt.Errorf("failed to notify observers of discovered artifact, %w", err)
 				}
@@ -123,7 +122,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context, req *proto.Co
 	return nil
 }
 
-func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
+func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 	// Get the object from S3
 	getObjectOutput, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: &s.Config.Bucket,
@@ -157,7 +156,7 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, req *proto.Col
 	// notify observers of the discovered artifact
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
-	return s.OnArtifactDownloaded(ctx, req, downloadInfo)
+	return s.OnArtifactDownloaded(ctx, downloadInfo)
 }
 
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {

@@ -5,8 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
-
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
 // CloudwatchMapper is an Mapper that receives AWSCloudTrailBatch objects and extracts AWSCloudTrail records from them
@@ -23,7 +21,7 @@ func (c *CloudwatchMapper) Identifier() string {
 }
 
 // Map casts the data item as a map and extracts the data and cloudtrail metadata
-func (c *CloudwatchMapper) Map(_ context.Context, _ *proto.CollectRequest, a *ArtifactData) ([]*ArtifactData, error) {
+func (c *CloudwatchMapper) Map(_ context.Context, a *ArtifactData) ([]*ArtifactData, error) {
 	// the expected input type is a JSON string deserializable to a map with keys "IngestionTime", "Timestamp" and "Message"
 	jsonString, ok := a.Data.(string)
 	if !ok {

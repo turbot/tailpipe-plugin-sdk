@@ -4,17 +4,17 @@ import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 
 type Error struct {
 	Base
-	Request *proto.CollectRequest
-	Err     error
+	ExecutionId string
+	Err         error
 }
 
-func NewErrorEvent(request *proto.CollectRequest, err error) *Error {
+func NewErrorEvent(executionId string, err error) *Error {
 	return &Error{
-		Request: request,
-		Err:     err,
+		ExecutionId: executionId,
+		Err:         err,
 	}
 }
 
 func (c *Error) ToProto() *proto.Event {
-	return proto.NewErrorEvent(c.Request.ExecutionId, c.Err)
+	return proto.NewErrorEvent(c.ExecutionId, c.Err)
 }

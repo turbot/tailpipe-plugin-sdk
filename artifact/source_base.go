@@ -3,8 +3,8 @@ package artifact
 import (
 	"context"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -23,19 +23,23 @@ func (a *SourceBase) Mapper() func() Mapper {
 	return nil
 }
 
-func (s *SourceBase) OnArtifactDiscovered(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
-	err := s.NotifyObservers(ctx, events.NewArtifactDiscoveredEvent(req, info))
-
+func (s *SourceBase) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
+		return err
+	}
+	if err = s.NotifyObservers(ctx, events.NewArtifactDiscoveredEvent(executionId, info)); err != nil {
 		return fmt.Errorf("error notifying observers of discovered artifact: %w", err)
 	}
 	return nil
 }
 
-func (s *SourceBase) OnArtifactDownloaded(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
-	err := s.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(req, info))
-
+func (s *SourceBase) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
+		return err
+	}
+	if err := s.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil

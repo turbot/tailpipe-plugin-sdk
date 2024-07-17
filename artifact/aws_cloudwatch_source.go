@@ -11,7 +11,6 @@ import (
 	"github.com/sethvargo/go-retry"
 	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"os"
@@ -93,7 +92,7 @@ func (s *AwsCloudWatchSource) ValidateConfig() error {
 	return nil
 }
 
-func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context, req *proto.CollectRequest) error {
+func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
 	input := &cloudwatchlogs.DescribeLogStreamsInput{
 		LogGroupName: &s.Config.LogGroupName,
 		// this may be nil
@@ -123,7 +122,7 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context, req *proto.
 
 			info := &types.ArtifactInfo{Name: streamName, EnrichmentFields: sourceEnrichmentFields}
 			// notify observers of the discovered artifact
-			if err := s.OnArtifactDiscovered(ctx, req, info); err != nil {
+			if err := s.OnArtifactDiscovered(ctx, info); err != nil {
 				// TODO #err - should we return an error here or gather all errors?
 				return fmt.Errorf("failed to notify observers of discovered artifact, %w", err)
 			}
@@ -132,7 +131,7 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context, req *proto.
 	return nil
 }
 
-func (s *AwsCloudWatchSource) DownloadArtifactsWithFilter(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
+func (s *AwsCloudWatchSource) DownloadArtifactsWithFilter(ctx context.Context, info *types.ArtifactInfo) error {
 	// Define the query string to filter logs from the specified log stream
 	queryString := fmt.Sprintf("fields @timestamp as Timestamp, @message as Message, @ingestionTime as IngestionTime | filter @logStream == '%s' | sort @timestamp desc", info.Name)
 
@@ -154,7 +153,6 @@ func (s *AwsCloudWatchSource) DownloadArtifactsWithFilter(ctx context.Context, r
 
 	queryID := *startQueryOutput.QueryId
 
-	// TODO IS THIS OK/CORRECT
 	// copy the object data to a temp file
 	localFilePath := path.Join(s.TmpDir, info.Name)
 	// ensure the directory exists of the file to write to
@@ -212,10 +210,10 @@ func (s *AwsCloudWatchSource) DownloadArtifactsWithFilter(ctx context.Context, r
 	// notify observers of the discovered artifact
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
-	return s.OnArtifactDownloaded(ctx, req, downloadInfo)
+	return s.OnArtifactDownloaded(ctx, downloadInfo)
 }
 
-func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, req *proto.CollectRequest, info *types.ArtifactInfo) error {
+func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 	// TODO confiug should specify wild cards for log streams
 	// TODO we need a way of specifying start/end times - an option to DownloadArtifact - or propertied on artifact info?
 
@@ -307,7 +305,7 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, req *proto.C
 	// notify observers of the discovered artifact
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
-	return s.OnArtifactDownloaded(ctx, req, downloadInfo)
+	return s.OnArtifactDownloaded(ctx, downloadInfo)
 }
 
 func (s *AwsCloudWatchSource) getClient(ctx context.Context) (*cloudwatchlogs.Client, error) {

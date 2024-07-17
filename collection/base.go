@@ -3,6 +3,7 @@ package collection
 import (
 	"context"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
@@ -55,7 +56,7 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 func (b *Base) Notify(ctx context.Context, event events.Event) error {
 	switch e := event.(type) {
 	case *events.Row:
-		return b.handleRowEvent(ctx, e.Request, e.Row, e.EnrichmentFields)
+		return b.handleRowEvent(ctx, e.Row, e.EnrichmentFields)
 		// error
 	case *events.Error:
 		return b.handeErrorEvent(e)
@@ -65,9 +66,11 @@ func (b *Base) Notify(ctx context.Context, event events.Event) error {
 }
 
 // handleRowEvent is invoked when a Row event is received - enrich the row and publish it
-func (b *Base) handleRowEvent(ctx context.Context, req *proto.CollectRequest, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
-	// TODO maybe row events should include multiple rows
-
+func (b *Base) handleRowEvent(ctx context.Context, row any, sourceEnrichmentFields *enrichment.CommonFields) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
 	b.rowWg.Add(1)
 	defer b.rowWg.Done()
 
@@ -83,7 +86,7 @@ func (b *Base) handleRowEvent(ctx context.Context, req *proto.CollectRequest, ro
 	}
 
 	// row is already enriched - no need to pass enrichment fields
-	return b.NotifyObservers(ctx, events.NewRowEvent(req, enrichedRow, nil))
+	return b.NotifyObservers(ctx, events.NewRowEvent(executionId, enrichedRow, nil))
 }
 
 func (b *Base) handeErrorEvent(e *events.Error) error {

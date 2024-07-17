@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -72,9 +73,15 @@ func (b *Base) getRowCount(req *proto.CollectRequest) (int, int) {
 	return rowCount, chunksWritten
 }
 
-func (b *Base) writeJSONL(rows []any, req *proto.CollectRequest, chunkNumber int) error {
-	executionId := req.ExecutionId
-	destPath := req.OutputPath
+func (b *Base) writeJSONL(ctx context.Context, rows []any, chunkNumber int) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	destPath, err := context_values.DestPathFromContext(ctx)
+	if err != nil {
+		return err
+	}
 
 	// generate the filename
 	filename := filepath.Join(destPath, ExecutionIdToFileName(executionId, chunkNumber))

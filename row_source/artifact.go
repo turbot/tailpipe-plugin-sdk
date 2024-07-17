@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
@@ -87,6 +88,11 @@ func (a *ArtifactRowSource) Close() error {
 //
 //	an observer? Does Webhook?
 func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	switch e := event.(type) {
 	case *events.ArtifactDiscovered:
 		// TODO check state to see if we need to download this artifact
@@ -111,10 +117,10 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 				slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", e.Info.Name)
 			}()
 
-			err = a.Source.DownloadArtifact(context.Background(), e.Request, e.Info)
+			err = a.Source.DownloadArtifact(context.Background(), e.Info)
 			if err != nil {
 				a.artifactWg.Done()
-				err := a.NotifyObservers(ctx, events.NewErrorEvent(e.Request, err))
+				err := a.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
 				if err != nil {
 					slog.Error("Error notifying observers of download error", "download error", err, "notify error", err)
 				}
@@ -128,7 +134,7 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 			// close wait group whether there is an error or not
 			a.artifactWg.Done()
 			if err != nil {
-				err := a.NotifyObservers(ctx, events.NewErrorEvent(e.Request, err))
+				err := a.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
 				if err != nil {
 					slog.Error("Error notifying observers of extract error", "extract error", err, "notify error", err)
 				}
@@ -144,7 +150,7 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 // Collect implements plugin.RowSource
 // tell our ArtifactRowSource to start discovering artifacts
 func (a *ArtifactRowSource) Collect(ctx context.Context, req *proto.CollectRequest) error {
-	if err := a.Source.DiscoverArtifacts(ctx, req); err != nil {
+	if err := a.Source.DiscoverArtifacts(ctx); err != nil {
 		return err
 	}
 	// now wait for all extractions
@@ -156,6 +162,11 @@ func (a *ArtifactRowSource) Collect(ctx context.Context, req *proto.CollectReque
 // invoke the artifact loaded and any configured mapped to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
 func (a *ArtifactRowSource) extractArtifact(ctx context.Context, e *events.ArtifactDownloaded) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
 	// load artifact data
 	// resolve the loader - if one has not been specified, create a default for the file tyoe
 	loader, err := a.resolveLoader(e.Info)
@@ -187,7 +198,7 @@ func (a *ArtifactRowSource) extractArtifact(ctx context.Context, e *events.Artif
 			if row.Metadata == nil {
 				row.Metadata = e.Info.EnrichmentFields
 			}
-			if err := a.NotifyObservers(ctx, events.NewRowEvent(e.Request, row.Data, row.Metadata)); err != nil {
+			if err := a.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, row.Metadata)); err != nil {
 				notifyErrors = append(notifyErrors, err)
 			}
 		}
@@ -215,7 +226,7 @@ func (a *ArtifactRowSource) mapArtifacts(e *events.ArtifactDownloaded, artifactD
 	for _, m := range a.Mappers {
 		var mappedDataList []*artifact.ArtifactData
 		for _, d := range dataList {
-			mappedData, err := m.Map(context.Background(), e.Request, d)
+			mappedData, err := m.Map(context.Background(), d)
 			if err != nil {
 				// TODO #err should we give up immediately
 				errList = append(errList, err)
@@ -239,7 +250,7 @@ func (a *ArtifactRowSource) mapArtifacts(e *events.ArtifactDownloaded, artifactD
 // - otherwise create a default loader based on the extension
 func (a *ArtifactRowSource) resolveLoader(info *types.ArtifactInfo) (artifact.Loader, error) {
 
-	// a loader was specified when rcreating the row source - use that
+	// a loader was specified when creating the row source - use that
 	if a.Loader != nil {
 		return a.Loader, nil
 	}

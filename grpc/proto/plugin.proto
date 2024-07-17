@@ -22,6 +22,11 @@ message CollectRequest {
   repeated string paths = 4;
 
   // todo add collection config
+
+  // continuation data
+  // this is json encoded data that can be used to resume a collection
+  // the plugin will know how to de
+  string continuation_data = 5;
 }
 
 message Empty {}
@@ -70,6 +75,7 @@ message EventStarted {
 message EventChunkWritten {
   string execution_id = 1;
   int32 chunk_number = 2;
+  string continuation_data = 3;
 }
 message EventError {
   string execution_id = 1;
@@ -81,4 +87,5 @@ message EventComplete {
   int64 row_count=2;
   int32 chunk_count=3;
   string error = 4;
+  string continuation_data = 5;
 }
