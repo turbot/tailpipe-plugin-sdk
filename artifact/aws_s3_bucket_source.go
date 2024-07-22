@@ -4,18 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strings"
-	//sdkconfig "github.com/turbot/tailpipe-plugin-sdk/config"
-	//"github.com/turbot/tailpipe-plugin-sdk/source"
+
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type AwsS3BucketSourceConfig struct {
@@ -36,7 +36,7 @@ type AwsS3BucketSource struct {
 	client     *s3.Client
 }
 
-func NewAwsS3BucketSource(config *AwsS3BucketSourceConfig) (*AwsS3BucketSource, error) {
+func NewAwsS3BucketSource(ctx context.Context, config *AwsS3BucketSourceConfig) (*AwsS3BucketSource, error) {
 	s := &AwsS3BucketSource{
 		Config:     config,
 		Extensions: types.NewExtensionLookup(config.Extensions),
@@ -48,7 +48,7 @@ func NewAwsS3BucketSource(config *AwsS3BucketSourceConfig) (*AwsS3BucketSource, 
 	}
 
 	// initialize client
-	client, err := s.getClient(context.Background())
+	client, err := s.getClient(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,11 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.Ar
 	// notify observers of the discovered artifact
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
-	return s.OnArtifactDownloaded(ctx, downloadInfo)
+	// create paging data
+	// TODO #paging
+	// figure out s3 paging
+	paging := paging.NewS3Bucket()
+	return s.OnArtifactDownloaded(ctx, downloadInfo, paging)
 }
 
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {

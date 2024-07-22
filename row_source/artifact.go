@@ -8,7 +8,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
@@ -19,6 +19,7 @@ import (
 
 // ArtifactRowSource is a RowSource that uses an
 // artifact.Source to discover artifacts and an artifact.Extractor to extract rows from those artifacts
+// The lifetime of the source is expected to be the duration of a collection
 type ArtifactRowSource struct {
 	Base
 	// do we expect the a row to be a line of data
@@ -35,16 +36,20 @@ type ArtifactRowSource struct {
 	// rate limiters
 	artifactLoadLimiter *rate_limiter.APILimiter
 
+	// the paging data for this collection - will only be non-nil during collection
+	pagingData paging.Data
+
 	artifactWg sync.WaitGroup
 }
 
-func NewArtifactRowSource(artifactSource artifact.Source, opts ...ArtifactRowSourceOptions) (*ArtifactRowSource, error) {
+func NewArtifactRowSource(artifactSource artifact.Source, emptyPagingData paging.Data, opts ...ArtifactRowSourceOptions) (*ArtifactRowSource, error) {
 	if artifactSource == nil {
 		return nil, fmt.Errorf("artifactSource cannot be nil")
 	}
 	res := &ArtifactRowSource{
-		Source:  artifactSource,
-		loaders: make(map[string]artifact.Loader),
+		Source:     artifactSource,
+		loaders:    make(map[string]artifact.Loader),
+		pagingData: emptyPagingData,
 	}
 
 	// NOTE: see if the source requires a mapper
@@ -117,7 +122,7 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 				slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", e.Info.Name)
 			}()
 
-			err = a.Source.DownloadArtifact(context.Background(), e.Info)
+			err = a.Source.DownloadArtifact(ctx, e.Info)
 			if err != nil {
 				a.artifactWg.Done()
 				err := a.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
@@ -127,10 +132,13 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 			}
 		}()
 	case *events.ArtifactDownloaded:
+		// update our paging data with the paging data from the this artifact event
+		a.pagingData.Update(e.PagingData)
+
 		//extract
 		go func() {
 			// TODO #err make sure errors handles and bubble back
-			err := a.extractArtifact(ctx, e)
+			err := a.extractArtifact(ctx, e.Info)
 			// close wait group whether there is an error or not
 			a.artifactWg.Done()
 			if err != nil {
@@ -149,33 +157,33 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 
 // Collect implements plugin.RowSource
 // tell our ArtifactRowSource to start discovering artifacts
-func (a *ArtifactRowSource) Collect(ctx context.Context, req *proto.CollectRequest) error {
+func (a *ArtifactRowSource) Collect(ctx context.Context) error {
 	if err := a.Source.DiscoverArtifacts(ctx); err != nil {
 		return err
 	}
 	// now wait for all extractions
 	a.artifactWg.Wait()
+
+	// signal we have completed - send an empty row
+	// TODO alternatively send completion event
+	a.OnRow(ctx, &artifact.ArtifactData{}, a.pagingData)
+
 	return nil
 }
 
 // convert a downloaded artifact to a set of raw rows, with optioanl metadata
 // invoke the artifact loaded and any configured mapped to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
-func (a *ArtifactRowSource) extractArtifact(ctx context.Context, e *events.ArtifactDownloaded) error {
-	executionId, err := context_values.ExecutionIdFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
+func (a *ArtifactRowSource) extractArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 	// load artifact data
 	// resolve the loader - if one has not been specified, create a default for the file tyoe
-	loader, err := a.resolveLoader(e.Info)
+	loader, err := a.resolveLoader(info)
 	if err != nil {
 		return err
 	}
 
-	dataChan := make(chan *artifact.ArtifactData)
-	err = loader.Load(context.Background(), e.Info, dataChan)
+	artifactChan := make(chan *artifact.ArtifactData)
+	err = loader.Load(ctx, info, artifactChan)
 	if err != nil {
 		return fmt.Errorf("error extracting artifact: %w", err)
 	}
@@ -183,22 +191,22 @@ func (a *ArtifactRowSource) extractArtifact(ctx context.Context, e *events.Artif
 	count := 0
 
 	// range over the data channel and apply mappers
-	for data := range dataChan {
+	for artifactData := range artifactChan {
 		// pout data into an array as that is what mappers expect
-		rows, err := a.mapArtifacts(e, data)
+		rows, err := a.mapArtifacts(ctx, artifactData)
 
 		if err != nil {
 			return fmt.Errorf("error mapping artifact: %w", err)
 		}
-		// raise row events
+		// raise row events, sending paging data
 		var notifyErrors []error
 		for _, row := range rows {
 			count++
-			// NOTE: if no metadata has been set on the row, ase any metadata from the artifact
+			// NOTE: if no metadata has been set on the row, use any metadata from the artifact
 			if row.Metadata == nil {
-				row.Metadata = e.Info.EnrichmentFields
+				row.Metadata = info.EnrichmentFields
 			}
-			if err := a.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, row.Metadata)); err != nil {
+			if err := a.OnRow(ctx, row, a.pagingData); err != nil {
 				notifyErrors = append(notifyErrors, err)
 			}
 		}
@@ -207,12 +215,11 @@ func (a *ArtifactRowSource) extractArtifact(ctx context.Context, e *events.Artif
 		}
 	}
 
-	slog.Debug("ArtifactRowSource extractArtifact complete", "artifact", e.Info.Name, "rows", count)
+	slog.Debug("ArtifactRowSource extractArtifact complete", "artifact", info.Name, "rows", count)
 	return nil
-
 }
 
-func (a *ArtifactRowSource) mapArtifacts(e *events.ArtifactDownloaded, artifactData *artifact.ArtifactData) ([]*artifact.ArtifactData, error) {
+func (a *ArtifactRowSource) mapArtifacts(ctx context.Context, artifactData *artifact.ArtifactData) ([]*artifact.ArtifactData, error) {
 	// mappers may return multiple rows so wrap data in a list
 	var dataList = []*artifact.ArtifactData{artifactData}
 
@@ -226,7 +233,7 @@ func (a *ArtifactRowSource) mapArtifacts(e *events.ArtifactDownloaded, artifactD
 	for _, m := range a.Mappers {
 		var mappedDataList []*artifact.ArtifactData
 		for _, d := range dataList {
-			mappedData, err := m.Map(context.Background(), d)
+			mappedData, err := m.Map(ctx, d)
 			if err != nil {
 				// TODO #err should we give up immediately
 				errList = append(errList, err)

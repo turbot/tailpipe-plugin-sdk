@@ -4,15 +4,15 @@ import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 
 type Started struct {
 	Base
-	Request *proto.CollectRequest
+	ExecutionId string
 }
 
-func NewStartedEvent(request *proto.CollectRequest) *Started {
+func NewStartedEvent(executionId string) *Started {
 	return &Started{
-		Request: request,
+		ExecutionId: executionId,
 	}
 }
 
 func (s *Started) ToProto() *proto.Event {
-	return proto.NewStartedEvent(s.Request.ExecutionId)
+	return proto.NewStartedEvent(s.ExecutionId)
 }

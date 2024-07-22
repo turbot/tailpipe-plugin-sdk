@@ -1,5 +1,7 @@
 package proto
 
+import "encoding/json"
+
 func NewStartedEvent(executionId string) *Event {
 	return &Event{
 		Event: &Event_StartedEvent{
@@ -10,12 +12,13 @@ func NewStartedEvent(executionId string) *Event {
 	}
 }
 
-func NewChunkWrittenEvent(executionId string, chunkNumber int) *Event {
+func NewChunkWrittenEvent(executionId string, chunkNumber int, pagingData json.RawMessage) *Event {
 	return &Event{
 		Event: &Event_ChunkWrittenEvent{
 			ChunkWrittenEvent: &EventChunkWritten{
 				ExecutionId: executionId,
 				ChunkNumber: int32(chunkNumber),
+				PagingData:  pagingData,
 			},
 		},
 	}

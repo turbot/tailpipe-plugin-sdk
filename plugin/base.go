@@ -2,17 +2,16 @@ package plugin
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
+	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"log"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sync"
 )
 
@@ -38,9 +37,10 @@ type Base struct {
 
 	// map of collection schemas
 	schemaMap schema.SchemaMap
+	writer    ChunkWriter
 }
 
-// Init implements TailpipePlugin. It is called by Serve when the plugin is started
+// Init implements Tailpipe It is called by Serve when the plugin is started
 // if the plugin overrides this function it must call the base implementation
 func (b *Base) Init(context.Context) error {
 	b.rowBufferMap = make(map[string][]any)
@@ -48,7 +48,74 @@ func (b *Base) Init(context.Context) error {
 	return nil
 }
 
-// Shutdown implements TailpipePlugin. It is called by Serve when the plugin exits
+func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
+	log.Println("[INFO] Collect")
+
+	// create writer
+	b.writer = NewJSONLWriter(req.OutputPath)
+
+	go func() {
+		// create context containing execution id
+		ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
+
+		if err := b.doCollect(ctx, req); err != nil {
+			// TODO #err handle error
+			slog.Error("doCollect failed", "error", err)
+		}
+	}()
+
+	return nil
+}
+
+func (b *Base) doCollect(ctx context.Context, req *proto.CollectRequest) error {
+	// try to get the collection
+	col, err := b.createCollection(ctx, req.CollectionName, req.Config)
+	if err != nil {
+		return err
+	}
+
+	// add ourselves as an observer
+	if err := col.AddObserver(b); err != nil {
+		// TODO #err handle error
+		slog.Error("add observer error", "error", err)
+	}
+
+	// signal we have started
+	// signal we have started
+	if err := b.OnStarted(ctx, req.ExecutionId); err != nil {
+		return fmt.Errorf("error signalling started: %w", err)
+	}
+
+	// tell the collection to start collecting - this is a blocking call
+	err = col.Collect(ctx, req)
+
+	// signal we have completed - pass error if there was one
+	return b.OnCompleted(ctx, req.ExecutionId, err)
+}
+
+func (b *Base) createCollection(ctx context.Context, collectionName string, config []byte) (Collection, error) {
+	ctor, ok := b.collectionFactory[collectionName]
+	if !ok {
+		return nil, fmt.Errorf("collection not found: %s", collectionName)
+	}
+	col := ctor()
+
+	if err := col.Init(ctx, config); err != nil {
+		return nil, fmt.Errorf("failed to initialise collection: %w", err)
+	}
+
+	// now register the collection implemtnation with the base struct
+	type BaseCollection interface{ RegisterImpl(Collection) }
+	base, ok := col.(BaseCollection)
+	if !ok {
+		return nil, fmt.Errorf("collection implementation must embed collection.Base")
+	}
+	base.RegisterImpl(col)
+
+	return col, nil
+}
+
+// Shutdown implements Tailpipe It is called by Serve when the plugin exits
 func (b *Base) Shutdown(context.Context) error {
 	return nil
 }
@@ -58,10 +125,10 @@ func (b *Base) GetSchema() schema.SchemaMap {
 	return b.schemaMap
 }
 
-func (b *Base) getRowCount(req *proto.CollectRequest) (int, int) {
+func (b *Base) getRowCount(executionId string) (int, int) {
 	// get rowcount
 	b.rowBufferLock.RLock()
-	rowCount := b.rowCountMap[req.ExecutionId]
+	rowCount := b.rowCountMap[executionId]
 	b.rowBufferLock.RUnlock()
 
 	// notify observers of completion
@@ -71,41 +138,6 @@ func (b *Base) getRowCount(req *proto.CollectRequest) (int, int) {
 		chunksWritten++
 	}
 	return rowCount, chunksWritten
-}
-
-func (b *Base) writeJSONL(ctx context.Context, rows []any, chunkNumber int) error {
-	executionId, err := context_values.ExecutionIdFromContext(ctx)
-	if err != nil {
-		return err
-	}
-	destPath, err := context_values.DestPathFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	// generate the filename
-	filename := filepath.Join(destPath, ExecutionIdToFileName(executionId, chunkNumber))
-
-	// Open the file for writing
-	file, err := os.Create(filename)
-	if err != nil {
-		return fmt.Errorf("failed to create JSONL file %s: %w", filename, err)
-	}
-	defer file.Close()
-
-	slog.Debug("writing JSONL file", "file", filename, "rows", len(rows))
-	// Create a JSON encoder
-	encoder := json.NewEncoder(file)
-
-	// Iterate over the data slice and write each item as a JSON object
-	for _, item := range rows {
-		err := encoder.Encode(item)
-		if err != nil {
-			return fmt.Errorf("failed to encode item: %w", err)
-		}
-	}
-
-	return nil
 }
 
 func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
@@ -138,4 +170,11 @@ func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
 	}
 	return nil
 
+}
+
+func (b *Base) OnCompleted(ctx context.Context, executionId string, err error) error {
+	// get row count
+	rowCount, chunksWritten := b.getRowCount(executionId)
+
+	return b.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, err))
 }

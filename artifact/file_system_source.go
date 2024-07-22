@@ -77,5 +77,6 @@ func (s *FileSystemSource) DownloadArtifact(ctx context.Context, info *types.Art
 	// notify observers of the discovered artifact
 	// NOTE: for now just pass on the info as is
 	// if the file was downloaded we would update the Name to the local path, leaving OriginalName as the source path
-	return s.OnArtifactDownloaded(ctx, info)
+	// TODO CREATE PAGING DATA
+	return s.OnArtifactDownloaded(ctx, info, nil)
 }

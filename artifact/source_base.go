@@ -3,9 +3,11 @@ package artifact
 import (
 	"context"
 	"fmt"
+
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -19,7 +21,7 @@ func (s *SourceBase) Close() error {
 
 // Mapper implenments the Source interface
 // by default no source specific mapper is required
-func (a *SourceBase) Mapper() func() Mapper {
+func (s *SourceBase) Mapper() func() Mapper {
 	return nil
 }
 
@@ -34,12 +36,12 @@ func (s *SourceBase) OnArtifactDiscovered(ctx context.Context, info *types.Artif
 	return nil
 }
 
-func (s *SourceBase) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo) error {
+func (s *SourceBase) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo, paging paging.Data) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
-	if err := s.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info)); err != nil {
+	if err := s.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, paging)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil

@@ -2,23 +2,34 @@ package events
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
 )
 
 type Row struct {
 	Base
 	ExecutionId string
 
-	// TODO maybe pass multiple rows?
-
 	// enrichment values passed from the source to the collection to include in the enrichment process
 	EnrichmentFields *enrichment.CommonFields
 	Row              any
+	PagingData       paging.Data
 }
 
-func NewRowEvent(executionId string, row any, enrichmentFields *enrichment.CommonFields) *Row {
-	return &Row{
-		ExecutionId:      executionId,
-		EnrichmentFields: enrichmentFields,
-		Row:              row,
+type RowEventOption func(*Row)
+
+func WithEnrichmentFields(enrichmentFields *enrichment.CommonFields) RowEventOption {
+	return func(r *Row) {
+		r.EnrichmentFields = enrichmentFields
 	}
+}
+func NewRowEvent(executionId string, row any, paging paging.Data, opts ...RowEventOption) *Row {
+	r := &Row{
+		ExecutionId: executionId,
+		Row:         row,
+		PagingData:  paging,
+	}
+	for _, opt := range opts {
+		opt(r)
+	}
+	return r
 }

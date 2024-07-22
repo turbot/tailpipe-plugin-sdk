@@ -1,18 +1,20 @@
 package events
 
-import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+import (
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+)
 
 type Completed struct {
 	Base
-	Request       *proto.CollectRequest
+	ExecutionId   string
 	RowCount      int
 	ChunksWritten int
 	Err           error
 }
 
-func NewCompletedEvent(request *proto.CollectRequest, rowCount int, chunksWritten int, err error) *Completed {
+func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, err error) *Completed {
 	return &Completed{
-		Request:       request,
+		ExecutionId:   executionId,
 		RowCount:      rowCount,
 		ChunksWritten: chunksWritten,
 		Err:           err,
@@ -20,5 +22,5 @@ func NewCompletedEvent(request *proto.CollectRequest, rowCount int, chunksWritte
 }
 
 func (c *Completed) ToProto() *proto.Event {
-	return proto.NewCompleteEvent(c.Request.ExecutionId, c.RowCount, c.ChunksWritten, c.Err)
+	return proto.NewCompleteEvent(c.ExecutionId, c.RowCount, c.ChunksWritten, c.Err)
 }

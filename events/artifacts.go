@@ -1,6 +1,7 @@
 package events
 
 import (
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -23,12 +24,14 @@ type ArtifactDownloaded struct {
 	Base
 	ExecutionId string
 	Info        *types.ArtifactInfo
+	PagingData  paging.Data
 }
 
-func NewArtifactDownloadedEvent(executionId string, info *types.ArtifactInfo) *ArtifactDownloaded {
+func NewArtifactDownloadedEvent(executionId string, info *types.ArtifactInfo, paging paging.Data) *ArtifactDownloaded {
 	return &ArtifactDownloaded{
 		ExecutionId: executionId,
 		Info:        info,
+		PagingData:  paging,
 	}
 }
 

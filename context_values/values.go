@@ -4,28 +4,27 @@ import (
 	"context"
 	"fmt"
 	"github.com/turbot/pipe-fittings/contexthelpers"
-	"github.com/turbot/tailpipe-plugin-sdk/continuation"
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
 )
 
 var (
 	// destPath
-	contextKeyDestPath         = contexthelpers.ContextKey("dest_path")
-	contextKeyExecutionId      = contexthelpers.ContextKey("execution_id")
-	contextKeyContinuationData = contexthelpers.ContextKey("continuation_data")
+
+	contextKeyExecutionId = contexthelpers.ContextKey("execution_id")
+	contextKeyPagingData  = contexthelpers.ContextKey("paging_data")
 )
 
-// destp
-func DestPathFromContext(ctx context.Context) (string, error) {
-	if ctx == nil {
-		return "", fmt.Errorf("context is nil")
-	}
-	val, ok := ctx.Value(contextKeyDestPath).(string)
-	if !ok {
-		return "", fmt.Errorf("no dest path in context")
-	}
-	return val, nil
+// WithExecutionId adds the execution id to the context
+func WithExecutionId(ctx context.Context, executionId string) context.Context {
+	return context.WithValue(ctx, contextKeyExecutionId, executionId)
 }
 
+// WithPagingData adds the paging data to the context
+func WithPagingData(ctx context.Context, data paging.Data) context.Context {
+	return context.WithValue(ctx, contextKeyPagingData, data)
+}
+
+// ExecutionIdFromContext returns the execution id from the context
 func ExecutionIdFromContext(ctx context.Context) (string, error) {
 	if ctx == nil {
 		return "", fmt.Errorf("context is nil")
@@ -37,13 +36,12 @@ func ExecutionIdFromContext(ctx context.Context) (string, error) {
 	return val, nil
 }
 
-func ContinuationDataFromContext(ctx context.Context) (continuation.Data, error) {
+// PagingDataFromContext returns the paging data from the context
+func PagingDataFromContext[T paging.Data](ctx context.Context) (T, bool) {
+	var empty T
 	if ctx == nil {
-		return nil, fmt.Errorf("context is nil")
+		return empty, false
 	}
-	val, ok := ctx.Value(contextKeyContinuationData).(continuation.Data)
-	if !ok {
-		return nil, nil
-	}
-	return val, nil
+	val, ok := ctx.Value(contextKeyPagingData).(T)
+	return val, ok
 }

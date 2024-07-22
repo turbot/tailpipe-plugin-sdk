@@ -1,4 +1,4 @@
-title Continuation
+title Paging
 
 
 participant CLI
@@ -13,47 +13,47 @@ participant RowSource
 activate CLI
 CLI->Collector:Collect
 activate Collector
-Collector->Collector:LoadContinuationData
-Collector->PluginManager:Collect(cd-json)
+Collector->Collector:LoadPagingData
+Collector->PluginManager:Collect(paging-json)
 activate PluginManager
 
-PluginManager->Plugin:Collect(cd-json)
+PluginManager->Plugin:Collect(paging-json)
 activate Plugin
-Plugin->Collection:Collect(cd-json)
+Plugin->Collection:Collect(paging-json)
 activate Collection
-Collection->Collection:ExtractContinuationData
-Collection->RowSource:Collect(cd)
+Collection->Collection:DeserialisePagingData
+Collection->RowSource:Collect(paging)
 activate RowSource
 
-RowSource->Collection:Notify(Row, cd)
+RowSource->Collection:Notify(Row, paging)
 activate Collection
 Collection->Collection:Enrich
 activate Collection
-Collection->Plugin:Notify(Row, cd)
+Collection->Plugin:Notify(Row, paging)
 deactivate Collection
 deactivate Collection
 
 
-RowSource->Collection:Notify(Row, cd)
+RowSource->Collection:Notify(Row, paging)
 activate Collection
 Collection->Collection:Enrich
 activate Collection
-Collection->Plugin:Notify(Row, cd)
+Collection->Plugin:Notify(Row, paging)
 deactivate Collection
 deactivate Collection
 
 
-RowSource->Collection:Notify(Row, cd)
+RowSource->Collection:Notify(Row, paging)
 activate Collection
 Collection->Collection:Enrich
 activate Collection
-Collection->Plugin:Notify(Row, cd)
+Collection->Plugin:Notify(Row, paging)
 deactivate Collection
 deactivate Collection
 
 
 Plugin->Plugin:WriteJsonL
-Plugin->Plugin:build continuation data JSON
-Plugin->PluginManager:Notify(Chunk, cd-json)
-PluginManager->Collector:Notify(Chunk, cd-json)
-Collector->Collector:SaveContinuationData
+Plugin->Plugin:build paging data JSON
+Plugin->PluginManager:Notify(Chunk, paging-json)
+PluginManager->Collector:Notify(Chunk, paging-json)
+Collector->Collector:SavePagingData
