@@ -42,7 +42,7 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 	slog.Info("Start collection")
 	// if the req contains paging data, deserialise it and add to the context passed to the source
 	if req.PagingData != nil {
-		paging, err := b.impl.GetPagingData(req.PagingData)
+		paging, err := b.getPagingData(req.PagingData)
 		if err != nil {
 			return fmt.Errorf("failed to deserialise paging data JSON: %w", err)
 		}
@@ -102,10 +102,10 @@ func (b *Base) handeErrorEvent(e *events.Error) error {
 	return nil
 }
 
-// GetPagingData deserialises the paging data JSON and returns a paging.Data object
+// getPagingData deserialises the paging data JSON and returns a paging.Data object
 // it uses the impl to return an empty paging.Data object to unmarshal into
-func (b *Base) GetPagingData(pagingDataJSON json.RawMessage) (paging.Data, error) {
-	empty, err := b.impl.NewPagingData()
+func (b *Base) getPagingData(pagingDataJSON json.RawMessage) (paging.Data, error) {
+	empty, err := b.impl.GetPagingDataSchema()
 	if err != nil {
 		return nil, err
 	}
@@ -116,6 +116,6 @@ func (b *Base) GetPagingData(pagingDataJSON json.RawMessage) (paging.Data, error
 	}
 	return empty, nil
 }
-func (b *Base) NewPagingData() (paging.Data, error) {
-	return nil, fmt.Errorf("NewPagingData not implemented by %s", b.impl.Identifier())
+func (b *Base) GetPagingDataStruct() (paging.Data, error) {
+	return nil, fmt.Errorf("GetPagingDataSchema not implemented by %s", b.impl.Identifier())
 }

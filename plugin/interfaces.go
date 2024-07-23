@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -12,24 +11,31 @@ import (
 
 // TailpipePlugin is the interface that all tailpipe plugins must implement
 type TailpipePlugin interface {
-	// GRPC interface functions
+	// Identifier returns the plugin name
+	// this must be implemented by the plugin implementation
+	Identifier() string
 
-	AddObserver(observable.Observer) error
-	Collect(context.Context, *proto.CollectRequest) error
-
-	// GetSchema returns the parquet schema for all collections
+	// GetSchema returns the duck DB schema for all collections
+	// this must be implemented by the plugin implementation
 	GetSchema() schema.SchemaMap
 
-	// Init is called when the plugin is started
-	// it may be overridden by the plugin - there is an empty implementation in Base
+	// AddObserver adda an observer to the plugin to receive status events
+	// this is implemented by plugin.Base and should not be overridden
+	AddObserver(observable.Observer) error
+
+	// Collect is called to start a collection run
+	// this is implemented by plugin.Base and should not be overridden
+	Collect(context.Context, *proto.CollectRequest) error
+
+	// Other interface functions
+
+	// Init is implemented by plugin.Base.
+	// If overridden by the plugin it MUST call the base version
 	Init(context.Context) error
 
-	// Shutdown is called when the plugin is stopped
-	// it may be overridden by the plugin - there is an empty implementation in Base
+	// Shutdown is implemented by plugin.Base (empty implementation)
+	// it may be overridden by the plugin
 	Shutdown(context.Context) error
-
-	// Identifier must return the plugin name
-	Identifier() string
 }
 
 // Collection is the interface that represents a single schema/'table' provided by a plugin.
@@ -38,21 +44,22 @@ type Collection interface {
 	// Observable must be implemented by collections (it is implemented by collection.Base)
 	observable.Observable
 
+	// Init is called when the collection created
+	// it is responsible for parsing the config and creating the configured Source
 	Init(ctx context.Context, config []byte) error
 	// Identifier must return the collection name
 	Identifier() string
+	// GetRowStruct returns an empty instance of the row struct returned by the collection
+	GetRowSchema() any
+	// GetConfigStruct returns an empty instance of the config struct returned by the collection
+	GetConfigSchema() any
+	// GetPagingDataStruct returns an empty instance of the paging data struct
+	// Should be implemented onl`y if paging is supported (Base bas an empty implementation)
+	GetPagingDataSchema() (paging.Data, error)
 
 	// Collect is called to start collecting data,
-	// it accepts a RowPublisher that will be called for each row of data
-	// Collect will send enriched rows which satisfy the tailpipe row requirements (todo link/document
+	// Collect will send enriched rows which satisfy the tailpipe row requirements (todo link/document)
 	Collect(context.Context, *proto.CollectRequest) error
-	// GetRowStruct returns an instance of the row struct returned by the collection
-	GetRowStruct() any
-
-	// GetPagingData converts json into a paging data struct
-	GetPagingData(json json.RawMessage) (paging.Data, error)
-	// NewPagingData returns a new empty paging data struct
-	NewPagingData() (paging.Data, error)
 
 	// EnrichRow is called for each raw row of data, it must enrich the row and return it
 	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)

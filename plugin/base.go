@@ -17,7 +17,7 @@ import (
 
 // how may rows to write in each JSONL file
 // TODO configure?
-const JSONLChunkSize = 10000
+const JSONLChunkSize = 1000
 
 // Base should be embedded in all tailpipe plugin implementations
 type Base struct {
@@ -43,6 +43,8 @@ type Base struct {
 // Init implements Tailpipe It is called by Serve when the plugin is started
 // if the plugin overrides this function it must call the base implementation
 func (b *Base) Init(context.Context) error {
+	// TODO #validation if overriden by plugin implementation, we need a way to validate this has been called
+
 	b.rowBufferMap = make(map[string][]any)
 	b.rowCountMap = make(map[string]int)
 	return nil
@@ -59,8 +61,8 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 		ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
 
 		if err := b.doCollect(ctx, req); err != nil {
-			// TODO #err handle error
 			slog.Error("doCollect failed", "error", err)
+			b.OnCompleted(ctx, req.ExecutionId, err)
 		}
 	}()
 
@@ -100,17 +102,17 @@ func (b *Base) createCollection(ctx context.Context, collectionName string, conf
 	}
 	col := ctor()
 
-	if err := col.Init(ctx, config); err != nil {
-		return nil, fmt.Errorf("failed to initialise collection: %w", err)
-	}
-
-	// now register the collection implemtnation with the base struct
+	//  register the collection implemtnation with the base struct (before init)
 	type BaseCollection interface{ RegisterImpl(Collection) }
 	base, ok := col.(BaseCollection)
 	if !ok {
 		return nil, fmt.Errorf("collection implementation must embed collection.Base")
 	}
 	base.RegisterImpl(col)
+
+	if err := col.Init(ctx, config); err != nil {
+		return nil, fmt.Errorf("failed to initialise collection: %w", err)
+	}
 
 	return col, nil
 }
@@ -156,7 +158,7 @@ func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
 		b.collectionFactory[c.Identifier()] = ctor
 
 		// get the schema for the collection row type
-		rowStruct := c.GetRowStruct()
+		rowStruct := c.GetRowSchema()
 		s, err := schema.SchemaFromStruct(rowStruct)
 		if err != nil {
 			errs = append(errs, err)

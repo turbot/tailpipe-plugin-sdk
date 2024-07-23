@@ -109,7 +109,6 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 		t := time.Now()
 
 		// rate limit the download
-		// TODO should we check semaphore outside goroutine but l;imiter inside?
 		err := a.artifactLoadLimiter.Wait(ctx)
 		if err != nil {
 			return fmt.Errorf("error acquiring rate limiter: %w", err)
@@ -123,6 +122,7 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 			}()
 
 			err = a.Source.DownloadArtifact(ctx, e.Info)
+
 			if err != nil {
 				a.artifactWg.Done()
 				err := a.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))

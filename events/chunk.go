@@ -18,7 +18,6 @@ func NewChunkEvent(executionId string, chunkNumber int, paging paging.Data) (*Ch
 	cdJSON, err := json.Marshal(paging)
 	if err != nil {
 		return nil, err
-
 	}
 
 	c := &Chunk{

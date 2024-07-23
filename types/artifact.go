@@ -2,7 +2,6 @@ package types
 
 import "github.com/turbot/tailpipe-plugin-sdk/enrichment"
 
-// TODO move to differen package
 type ArtifactInfo struct {
 	// if the artifact is has been dowloaded, Name will be the path to the downloaded file
 	// and OriginalName will be the source path

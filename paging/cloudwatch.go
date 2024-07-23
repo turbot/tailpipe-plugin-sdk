@@ -10,10 +10,16 @@ import (
 type Cloudwatch struct {
 	// The timestamp of the last collected log for each log stream
 	// expressed as the number of milliseconds after Jan 1, 1970 00:00:00 UTC.
-	Timestamps map[string]int64 `json:"timestamp"`
+	Timestamps map[string]int64 `json:"timestamps"`
 }
 
-// Update updates the Cloudwatch paging data with the latest data
+func (c *Cloudwatch) NewCloudwatch() *Cloudwatch {
+	return &Cloudwatch{
+		Timestamps: make(map[string]int64),
+	}
+}
+
+// Update the Cloudwatch paging data with the latest data
 func (c *Cloudwatch) Update(data Data) error {
 	other, ok := data.(*Cloudwatch)
 	if !ok {
@@ -22,6 +28,16 @@ func (c *Cloudwatch) Update(data Data) error {
 	// merge the timestamps, preferring the latest
 	maps.Copy(c.Timestamps, other.Timestamps)
 	return nil
+}
+
+func (c *Cloudwatch) Add(name string, time int64) {
+	if c.Timestamps == nil {
+		c.Timestamps = make(map[string]int64)
+	}
+	if time == 0 {
+		return
+	}
+	c.Timestamps[name] = time
 }
 
 func NewCloudwatch() *Cloudwatch {
