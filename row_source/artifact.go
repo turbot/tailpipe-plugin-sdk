@@ -17,7 +17,7 @@ import (
 	"time"
 )
 
-// ArtifactRowSource is a RowSource that uses an
+// ArtifactRowSource is a plugin.RowSource that uses an
 // artifact.Source to discover artifacts and an artifact.Extractor to extract rows from those artifacts
 // The lifetime of the source is expected to be the duration of a collection
 type ArtifactRowSource struct {
