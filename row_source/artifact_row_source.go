@@ -17,9 +17,21 @@ import (
 	"time"
 )
 
-// ArtifactRowSource is a plugin.RowSource that uses an
-// artifact.Source to discover artifacts and an artifact.Extractor to extract rows from those artifacts
-// The lifetime of the source is expected to be the duration of a collection
+// ArtifactRowSource is a [plugin.RowSource] that extracts rows from an 'artifact'
+// An artifact id defined as an entity which contains one or more rows which must be extracted/processed.
+//
+// Examples of artifacts include:
+// - a file on disk
+// - a cloudwatch log group
+//
+// An ArtifactRowSource is composed of:
+// - an [artifact.Source] which discovers and downloads artifacts to a temporary local file,
+// and handles incremental/restartable downloads
+// - an [artifact.Loader] which loads the arifact data from the local file, performing any necessary decompression/decription etc.
+// - optionally, one or more [artifact.Mapper]s which perform processing/conversion/extraction logic required to
+// extract individual data rows from the artifact
+//
+// The lifetime of the source is expected to be the duration of a single collection operation
 type ArtifactRowSource struct {
 	Base
 	// do we expect the a row to be a line of data
@@ -81,6 +93,7 @@ func NewArtifactRowSource(artifactSource artifact.Source, emptyPagingData paging
 }
 
 // Close implements plugin.RowSource
+// close the source
 func (a *ArtifactRowSource) Close() error {
 	slog.Debug("Closing ArtifactRowSource")
 	// close the source
@@ -88,10 +101,7 @@ func (a *ArtifactRowSource) Close() error {
 }
 
 // Notify implements observable.Observer
-// it handles all events which collections may receive
-// TODO do we need this in base? depends on how what other implementations need? APISource does not need to be
-//
-//	an observer? Does Webhook?
+// handles all events which the ArtifactRowSource expects to receive (ArtifactDiscovered, ArtifactDownloaded)
 func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
@@ -100,9 +110,6 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 
 	switch e := event.(type) {
 	case *events.ArtifactDiscovered:
-		// TODO check state to see if we need to download this artifact
-		// for now just download
-
 		// increment the wait group - this weill be decremented when the artifact is extracted (or there is an error
 		a.artifactWg.Add(1)
 		slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", e.Info.Name)

@@ -5,8 +5,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// TODO kai add event base with marker function - remove ToProto from interface and derive a new ProtoEvent interface
-
 type ArtifactDiscovered struct {
 	Base
 	ExecutionId string

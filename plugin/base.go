@@ -40,7 +40,7 @@ type Base struct {
 	writer    ChunkWriter
 }
 
-// Init implements Tailpipe It is called by Serve when the plugin is started
+// Init implements [plugin.TailpipePlugin]
 // if the plugin overrides this function it must call the base implementation
 func (b *Base) Init(context.Context) error {
 	// TODO #validation if overriden by plugin implementation, we need a way to validate this has been called

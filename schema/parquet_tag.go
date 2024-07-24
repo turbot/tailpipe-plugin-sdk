@@ -58,7 +58,9 @@ func ParseParquetTag(tag string) (*ParquetTag, error) {
 
 // Define valid DuckDB types using a struct{} map for efficient membership checking
 var validDuckDBTypes = map[string]struct{}{
-	// TODO STRUCT/LIST
+	// TODO #schema STRUCT/LIST/
+	// TODO #schema test all types for parquety conversio
+
 	"BOOLEAN":   {},
 	"TINYINT":   {},
 	"SMALLINT":  {},
@@ -70,13 +72,15 @@ var validDuckDBTypes = map[string]struct{}{
 	"UBIGINT":   {},
 	"FLOAT":     {},
 	"DOUBLE":    {},
-	"STRING":    {},
+	"VARCHAR":   {},
 	"BLOB":      {},
 	"DATE":      {},
 	"TIMESTAMP": {},
 	"TIME":      {},
 	"INTERVAL":  {},
 	"DECIMAL":   {},
+	"UUID":      {},
+	"JSON	":     {},
 }
 
 func (t *ParquetTag) validate() (*ParquetTag, error) {

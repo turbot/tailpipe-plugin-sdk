@@ -20,7 +20,7 @@ func (g FileLoader) Identifier() string {
 	return FileLoaderIdentifier
 }
 
-// Load implements Loader
+// Load implements [Loader]
 // Extracts an object from a  file
 func (g FileLoader) Load(_ context.Context, info *types.ArtifactInfo, dataChan chan *ArtifactData) error {
 	inputPath := info.Name

@@ -26,6 +26,7 @@ const (
 // Serve creates and starts the GRPC server which serves the plugin,
 //
 //	It is called from the main function of the plugin.
+//	ServeOpts.PluginFunc must be populated with the plugin constructor function
 func Serve(opts *ServeOpts) error {
 	defer func() {
 		if r := recover(); r != nil {

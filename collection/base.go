@@ -14,7 +14,8 @@ import (
 	"sync"
 )
 
-// Base should be embedded in all tailpipe collection implementations
+// Base provides a base implementation of the [plugin.Collection] interface
+// it should be embedded in all Collection implementations
 type Base struct {
 	observable.Base
 
