@@ -6,6 +6,10 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// Source is an interface providing methods for discovering and downloading artifacts to the local file system
+// an [row_source.ArtifactRowSource] must be configured to have a Source implementation.
+// A Source can optionally specify a [Mapper] that should be used to extract data from the artifact
+// Sources provided by the SDK: [FileSystemSource], [AwsS3BucketSource], [AwsCloudWatchSource]
 type Source interface {
 	observable.Observable
 	Identifier() string
@@ -18,7 +22,6 @@ type Source interface {
 
 	DiscoverArtifacts(ctx context.Context) error
 
-	// TODO add opts for controlling download - e.g. start/end time, etc
 	DownloadArtifact(context.Context, *types.ArtifactInfo) error
 }
 
@@ -67,12 +70,18 @@ Eg for CloudTrail s3 bucket gzipped logs
 
 */
 
+// Loader is an interface which provides a method for loading a locally saved artifact
+// an [row_source.ArtifactRowSource] must be configured to have a Loader implementation.
+// Sources provided by the SDK: [GzipLoader], [GzipRowLoader], [FileSystemLoader], [FileSystemRowLoader]
 type Loader interface {
 	Identifier() string
-	// Load loads artifact data and pass it on to the next extractor in the chain
+	// Load locally saved artifact data and perform any necessary decompression/decryption
 	Load(context.Context, *types.ArtifactInfo, chan *ArtifactData) error
 }
 
+// Mapper is an interface which provides a method for mapping artifact data to a different format
+// an [row_source.ArtifactRowSource] may be configured to have one or more Mappers.
+// Mappers provided by the SDK: [CloudwatchMapper]
 type Mapper interface {
 	Identifier() string
 	// Map converts artifact data to a different format and either return it as rows,

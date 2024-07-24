@@ -18,20 +18,23 @@ import (
 )
 
 // ArtifactRowSource is a [plugin.RowSource] that extracts rows from an 'artifact'
-// An artifact id defined as an entity which contains one or more rows which must be extracted/processed.
 //
-// Examples of artifacts include:
-// - a file on disk
+// Artifacts are defined as some entity which contains a collection of rows, which must be extracted/processed in
+// some way to produce 'raw' rows which can be streamed to a collection. Examples of artifacts include:
+// - a gzip file in an S3 bucket
 // - a cloudwatch log group
+// - a json file on local file system
+//
+// The ArtifactRowSource is composable, as the same storage location may be used to store different log files in varying formats,
+// and the source may need to be configured to know how to extract the log rows from the artifact.
 //
 // An ArtifactRowSource is composed of:
-// - an [artifact.Source] which discovers and downloads artifacts to a temporary local file,
-// and handles incremental/restartable downloads
-// - an [artifact.Loader] which loads the arifact data from the local file, performing any necessary decompression/decription etc.
-// - optionally, one or more [artifact.Mapper]s which perform processing/conversion/extraction logic required to
-// extract individual data rows from the artifact
+//   - an [artifact.Source] which discovers and downloads artifacts to a temp local file, and handles incremental/restartable downloads
+//   - an [artifact.Loader] which loads the arifact data from the local file, performing any necessary decompression/decryption etc.
+//   - optionally, one or more [artifact.Mapper]s which perform processing/conversion/extraction logic required to
+//     extract individual data rows from the artifact
 //
-// The lifetime of the source is expected to be the duration of a single collection operation
+// The lifetime of the ArtifactRowSource is expected to be the duration of a single collection operation
 type ArtifactRowSource struct {
 	Base
 	// do we expect the a row to be a line of data
@@ -92,16 +95,16 @@ func NewArtifactRowSource(artifactSource artifact.Source, emptyPagingData paging
 	return res, nil
 }
 
-// Close implements plugin.RowSource
-// close the source
+// Close the source
+// Implements [plugin.RowSource]
 func (a *ArtifactRowSource) Close() error {
 	slog.Debug("Closing ArtifactRowSource")
 	// close the source
 	return a.Source.Close()
 }
 
-// Notify implements observable.Observer
-// handles all events which the ArtifactRowSource expects to receive (ArtifactDiscovered, ArtifactDownloaded)
+// Notify  handles all events which the ArtifactRowSource expects to receive (ArtifactDiscovered, ArtifactDownloaded)
+// implements [observable.Observer]
 func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
@@ -162,8 +165,8 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 	return nil
 }
 
-// Collect implements plugin.RowSource
-// tell our ArtifactRowSource to start discovering artifacts
+// Collect tells our ArtifactRowSource to start discovering artifacts
+// Implements [plugin.RowSource]
 func (a *ArtifactRowSource) Collect(ctx context.Context) error {
 	if err := a.Source.DiscoverArtifacts(ctx); err != nil {
 		return err
@@ -178,8 +181,8 @@ func (a *ArtifactRowSource) Collect(ctx context.Context) error {
 	return nil
 }
 
-// convert a downloaded artifact to a set of raw rows, with optioanl metadata
-// invoke the artifact loaded and any configured mapped to convert the artifact to 'raw' rows,
+// convert a downloaded artifact to a set of raw rows, with optional metadata
+// invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
 func (a *ArtifactRowSource) extractArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 	// load artifact data
@@ -226,6 +229,7 @@ func (a *ArtifactRowSource) extractArtifact(ctx context.Context, info *types.Art
 	return nil
 }
 
+// mapArtifacts applies any configured mappers to the artifact data
 func (a *ArtifactRowSource) mapArtifacts(ctx context.Context, artifactData *artifact.ArtifactData) ([]*artifact.ArtifactData, error) {
 	// mappers may return multiple rows so wrap data in a list
 	var dataList = []*artifact.ArtifactData{artifactData}

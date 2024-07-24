@@ -8,7 +8,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
@@ -22,24 +21,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-type AwsCloudWatchSourceConfig struct {
-	AccessKey    string
-	SecretKey    string
-	SessionToken string
-
-	// the log group to collect
-	// assume a source will be used to fetch a single log group?
-	LogGroupName string
-
-	// the log stream(s) to collect - a set of wild cards
-	LogStreamPrefix *string
-	//LogStreams []string
-
-	// the time range to collect for
-	StartTime time.Time
-	EndTime   time.Time
-}
-
+// AwsCloudWatchSource is a [Source] implementation that reads logs from AWS CloudWatch
+// and writes them to a temp JSON file
 type AwsCloudWatchSource struct {
 	SourceBase
 
@@ -83,21 +66,26 @@ func (s *AwsCloudWatchSource) Identifier() string {
 	return AWSCloudwatchLoaderIdentifier
 }
 
-// Mapper returns a function that creates a new Mapper required by this source
-// CloudwatchMapper knows how to extract the row and metadata fields from the JSON saved by the AwsCloudWatchSource
+// Mapper returns a function that creates a new [Mapper] required by this source
+// [CloudwatchMapper] knows how to extract the row and metadata fields from the JSON that we save
 func (s *AwsCloudWatchSource) Mapper() func() Mapper {
 	return NewCloudwatchMapper
 }
 
+// Close deletes the temp directory and all files
 func (s *AwsCloudWatchSource) Close() error {
 	// delete the temp dir and all files
 	return os.RemoveAll(s.tmpDir)
 }
 
+// ValidateConfig checks the config for required fields
 func (s *AwsCloudWatchSource) ValidateConfig() error {
+	// #TODO #config - validate the config
 	return nil
 }
 
+// DiscoverArtifacts gets the log streams for the configured log group and log stream prefix,
+// within the configured time range, and respecting the time range in the paging data
 func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
 	paging, _ := context_values.PagingDataFromContext[*paging.Cloudwatch](ctx)
 
@@ -242,6 +230,8 @@ func logStreamNameWithinTimeRange(logStream cloudwatch_types.LogStream, startTim
 //	return s.OnArtifactDownloaded(ctx, downloadInfo, nil)
 //}
 
+// DownloadArtifact gets the log events for the specified log stream,
+// respecting the time range in the config and paging data
 func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 	// get the paging data
 	paging, _ := context_values.PagingDataFromContext[*paging.Cloudwatch](ctx)
@@ -273,6 +263,7 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 		return fmt.Errorf("failed to create file, %w", err)
 	}
 	defer outFile.Close()
+	// create an encoder to write the events to the file
 	enc := json.NewEncoder(outFile)
 
 	// keep track of the max time for the paging data
@@ -300,6 +291,7 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 			if ts > maxTime {
 				maxTime = *event.Timestamp
 			}
+			// write the event to the file
 			if err := enc.Encode(event); err != nil {
 				return fmt.Errorf("failed to write event to file, %w", err)
 			}

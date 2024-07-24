@@ -7,7 +7,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 )
 
-// CloudwatchMapper is an Mapper that receives AWSCloudTrailBatch objects and extracts AWSCloudTrail records from them
+// CloudwatchMapper is an [plugin.Mapper] implementation
+// that receives JSON data and returns AWSCloudTrail records
 type CloudwatchMapper struct {
 }
 
@@ -20,7 +21,7 @@ func (c *CloudwatchMapper) Identifier() string {
 	return AWSCloudwatchMapperIdentifier
 }
 
-// Map casts the data item as a map and extracts the data and cloudtrail metadata
+// Map unmarshalls JSON into an AWSCloudTrailBatch object and extracts AWSCloudTrail records from it
 func (c *CloudwatchMapper) Map(_ context.Context, a *ArtifactData) ([]*ArtifactData, error) {
 	// the expected input type is a JSON string deserializable to a map with keys "IngestionTime", "Timestamp" and "Message"
 	jsonString, ok := a.Data.(string)

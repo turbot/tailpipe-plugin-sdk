@@ -19,7 +19,7 @@ import (
 // TODO configure?
 const JSONLChunkSize = 1000
 
-// Base should be embedded in all tailpipe plugin implementations
+// Base should be embedded in all [TailpipePlugin] implementations
 type Base struct {
 	observable.Base
 

@@ -18,15 +18,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-type AwsS3BucketSourceConfig struct {
-	Bucket       string
-	Prefix       string
-	Extensions   []string
-	AccessKey    string
-	SecretKey    string
-	SessionToken string
-}
-
+// AwsS3BucketSource is a [Source] implementation that reads artifacts from an S3 bucket
 type AwsS3BucketSource struct {
 	SourceBase
 
