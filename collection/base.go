@@ -117,6 +117,7 @@ func (b *Base) getPagingData(pagingDataJSON json.RawMessage) (paging.Data, error
 	}
 	return empty, nil
 }
-func (b *Base) GetPagingDataStruct() (paging.Data, error) {
+
+func (b *Base) GetPagingDataSchema() (paging.Data, error) {
 	return nil, fmt.Errorf("GetPagingDataSchema not implemented by %s", b.impl.Identifier())
 }

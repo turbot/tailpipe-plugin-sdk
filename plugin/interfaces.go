@@ -53,7 +53,7 @@ type Collection interface {
 	GetRowSchema() any
 	// GetConfigStruct returns an empty instance of the config struct returned by the collection
 	GetConfigSchema() any
-	// GetPagingDataStruct returns an empty instance of the paging data struct
+	// GetPagingDataSchema returns an empty instance of the paging data struct
 	// Should be implemented onl`y if paging is supported (Base bas an empty implementation)
 	GetPagingDataSchema() (paging.Data, error)
 
