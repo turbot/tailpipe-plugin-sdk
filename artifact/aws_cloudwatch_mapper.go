@@ -29,15 +29,15 @@ func (c *CloudwatchMapper) Map(_ context.Context, a *ArtifactData) ([]*ArtifactD
 		return nil, fmt.Errorf("expected string, got %T", a)
 	}
 
-	var cloudtrailEntry map[string]any
-	err := json.Unmarshal([]byte(jsonString), &cloudtrailEntry)
+	var cloudwatchEntry map[string]any
+	err := json.Unmarshal([]byte(jsonString), &cloudwatchEntry)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding json: %w", err)
 	}
-	row := cloudtrailEntry["Message"].(string)
+	row := cloudwatchEntry["Message"].(string)
 	metadata := a.Metadata.Clone()
-	metadata.TpIngestTimestamp = helpers.UnixMillis(cloudtrailEntry["IngestionTime"].(float64))
-	metadata.TpTimestamp = helpers.UnixMillis(cloudtrailEntry["Timestamp"].(float64))
+	metadata.TpIngestTimestamp = helpers.UnixMillis(cloudwatchEntry["IngestionTime"].(float64))
+	metadata.TpTimestamp = helpers.UnixMillis(cloudwatchEntry["Timestamp"].(float64))
 
 	d := NewData(row, WithMetadata(metadata))
 
