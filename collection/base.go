@@ -28,6 +28,8 @@ type Base struct {
 	rowWg sync.WaitGroup
 }
 
+// RegisterImpl is called by the plugin implementation to register the collection implementation
+// this is required so that the Base can call the collection's methods
 func (b *Base) RegisterImpl(impl plugin.Collection) {
 	b.impl = impl
 }
@@ -106,16 +108,16 @@ func (b *Base) handeErrorEvent(e *events.Error) error {
 // getPagingData deserialises the paging data JSON and returns a paging.Data object
 // it uses the impl to return an empty paging.Data object to unmarshal into
 func (b *Base) getPagingData(pagingDataJSON json.RawMessage) (paging.Data, error) {
-	empty, err := b.impl.GetPagingDataSchema()
+	target, err := b.impl.GetPagingDataSchema()
 	if err != nil {
 		return nil, err
 	}
-	err = json.Unmarshal(pagingDataJSON, empty)
+	err = json.Unmarshal(pagingDataJSON, target)
 	if err != nil {
 		return nil, err
 
 	}
-	return empty, nil
+	return target, nil
 }
 
 func (b *Base) GetPagingDataSchema() (paging.Data, error) {

@@ -51,10 +51,14 @@ type ArtifactRowSource struct {
 	// rate limiters
 	artifactLoadLimiter *rate_limiter.APILimiter
 
-	// the paging data for this collection - will only be non-nil during collection
+	// the paging data for this collection
 	pagingData paging.Data
 
 	artifactWg sync.WaitGroup
+}
+
+func (a *ArtifactRowSource) Identifier() string {
+	return ArtifactRowSourceIdentifier
 }
 
 func NewArtifactRowSource(artifactSource artifact.Source, emptyPagingData paging.Data, opts ...ArtifactRowSourceOptions) (*ArtifactRowSource, error) {

@@ -32,8 +32,10 @@ type Base struct {
 	// map of row counts keyed by execution id
 	rowCountMap map[string]int
 
-	// map of collection constructors
+	// map of Collection constructors
 	collectionFactory map[string]func() Collection
+	// map of RowSource constructors
+	sourceFactory map[string]func() RowSource
 
 	// map of collection schemas
 	schemaMap schema.SchemaMap
@@ -71,7 +73,7 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 
 func (b *Base) doCollect(ctx context.Context, req *proto.CollectRequest) error {
 	// try to get the collection
-	col, err := b.createCollection(ctx, req.CollectionName, req.Config)
+	col, err := b.createCollection(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -95,22 +97,26 @@ func (b *Base) doCollect(ctx context.Context, req *proto.CollectRequest) error {
 	return b.OnCompleted(ctx, req.ExecutionId, err)
 }
 
-func (b *Base) createCollection(ctx context.Context, collectionName string, config []byte) (Collection, error) {
-	ctor, ok := b.collectionFactory[collectionName]
+func (b *Base) createCollection(ctx context.Context, req *proto.CollectRequest) (Collection, error) {
+	// get the registered constructor for the collection
+	ctor, ok := b.collectionFactory[req.CollectionType]
 	if !ok {
-		return nil, fmt.Errorf("collection not found: %s", collectionName)
+		return nil, fmt.Errorf("collection not found: %s", req.CollectionType)
 	}
+
+	// create the collection
 	col := ctor()
 
-	//  register the collection implemtnation with the base struct (before init)
+	//  register the collection implementation with the base struct (before init)
 	type BaseCollection interface{ RegisterImpl(Collection) }
-	base, ok := col.(BaseCollection)
+	baseCol, ok := col.(BaseCollection)
 	if !ok {
 		return nil, fmt.Errorf("collection implementation must embed collection.Base")
 	}
-	base.RegisterImpl(col)
+	baseCol.RegisterImpl(col)
 
-	if err := col.Init(ctx, config); err != nil {
+	// initialise the collection
+	if err := col.Init(ctx, req.CollectionConfig); err != nil {
 		return nil, fmt.Errorf("failed to initialise collection: %w", err)
 	}
 
@@ -142,6 +148,28 @@ func (b *Base) getRowCount(executionId string) (int, int) {
 	return rowCount, chunksWritten
 }
 
+// RegisterSources registers RowSource implementations
+// is should be called by a plugin implementation to register the sources it provides
+// it is also called by the base implementation to register the sources the SDK provides
+func (b *Base) RegisterSources(sourceFunc ...func() RowSource) error {
+	// create the maps if necessary
+	if b.sourceFactory == nil {
+		b.sourceFactory = make(map[string]func() RowSource)
+	}
+
+	errs := make([]error, 0)
+	for _, ctor := range sourceFunc {
+		// create an instance of the source to get the identifier
+		c := ctor()
+		// register the collection
+		b.sourceFactory[c.Identifier()] = ctor
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
 func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
 	// create the maps
 	b.collectionFactory = make(map[string]func() Collection)
@@ -153,6 +181,7 @@ func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
 	}
 	errs := make([]error, 0)
 	for _, ctor := range collectionFunc {
+		// create an instance of the collection to get the identifier
 		c := ctor()
 		// register the collection
 		b.collectionFactory[c.Identifier()] = ctor
@@ -171,7 +200,6 @@ func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
 		return errors.Join(errs...)
 	}
 	return nil
-
 }
 
 func (b *Base) OnCompleted(ctx context.Context, executionId string, err error) error {

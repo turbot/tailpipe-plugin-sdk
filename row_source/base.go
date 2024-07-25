@@ -17,6 +17,13 @@ type Base struct {
 	observable.Base
 }
 
+// Init is called when the row source is created
+// it is responsible for parsing the source config and configuring the source
+func (a *Base) Init(ctx context.Context, config []byte) error {
+	return nil
+
+}
+
 // Close is a default implementation of the [plugin.RowSource] Close interface function
 func (a *Base) Close() error {
 	return nil

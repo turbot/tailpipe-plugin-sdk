@@ -24,7 +24,6 @@ type AwsS3BucketSource struct {
 
 	Config     *AwsS3BucketSourceConfig
 	Extensions types.ExtensionLookup
-	TmpDir     string
 	client     *s3.Client
 }
 
@@ -33,7 +32,8 @@ func NewAwsS3BucketSource(ctx context.Context, config *AwsS3BucketSourceConfig) 
 		Config:     config,
 		Extensions: types.NewExtensionLookup(config.Extensions),
 	}
-	s.TmpDir = path.Join(os.TempDir(), "tailpipe", fmt.Sprintf("s3-%s", config.Bucket))
+
+	s.tmpDir = path.Join(config.TmpDir, "tailpipe", fmt.Sprintf("s3-%s", config.Bucket))
 
 	if err := s.ValidateConfig(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
@@ -55,7 +55,7 @@ func (s *AwsS3BucketSource) Identifier() string {
 
 func (s *AwsS3BucketSource) Close() error {
 	// delete the temp dir and all files
-	return os.RemoveAll(s.TmpDir)
+	return os.RemoveAll(s.tmpDir)
 }
 
 func (s *AwsS3BucketSource) ValidateConfig() error {
@@ -64,7 +64,7 @@ func (s *AwsS3BucketSource) ValidateConfig() error {
 	}
 
 	// Check format of extensions
-	invalidExtensions := []string{}
+	var invalidExtensions []string
 	for _, e := range s.Config.Extensions {
 		if len(e) == 0 {
 			invalidExtensions = append(invalidExtensions, "<empty>")
@@ -80,7 +80,6 @@ func (s *AwsS3BucketSource) ValidateConfig() error {
 }
 
 func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
-
 	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
 		Bucket: &s.Config.Bucket,
 		Prefix: &s.Config.Prefix,
@@ -126,7 +125,7 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.Ar
 	defer getObjectOutput.Body.Close()
 
 	// copy the object data to a temp file
-	localFilePath := path.Join(s.TmpDir, info.Name)
+	localFilePath := path.Join(s.tmpDir, info.Name)
 	// ensure the directory exists of the file to write to
 	if err := os.MkdirAll(filepath.Dir(localFilePath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory for file, %w", err)

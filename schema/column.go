@@ -61,7 +61,8 @@ func RowSchemaFromProto(p *proto.Schema) *RowSchema {
 type ColumnSchema struct {
 	SourceName string
 	ColumnName string
-	Type       string
+	// DuckDB type for the column
+	Type string
 	// for struct and struct[]
 	StructFields []*ColumnSchema
 }

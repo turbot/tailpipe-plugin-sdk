@@ -49,9 +49,9 @@ type Collection interface {
 	Init(ctx context.Context, config []byte) error
 	// Identifier must return the collection name
 	Identifier() string
-	// GetRowStruct returns an empty instance of the row struct returned by the collection
+	// GetRowSchema returns an empty instance of the row struct returned by the collection
 	GetRowSchema() any
-	// GetConfigStruct returns an empty instance of the config struct returned by the collection
+	// GetConfigSchema returns an empty instance of the config struct returned by the collection
 	GetConfigSchema() any
 	// GetPagingDataSchema returns an empty instance of the paging data struct
 	// Should be implemented onl`y if paging is supported (Base bas an empty implementation)
@@ -76,6 +76,13 @@ type Collection interface {
 type RowSource interface {
 	// Observable must be implemented by row sources (it is implemented by row_source.Base)
 	observable.Observable
+
+	// Init is called when the row source is created
+	// it is responsible for parsing the source config and configuring the source
+	Init(ctx context.Context, config []byte) error
+
+	// Identifier must return the source name
+	Identifier() string
 
 	Close() error
 

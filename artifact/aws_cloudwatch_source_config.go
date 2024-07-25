@@ -4,6 +4,7 @@ import "time"
 
 // AwsCloudWatchSourceConfig is the configuration for an [AwsCloudWatchSource]
 type AwsCloudWatchSourceConfig struct {
+	SourceConfigBase
 	// TODO #confif connection based credentiuals mechanism
 	AccessKey    string
 	SecretKey    string

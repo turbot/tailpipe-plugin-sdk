@@ -27,7 +27,6 @@ type AwsCloudWatchSource struct {
 	SourceBase
 
 	config  *AwsCloudWatchSourceConfig
-	tmpDir  string
 	client  *cloudwatchlogs.Client
 	limiter *rate_limiter.APILimiter
 }
@@ -36,10 +35,7 @@ func NewAwsCloudWatchSource(ctx context.Context, config *AwsCloudWatchSourceConf
 	s := &AwsCloudWatchSource{
 		config: config,
 	}
-	// TODO configure the temp dir location
-	// TODO ensure it is cleaned up
-	p, _ := filepath.Abs(path.Join("." /*os.TempDir()*/, "tailpipe", "cloudwatch"))
-	s.tmpDir = p
+	s.tmpDir = path.Join(config.TmpDir, "tailpipe", fmt.Sprintf("cloudwatch-%s", config.LogGroupName))
 
 	if err := s.ValidateConfig(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)

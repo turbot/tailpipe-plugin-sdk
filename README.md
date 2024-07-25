@@ -221,7 +221,7 @@ It also implements the [Collect](https://github.com/turbot/tailpipe-plugin-sdk/b
 
 ##### Interface functions which must be implemented when defining a collection
 
-- `Init`
+- `Init` (MAYBE???)
   - Parse the config  (using the `base.ParseConfig` function)
   - Create the configured `Source`
   - Any other collection specific intialisation
