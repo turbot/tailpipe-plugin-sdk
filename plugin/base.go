@@ -4,15 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"log/slog"
+	"sync"
+
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
-	"log"
-	"log/slog"
-	"sync"
 )
 
 // how may rows to write in each JSONL file
@@ -64,7 +66,7 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 
 		if err := b.doCollect(ctx, req); err != nil {
 			slog.Error("doCollect failed", "error", err)
-			b.OnCompleted(ctx, req.ExecutionId, err)
+			b.OnCompleted(ctx, req.ExecutionId, nil, err)
 		}
 	}()
 
@@ -91,10 +93,10 @@ func (b *Base) doCollect(ctx context.Context, req *proto.CollectRequest) error {
 	}
 
 	// tell the collection to start collecting - this is a blocking call
-	err = col.Collect(ctx, req)
+	pagingData, err := col.Collect(ctx, req)
 
 	// signal we have completed - pass error if there was one
-	return b.OnCompleted(ctx, req.ExecutionId, err)
+	return b.OnCompleted(ctx, req.ExecutionId, pagingData, err)
 }
 
 func (b *Base) createCollection(ctx context.Context, req *proto.CollectRequest) (Collection, error) {
@@ -202,7 +204,23 @@ func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
 	return nil
 }
 
-func (b *Base) OnCompleted(ctx context.Context, executionId string, err error) error {
+func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData paging.Data, err error) error {
+	// tell our write to write any remaining rows
+
+	// get row count and the rows in the buffers
+	b.rowBufferLock.Lock()
+	rowCount := b.rowCountMap[executionId]
+	rowsToWrite := b.rowBufferMap[executionId]
+	b.rowBufferMap[executionId] = nil
+	b.rowCountMap[executionId] = 0
+	b.rowBufferLock.Unlock()
+
+	// tell our write to write any remaining rows
+	if err := b.writeChunk(ctx, rowCount, rowsToWrite, pagingData); err != nil {
+		slog.Error("failed to write final chunk", "error", err)
+		return fmt.Errorf("failed to write final chunk: %w", err)
+	}
+
 	// get row count
 	rowCount, chunksWritten := b.getRowCount(executionId)
 

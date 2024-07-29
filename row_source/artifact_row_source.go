@@ -57,6 +57,10 @@ type ArtifactRowSource struct {
 	artifactWg sync.WaitGroup
 }
 
+func (a *ArtifactRowSource) GetPagingData() paging.Data {
+	return a.pagingData
+}
+
 func (a *ArtifactRowSource) Identifier() string {
 	return ArtifactRowSourceIdentifier
 }
@@ -177,10 +181,6 @@ func (a *ArtifactRowSource) Collect(ctx context.Context) error {
 	}
 	// now wait for all extractions
 	a.artifactWg.Wait()
-
-	// signal we have completed - send an empty row
-	// TODO alternatively send completion event
-	a.OnRow(ctx, &artifact.ArtifactData{}, a.pagingData)
 
 	return nil
 }

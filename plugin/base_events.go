@@ -48,47 +48,53 @@ func (b *Base) handleRowEvent(ctx context.Context, e *events.Row) error {
 		return err
 	}
 
-	row := e.Row
-
 	if b.rowBufferMap == nil {
-		// this musty mean the plugin has overridden the Init function and not called the base
+		// this must mean the plugin has overridden the Init function and not called the base
+		// this should be prevented by the validation test
 		return errors.New("Base.Init must be called from the plugin Init function")
+	}
+	row := e.Row
+	if row == nil {
+		return fmt.Errorf("plugin.Base.handleRowEvent: row is nil")
 	}
 
 	// add row to row buffer
 	b.rowBufferLock.Lock()
 
 	rowCount := b.rowCountMap[executionId]
-	if row != nil {
-		b.rowBufferMap[executionId] = append(b.rowBufferMap[executionId], row)
-		rowCount++
-		b.rowCountMap[executionId] = rowCount
-	}
+	b.rowBufferMap[executionId] = append(b.rowBufferMap[executionId], row)
+	rowCount++
+	b.rowCountMap[executionId] = rowCount
 
 	var rowsToWrite []any
-	if row == nil || len(b.rowBufferMap[executionId]) == JSONLChunkSize {
+	if len(b.rowBufferMap[executionId]) == JSONLChunkSize {
 		rowsToWrite = b.rowBufferMap[executionId]
 		b.rowBufferMap[executionId] = nil
 	}
 	b.rowBufferLock.Unlock()
 
-	if numRows := len(rowsToWrite); numRows > 0 {
-		// determine chunk number from rowCountMap
-		chunkNumber := int(rowCount / JSONLChunkSize)
-		// check for final partial chunk
-		if rowCount%JSONLChunkSize > 0 {
-			chunkNumber++
-		}
-		slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", numRows)
-
-		// convert row to a JSONL file
-		err := b.writer.WriteChunk(ctx, rowsToWrite, chunkNumber)
-		if err != nil {
-			slog.Error("failed to write JSONL file", "error", err)
-			return fmt.Errorf("failed to write JSONL file: %w", err)
-		}
-		// notify observers, passing the paging data
-		return b.OnChunk(ctx, chunkNumber, e.PagingData)
+	if numRowsToWrite := len(rowsToWrite); numRowsToWrite > 0 {
+		return b.writeChunk(ctx, rowCount, rowsToWrite, e.PagingData)
 	}
+
 	return nil
+}
+
+func (b *Base) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, pagingData paging.Data) error {
+	// determine chunk number from rowCountMap
+	chunkNumber := int(rowCount / JSONLChunkSize)
+	// check for final partial chunk
+	if rowCount%JSONLChunkSize > 0 {
+		chunkNumber++
+	}
+	slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", len(rowsToWrite))
+
+	// convert row to a JSONL file
+	err := b.writer.WriteChunk(ctx, rowsToWrite, chunkNumber)
+	if err != nil {
+		slog.Error("failed to write JSONL file", "error", err)
+		return fmt.Errorf("failed to write JSONL file: %w", err)
+	}
+	// notify observers, passing the paging data
+	return b.OnChunk(ctx, chunkNumber, pagingData)
 }

@@ -41,13 +41,13 @@ func (b *Base) AddSource(source plugin.RowSource) error {
 	return b.Source.AddObserver(b)
 }
 
-func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
+func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) (paging.Data, error) {
 	slog.Info("Start collection")
 	// if the req contains paging data, deserialise it and add to the context passed to the source
 	if req.PagingData != nil {
 		paging, err := b.getPagingData(req.PagingData)
 		if err != nil {
-			return fmt.Errorf("failed to deserialise paging data JSON: %w", err)
+			return nil, fmt.Errorf("failed to deserialise paging data JSON: %w", err)
 		}
 		ctx = context_values.WithPagingData(ctx, paging)
 	}
@@ -55,15 +55,18 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 	// tell our source to collect - we will calls to EnrichRow for each row
 	err := b.Source.Collect(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	slog.Info("Source collection complete - waiting for enrichment")
 	// wait for all rows to be processed
 	b.rowWg.Wait()
 
+	// ask the source for its paging data
+	pagingData := b.Source.GetPagingData()
+
 	slog.Info("Enrichment complete")
-	return nil
+	return pagingData, nil
 }
 
 // Notify implements observable.Observer
