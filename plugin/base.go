@@ -2,20 +2,28 @@ package plugin
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"log/slog"
 	"sync"
 
+	"github.com/turbot/tailpipe-plugin-sdk/artifact"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
+/* TODO VALIDATION
+- check plugin ref is stored in collections
+- check all sources and colleciton shave identifier
+- check all colleciton supported sources exist
+- collection.Base Init is called
+*/
 // how may rows to write in each JSONL file
 // TODO configure?
 const JSONLChunkSize = 1000
@@ -33,24 +41,44 @@ type Base struct {
 	// map of row counts keyed by execution id
 	rowCountMap map[string]int
 
-	// map of Collection constructors
-	collectionFactory map[string]func() Collection
-	// map of RowSource constructors
-	sourceFactory map[string]func() RowSource
-
 	// map of collection schemas
-	schemaMap schema.SchemaMap
-	writer    ChunkWriter
+	schemaMap             schema.SchemaMap
+	writer                ChunkWriter
+	artifactMapperFactory map[string]func() artifact.Mapper
+
+	// mapps of the various registsred types
+	collectionFactory     map[string]func() Collection
+	sourceFactory         map[string]func() row_source.RowSource
+	artifactLoaderFactory map[string]func() artifact.Loader
+	artifactSourceFactory map[string]func() artifact.Source
 }
 
 // Init implements [plugin.TailpipePlugin]
-// if the plugin overrides this function it must call the base implementation
 func (b *Base) Init(context.Context) error {
+	// if the plugin overrides this function it must call the base implementation
 	// TODO #validation if overriden by plugin implementation, we need a way to validate this has been called
-
 	b.rowBufferMap = make(map[string][]any)
 	b.rowCountMap = make(map[string]int)
+
+	// register the row sources provided by the sdk
+	b.registerCommonRowSources()
 	return nil
+}
+
+func (b *Base) GetRowSource(ctx context.Context, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) (row_source.RowSource, error) {
+	// look for a constructor for the source
+	ctor, ok := b.sourceFactory[sourceConfigData.Type]
+	if !ok {
+		return nil, fmt.Errorf("source not registered: %s", sourceConfigData.Type)
+	}
+	// create the source
+	source := ctor()
+
+	// initialise the source
+	if err := source.Init(ctx, sourceConfigData, sourceOpts...); err != nil {
+		return nil, fmt.Errorf("failed to initialise source: %w", err)
+	}
+	return source, nil
 }
 
 func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
@@ -70,6 +98,16 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 	}()
 
 	return nil
+}
+
+// Shutdown implements Tailpipe It is called by Serve when the plugin exits
+func (b *Base) Shutdown(context.Context) error {
+	return nil
+}
+
+// GetSchema implements TailpipePlugin
+func (b *Base) GetSchema() schema.SchemaMap {
+	return b.schemaMap
 }
 
 func (b *Base) doCollect(ctx context.Context, req *proto.CollectRequest) error {
@@ -100,15 +138,15 @@ func (b *Base) doCollect(ctx context.Context, req *proto.CollectRequest) error {
 
 func (b *Base) createCollection(ctx context.Context, req *proto.CollectRequest) (Collection, error) {
 	// get the registered constructor for the collection
-	ctor, ok := b.collectionFactory[req.CollectionType]
+	ctor, ok := b.collectionFactory[req.CollectionData.Type]
 	if !ok {
-		return nil, fmt.Errorf("collection not found: %s", req.CollectionType)
+		return nil, fmt.Errorf("collection not found: %s", req.CollectionData.Type)
 	}
 
 	// create the collection
 	col := ctor()
 
-	//  register the collection implementation with the base struct (before init)
+	//  register the collection implementation with the base struct (Before  calling Init)
 	type BaseCollection interface{ RegisterImpl(Collection) }
 	baseCol, ok := col.(BaseCollection)
 	if !ok {
@@ -116,22 +154,20 @@ func (b *Base) createCollection(ctx context.Context, req *proto.CollectRequest) 
 	}
 	baseCol.RegisterImpl(col)
 
-	// initialise the collection
-	if err := col.Init(ctx, req.CollectionConfig); err != nil {
+	// convert req into collectionConfigData and sourceConfigData
+	collectionConfigData := hcl.DataFromProto(req.CollectionData)
+	sourceConfigData := hcl.DataFromProto(req.SourceData)
+
+	// get any source options defined by colleciton for this source type
+	sourceOpts := col.GetSourceOptions(req.SourceData.Type)
+
+	// initialise the collection (passing ourselves as the 'sourceFactory`
+	err := col.Init(ctx, b, collectionConfigData, sourceConfigData, sourceOpts...)
+	if err != nil {
 		return nil, fmt.Errorf("failed to initialise collection: %w", err)
 	}
 
 	return col, nil
-}
-
-// Shutdown implements Tailpipe It is called by Serve when the plugin exits
-func (b *Base) Shutdown(context.Context) error {
-	return nil
-}
-
-// GetSchema implements TailpipePlugin
-func (b *Base) GetSchema() schema.SchemaMap {
-	return b.schemaMap
 }
 
 func (b *Base) getRowCount(executionId string) (int, int) {
@@ -149,54 +185,6 @@ func (b *Base) getRowCount(executionId string) (int, int) {
 	return rowCount, chunksWritten
 }
 
-// RegisterSources registers RowSource implementations
-// is should be called by a plugin implementation to register the sources it provides
-// it is also called by the base implementation to register the sources the SDK provides
-func (b *Base) RegisterSources(sourceFunc ...func() RowSource) error {
-	// create the maps if necessary
-	if b.sourceFactory == nil {
-		b.sourceFactory = make(map[string]func() RowSource)
-	}
-
-	errs := make([]error, 0)
-	for _, ctor := range sourceFunc {
-		// create an instance of the source to get the identifier
-		c := ctor()
-		// register the collection
-		b.sourceFactory[c.Identifier()] = ctor
-	}
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-	return nil
-}
-
-func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
-	// create the maps
-	b.collectionFactory = make(map[string]func() Collection)
-	b.schemaMap = make(map[string]*schema.RowSchema)
-
-	errs := make([]error, 0)
-	for _, ctor := range collectionFunc {
-		// create an instance of the collection to get the identifier
-		c := ctor()
-		// register the collection
-		b.collectionFactory[c.Identifier()] = ctor
-
-		// get the schema for the collection row type
-		rowStruct := c.GetRowSchema()
-		s, err := schema.SchemaFromStruct(rowStruct)
-		if err != nil {
-			errs = append(errs, err)
-		}
-
-		b.schemaMap[c.Identifier()] = s
-	}
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-	return nil
-}
 
 func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData paging.Data, err error) error {
 	// tell our write to write any remaining rows
@@ -217,8 +205,13 @@ func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData p
 		}
 	}
 
+	CHEKC ME
 	// get row count
 	rowCount, chunksWritten := b.getRowCount(executionId)
 
 	return b.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, err))
+}
+
+func (b *Base) registerCommonRowSources() {
+	b.RegisterSources(row_source.NewArtifactRowSource)
 }

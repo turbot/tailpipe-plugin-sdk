@@ -43,10 +43,6 @@ func (r *RowSchema) ToProto() *proto.Schema {
 	return res
 }
 
-func (r *RowSchema) Merge(other *RowSchema) {
-	// add columns
-	r.Columns = append(r.Columns, other.Columns...)
-}
 
 func RowSchemaFromProto(p *proto.Schema) *RowSchema {
 	var res = &RowSchema{

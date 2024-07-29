@@ -50,7 +50,7 @@ func NewAwsS3BucketSource(ctx context.Context, config *AwsS3BucketSourceConfig) 
 }
 
 func (s *AwsS3BucketSource) Identifier() string {
-	return "aws_s3_bucket"
+	return AwsS3BucketSourceIdentifier
 }
 
 func (s *AwsS3BucketSource) Close() error {

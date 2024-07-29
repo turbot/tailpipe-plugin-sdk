@@ -28,7 +28,7 @@ func NewFileSystemSource(config *FileSystemSourceConfig) *FileSystemSource {
 }
 
 func (s *FileSystemSource) Identifier() string {
-	return "file_system"
+	return FileSystemSourceIdentifier
 }
 
 func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {

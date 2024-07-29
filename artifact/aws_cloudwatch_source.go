@@ -59,7 +59,7 @@ func NewAwsCloudWatchSource(ctx context.Context, config *AwsCloudWatchSourceConf
 }
 
 func (s *AwsCloudWatchSource) Identifier() string {
-	return AWSCloudwatchLoaderIdentifier
+	return AWSCloudwatchSourceIdentifier
 }
 
 // Mapper returns a function that creates a new [Mapper] required by this source

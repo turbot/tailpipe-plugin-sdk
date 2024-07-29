@@ -1,4 +1,4 @@
-package config
+package hcl
 
 //
 //func TestParseConfig(t *testing.T) {

@@ -4,17 +4,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact"
-	"github.com/turbot/tailpipe-plugin-sdk/context_values"
-	"github.com/turbot/tailpipe-plugin-sdk/events"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
-	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
+	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/hcl"
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // ArtifactRowSource is a [plugin.RowSource] that extracts rows from an 'artifact'
@@ -36,7 +38,7 @@ import (
 //
 // The lifetime of the ArtifactRowSource is expected to be the duration of a single collection operation
 type ArtifactRowSource struct {
-	Base
+	Base[ArtifactRowSourceConfig]
 	// do we expect the a row to be a line of data
 	RowPerLine bool
 	Source     artifact.Source
@@ -65,42 +67,41 @@ func (a *ArtifactRowSource) Identifier() string {
 	return ArtifactRowSourceIdentifier
 }
 
-func NewArtifactRowSource(artifactSource artifact.Source, emptyPagingData paging.Data, opts ...ArtifactRowSourceOptions) (*ArtifactRowSource, error) {
-	if artifactSource == nil {
-		return nil, fmt.Errorf("artifactSource cannot be nil")
-	}
-	res := &ArtifactRowSource{
-		Source:     artifactSource,
-		loaders:    make(map[string]artifact.Loader),
-		pagingData: emptyPagingData,
-	}
+func NewArtifactRowSource() RowSource {
+	return &ArtifactRowSource{}
+}
 
+func (a *ArtifactRowSource) Init(ctx context.Context, configData *hcl.Data, opts ...RowSourceOption) error {
+	// call base to apply options and parse config
+	a.Base.Init(ctx, configData, opts...)
+
+	// now configure the source
+
+	// TODO KAI
+	// TODO - consider ordering - of WithMapper is specified AND the source specifies a mapper, which comes first?
+	// should these be mutually exclusive??
 	// NOTE: see if the source requires a mapper
 	// (e.g. if the source is a Cloudwatch source, we need to add a mapper to extract the cloudtrail metadata)
 	// NOTE: do this BEFORE applying options so we know there are no mappers set yet
-	if mapperFunc := artifactSource.Mapper(); mapperFunc != nil {
-		res.Mappers = []artifact.Mapper{mapperFunc()}
-	}
-
-	// apply options
-	for _, opt := range opts {
-		opt(res)
-	}
-
-	// add ourselves as observer to res
-	err := artifactSource.AddObserver(res)
-	if err != nil {
-		return nil, err
-	}
-
-	res.artifactLoadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
-		Name: "artifact_load_limiter",
-		//FillRate:       5,
-		//BucketSize:     5,
-		MaxConcurrency: 1,
-	})
-
-	return res, nil
+	//if mapperFunc := artifactSource.Mapper(); mapperFunc != nil {
+	//	a.Mappers = []artifact.Mapper{mapperFunc()}
+	//}
+	//
+	//// add ourselves as observer to a
+	//err := artifactSource.AddObserver(a)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//
+	//a.artifactLoadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
+	//	Name: "artifact_load_limiter",
+	//	//FillRate:       5,
+	//	//BucketSize:     5,
+	//	MaxConcurrency: 1,
+	//})
+	//
+	//return a, nil
+	return nil
 }
 
 // Close the source
@@ -183,6 +184,18 @@ func (a *ArtifactRowSource) Collect(ctx context.Context) error {
 	a.artifactWg.Wait()
 
 	return nil
+}
+
+func (a *ArtifactRowSource) SetLoader(loader artifact.Loader) {
+	a.Loader = loader
+}
+
+func (a *ArtifactRowSource) AddMapper(mapper artifact.Mapper) {
+	a.Mappers = append(a.Mappers, mapper)
+}
+
+func (a *ArtifactRowSource) SetRowPerLine(rowPerLine bool) {
+	a.RowPerLine = rowPerLine
 }
 
 // convert a downloaded artifact to a set of raw rows, with optional metadata
