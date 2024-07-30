@@ -3,19 +3,53 @@ package schema
 import (
 	"errors"
 	"fmt"
-	"github.com/iancoleman/strcase"
 	"reflect"
 	"strings"
 	"time"
+
+	"github.com/iancoleman/strcase"
 )
 
+const maxNesting = 5
+
 func SchemaFromStruct(s any) (*RowSchema, error) {
-	// Get the type of the rowStruct
-	t := reflect.TypeOf(s)
-	return SchemaFromType(t)
+	return NewSchemaBuilder().SchemaFromStruct(s)
 }
 
-func SchemaFromType(t reflect.Type) (*RowSchema, error) {
+type SchemaBuilder struct {
+	typeMap map[reflect.Type]struct{}
+	nesting int
+}
+
+func NewSchemaBuilder() *SchemaBuilder {
+	return &SchemaBuilder{
+		typeMap: make(map[reflect.Type]struct{}),
+	}
+}
+
+func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
+	// Get the type of the rowStruct
+	t := reflect.TypeOf(s)
+	return b.schemaFromType(t)
+}
+
+func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
+	// check for circular deps
+	if _, ok := b.typeMap[t]; ok {
+		return nil, fmt.Errorf("circular reference detected")
+	}
+	b.typeMap[t] = struct{}{}
+	defer delete(b.typeMap, t)
+
+	// check for excessive recursion
+	b.nesting++
+	if b.nesting > maxNesting {
+		return nil, fmt.Errorf("max recursion level %d reached", maxNesting)
+	}
+	defer func() {
+		b.nesting--
+	}()
+
 	// reflect over parquet tags to build schema
 	var res = &RowSchema{}
 
@@ -67,7 +101,7 @@ func SchemaFromType(t reflect.Type) (*RowSchema, error) {
 				Type:       p.Type,
 			}
 		} else {
-			columnType, err := getColumnSchemaType(field.Type)
+			columnType, err := b.getColumnSchemaType(field.Type)
 			if err != nil {
 				errorList = append(errorList, fmt.Errorf("failed to get schema for field %s: %w", field.Name, err))
 				continue
@@ -80,7 +114,12 @@ func SchemaFromType(t reflect.Type) (*RowSchema, error) {
 			}
 		}
 
-		res.Columns = append(res.Columns, c)
+		// if the field is an anonymous struct, MERGE the child fields into the parent
+		if field.Anonymous && c.Type == "STRUCT" {
+			res.Columns = append(res.Columns, c.StructFields...)
+		} else {
+			res.Columns = append(res.Columns, c)
+		}
 	}
 
 	if len(errorList) > 0 {
@@ -91,7 +130,7 @@ func SchemaFromType(t reflect.Type) (*RowSchema, error) {
 
 }
 
-func getColumnSchemaType(t reflect.Type) (ColumnType, error) {
+func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) {
 	c := ColumnType{}
 
 	if t.Kind() == reflect.Ptr {
@@ -128,9 +167,9 @@ func getColumnSchemaType(t reflect.Type) (ColumnType, error) {
 			c.Type = "BLOB"
 			break
 		}
-		listType, err := getColumnSchemaType(t.Elem())
+		listType, err := b.getColumnSchemaType(t.Elem())
 		if err != nil {
-			c.Type = ""
+			return c, err
 		}
 		c.Type = fmt.Sprintf("%s[]", listType.Type)
 		// for struct types, we need to wrap the child fields in a new ColumnSchema
@@ -144,7 +183,7 @@ func getColumnSchemaType(t reflect.Type) (ColumnType, error) {
 			break
 		}
 		// get the struct schema and convert into a DuckDB struct
-		schema, err := SchemaFromType(t)
+		schema, err := b.schemaFromType(t)
 		if err != nil {
 			return c, err
 		}
@@ -154,11 +193,11 @@ func getColumnSchemaType(t reflect.Type) (ColumnType, error) {
 	case reflect.Map:
 		c.Type = "MAP"
 		// get the key and value types
-		keyType, err := getColumnSchemaType(t.Key())
+		keyType, err := b.getColumnSchemaType(t.Key())
 		if err != nil {
 			return c, err
 		}
-		valueType, err := getColumnSchemaType(t.Elem())
+		valueType, err := b.getColumnSchemaType(t.Elem())
 		if err != nil {
 			return c, err
 		}
