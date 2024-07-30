@@ -1,11 +1,16 @@
 package plugin
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact"
+	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
+
+// TODO maybe break out a 'factory' struct to handle all of this
 
 // RegisterSources registers RowSource implementations
 // is should be called by a plugin implementation to register the sources it provides
@@ -111,4 +116,42 @@ func (b *Base) RegisterArtifactLoaders(loaderFuncs ...func() artifact.Loader) er
 		return errors.Join(errs...)
 	}
 	return nil
+}
+
+// GetRowSource attempts to instantiate a row source, using the provided row source data
+// It will fail if the requested source type is not registered
+// Implements [plugin.SourceFactory]
+func (b *Base) GetRowSource(ctx context.Context, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) (row_source.RowSource, error) {
+	// look for a constructor for the source
+	ctor, ok := b.sourceFactory[sourceConfigData.Type]
+	if !ok {
+		return nil, fmt.Errorf("source not registered: %s", sourceConfigData.Type)
+	}
+	// create the source
+	source := ctor()
+
+	// initialise the source
+	if err := source.Init(ctx, sourceConfigData, sourceOpts...); err != nil {
+		return nil, fmt.Errorf("failed to initialise source: %w", err)
+	}
+	return source, nil
+}
+
+// GetArtifactSource attempts to instantiate an artifact source, using the provided data
+// It will fail if the requested source type is not registered
+// Implements [plugin.SourceFactory]
+func (b *Base) GetArtifactSource(ctx context.Context, sourceConfigData *hcl.Data) (artifact.Source, error) {
+	// look for a constructor for the source
+	ctor, ok := b.artifactSourceFactory[sourceConfigData.Type]
+	if !ok {
+		return nil, fmt.Errorf("source not registered: %s", sourceConfigData.Type)
+	}
+	// create the source
+	source := ctor()
+
+	// initialise the artifact source
+	if err := source.Init(ctx, sourceConfigData); err != nil {
+		return nil, fmt.Errorf("failed to initialise source: %w", err)
+	}
+	return source, nil
 }

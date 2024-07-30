@@ -65,22 +65,6 @@ func (b *Base) Init(context.Context) error {
 	return nil
 }
 
-func (b *Base) GetRowSource(ctx context.Context, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) (row_source.RowSource, error) {
-	// look for a constructor for the source
-	ctor, ok := b.sourceFactory[sourceConfigData.Type]
-	if !ok {
-		return nil, fmt.Errorf("source not registered: %s", sourceConfigData.Type)
-	}
-	// create the source
-	source := ctor()
-
-	// initialise the source
-	if err := source.Init(ctx, sourceConfigData, sourceOpts...); err != nil {
-		return nil, fmt.Errorf("failed to initialise source: %w", err)
-	}
-	return source, nil
-}
-
 func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 	log.Println("[INFO] Collect")
 
@@ -100,7 +84,7 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 	return nil
 }
 
-// Shutdown implements Tailpipe It is called by Serve when the plugin exits
+// Shutdown is called by Serve when the plugin exits
 func (b *Base) Shutdown(context.Context) error {
 	return nil
 }

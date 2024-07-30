@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
@@ -43,8 +44,14 @@ type TailpipePlugin interface {
 
 type SourceFactory interface {
 	// GetRowSource attempts to instantiate a row source, using the provided row source data
+	// It will fail if the requested source type is not registered
 	// this is implemented by plugin.Base and SHOULD NOT be overridden
 	GetRowSource(context.Context, *hcl.Data, ...row_source.RowSourceOption) (row_source.RowSource, error)
+}
+type ArtifactSourceFactory interface {
+	// GetArtifactSource attempts to instantiate an artifact source, using the provided data
+	// It will fail if the requested source type is not registered
+	GetArtifactSource(context.Context, *hcl.Data) (artifact.Source, error)
 }
 
 // Collection is the interface that represents a single schema/'table' provided by a plugin.
