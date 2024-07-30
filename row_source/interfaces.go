@@ -5,6 +5,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
 )
 
 // RowSource is the interface that represents a data source
@@ -30,6 +31,8 @@ type RowSource interface {
 
 	// Collect is called to start collecting data,
 	Collect(context.Context) error
+
+	GetPagingData() paging.Data
 }
 
 // MappedRowSource - interface for row sources that can be mapped

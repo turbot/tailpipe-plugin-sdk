@@ -170,22 +170,6 @@ func (b *Base) createCollection(ctx context.Context, req *proto.CollectRequest) 
 	return col, nil
 }
 
-func (b *Base) getRowCount(executionId string) (int, int) {
-	// get rowcount
-	b.rowBufferLock.RLock()
-	rowCount := b.rowCountMap[executionId]
-	b.rowBufferLock.RUnlock()
-
-	// notify observers of completion
-	// figure out the number of chunks written, including partial chunks
-	chunksWritten := int(rowCount / JSONLChunkSize)
-	if rowCount%JSONLChunkSize > 0 {
-		chunksWritten++
-	}
-	return rowCount, chunksWritten
-}
-
-
 func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData paging.Data, err error) error {
 	// tell our write to write any remaining rows
 
@@ -205,9 +189,12 @@ func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData p
 		}
 	}
 
-	CHEKC ME
-	// get row count
-	rowCount, chunksWritten := b.getRowCount(executionId)
+	// notify observers of completion
+	// figure out the number of chunks written, including partial chunks
+	chunksWritten := int(rowCount / JSONLChunkSize)
+	if rowCount%JSONLChunkSize > 0 {
+		chunksWritten++
+	}
 
 	return b.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, err))
 }
