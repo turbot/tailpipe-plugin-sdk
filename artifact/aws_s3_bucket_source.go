@@ -33,7 +33,7 @@ func NewAwsS3BucketSource(ctx context.Context, config *AwsS3BucketSourceConfig) 
 		Extensions: types.NewExtensionLookup(config.Extensions),
 	}
 
-	s.tmpDir = path.Join(config.TmpDir, "tailpipe", fmt.Sprintf("s3-%s", config.Bucket))
+	s.TmpDir = path.Join(config.TmpDir, "tailpipe", fmt.Sprintf("s3-%s", config.Bucket))
 
 	if err := s.ValidateConfig(); err != nil {
 		return nil, fmt.Errorf("invalid config: %w", err)
@@ -55,7 +55,7 @@ func (s *AwsS3BucketSource) Identifier() string {
 
 func (s *AwsS3BucketSource) Close() error {
 	// delete the temp dir and all files
-	return os.RemoveAll(s.tmpDir)
+	return os.RemoveAll(s.TmpDir)
 }
 
 func (s *AwsS3BucketSource) ValidateConfig() error {
@@ -125,7 +125,7 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.Ar
 	defer getObjectOutput.Body.Close()
 
 	// copy the object data to a temp file
-	localFilePath := path.Join(s.tmpDir, info.Name)
+	localFilePath := path.Join(s.TmpDir, info.Name)
 	// ensure the directory exists of the file to write to
 	if err := os.MkdirAll(filepath.Dir(localFilePath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory for file, %w", err)

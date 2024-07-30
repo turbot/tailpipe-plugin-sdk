@@ -118,7 +118,7 @@ func (s *GcpStorageBucketSource) DownloadArtifact(ctx context.Context, info *typ
 	}
 	defer reader.Close()
 
-	localFilePath := path.Join(s.tmpDir, info.Name)
+	localFilePath := path.Join(s.TmpDir, info.Name)
 	if err := os.MkdirAll(path.Dir(localFilePath), 0755); err != nil {
 		return fmt.Errorf("failed to create directory for file, %w", err)
 	}

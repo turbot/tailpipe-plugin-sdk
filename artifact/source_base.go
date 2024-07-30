@@ -13,7 +13,7 @@ import (
 
 type SourceBase struct {
 	observable.Base
-	tmpDir string
+	TmpDir string
 }
 
 func (s *SourceBase) Close() error {
