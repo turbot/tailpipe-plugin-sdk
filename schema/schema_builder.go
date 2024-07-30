@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/iancoleman/strcase"
+	"golang.org/x/exp/maps"
 )
 
 const maxNesting = 5
@@ -51,7 +52,7 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 	}()
 
 	// reflect over parquet tags to build schema
-	var res = &RowSchema{}
+	var res = map[string]*ColumnSchema{}
 
 	// If rowStruct is a pointer, get the element type
 	if t.Kind() == reflect.Ptr {
@@ -116,9 +117,11 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 
 		// if the field is an anonymous struct, MERGE the child fields into the parent
 		if field.Anonymous && c.Type == "STRUCT" {
-			res.Columns = append(res.Columns, c.StructFields...)
+			for _, child := range c.StructFields {
+				res[child.ColumnName] = child
+			}
 		} else {
-			res.Columns = append(res.Columns, c)
+			res[c.ColumnName] = c
 		}
 	}
 
@@ -126,7 +129,11 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 		return nil, errors.Join(errorList...)
 	}
 
-	return res, nil
+	// now convert the map into a schema
+	schema := &RowSchema{
+		Columns: maps.Values(res),
+	}
+	return schema, nil
 
 }
 

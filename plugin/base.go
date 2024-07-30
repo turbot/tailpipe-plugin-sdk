@@ -9,7 +9,6 @@ import (
 	"sync"
 
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -177,10 +176,6 @@ func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
 	b.collectionFactory = make(map[string]func() Collection)
 	b.schemaMap = make(map[string]*schema.RowSchema)
 
-	commonSchema, err := schema.SchemaFromStruct(enrichment.CommonFields{})
-	if err != nil {
-		return fmt.Errorf("failed to create schema for common fields: %w", err)
-	}
 	errs := make([]error, 0)
 	for _, ctor := range collectionFunc {
 		// create an instance of the collection to get the identifier
@@ -194,8 +189,7 @@ func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
 		if err != nil {
 			errs = append(errs, err)
 		}
-		// merge in the common schema
-		s.Merge(commonSchema)
+
 		b.schemaMap[c.Identifier()] = s
 	}
 	if len(errs) > 0 {
