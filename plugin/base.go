@@ -210,9 +210,11 @@ func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData p
 	b.rowBufferLock.Unlock()
 
 	// tell our write to write any remaining rows
-	if err := b.writeChunk(ctx, rowCount, rowsToWrite, pagingData); err != nil {
-		slog.Error("failed to write final chunk", "error", err)
-		return fmt.Errorf("failed to write final chunk: %w", err)
+	if len(rowsToWrite) > 0 {
+		if err := b.writeChunk(ctx, rowCount, rowsToWrite, pagingData); err != nil {
+			slog.Error("failed to write final chunk", "error", err)
+			return fmt.Errorf("failed to write final chunk: %w", err)
+		}
 	}
 
 	// get row count

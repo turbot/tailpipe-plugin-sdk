@@ -36,6 +36,7 @@ func (j JSONLWriter) WriteChunk(ctx context.Context, rows []any, chunkNumber int
 	// Open the file for writing
 	file, err := os.Create(filename)
 	if err != nil {
+		slog.Error("failed to create JSONL file", "error", err)
 		return fmt.Errorf("failed to create JSONL file %s: %w", filename, err)
 	}
 	defer file.Close()
@@ -48,6 +49,7 @@ func (j JSONLWriter) WriteChunk(ctx context.Context, rows []any, chunkNumber int
 	for _, item := range rows {
 		err := encoder.Encode(item)
 		if err != nil {
+			slog.Error("failed to encode item", "error", err)
 			return fmt.Errorf("failed to encode item: %w", err)
 		}
 	}
