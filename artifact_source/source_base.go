@@ -1,8 +1,9 @@
-package artifact
+package artifact_source
 
 import (
 	"context"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
 
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -22,7 +23,7 @@ func (s *SourceBase) Close() error {
 
 // Mapper implenments the Source interface
 // by default no source specific mapper is required
-func (s *SourceBase) Mapper() func() Mapper {
+func (s *SourceBase) Mapper() func() artifact_mapper.Mapper {
 	return nil
 }
 

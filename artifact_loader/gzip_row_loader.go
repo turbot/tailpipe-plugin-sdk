@@ -1,4 +1,4 @@
-package artifact
+package artifact_loader
 
 import (
 	"bufio"
@@ -9,12 +9,17 @@ import (
 	"os"
 )
 
+func init() {
+	// register loader
+	Loaders = append(Loaders, NewGzipRowLoader)
+}
+
 // GzipRowLoader is an Loader that can extracts an object from a gzip file
 type GzipRowLoader struct {
 }
 
-func NewGzipRowLoader() (Loader, error) {
-	return &GzipRowLoader{}, nil
+func NewGzipRowLoader() Loader {
+	return &GzipRowLoader{}
 }
 
 func (g GzipRowLoader) Identifier() string {
@@ -23,7 +28,7 @@ func (g GzipRowLoader) Identifier() string {
 
 // Load implements Loader
 // Extracts an object from a gzip file
-func (g GzipRowLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *ArtifactData) error {
+func (g GzipRowLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *types.RowData) error {
 	inputPath := info.Name
 	gzFile, err := os.Open(inputPath)
 	if err != nil {
@@ -46,7 +51,7 @@ func (g GzipRowLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataC
 				break
 			}
 			// get the line of text and send
-			dataChan <- &ArtifactData{
+			dataChan <- &types.RowData{
 				Data: scanner.Text(),
 			}
 		}

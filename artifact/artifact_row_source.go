@@ -1,16 +1,19 @@
-package row_source
+package artifact
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"log/slog"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
@@ -19,7 +22,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// ArtifactRowSource is a [plugin.RowSource] that extracts rows from an 'artifact'
+// ArtifactRowSource is a [row_source.RowSource] that extracts rows from an 'artifact'
 //
 // Artifacts are defined as some entity which contains a collection of rows, which must be extracted/processed in
 // some way to produce 'raw' rows which can be streamed to a collection. Examples of artifacts include:
@@ -38,16 +41,16 @@ import (
 //
 // The lifetime of the ArtifactRowSource is expected to be the duration of a single collection operation
 type ArtifactRowSource struct {
-	Base[ArtifactRowSourceConfig]
+	row_source.Base[ArtifactRowSourceConfig]
 	// do we expect the a row to be a line of data
 	RowPerLine bool
-	Source     artifact.Source
-	Loader     artifact.Loader
-	Mappers    []artifact.Mapper
+	Source     artifact_source.Source
+	Loader     artifact_loader.Loader
+	Mappers    []artifact_mapper.Mapper
 
 	// map of loaders created, keyed by identifier
 	// this is populated lazily if we infer the loader from the file type
-	loaders    map[string]artifact.Loader
+	loaders    map[string]artifact_loader.Loader
 	loaderLock sync.RWMutex
 
 	// rate limiters
@@ -56,7 +59,8 @@ type ArtifactRowSource struct {
 	// the paging data for this collection
 	pagingData paging.Data
 
-	artifactWg sync.WaitGroup
+	artifactWg    sync.WaitGroup
+	sourceFactory ArtifactSourceFactory
 }
 
 func (a *ArtifactRowSource) GetPagingData() paging.Data {
@@ -67,15 +71,35 @@ func (a *ArtifactRowSource) Identifier() string {
 	return ArtifactRowSourceIdentifier
 }
 
-func NewArtifactRowSource() RowSource {
+func NewArtifactRowSource() row_source.RowSource {
 	return &ArtifactRowSource{}
 }
 
-func (a *ArtifactRowSource) Init(ctx context.Context, configData *hcl.Data, opts ...RowSourceOption) error {
-	// call base to apply options and parse config
-	a.Base.Init(ctx, configData, opts...)
+// TODO #design it is only artifact row source that needs options - maybe just have a different Init function?
+func (a *ArtifactRowSource) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+	// apply options
+	for _, opt := range opts {
+		opt(a)
+	}
 
-	// now configure the source
+	// call base to apply options and parse config
+	if err := a.Base.Init(ctx, configData); err != nil {
+		return err
+	}
+
+	// now configure the source (our sourcefactory should have been set by an option)
+	// TODO this is horrible - we need a better way to do this
+	if a.sourceFactory == nil {
+		return fmt.Errorf("source factory not set - a WithSourceFactory option must be applied")
+	}
+	artifactSource, err := a.sourceFactory.GetArtifactSource(ctx, configData)
+	if err != nil {
+		return err
+	}
+	a.Source = artifactSource
+	if err = a.Source.Init(ctx, configData); err != nil {
+		return err
+	}
 
 	// TODO KAI
 	// TODO - consider ordering - of WithMapper is specified AND the source specifies a mapper, which comes first?
@@ -186,16 +210,20 @@ func (a *ArtifactRowSource) Collect(ctx context.Context) error {
 	return nil
 }
 
-func (a *ArtifactRowSource) SetLoader(loader artifact.Loader) {
+func (a *ArtifactRowSource) SetLoader(loader artifact_loader.Loader) {
 	a.Loader = loader
 }
 
-func (a *ArtifactRowSource) AddMapper(mapper artifact.Mapper) {
-	a.Mappers = append(a.Mappers, mapper)
+func (a *ArtifactRowSource) AddMappers(mappers ...artifact_mapper.Mapper) {
+	a.Mappers = append(a.Mappers, mappers...)
 }
 
 func (a *ArtifactRowSource) SetRowPerLine(rowPerLine bool) {
 	a.RowPerLine = rowPerLine
+}
+
+func (a *ArtifactRowSource) SetSourceFactory(factory ArtifactSourceFactory) {
+	a.sourceFactory = factory
 }
 
 // convert a downloaded artifact to a set of raw rows, with optional metadata
@@ -209,7 +237,7 @@ func (a *ArtifactRowSource) extractArtifact(ctx context.Context, info *types.Art
 		return err
 	}
 
-	artifactChan := make(chan *artifact.ArtifactData)
+	artifactChan := make(chan *types.RowData)
 	err = loader.Load(ctx, info, artifactChan)
 	if err != nil {
 		return fmt.Errorf("error extracting artifact: %w", err)
@@ -247,19 +275,19 @@ func (a *ArtifactRowSource) extractArtifact(ctx context.Context, info *types.Art
 }
 
 // mapArtifacts applies any configured mappers to the artifact data
-func (a *ArtifactRowSource) mapArtifacts(ctx context.Context, artifactData *artifact.ArtifactData) ([]*artifact.ArtifactData, error) {
+func (a *ArtifactRowSource) mapArtifacts(ctx context.Context, artifactData *types.RowData) ([]*types.RowData, error) {
 	// mappers may return multiple rows so wrap data in a list
-	var dataList = []*artifact.ArtifactData{artifactData}
+	var dataList = []*types.RowData{artifactData}
 
 	// iff there are no mappers, just return the data as is
 	if len(a.Mappers) == 0 {
-		return []*artifact.ArtifactData{artifactData}, nil
+		return []*types.RowData{artifactData}, nil
 	}
 	var errList []error
 
 	// invoke each mapper in turn
 	for _, m := range a.Mappers {
-		var mappedDataList []*artifact.ArtifactData
+		var mappedDataList []*types.RowData
 		for _, d := range dataList {
 			mappedData, err := m.Map(ctx, d)
 			if err != nil {
@@ -283,7 +311,7 @@ func (a *ArtifactRowSource) mapArtifacts(ctx context.Context, artifactData *arti
 // resolveLoader resolves the loader to use for the artifact
 // - if a loader has been specified, just use that
 // - otherwise create a default loader based on the extension
-func (a *ArtifactRowSource) resolveLoader(info *types.ArtifactInfo) (artifact.Loader, error) {
+func (a *ArtifactRowSource) resolveLoader(info *types.ArtifactInfo) (artifact_loader.Loader, error) {
 
 	// a loader was specified when creating the row source - use that
 	if a.Loader != nil {
@@ -291,24 +319,24 @@ func (a *ArtifactRowSource) resolveLoader(info *types.ArtifactInfo) (artifact.Lo
 	}
 
 	var key string
-	var ctor func() (artifact.Loader, error)
+	var ctor func() artifact_loader.Loader
 	// figure out which loader to use based on the file extension
 	switch filepath.Ext(info.Name) {
 	case ".gz":
 		if a.RowPerLine {
-			key = artifact.GzipRowLoaderIdentifier
-			ctor = artifact.NewGzipRowLoader
+			key = artifact_loader.GzipRowLoaderIdentifier
+			ctor = artifact_loader.NewGzipRowLoader
 		} else {
-			key = artifact.GzipLoaderIdentifier
-			ctor = artifact.NewGzipLoader
+			key = artifact_loader.GzipLoaderIdentifier
+			ctor = artifact_loader.NewGzipLoader
 		}
 	default:
 		if a.RowPerLine {
-			key = artifact.FileRowLoaderIdentifier
-			ctor = artifact.NewFileRowLoader
+			key = artifact_loader.FileRowLoaderIdentifier
+			ctor = artifact_loader.NewFileRowLoader
 		} else {
-			key = artifact.FileLoaderIdentifier
-			ctor = artifact.NewFileLoader
+			key = artifact_loader.FileLoaderIdentifier
+			ctor = artifact_loader.NewFileLoader
 		}
 	}
 
@@ -332,10 +360,8 @@ func (a *ArtifactRowSource) resolveLoader(info *types.ArtifactInfo) (artifact.Lo
 	}
 
 	// so we do need to create
-	l, err := ctor()
-	if err != nil {
-		return nil, err
-	}
+	l = ctor()
+
 	// store
 	a.loaders[key] = l
 

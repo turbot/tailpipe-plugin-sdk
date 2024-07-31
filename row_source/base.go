@@ -2,12 +2,12 @@ package row_source
 
 import (
 	"context"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
 )
 
@@ -22,13 +22,8 @@ type Base[T hcl.Config] struct {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (b *Base[T]) Init(ctx context.Context, configData *hcl.Data, opts ...RowSourceOption) error {
-	// apply options
-	for _, opt := range opts {
-		opt(b)
-	}
-
-	// parse the c
+func (b *Base[T]) Init(ctx context.Context, configData *hcl.Data) error {
+	// parse the config
 	c, unknownHcl, err := hcl.ParseConfig[T](configData)
 	if err != nil {
 		return err
@@ -46,7 +41,7 @@ func (b *Base[T]) Close() error {
 
 // OnRow raise an [events.Row] event, which is handled by the collection.
 // It is called by the row source when it has a row to send
-func (b *Base[T]) OnRow(ctx context.Context, row *artifact.ArtifactData, pagingData paging.Data) error {
+func (b *Base[T]) OnRow(ctx context.Context, row *types.RowData, pagingData paging.Data) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err

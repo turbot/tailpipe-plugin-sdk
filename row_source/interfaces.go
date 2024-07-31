@@ -2,7 +2,6 @@ package row_source
 
 import (
 	"context"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
@@ -22,7 +21,7 @@ type RowSource interface {
 
 	// Init is called when the row source is created
 	// it is responsible for parsing the source config and configuring the source
-	Init(ctx context.Context, config *hcl.Data, opts ...RowSourceOption) error
+	Init(context.Context, *hcl.Data, ...RowSourceOption) error
 
 	// Identifier must return the source name
 	Identifier() string
@@ -35,10 +34,9 @@ type RowSource interface {
 	GetPagingData() paging.Data
 }
 
-// MappedRowSource - interface for row sources that can be mapped
-// this interface exists purely to allow the row source to be configured
-type MappedRowSource interface {
-	SetLoader(artifact.Loader)
-	AddMappers(...artifact.Mapper)
-	SetRowPerLine(bool)
+type SourceFactory interface {
+	// GetRowSource attempts to instantiate a row source, using the provided row source data
+	// It will fail if the requested source type is not registered
+	// this is implemented by plugin.Base and SHOULD NOT be overridden
+	GetRowSource(context.Context, *hcl.Data, ...RowSourceOption) (RowSource, error)
 }

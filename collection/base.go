@@ -28,10 +28,6 @@ type Base[T hcl.Config] struct {
 	// store a reference to the derived collection type so we can call its methods
 	impl plugin.Collection
 
-	// reference to the plugin implementation
-	// used to instantiate sources
-	sourceFactory plugin.SourceFactory
-
 	// the collection config
 	Config T
 	// the supported sources for this collection, converted to a lookup
@@ -40,8 +36,7 @@ type Base[T hcl.Config] struct {
 }
 
 // Init implements plugin.Collection
-func (b *Base[T]) Init(ctx context.Context, sourceFactory plugin.SourceFactory, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
-	b.sourceFactory = sourceFactory
+func (b *Base[T]) Init(ctx context.Context, sourceFactory row_source.SourceFactory, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// parse the config
 	c, unknownHcl, err := hcl.ParseConfig[T](collectionConfigData)
 	if err != nil {
@@ -67,7 +62,7 @@ func (b *Base[T]) Init(ctx context.Context, sourceFactory plugin.SourceFactory, 
 	//if err != nil {
 	//	return err
 	//}
-	return b.SetSource(ctx, sourceConfigData)
+	return b.SetSource(ctx, sourceFactory, sourceConfigData, sourceOpts...)
 }
 
 // RegisterImpl is called by the plugin implementation to register the collection implementation
@@ -88,7 +83,7 @@ func (*Base[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption
 }
 
 // SetSource is called by the plugin implementation to set the row source
-func (b *Base[T]) SetSource(ctx context.Context, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
+func (b *Base[T]) SetSource(ctx context.Context, sourceFactory row_source.SourceFactory, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// first verify we support this source type
 
 	if _, supportsSource := b.supportedSourceLookup[configData.Type]; !supportsSource {
@@ -96,7 +91,7 @@ func (b *Base[T]) SetSource(ctx context.Context, configData *hcl.Data, sourceOpt
 	}
 
 	// now ask plugin to create and initialise the source for us
-	source, err := b.sourceFactory.GetRowSource(ctx, configData, sourceOpts...)
+	source, err := sourceFactory.GetRowSource(ctx, configData, sourceOpts...)
 	if err != nil {
 		return err
 	}

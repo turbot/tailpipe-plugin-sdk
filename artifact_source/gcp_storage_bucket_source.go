@@ -1,9 +1,10 @@
-package artifact
+package artifact_source
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"io"
 	"os"
 	"path"
@@ -19,32 +20,45 @@ import (
 	"google.golang.org/api/option"
 )
 
+func init() {
+	// register source
+	Sources = append(Sources, NewGcpStorageBucketSource)
+}
+
 // GcpStorageBucketSource is a [Source] implementation that reads artifacts from a GCP Storage bucket
 type GcpStorageBucketSource struct {
 	SourceBase
 
-	Config     *GcpStorageBucketSourceConfig
+	Config     GcpStorageBucketSourceConfig
 	Extensions types.ExtensionLookup
 	client     *storage.Client
 }
 
-func NewGcpStorageBucketSource(ctx context.Context, config *GcpStorageBucketSourceConfig) (*GcpStorageBucketSource, error) {
-	s := &GcpStorageBucketSource{
-		Config:     config,
-		Extensions: types.NewExtensionLookup(config.Extensions),
+func NewGcpStorageBucketSource() Source {
+	return &GcpStorageBucketSource{}
+}
+
+func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *hcl.Data) error {
+	// parse the config
+	c, _, err := hcl.ParseConfig[GcpStorageBucketSourceConfig](configData)
+	if err != nil {
+		return err
 	}
 
+	s.Config = c
+	s.Extensions = types.NewExtensionLookup(c.Extensions)
+
 	if err := s.ValidateConfig(); err != nil {
-		return nil, fmt.Errorf("invalid config: %w", err)
+		return fmt.Errorf("invalid config: %w", err)
 	}
 
 	client, err := s.getClient(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	s.client = client
 
-	return s, nil
+	return nil
 }
 
 func (s *GcpStorageBucketSource) Identifier() string {

@@ -52,6 +52,7 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 	}()
 
 	// reflect over parquet tags to build schema
+	// build into map to avoid column name collisions (last column wins)
 	var res = map[string]*ColumnSchema{}
 
 	// If rowStruct is a pointer, get the element type

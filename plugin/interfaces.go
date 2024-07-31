@@ -2,18 +2,18 @@ package plugin
 
 import (
 	"context"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact"
-	"github.com/turbot/tailpipe-plugin-sdk/row_source"
-
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 // TailpipePlugin is the interface that all tailpipe plugins must implement
+// It is in its own package to avoid circular dependencies as many people need to reference it
 type TailpipePlugin interface {
 	// Identifier returns the plugin name
 	// this must be implemented by the plugin implementation
@@ -42,16 +42,10 @@ type TailpipePlugin interface {
 	Shutdown(context.Context) error
 }
 
-type SourceFactory interface {
-	// GetRowSource attempts to instantiate a row source, using the provided row source data
-	// It will fail if the requested source type is not registered
-	// this is implemented by plugin.Base and SHOULD NOT be overridden
-	GetRowSource(context.Context, *hcl.Data, ...row_source.RowSourceOption) (row_source.RowSource, error)
-}
 type ArtifactSourceFactory interface {
 	// GetArtifactSource attempts to instantiate an artifact source, using the provided data
 	// It will fail if the requested source type is not registered
-	GetArtifactSource(context.Context, *hcl.Data) (artifact.Source, error)
+	GetArtifactSource(context.Context, *hcl.Data) (artifact_source.Source, error)
 }
 
 // Collection is the interface that represents a single schema/'table' provided by a plugin.
@@ -62,7 +56,7 @@ type Collection interface {
 
 	// Init is called when the collection created
 	// it is responsible for parsing the config and creating the configured Source
-	Init(ctx context.Context, sourceFactory SourceFactory, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error
+	Init(ctx context.Context, sourceFactory row_source.SourceFactory, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error
 	// Identifier must return the collection name
 	Identifier() string
 	// SupportedSources returns a list of source names that the collection supports

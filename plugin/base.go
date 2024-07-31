@@ -3,6 +3,9 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"log"
 	"log/slog"
 	"sync"
@@ -42,15 +45,15 @@ type Base struct {
 	rowCountMap map[string]int
 
 	// map of collection schemas
-	schemaMap             schema.SchemaMap
-	writer                ChunkWriter
-	artifactMapperFactory map[string]func() artifact.Mapper
+	schemaMap schema.SchemaMap
+	writer    ChunkWriter
 
-	// mapps of the various registsred types
+	// maps of constructors for  the various registsred types
 	collectionFactory     map[string]func() Collection
 	sourceFactory         map[string]func() row_source.RowSource
-	artifactLoaderFactory map[string]func() artifact.Loader
-	artifactSourceFactory map[string]func() artifact.Source
+	artifactSourceFactory map[string]func() artifact_source.Source
+	artifactLoaderFactory map[string]func() artifact_loader.Loader
+	artifactMapperFactory map[string]func() artifact_mapper.Mapper
 }
 
 // Init implements [plugin.TailpipePlugin]
@@ -130,7 +133,9 @@ func (b *Base) createCollection(ctx context.Context, req *proto.CollectRequest) 
 	// create the collection
 	col := ctor()
 
-	//  register the collection implementation with the base struct (Before  calling Init)
+	//  register the collection implementation with the base struct (_before_ calling Init)
+
+	// create an interface type to use - we do not want to expose this function in the Collection interface
 	type BaseCollection interface{ RegisterImpl(Collection) }
 	baseCol, ok := col.(BaseCollection)
 	if !ok {
@@ -142,7 +147,7 @@ func (b *Base) createCollection(ctx context.Context, req *proto.CollectRequest) 
 	collectionConfigData := hcl.DataFromProto(req.CollectionData)
 	sourceConfigData := hcl.DataFromProto(req.SourceData)
 
-	// get any source options defined by colleciton for this source type
+	// get any source options defined by collection for this source type
 	sourceOpts := col.GetSourceOptions(req.SourceData.Type)
 
 	// initialise the collection (passing ourselves as the 'sourceFactory`
@@ -184,5 +189,7 @@ func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData p
 }
 
 func (b *Base) registerCommonRowSources() {
-	b.RegisterSources(row_source.NewArtifactRowSource)
+	b.RegisterSources(artifact.NewArtifactRowSource)
+	b.RegisterArtifactLoaders(artifact_loader.Loaders...)
+	b.RegisterArtifactSources(artifact_source.Sources...)
 }

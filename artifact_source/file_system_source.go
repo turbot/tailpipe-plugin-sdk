@@ -1,17 +1,18 @@
-package artifact
+package artifact_source
 
 import (
 	"context"
 	"errors"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
+	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"os"
 	"path/filepath"
 )
 
-type FileSystemSourceConfig struct {
-	Paths      []string
-	Extensions []string
+func init() {
+	// register source
+	Sources = append(Sources, NewFileSystemSource)
 }
 
 type FileSystemSource struct {
@@ -20,11 +21,21 @@ type FileSystemSource struct {
 	Extensions types.ExtensionLookup
 }
 
-func NewFileSystemSource(config *FileSystemSourceConfig) *FileSystemSource {
-	return &FileSystemSource{
-		Paths:      config.Paths,
-		Extensions: types.NewExtensionLookup(config.Extensions),
+func NewFileSystemSource() Source {
+	return &FileSystemSource{}
+}
+
+func (s *FileSystemSource) Init(ctx context.Context, configData *hcl.Data) error {
+	// parse the config
+	var c, _, err = hcl.ParseConfig[FileSystemSourceConfig](configData)
+	if err != nil {
+		return err
 	}
+
+	s.Paths = c.Paths
+	s.Extensions = types.NewExtensionLookup(c.Extensions)
+
+	return nil
 }
 
 func (s *FileSystemSource) Identifier() string {

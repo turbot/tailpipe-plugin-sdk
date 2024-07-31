@@ -1,4 +1,4 @@
-package artifact
+package artifact_loader
 
 import (
 	"context"
@@ -8,12 +8,17 @@ import (
 	"os"
 )
 
+func init() {
+	// register loaders
+	Loaders = append(Loaders, NewFileLoader)
+}
+
 // FileLoader is an Loader that can loads a file from a path and extracts all the content
 type FileLoader struct {
 }
 
-func NewFileLoader() (Loader, error) {
-	return &FileLoader{}, nil
+func NewFileLoader() Loader {
+	return &FileLoader{}
 }
 
 func (g FileLoader) Identifier() string {
@@ -22,7 +27,7 @@ func (g FileLoader) Identifier() string {
 
 // Load implements [Loader]
 // Extracts an object from a  file
-func (g FileLoader) Load(_ context.Context, info *types.ArtifactInfo, dataChan chan *ArtifactData) error {
+func (g FileLoader) Load(_ context.Context, info *types.ArtifactInfo, dataChan chan *types.RowData) error {
 	inputPath := info.Name
 	f, err := os.Open(inputPath)
 	if err != nil {
@@ -36,7 +41,7 @@ func (g FileLoader) Load(_ context.Context, info *types.ArtifactInfo, dataChan c
 	}
 
 	go func() {
-		dataChan <- &ArtifactData{
+		dataChan <- &types.RowData{
 			Data: fileData,
 		}
 		close(dataChan)

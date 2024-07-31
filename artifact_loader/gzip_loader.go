@@ -1,4 +1,4 @@
-package artifact
+package artifact_loader
 
 import (
 	"compress/gzip"
@@ -9,12 +9,17 @@ import (
 	"os"
 )
 
+func init() {
+	// register loader
+	Loaders = append(Loaders, NewGzipLoader)
+}
+
 // GzipLoader is an Loader that can extracts a gzip file and returns all the content
 type GzipLoader struct {
 }
 
-func NewGzipLoader() (Loader, error) {
-	return &GzipLoader{}, nil
+func NewGzipLoader() Loader {
+	return &GzipLoader{}
 }
 
 func (g GzipLoader) Identifier() string {
@@ -23,7 +28,7 @@ func (g GzipLoader) Identifier() string {
 
 // Load implements Loader
 // Extracts an object from a gzip file
-func (g GzipLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *ArtifactData) error {
+func (g GzipLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *types.RowData) error {
 	inputPath := info.Name
 	gzFile, err := os.Open(inputPath)
 	if err != nil {
@@ -42,7 +47,7 @@ func (g GzipLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan
 		return fmt.Errorf("error reading %s: %w", info.Name, err)
 	}
 	go func() {
-		dataChan <- &ArtifactData{
+		dataChan <- &types.RowData{
 			Data: fileData,
 		}
 		close(dataChan)

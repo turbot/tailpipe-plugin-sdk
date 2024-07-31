@@ -5,6 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -61,10 +64,10 @@ func (b *Base) RegisterCollections(collectionFunc ...func() Collection) error {
 	return nil
 }
 
-func (b *Base) RegisterArtifactSources(sourceFuncs ...func() artifact.Source) error {
+func (b *Base) RegisterArtifactSources(sourceFuncs ...func() artifact_source.Source) error {
 	// create the maps if necessary
 	if b.artifactSourceFactory == nil {
-		b.artifactSourceFactory = make(map[string]func() artifact.Source)
+		b.artifactSourceFactory = make(map[string]func() artifact_source.Source)
 	}
 
 	errs := make([]error, 0)
@@ -80,10 +83,10 @@ func (b *Base) RegisterArtifactSources(sourceFuncs ...func() artifact.Source) er
 	return nil
 }
 
-func (b *Base) RegisterArtifactMappers(mapperFuncs ...func() artifact.Mapper) error {
+func (b *Base) RegisterArtifactMappers(mapperFuncs ...func() artifact_mapper.Mapper) error {
 	// create the maps if necessary
 	if b.artifactMapperFactory == nil {
-		b.artifactMapperFactory = make(map[string]func() artifact.Mapper)
+		b.artifactMapperFactory = make(map[string]func() artifact_mapper.Mapper)
 	}
 
 	errs := make([]error, 0)
@@ -99,10 +102,10 @@ func (b *Base) RegisterArtifactMappers(mapperFuncs ...func() artifact.Mapper) er
 	return nil
 }
 
-func (b *Base) RegisterArtifactLoaders(loaderFuncs ...func() artifact.Loader) error {
+func (b *Base) RegisterArtifactLoaders(loaderFuncs ...func() artifact_loader.Loader) error {
 	// create the maps if necessary
 	if b.artifactLoaderFactory == nil {
-		b.artifactLoaderFactory = make(map[string]func() artifact.Loader)
+		b.artifactLoaderFactory = make(map[string]func() artifact_loader.Loader)
 	}
 
 	errs := make([]error, 0)
@@ -130,7 +133,12 @@ func (b *Base) GetRowSource(ctx context.Context, sourceConfigData *hcl.Data, sou
 	// create the source
 	source := ctor()
 
-	// initialise the source
+	// if this is an artifact row source, pass an option the source factory property
+	if sourceConfigData.Type == artifact.ArtifactRowSourceIdentifier {
+		sourceOpts = append(sourceOpts, artifact.WithSourceFactory(b))
+	}
+
+	// initialise the source, passing ourselves as source_factory
 	if err := source.Init(ctx, sourceConfigData, sourceOpts...); err != nil {
 		return nil, fmt.Errorf("failed to initialise source: %w", err)
 	}
@@ -140,7 +148,7 @@ func (b *Base) GetRowSource(ctx context.Context, sourceConfigData *hcl.Data, sou
 // GetArtifactSource attempts to instantiate an artifact source, using the provided data
 // It will fail if the requested source type is not registered
 // Implements [plugin.SourceFactory]
-func (b *Base) GetArtifactSource(ctx context.Context, sourceConfigData *hcl.Data) (artifact.Source, error) {
+func (b *Base) GetArtifactSource(ctx context.Context, sourceConfigData *hcl.Data) (artifact_source.Source, error) {
 	// look for a constructor for the source
 	ctor, ok := b.artifactSourceFactory[sourceConfigData.Type]
 	if !ok {
