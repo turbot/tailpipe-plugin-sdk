@@ -28,10 +28,6 @@ type Collection interface {
 	GetRowSchema() any
 	// GetConfigSchema returns an empty instance of the config struct returned by the collection
 	GetConfigSchema() any
-	// GetPagingDataSchema returns an empty instance of the paging data struct
-	// Should be implemented onl`y if paging is supported (Base bas an empty implementation)
-	GetPagingDataSchema() (paging.Data, error)
-
 	// GetSourceOptions returns any options which should be passed to the given source type
 	GetSourceOptions(sourceType string) []row_source.RowSourceOption
 

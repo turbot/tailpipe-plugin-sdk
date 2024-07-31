@@ -2,9 +2,9 @@ package artifact_source
 
 import (
 	"context"
-
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -14,16 +14,14 @@ import (
 // Sources provided by the SDK: [FileSystemSource], [AwsS3BucketSource], [AwsCloudWatchSource]
 type Source interface {
 	observable.Observable
-
 	Identifier() string
-
 	// Init is called when the source is created
 	// it is responsible for parsing the source config and configuring the source
 	Init(ctx context.Context, config *hcl.Data) error
-
+	// SetPagingData is called by the parent ArtifactRowSource - set the paging data for the source
+	SetPagingData(data paging.Data)
 	Close() error
-
 	DiscoverArtifacts(ctx context.Context) error
-
 	DownloadArtifact(context.Context, *types.ArtifactInfo) error
+	GetPagingDataSchema() paging.Data
 }

@@ -2,13 +2,11 @@ package collection
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
 
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
@@ -51,7 +49,25 @@ func (b *Base[T]) Init(ctx context.Context, collectionConfigData, sourceConfigDa
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
-	return b.SetSource(ctx, sourceConfigData, sourceOpts...)
+	return b.initSource(ctx, sourceConfigData, sourceOpts...)
+}
+
+// initialise the row source
+func (b *Base[T]) initSource(ctx context.Context, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
+	// first verify we support this source type
+	if _, supportsSource := b.supportedSourceLookup[configData.Type]; !supportsSource {
+		return fmt.Errorf("source type '%s' is not supported by collection '%s'", configData.Type, b.impl.Identifier())
+	}
+
+	// now ask plugin to create and initialise the source for us
+	source, err := row_source.Factory.GetRowSource(ctx, configData, sourceOpts...)
+	if err != nil {
+		return err
+	}
+	b.Source = source
+
+	// add ourselves as an observer to our Source
+	return b.Source.AddObserver(b)
 }
 
 // RegisterImpl is called by the plugin implementation to register the collection implementation
@@ -72,34 +88,14 @@ func (*Base[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption
 	return nil
 }
 
-// SetSource is called by the plugin implementation to set the row source
-func (b *Base[T]) SetSource(ctx context.Context, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
-	// first verify we support this source type
-
-	if _, supportsSource := b.supportedSourceLookup[configData.Type]; !supportsSource {
-		return fmt.Errorf("source type '%s' is not supported by collection '%s'", configData.Type, b.impl.Identifier())
-	}
-
-	// now ask plugin to create and initialise the source for us
-	source, err := row_source.Factory.GetRowSource(ctx, configData, sourceOpts...)
-	if err != nil {
-		return err
-	}
-	b.Source = source
-
-	// add ourselves as an observer to our Source
-	return b.Source.AddObserver(b)
-}
-
 func (b *Base[T]) Collect(ctx context.Context, req *proto.CollectRequest) (paging.Data, error) {
 	slog.Info("Start collection")
-	// if the req contains paging data, deserialise it and add to the context passed to the source
+	// if the req contains paging data, tell the source to deserialize and store it
 	if req.PagingData != nil {
-		paging, err := b.getPagingData(req.PagingData)
-		if err != nil {
+		// ask the source to deserialise the paging data
+		if err := b.Source.SetPagingData(req.PagingData); err != nil {
 			return nil, fmt.Errorf("failed to deserialise paging data JSON: %w", err)
 		}
-		ctx = context_values.WithPagingData(ctx, paging)
 	}
 
 	// tell our source to collect - we will calls to EnrichRow for each row
@@ -112,7 +108,7 @@ func (b *Base[T]) Collect(ctx context.Context, req *proto.CollectRequest) (pagin
 	// wait for all rows to be processed
 	b.rowWg.Wait()
 
-	// ask the source for its paging data
+	// now ask the source for its updated paging data
 	pagingData := b.Source.GetPagingData()
 
 	slog.Info("Enrichment complete")
@@ -156,23 +152,4 @@ func (b *Base[T]) handeErrorEvent(e *events.Error) error {
 	// todo #err how to bubble up error
 	slog.Error("Collection Base: error event received", "error", e.Err)
 	return nil
-}
-
-// getPagingData deserialises the paging data JSON and returns a paging.Data object
-// it uses the impl to return an empty paging.Data object to unmarshal into
-func (b *Base[T]) getPagingData(pagingDataJSON json.RawMessage) (paging.Data, error) {
-	target, err := b.impl.GetPagingDataSchema()
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal(pagingDataJSON, target)
-	if err != nil {
-		return nil, err
-
-	}
-	return target, nil
-}
-
-func (b *Base[T]) GetPagingDataSchema() (paging.Data, error) {
-	return nil, fmt.Errorf("GetPagingDataSchema not implemented by %s", b.impl.Identifier())
 }

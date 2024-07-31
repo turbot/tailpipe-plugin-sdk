@@ -2,6 +2,8 @@ package row_source
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
@@ -18,6 +20,11 @@ import (
 type Base[T hcl.Config] struct {
 	observable.Base
 	Config T
+	// store a reference to the derived RowSource type so we can call its methods
+	impl RowSource
+
+	// the paging data for this source
+	PagingData paging.Data
 }
 
 // Init is called when the row source is created
@@ -38,6 +45,12 @@ func (b *Base[T]) Init(ctx context.Context, configData *hcl.Data, opts ...RowSou
 	return nil
 }
 
+// RegisterImpl is called by the plugin implementation to register the collection implementation
+// this is required so that the Base can call the RowSource's methods
+func (b *Base[T]) RegisterImpl(impl RowSource) {
+	b.impl = impl
+}
+
 // Close is a default implementation of the [plugin.RowSource] Close interface function
 func (b *Base[T]) Close() error {
 	return nil
@@ -51,4 +64,30 @@ func (b *Base[T]) OnRow(ctx context.Context, row *types.RowData, pagingData pagi
 		return err
 	}
 	return b.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, pagingData, events.WithEnrichmentFields(row.Metadata)))
+}
+
+// GetPagingDataSchema should be overriden by the RowSource implementation to return the paging data schema
+// base implementation returns nil
+func (b *Base[T]) GetPagingDataSchema() paging.Data {
+	return nil
+}
+
+// GetPagingData returns the current paging data for the ongoing collection
+func (b *Base[T]) GetPagingData() paging.Data {
+	return b.PagingData
+}
+
+// SetPagingData unmarshalls the paging data JSON into the target object
+func (b *Base[T]) SetPagingData(pagingDataJSON json.RawMessage) error {
+	target := b.impl.GetPagingDataSchema()
+	if target == nil {
+		return fmt.Errorf("GetPagingDataSchema must be implemented by the %s RowSource", b.impl.Identifier())
+	}
+
+	if err := json.Unmarshal(pagingDataJSON, target); err != nil {
+		return err
+	}
+
+	b.PagingData = target
+	return nil
 }

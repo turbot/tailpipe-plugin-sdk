@@ -2,6 +2,7 @@ package artifact_row_source
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -61,22 +62,17 @@ type ArtifactRowSource struct {
 	// rate limiters
 	artifactLoadLimiter *rate_limiter.APILimiter
 
-	// the paging data for this collection
-	pagingData paging.Data
-
 	artifactWg sync.WaitGroup
 }
 
-func (a *ArtifactRowSource) GetPagingData() paging.Data {
-	return a.pagingData
+func NewArtifactRowSource() row_source.RowSource {
+	return &ArtifactRowSource{
+		loaders: make(map[string]artifact_loader.Loader),
+	}
 }
 
 func (a *ArtifactRowSource) Identifier() string {
 	return ArtifactRowSourceIdentifier
-}
-
-func NewArtifactRowSource() row_source.RowSource {
-	return &ArtifactRowSource{}
 }
 
 // TODO #design it is only artifact row source that needs options - maybe just have a different Init function?
@@ -111,6 +107,12 @@ func (a *ArtifactRowSource) Init(ctx context.Context, configData *hcl.Data, opts
 	}
 	a.Source = artifactSource
 
+	// TODO #design think about this - it;s a bit funky that both the artifact source AND the row source store the paging data
+	//  - but this is because we store it in the artifact_row_source.Base
+	// now we have created the source, we can set the paging data
+	// set the paging data to be an empty data struct (as returned by GetPagingDataSchema)
+	a.PagingData = a.GetPagingDataSchema()
+
 	// add ourselves as observer to a
 	if err = artifactSource.AddObserver(a); err != nil {
 		return err
@@ -123,6 +125,23 @@ func (a *ArtifactRowSource) Init(ctx context.Context, configData *hcl.Data, opts
 		MaxConcurrency: 1,
 	})
 
+	return nil
+}
+
+// GetPagingDataSchema should be overriden by the RowSource implementation to return the paging data schema
+// base implementation returns nil
+func (a *ArtifactRowSource) GetPagingDataSchema() paging.Data {
+	return a.Source.GetPagingDataSchema()
+}
+
+// SetPagingData overrides Base.SetPagingData to pass the paging data to the source
+func (a *ArtifactRowSource) SetPagingData(pagingDataJSON json.RawMessage) error {
+	err := a.Base.SetPagingData(pagingDataJSON)
+	if err != nil {
+		return err
+	}
+	// pass paging data to the source
+	a.Source.SetPagingData(a.PagingData)
 	return nil
 }
 
@@ -174,7 +193,7 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 		}()
 	case *events.ArtifactDownloaded:
 		// update our paging data with the paging data from the this artifact event
-		a.pagingData.Update(e.PagingData)
+		a.updatePagingData(e.PagingData)
 
 		//extract
 		go func() {
@@ -257,7 +276,7 @@ func (a *ArtifactRowSource) extractArtifact(ctx context.Context, info *types.Art
 			if row.Metadata == nil {
 				row.Metadata = info.EnrichmentFields
 			}
-			if err := a.OnRow(ctx, row, a.pagingData); err != nil {
+			if err := a.OnRow(ctx, row, a.PagingData); err != nil {
 				notifyErrors = append(notifyErrors, err)
 			}
 		}
@@ -362,4 +381,15 @@ func (a *ArtifactRowSource) resolveLoader(info *types.ArtifactInfo) (artifact_lo
 	a.loaders[key] = l
 
 	return l, nil
+}
+
+func (a *ArtifactRowSource) updatePagingData(data paging.Data) {
+	if data == nil {
+		return
+	}
+	if a.PagingData == nil {
+		a.PagingData = data
+		return
+	}
+	a.PagingData.Update(data)
 }

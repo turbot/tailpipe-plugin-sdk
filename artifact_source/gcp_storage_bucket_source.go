@@ -28,7 +28,7 @@ func init() {
 
 // GcpStorageBucketSource is a [Source] implementation that reads artifacts from a GCP Storage bucket
 type GcpStorageBucketSource struct {
-	SourceBase
+	Base
 
 	Config     GcpStorageBucketSourceConfig
 	Extensions types.ExtensionLookup

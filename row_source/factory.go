@@ -43,6 +43,15 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *h
 	// create the source
 	source := ctor()
 
+	//  register the rowsource implementation with the base struct (_before_ calling Init)
+	// create an interface type to use - we do not want to expose this function in the Collection interface
+	type BaseCollection interface{ RegisterImpl(rowSource RowSource) }
+	baseCol, ok := source.(BaseCollection)
+	if !ok {
+		return nil, fmt.Errorf("collection implementation must embed collection.Base")
+	}
+	baseCol.RegisterImpl(source)
+
 	// initialise the source, passing ourselves as source_factory
 	if err := source.Init(ctx, sourceConfigData, sourceOpts...); err != nil {
 		return nil, fmt.Errorf("failed to initialise source: %w", err)

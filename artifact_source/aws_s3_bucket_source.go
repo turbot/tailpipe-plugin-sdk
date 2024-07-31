@@ -27,7 +27,7 @@ func init() {
 
 // AwsS3BucketSource is a [Source] implementation that reads artifacts from an S3 bucket
 type AwsS3BucketSource struct {
-	SourceBase
+	Base
 
 	Config     AwsS3BucketSourceConfig
 	Extensions types.ExtensionLookup

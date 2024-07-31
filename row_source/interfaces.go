@@ -2,6 +2,7 @@ package row_source
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
@@ -31,5 +32,12 @@ type RowSource interface {
 	// Collect is called to start collecting data,
 	Collect(context.Context) error
 
+	// GetPagingDataSchema returns an empty instance of the paging data struct
+	// Should be implemented only if paging is supported (Base bas an empty implementation)
+	GetPagingDataSchema() paging.Data
+
+	// GetPagingData returns the current paging data for the ongoing collection
 	GetPagingData() paging.Data
+	// SetPagingData unmarshalls the paging data JSON into the target object
+	SetPagingData(pagingDataJSON json.RawMessage) error
 }

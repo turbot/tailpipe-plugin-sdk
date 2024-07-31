@@ -18,7 +18,7 @@ func init() {
 }
 
 type FileSystemSource struct {
-	SourceBase
+	Base
 	Paths      []string
 	Extensions types.ExtensionLookup
 }
