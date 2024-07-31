@@ -46,6 +46,7 @@ func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *hcl.Data)
 		return err
 	}
 
+	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("gcp-storage-%s", c.Bucket))
 	s.Config = c
 	s.Extensions = types.NewExtensionLookup(c.Extensions)
 

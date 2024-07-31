@@ -107,6 +107,13 @@ func (a *ArtifactRowSource) Init(ctx context.Context, configData *hcl.Data, opts
 	}
 	a.Source = artifactSource
 
+	// NOTE: see if the source requires a mapper
+	// (e.g. if the source is a Cloudwatch source, we need to add a mapper to extract the cloudtrail metadata)
+	// if so, this mapper is put at the START of the chain
+	if mapperFunc := artifactSource.Mapper(); mapperFunc != nil {
+		a.Mappers = append([]artifact_mapper.Mapper{mapperFunc()}, a.Mappers...)
+	}
+
 	// TODO #design think about this - it;s a bit funky that both the artifact source AND the row source store the paging data
 	//  - but this is because we store it in the artifact_row_source.Base
 	// now we have created the source, we can set the paging data

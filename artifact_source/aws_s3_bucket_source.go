@@ -53,7 +53,7 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data) erro
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
-	s.TmpDir = path.Join(c.TmpDir, "tailpipe", fmt.Sprintf("s3-%s", c.Bucket))
+	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("s3-%s", c.Bucket))
 
 	if err := s.ValidateConfig(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
