@@ -1,26 +1,31 @@
-package artifact
+package artifact_row_source
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
-	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"log/slog"
 	"path/filepath"
 	"sync"
 	"time"
 
 	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
+
+func init() {
+	// register artifact row source
+	row_source.Factory.RegisterRowSources(NewArtifactRowSource)
+}
 
 // ArtifactRowSource is a [row_source.RowSource] that extracts rows from an 'artifact'
 //
@@ -59,8 +64,7 @@ type ArtifactRowSource struct {
 	// the paging data for this collection
 	pagingData paging.Data
 
-	artifactWg    sync.WaitGroup
-	sourceFactory ArtifactSourceFactory
+	artifactWg sync.WaitGroup
 }
 
 func (a *ArtifactRowSource) GetPagingData() paging.Data {
@@ -84,47 +88,41 @@ func (a *ArtifactRowSource) Init(ctx context.Context, configData *hcl.Data, opts
 
 	// call base to apply options and parse config
 	if err := a.Base.Init(ctx, configData); err != nil {
+		slog.Warn("Initializing ArtifactRowSource failed", "error", err)
 		return err
 	}
+	slog.Info("Initialized ArtifactRowSource", "config", a.Config)
 
-	// now configure the source (our sourcefactory should have been set by an option)
-	// TODO this is horrible - we need a better way to do this
-	if a.sourceFactory == nil {
-		return fmt.Errorf("source factory not set - a WithSourceFactory option must be applied")
+	// ok so we now have parsed config. We need to create new config data ro pass to the artifact source factory
+	artifactSourceConfigData := &hcl.Data{
+		// set source type
+		Type: a.Config.Source,
+		// copy the other fields
+		// TODO use unknonw HCL!!
+		ConfigData: configData.ConfigData,
+		Filename:   configData.Filename,
+		Pos:        configData.Pos,
 	}
-	artifactSource, err := a.sourceFactory.GetArtifactSource(ctx, configData)
+
+	slog.Info("Creating artifact source", "source type", a.Config.Source)
+	artifactSource, err := artifact_source.Factory.GetArtifactSource(ctx, artifactSourceConfigData)
 	if err != nil {
 		return err
 	}
 	a.Source = artifactSource
-	if err = a.Source.Init(ctx, configData); err != nil {
+
+	// add ourselves as observer to a
+	if err = artifactSource.AddObserver(a); err != nil {
 		return err
 	}
 
-	// TODO KAI
-	// TODO - consider ordering - of WithMapper is specified AND the source specifies a mapper, which comes first?
-	// should these be mutually exclusive??
-	// NOTE: see if the source requires a mapper
-	// (e.g. if the source is a Cloudwatch source, we need to add a mapper to extract the cloudtrail metadata)
-	// NOTE: do this BEFORE applying options so we know there are no mappers set yet
-	//if mapperFunc := artifactSource.Mapper(); mapperFunc != nil {
-	//	a.Mappers = []artifact.Mapper{mapperFunc()}
-	//}
-	//
-	//// add ourselves as observer to a
-	//err := artifactSource.AddObserver(a)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//a.artifactLoadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
-	//	Name: "artifact_load_limiter",
-	//	//FillRate:       5,
-	//	//BucketSize:     5,
-	//	MaxConcurrency: 1,
-	//})
-	//
-	//return a, nil
+	// setup rate limiter
+	a.artifactLoadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
+		Name: "artifact_load_limiter",
+		// TODO #config #debug set to one for simplicity for now
+		MaxConcurrency: 1,
+	})
+
 	return nil
 }
 
@@ -201,6 +199,8 @@ func (a *ArtifactRowSource) Notify(ctx context.Context, event events.Event) erro
 // Collect tells our ArtifactRowSource to start discovering artifacts
 // Implements [plugin.RowSource]
 func (a *ArtifactRowSource) Collect(ctx context.Context) error {
+	// tell out source to discover artifacts
+	// it will notify us of each artifact discovered
 	if err := a.Source.DiscoverArtifacts(ctx); err != nil {
 		return err
 	}
@@ -220,10 +220,6 @@ func (a *ArtifactRowSource) AddMappers(mappers ...artifact_mapper.Mapper) {
 
 func (a *ArtifactRowSource) SetRowPerLine(rowPerLine bool) {
 	a.RowPerLine = rowPerLine
-}
-
-func (a *ArtifactRowSource) SetSourceFactory(factory ArtifactSourceFactory) {
-	a.sourceFactory = factory
 }
 
 // convert a downloaded artifact to a set of raw rows, with optional metadata

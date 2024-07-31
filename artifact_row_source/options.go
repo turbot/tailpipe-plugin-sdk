@@ -1,4 +1,4 @@
-package artifact
+package artifact_row_source
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
@@ -6,16 +6,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 )
-
-// WithSourceFactory is used when creating an ArtifactRowSource
-// It adds a SourceFactory to the row source
-func WithSourceFactory(sourceFactory ArtifactSourceFactory) row_source.RowSourceOption {
-	return func(r observable.Observable) {
-		if a, ok := r.(*ArtifactRowSource); ok {
-			a.SetSourceFactory(sourceFactory)
-		}
-	}
-}
 
 // WithMapper is used when creating an ArtifactRowSource
 // It adds a mapper to the row source

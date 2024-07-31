@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"io"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,13 +15,14 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
+	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 func init() {
 	// register source
-	Sources = append(Sources, NewAwsS3BucketSource)
+	Factory.RegisterArtifactSources(NewAwsS3BucketSource)
 }
 
 // AwsS3BucketSource is a [Source] implementation that reads artifacts from an S3 bucket
@@ -41,6 +42,7 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data) erro
 	// parse the config
 	var c, _, err = hcl.ParseConfig[AwsS3BucketSourceConfig](configData)
 	if err != nil {
+		slog.Error("AwsS3BucketSource Init - error parsing config", "error", err)
 		return err
 	}
 
@@ -64,6 +66,7 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data) erro
 	}
 	s.client = client
 
+	slog.Info("Initialized AwsS3BucketSource", "bucket", s.Config.Bucket, "prefix", s.Config.Prefix, "extensions", s.Extensions)
 	return err
 }
 

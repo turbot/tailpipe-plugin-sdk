@@ -10,7 +10,7 @@ import (
 
 func init() {
 	// register loader
-	Loaders = append(Loaders, NewFileRowLoader)
+	Factory.RegisterArtifactLoaders(NewFileRowLoader)
 }
 
 // FileRowLoader is an Loader that can loads a file from a path and extracts the contenst a line at a time

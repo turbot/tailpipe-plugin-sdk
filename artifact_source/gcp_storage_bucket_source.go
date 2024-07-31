@@ -4,8 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"io"
+	"log/slog"
 	"os"
 	"path"
 	"strings"
@@ -13,6 +13,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/mitchellh/go-homedir"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
+	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"google.golang.org/api/impersonate"
@@ -22,7 +23,7 @@ import (
 
 func init() {
 	// register source
-	Sources = append(Sources, NewGcpStorageBucketSource)
+	Factory.RegisterArtifactSources(NewGcpStorageBucketSource)
 }
 
 // GcpStorageBucketSource is a [Source] implementation that reads artifacts from a GCP Storage bucket
@@ -58,6 +59,7 @@ func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *hcl.Data)
 	}
 	s.client = client
 
+	slog.Info("Initialized GcpStorageBucketSource", "bucket", s.Config.Bucket, "extensions", s.Extensions)
 	return nil
 }
 

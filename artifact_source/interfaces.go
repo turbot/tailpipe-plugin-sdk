@@ -2,7 +2,7 @@ package artifact_source
 
 import (
 	"context"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -22,11 +22,6 @@ type Source interface {
 	Init(ctx context.Context, config *hcl.Data) error
 
 	Close() error
-
-	// Mapper returns the mapper that should be used to extract data from the artifact
-	// this should be provided in the case of sources which require specific mapping./extraction, e.g. Cloudwatch
-	// artifact.Base provides an empty implementation
-	Mapper() func() artifact_mapper.Mapper
 
 	DiscoverArtifacts(ctx context.Context) error
 

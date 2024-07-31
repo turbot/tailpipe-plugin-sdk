@@ -3,16 +3,18 @@ package artifact_source
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
+	"path/filepath"
+
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"os"
-	"path/filepath"
 )
 
 func init() {
 	// register source
-	Sources = append(Sources, NewFileSystemSource)
+	Factory.RegisterArtifactSources(NewFileSystemSource)
 }
 
 type FileSystemSource struct {
@@ -29,12 +31,13 @@ func (s *FileSystemSource) Init(ctx context.Context, configData *hcl.Data) error
 	// parse the config
 	var c, _, err = hcl.ParseConfig[FileSystemSourceConfig](configData)
 	if err != nil {
+		slog.Error("Error parsing config", "error", err)
 		return err
 	}
 
 	s.Paths = c.Paths
 	s.Extensions = types.NewExtensionLookup(c.Extensions)
-
+	slog.Info("Initialized FileSystemSource", "paths", s.Paths, "extensions", s.Extensions)
 	return nil
 }
 

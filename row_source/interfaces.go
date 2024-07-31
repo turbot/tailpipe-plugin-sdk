@@ -33,10 +33,3 @@ type RowSource interface {
 
 	GetPagingData() paging.Data
 }
-
-type SourceFactory interface {
-	// GetRowSource attempts to instantiate a row source, using the provided row source data
-	// It will fail if the requested source type is not registered
-	// this is implemented by plugin.Base and SHOULD NOT be overridden
-	GetRowSource(context.Context, *hcl.Data, ...RowSourceOption) (RowSource, error)
-}

@@ -3,21 +3,16 @@ package plugin
 import (
 	"context"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"log"
 	"log/slog"
 	"sync"
 
-	"github.com/turbot/tailpipe-plugin-sdk/artifact"
+	"github.com/turbot/tailpipe-plugin-sdk/collection"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
-	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
@@ -44,16 +39,7 @@ type Base struct {
 	// map of row counts keyed by execution id
 	rowCountMap map[string]int
 
-	// map of collection schemas
-	schemaMap schema.SchemaMap
-	writer    ChunkWriter
-
-	// maps of constructors for  the various registsred types
-	collectionFactory     map[string]func() Collection
-	sourceFactory         map[string]func() row_source.RowSource
-	artifactSourceFactory map[string]func() artifact_source.Source
-	artifactLoaderFactory map[string]func() artifact_loader.Loader
-	artifactMapperFactory map[string]func() artifact_mapper.Mapper
+	writer ChunkWriter
 }
 
 // Init implements [plugin.TailpipePlugin]
@@ -62,9 +48,6 @@ func (b *Base) Init(context.Context) error {
 	// TODO #validation if overriden by plugin implementation, we need a way to validate this has been called
 	b.rowBufferMap = make(map[string][]any)
 	b.rowCountMap = make(map[string]int)
-
-	// register the row sources provided by the sdk
-	b.registerCommonRowSources()
 	return nil
 }
 
@@ -94,74 +77,11 @@ func (b *Base) Shutdown(context.Context) error {
 
 // GetSchema implements TailpipePlugin
 func (b *Base) GetSchema() schema.SchemaMap {
-	return b.schemaMap
-}
-
-func (b *Base) doCollect(ctx context.Context, req *proto.CollectRequest) error {
-	// try to get the collection
-	col, err := b.createCollection(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	// add ourselves as an observer
-	if err := col.AddObserver(b); err != nil {
-		// TODO #err handle error
-		slog.Error("add observer error", "error", err)
-	}
-
-	// signal we have started
-	// signal we have started
-	if err := b.OnStarted(ctx, req.ExecutionId); err != nil {
-		return fmt.Errorf("error signalling started: %w", err)
-	}
-
-	// tell the collection to start collecting - this is a blocking call
-	pagingData, err := col.Collect(ctx, req)
-
-	// signal we have completed - pass error if there was one
-	return b.OnCompleted(ctx, req.ExecutionId, pagingData, err)
-}
-
-func (b *Base) createCollection(ctx context.Context, req *proto.CollectRequest) (Collection, error) {
-	// get the registered constructor for the collection
-	ctor, ok := b.collectionFactory[req.CollectionData.Type]
-	if !ok {
-		return nil, fmt.Errorf("collection not found: %s", req.CollectionData.Type)
-	}
-
-	// create the collection
-	col := ctor()
-
-	//  register the collection implementation with the base struct (_before_ calling Init)
-
-	// create an interface type to use - we do not want to expose this function in the Collection interface
-	type BaseCollection interface{ RegisterImpl(Collection) }
-	baseCol, ok := col.(BaseCollection)
-	if !ok {
-		return nil, fmt.Errorf("collection implementation must embed collection.Base")
-	}
-	baseCol.RegisterImpl(col)
-
-	// convert req into collectionConfigData and sourceConfigData
-	collectionConfigData := hcl.DataFromProto(req.CollectionData)
-	sourceConfigData := hcl.DataFromProto(req.SourceData)
-
-	// get any source options defined by collection for this source type
-	sourceOpts := col.GetSourceOptions(req.SourceData.Type)
-
-	// initialise the collection (passing ourselves as the 'sourceFactory`
-	err := col.Init(ctx, b, collectionConfigData, sourceConfigData, sourceOpts...)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialise collection: %w", err)
-	}
-
-	return col, nil
+	// ask the collection factory
+	return collection.Factory.GetSchema()
 }
 
 func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData paging.Data, err error) error {
-	// tell our write to write any remaining rows
-
 	// get row count and the rows in the buffers
 	b.rowBufferLock.Lock()
 	rowCount := b.rowCountMap[executionId]
@@ -188,8 +108,29 @@ func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData p
 	return b.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, err))
 }
 
-func (b *Base) registerCommonRowSources() {
-	b.RegisterSources(artifact.NewArtifactRowSource)
-	b.RegisterArtifactLoaders(artifact_loader.Loaders...)
-	b.RegisterArtifactSources(artifact_source.Sources...)
+func (b *Base) doCollect(ctx context.Context, req *proto.CollectRequest) error {
+	// ask the factory to create the collection
+	// - this will configure the requested source
+	col, err := collection.Factory.GetCollection(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	// add ourselves as an observer
+	if err := col.AddObserver(b); err != nil {
+		// TODO #err handle error
+		slog.Error("add observer error", "error", err)
+	}
+
+	// signal we have started
+	// signal we have started
+	if err := b.OnStarted(ctx, req.ExecutionId); err != nil {
+		return fmt.Errorf("error signalling started: %w", err)
+	}
+
+	// tell the collection to start collecting - this is a blocking call
+	pagingData, err := col.Collect(ctx, req)
+
+	// signal we have completed - pass error if there was one
+	return b.OnCompleted(ctx, req.ExecutionId, pagingData, err)
 }

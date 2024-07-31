@@ -1,8 +1,8 @@
 package artifact_source
 
 type FileSystemSourceConfig struct {
-	Paths      []string
-	Extensions []string
+	Paths      []string `hcl:"paths"`
+	Extensions []string `hcl:"extensions"`
 }
 
 func (f FileSystemSourceConfig) Validate() error {

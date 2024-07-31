@@ -4,6 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
+	"sync"
+
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -11,10 +14,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
-	"github.com/turbot/tailpipe-plugin-sdk/plugin"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
-	"log/slog"
-	"sync"
 )
 
 // Base provides a base implementation of the [plugin.Collection] interface
@@ -26,7 +26,7 @@ type Base[T hcl.Config] struct {
 	Source row_source.RowSource
 
 	// store a reference to the derived collection type so we can call its methods
-	impl plugin.Collection
+	impl Collection
 
 	// the collection config
 	Config T
@@ -36,7 +36,7 @@ type Base[T hcl.Config] struct {
 }
 
 // Init implements plugin.Collection
-func (b *Base[T]) Init(ctx context.Context, sourceFactory row_source.SourceFactory, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
+func (b *Base[T]) Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// parse the config
 	c, unknownHcl, err := hcl.ParseConfig[T](collectionConfigData)
 	if err != nil {
@@ -45,29 +45,19 @@ func (b *Base[T]) Init(ctx context.Context, sourceFactory row_source.SourceFacto
 	b.Config = c
 
 	slog.Info("Collection Base: config parsed", "config", c, "unknownHcl", string(unknownHcl))
-	// TODO #config TEMP - this will actually parse (or the base will)
-	// unmarshal the config
-	//config := &CloudTrailLogCollectionConfig{
-	//	Paths: []string{"/Users/kai/tailpipe_data/flaws_cloudtrail_logs"},
-	//}
 
 	// validate config
 	if err := c.Validate(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
-	//
-	//// todo #config create source from config
-	//source, err := b.getSource(sourceConfigData)
-	//if err != nil {
-	//	return err
-	//}
-	return b.SetSource(ctx, sourceFactory, sourceConfigData, sourceOpts...)
+	return b.SetSource(ctx, sourceConfigData, sourceOpts...)
 }
 
 // RegisterImpl is called by the plugin implementation to register the collection implementation
+// it also resisters the supported sources for this collection
 // this is required so that the Base can call the collection's methods
-func (b *Base[T]) RegisterImpl(impl plugin.Collection) {
+func (b *Base[T]) RegisterImpl(impl Collection) {
 	b.impl = impl
 	b.supportedSourceLookup = utils.SliceToLookup(impl.SupportedSources())
 }
@@ -83,7 +73,7 @@ func (*Base[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption
 }
 
 // SetSource is called by the plugin implementation to set the row source
-func (b *Base[T]) SetSource(ctx context.Context, sourceFactory row_source.SourceFactory, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
+func (b *Base[T]) SetSource(ctx context.Context, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// first verify we support this source type
 
 	if _, supportsSource := b.supportedSourceLookup[configData.Type]; !supportsSource {
@@ -91,7 +81,7 @@ func (b *Base[T]) SetSource(ctx context.Context, sourceFactory row_source.Source
 	}
 
 	// now ask plugin to create and initialise the source for us
-	source, err := sourceFactory.GetRowSource(ctx, configData, sourceOpts...)
+	source, err := row_source.Factory.GetRowSource(ctx, configData, sourceOpts...)
 	if err != nil {
 		return err
 	}

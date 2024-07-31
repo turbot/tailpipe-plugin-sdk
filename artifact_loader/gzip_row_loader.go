@@ -11,7 +11,7 @@ import (
 
 func init() {
 	// register loader
-	Loaders = append(Loaders, NewGzipRowLoader)
+	Factory.RegisterArtifactLoaders(NewGzipRowLoader)
 }
 
 // GzipRowLoader is an Loader that can extracts an object from a gzip file

@@ -10,7 +10,7 @@ import (
 
 func init() {
 	// register loaders
-	Loaders = append(Loaders, NewFileLoader)
+	Factory.RegisterArtifactLoaders(NewFileLoader)
 }
 
 // FileLoader is an Loader that can loads a file from a path and extracts all the content

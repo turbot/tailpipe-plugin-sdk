@@ -1,4 +1,4 @@
-package artifact
+package artifact_row_source
 
 type ArtifactRowSourceConfig struct {
 	Source string `hcl:"source"`

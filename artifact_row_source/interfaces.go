@@ -1,4 +1,4 @@
-package artifact
+package artifact_row_source
 
 import (
 	"context"

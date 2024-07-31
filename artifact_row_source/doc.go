@@ -1,4 +1,4 @@
-// Package artifact provides types and functions for loading and processing rows using an
+// Package artifact_row_source provides types and functions for loading and processing rows using an
 // [row_source.ArtifactRowSource].
 //
 // Artifacts are defined as some entity which contains a collection of rows, which must be extracted/processed in
@@ -58,4 +58,4 @@
 //
 // - source: FileSystemSource
 // - loader: GzipRowLoader
-package artifact
+package artifact_row_source
