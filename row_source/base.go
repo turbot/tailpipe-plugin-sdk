@@ -22,7 +22,11 @@ type Base[T hcl.Config] struct {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (b *Base[T]) Init(ctx context.Context, configData *hcl.Data) error {
+
+func (b *Base[T]) Init(ctx context.Context, configData *hcl.Data, opts ...RowSourceOption) error {
+	// ignore opts - not used in the base implementation
+	// TODO #design -= they are only needed for ArtifactRowSource - how can we remove from signature?
+
 	// parse the config
 	c, unknownHcl, err := hcl.ParseConfig[T](configData)
 	if err != nil {
