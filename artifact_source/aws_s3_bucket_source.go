@@ -1,9 +1,10 @@
-package artifact_row_source
+package artifact_source
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"io"
 	"log/slog"
 	"os"
@@ -26,41 +27,29 @@ const (
 
 func init() {
 	// register source
-	Factory.RegisterArtifactSources(NewAwsS3BucketSource)
+	row_source.Factory.RegisterRowSources(NewAwsS3BucketSource)
 }
 
-// AwsS3BucketSource is a [Source] implementation that reads artifacts from an S3 bucket
+// AwsS3BucketSource is a [ArtifactSource] implementation that reads artifacts from an S3 bucket
 type AwsS3BucketSource struct {
-	Base[AwsS3BucketSourceConfig]
+	ArtifactSourceBase[AwsS3BucketSourceConfig]
 
 	Extensions types.ExtensionLookup
 	client     *s3.Client
 }
 
-func NewAwsS3BucketSource() Source {
+func NewAwsS3BucketSource() row_source.RowSource {
 	return &AwsS3BucketSource{}
 }
 
-func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data) error {
-	// parse the config
-	var c, _, err = hcl.ParseConfig[AwsS3BucketSourceConfig](configData)
-	if err != nil {
-		slog.Error("AwsS3BucketSource Init - error parsing config", "error", err)
+func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+	// call base to parse config and apply options
+	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
 
-	s.Config = c
-	s.Extensions = types.NewExtensionLookup(c.Extensions)
-
-	if err := s.ValidateConfig(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
-	}
-
-	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("s3-%s", c.Bucket))
-
-	if err := s.ValidateConfig(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
-	}
+	s.Extensions = types.NewExtensionLookup(s.Config.Extensions)
+	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("s3-%s", s.Config.Bucket))
 
 	// initialize client
 	client, err := s.getClient(ctx)

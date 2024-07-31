@@ -1,4 +1,4 @@
-package artifact_row_source
+package artifact_source
 
 // AwsS3BucketSourceConfig is the configuration for an [AwsS3BucketSource]
 type AwsS3BucketSourceConfig struct {

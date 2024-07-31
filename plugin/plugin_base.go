@@ -20,14 +20,14 @@ import (
 - check plugin ref is stored in collections
 - check all sources and colleciton shave identifier
 - check all colleciton supported sources exist
-- collection.Base Init is called
+- collection.CollectionBase Init is called
 */
 // how may rows to write in each JSONL file
 // TODO configure?
 const JSONLChunkSize = 1000
 
-// Base should be embedded in all [TailpipePlugin] implementations
-type Base struct {
+// PluginBase should be embedded in all [TailpipePlugin] implementations
+type PluginBase struct {
 	observable.Base
 
 	// row buffer keyed by execution id
@@ -43,7 +43,7 @@ type Base struct {
 }
 
 // Init implements [plugin.TailpipePlugin]
-func (b *Base) Init(context.Context) error {
+func (b *PluginBase) Init(context.Context) error {
 	// if the plugin overrides this function it must call the base implementation
 	// TODO #validation if overriden by plugin implementation, we need a way to validate this has been called
 	b.rowBufferMap = make(map[string][]any)
@@ -51,7 +51,7 @@ func (b *Base) Init(context.Context) error {
 	return nil
 }
 
-func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
+func (b *PluginBase) Collect(ctx context.Context, req *proto.CollectRequest) error {
 	log.Println("[INFO] Collect")
 
 	// create writer
@@ -71,17 +71,17 @@ func (b *Base) Collect(ctx context.Context, req *proto.CollectRequest) error {
 }
 
 // Shutdown is called by Serve when the plugin exits
-func (b *Base) Shutdown(context.Context) error {
+func (b *PluginBase) Shutdown(context.Context) error {
 	return nil
 }
 
 // GetSchema implements TailpipePlugin
-func (b *Base) GetSchema() schema.SchemaMap {
+func (b *PluginBase) GetSchema() schema.SchemaMap {
 	// ask the collection factory
 	return collection.Factory.GetSchema()
 }
 
-func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData paging.Data, err error) error {
+func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, pagingData paging.Data, err error) error {
 	// get row count and the rows in the buffers
 	b.rowBufferLock.Lock()
 	rowCount := b.rowCountMap[executionId]
@@ -108,7 +108,7 @@ func (b *Base) OnCompleted(ctx context.Context, executionId string, pagingData p
 	return b.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, err))
 }
 
-func (b *Base) doCollect(ctx context.Context, req *proto.CollectRequest) error {
+func (b *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) error {
 	// ask the factory to create the collection
 	// - this will configure the requested source
 	col, err := collection.Factory.GetCollection(ctx, req)

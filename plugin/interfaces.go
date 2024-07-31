@@ -19,20 +19,20 @@ type TailpipePlugin interface {
 	GetSchema() schema.SchemaMap
 
 	// AddObserver adda an observer to the plugin to receive status events
-	// this is implemented by plugin.Base and should not be overridden
+	// this is implemented by plugin.PluginBase and should not be overridden
 	AddObserver(observable.Observer) error
 
 	// Collect is called to start a collection run
-	// this is implemented by plugin.Base and should not be overridden
+	// this is implemented by plugin.PluginBase and should not be overridden
 	Collect(context.Context, *proto.CollectRequest) error
 
 	// Other interface functions
 
-	// Init is implemented by plugin.Base.
+	// Init is implemented by plugin.PluginBase.
 	// If overridden by the plugin it MUST call the base version
 	Init(context.Context) error
 
-	// Shutdown is implemented by plugin.Base (empty implementation)
+	// Shutdown is implemented by plugin.PluginBase (empty implementation)
 	// it may be overridden by the plugin
 	Shutdown(context.Context) error
 }

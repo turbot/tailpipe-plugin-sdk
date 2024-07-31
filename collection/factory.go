@@ -70,7 +70,7 @@ func (f *CollectionFactory) GetCollection(ctx context.Context, req *proto.Collec
 	type BaseCollection interface{ RegisterImpl(Collection) }
 	baseCol, ok := col.(BaseCollection)
 	if !ok {
-		return nil, fmt.Errorf("collection implementation must embed collection.Base")
+		return nil, fmt.Errorf("collection implementation must embed collection.RowSourceBase")
 	}
 	baseCol.RegisterImpl(col)
 

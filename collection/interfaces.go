@@ -14,7 +14,7 @@ import (
 // Collection is the interface that represents a single schema/'table' provided by a plugin.
 // A plugin may support multiple collections
 type Collection interface {
-	// Observable must be implemented by collections (it is implemented by collection.Base)
+	// Observable must be implemented by collections (it is implemented by collection.CollectionBase)
 	observable.Observable
 
 	// Init is called when the collection created

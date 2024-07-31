@@ -15,9 +15,9 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 )
 
-// Base provides a base implementation of the [plugin.Collection] interface
+// CollectionBase provides a base implementation of the [plugin.Collection] interface
 // it should be embedded in all Collection implementations
-type Base[T hcl.Config] struct {
+type CollectionBase[T hcl.Config] struct {
 	observable.Base
 
 	// the row Source
@@ -34,7 +34,7 @@ type Base[T hcl.Config] struct {
 }
 
 // Init implements plugin.Collection
-func (b *Base[T]) Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
+func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// parse the config
 	c, unknownHcl, err := hcl.ParseConfig[T](collectionConfigData)
 	if err != nil {
@@ -42,7 +42,7 @@ func (b *Base[T]) Init(ctx context.Context, collectionConfigData, sourceConfigDa
 	}
 	b.Config = c
 
-	slog.Info("Collection Base: config parsed", "config", c, "unknownHcl", string(unknownHcl))
+	slog.Info("Collection RowSourceBase: config parsed", "config", c, "unknownHcl", string(unknownHcl))
 
 	// validate config
 	if err := c.Validate(); err != nil {
@@ -53,7 +53,7 @@ func (b *Base[T]) Init(ctx context.Context, collectionConfigData, sourceConfigDa
 }
 
 // initialise the row source
-func (b *Base[T]) initSource(ctx context.Context, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
+func (b *CollectionBase[T]) initSource(ctx context.Context, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// first verify we support this source type
 	if _, supportsSource := b.supportedSourceLookup[configData.Type]; !supportsSource {
 		return fmt.Errorf("source type '%s' is not supported by collection '%s'", configData.Type, b.impl.Identifier())
@@ -72,23 +72,23 @@ func (b *Base[T]) initSource(ctx context.Context, configData *hcl.Data, sourceOp
 
 // RegisterImpl is called by the plugin implementation to register the collection implementation
 // it also resisters the supported sources for this collection
-// this is required so that the Base can call the collection's methods
-func (b *Base[T]) RegisterImpl(impl Collection) {
+// this is required so that the CollectionBase can call the collection's methods
+func (b *CollectionBase[T]) RegisterImpl(impl Collection) {
 	b.impl = impl
 	b.supportedSourceLookup = utils.SliceToLookup(impl.SupportedSources())
 }
 
 // GetConfigSchema implements plugin.Collection
-func (b *Base[T]) GetConfigSchema() any {
+func (b *CollectionBase[T]) GetConfigSchema() any {
 	var emptyConfig T
 	return emptyConfig
 }
 
-func (*Base[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
+func (*CollectionBase[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
 	return nil
 }
 
-func (b *Base[T]) Collect(ctx context.Context, req *proto.CollectRequest) (paging.Data, error) {
+func (b *CollectionBase[T]) Collect(ctx context.Context, req *proto.CollectRequest) (paging.Data, error) {
 	slog.Info("Start collection")
 	// if the req contains paging data, tell the source to deserialize and store it
 	if req.PagingData != nil {
@@ -117,7 +117,7 @@ func (b *Base[T]) Collect(ctx context.Context, req *proto.CollectRequest) (pagin
 
 // Notify implements observable.Observer
 // it handles all events which collections may receive (these will all come from the source)
-func (b *Base[T]) Notify(ctx context.Context, event events.Event) error {
+func (b *CollectionBase[T]) Notify(ctx context.Context, event events.Event) error {
 	switch e := event.(type) {
 	case *events.Row:
 		return b.handleRowEvent(ctx, e)
@@ -130,7 +130,7 @@ func (b *Base[T]) Notify(ctx context.Context, event events.Event) error {
 }
 
 // handleRowEvent is invoked when a Row event is received - enrich the row and publish it
-func (b *Base[T]) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (b *CollectionBase[T]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	b.rowWg.Add(1)
 	defer b.rowWg.Done()
 
@@ -148,8 +148,8 @@ func (b *Base[T]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	return b.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, row, e.PagingData))
 }
 
-func (b *Base[T]) handeErrorEvent(e *events.Error) error {
+func (b *CollectionBase[T]) handeErrorEvent(e *events.Error) error {
 	// todo #err how to bubble up error
-	slog.Error("Collection Base: error event received", "error", e.Err)
+	slog.Error("Collection RowSourceBase: error event received", "error", e.Err)
 	return nil
 }

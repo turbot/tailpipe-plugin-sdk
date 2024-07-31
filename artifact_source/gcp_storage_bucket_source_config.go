@@ -1,4 +1,10 @@
-package artifact_row_source
+package artifact_source
+
+import (
+	"errors"
+	"fmt"
+	"strings"
+)
 
 // GcpStorageBucketSourceConfig is the configuration for [GcpStorageBucketSource]
 type GcpStorageBucketSourceConfig struct {
@@ -13,6 +19,22 @@ type GcpStorageBucketSourceConfig struct {
 }
 
 func (g GcpStorageBucketSourceConfig) Validate() error {
-	// TODO #config validate the config
+	if g.Bucket == "" {
+		return errors.New("bucket is required")
+	}
+
+	// Check format of extensions
+	var invalidExtensions []string
+	for _, e := range g.Extensions {
+		if len(e) == 0 {
+			invalidExtensions = append(invalidExtensions, "<empty>")
+		} else if e[0] != '.' {
+			invalidExtensions = append(invalidExtensions, e)
+		}
+	}
+	if len(invalidExtensions) > 0 {
+		return fmt.Errorf("invalid extensions: %s", strings.Join(invalidExtensions, ","))
+	}
+
 	return nil
 }

@@ -1,8 +1,9 @@
-package artifact_row_source
+package artifact_source
 
 import (
 	"context"
 	"errors"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -18,29 +19,27 @@ const (
 
 func init() {
 	// register source
-	Factory.RegisterArtifactSources(NewFileSystemSource)
+	row_source.Factory.RegisterRowSources(NewFileSystemSource)
 }
 
 type FileSystemSource struct {
-	Base
+	ArtifactSourceBase[FileSystemSourceConfig]
 	Paths      []string
 	Extensions types.ExtensionLookup
 }
 
-func NewFileSystemSource() Source {
+func NewFileSystemSource() row_source.RowSource {
 	return &FileSystemSource{}
 }
 
-func (s *FileSystemSource) Init(ctx context.Context, configData *hcl.Data) error {
-	// parse the config
-	var c, _, err = hcl.ParseConfig[FileSystemSourceConfig](configData)
-	if err != nil {
-		slog.Error("Error parsing config", "error", err)
+func (s *FileSystemSource) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+	// call base to parse config and apply options
+	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
 
-	s.Paths = c.Paths
-	s.Extensions = types.NewExtensionLookup(c.Extensions)
+	s.Paths = s.Config.Paths
+	s.Extensions = types.NewExtensionLookup(s.Config.Extensions)
 	slog.Info("Initialized FileSystemSource", "paths", s.Paths, "extensions", s.Extensions)
 	return nil
 }

@@ -8,9 +8,9 @@ import (
 	"sync"
 )
 
-// Base provides a base implementation of the Observable interface
+// RowSourceBase provides a base implementation of the Observable interface
 // it should be embedded in all tailpipe plugin, collection and source implementations
-// (via collection.Base, source.Base and plugin.Base)
+// (via collection.RowSourceBase, source.RowSourceBase and plugin.RowSourceBase)
 
 type Base struct {
 	observerLock sync.RWMutex

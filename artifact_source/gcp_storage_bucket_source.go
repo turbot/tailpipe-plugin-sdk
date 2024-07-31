@@ -1,24 +1,23 @@
-package artifact_row_source
+package artifact_source
 
 import (
+	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"log/slog"
-	"os"
-	"path"
-	"strings"
-
-	"cloud.google.com/go/storage"
 	"github.com/mitchellh/go-homedir"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"google.golang.org/api/impersonate"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
+	"io"
+	"log/slog"
+	"os"
+	"path"
 )
 
 const (
@@ -27,36 +26,30 @@ const (
 
 func init() {
 	// register source
-	Factory.RegisterArtifactSources(NewGcpStorageBucketSource)
+	row_source.Factory.RegisterRowSources(NewGcpStorageBucketSource)
 }
 
-// GcpStorageBucketSource is a [Source] implementation that reads artifacts from a GCP Storage bucket
+// GcpStorageBucketSource is a [ArtifactSource] implementation that reads artifacts from a GCP Storage bucket
 type GcpStorageBucketSource struct {
-	Base
+	ArtifactSourceBase[GcpStorageBucketSourceConfig]
 
 	Config     GcpStorageBucketSourceConfig
 	Extensions types.ExtensionLookup
 	client     *storage.Client
 }
 
-func NewGcpStorageBucketSource() Source {
+func NewGcpStorageBucketSource() row_source.RowSource {
 	return &GcpStorageBucketSource{}
 }
 
-func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *hcl.Data) error {
-	// parse the config
-	c, _, err := hcl.ParseConfig[GcpStorageBucketSourceConfig](configData)
-	if err != nil {
+func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+	// call base to parse config and apply options
+	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
 
-	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("gcp-storage-%s", c.Bucket))
-	s.Config = c
-	s.Extensions = types.NewExtensionLookup(c.Extensions)
-
-	if err := s.ValidateConfig(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
-	}
+	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("gcp-storage-%s", s.Config.Bucket))
+	s.Extensions = types.NewExtensionLookup(s.Config.Extensions)
 
 	client, err := s.getClient(ctx)
 	if err != nil {
@@ -74,27 +67,6 @@ func (s *GcpStorageBucketSource) Identifier() string {
 
 func (s *GcpStorageBucketSource) Close() error {
 	return s.client.Close()
-}
-
-func (s *GcpStorageBucketSource) ValidateConfig() error {
-	if s.Config.Bucket == "" {
-		return errors.New("bucket is required")
-	}
-
-	// Check format of extensions
-	var invalidExtensions []string
-	for _, e := range s.Config.Extensions {
-		if len(e) == 0 {
-			invalidExtensions = append(invalidExtensions, "<empty>")
-		} else if e[0] != '.' {
-			invalidExtensions = append(invalidExtensions, e)
-		}
-	}
-	if len(invalidExtensions) > 0 {
-		return fmt.Errorf("invalid extensions: %s", strings.Join(invalidExtensions, ","))
-	}
-
-	return nil
 }
 
 func (s *GcpStorageBucketSource) DiscoverArtifacts(ctx context.Context) error {

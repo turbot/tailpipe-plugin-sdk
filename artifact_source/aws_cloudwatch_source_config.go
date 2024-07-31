@@ -1,4 +1,4 @@
-package artifact_row_source
+package artifact_source
 
 import (
 	"time"

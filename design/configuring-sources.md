@@ -5,7 +5,7 @@
 A collection has a single source, which has a type and a name, e.g.
 ```hcl
 
-  source "aws_s3_bucket" "dev_trails"{
+  source "aws_s3" "dev_trails"{
     connection  = connection.aws.dev
     paths      = ["s3://my-dev-log-bucket/AWSLogs/*/CloudTrail/*"] 
   }

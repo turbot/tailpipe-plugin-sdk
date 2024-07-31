@@ -48,7 +48,7 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *h
 	type BaseCollection interface{ RegisterImpl(rowSource RowSource) }
 	baseCol, ok := source.(BaseCollection)
 	if !ok {
-		return nil, fmt.Errorf("collection implementation must embed collection.Base")
+		return nil, fmt.Errorf("collection implementation must embed collection.RowSourceBase")
 	}
 	baseCol.RegisterImpl(source)
 

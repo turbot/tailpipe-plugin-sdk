@@ -6,7 +6,6 @@ import (
 )
 
 // Loader is an interface which provides a method for loading a locally saved artifact
-// an [row_source.Base] must be configured to have a Loader implementation.
 // Sources provided by the SDK: [GzipLoader], [GzipRowLoader], [FileSystemLoader], [FileSystemRowLoader]
 type Loader interface {
 	Identifier() string

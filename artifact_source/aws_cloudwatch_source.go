@@ -1,9 +1,10 @@
-package artifact_row_source
+package artifact_source
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"log/slog"
 	"os"
 	"path"
@@ -26,35 +27,34 @@ const (
 	AWSCloudwatchSourceIdentifier = "aws_cloudwatch"
 )
 
+// TODO #config TMP
+const BaseTmpDir = "/tmp/tailpipe"
+
 func init() {
 	// register source
-	Factory.RegisterArtifactSources(NewAwsCloudWatchSource)
+	row_source.Factory.RegisterRowSources(NewAwsCloudWatchSource)
 }
 
-// AwsCloudWatchSource is a [Source] implementation that reads logs from AWS CloudWatch
+// AwsCloudWatchSource is a [ArtifactSource] implementation that reads logs from AWS CloudWatch
 // and writes them to a temp JSON file
 type AwsCloudWatchSource struct {
-	Base[AwsCloudWatchSourceConfig]
+	ArtifactSourceBase[AwsCloudWatchSourceConfig]
 
 	client  *cloudwatchlogs.Client
 	limiter *rate_limiter.APILimiter
 }
 
-func NewAwsCloudWatchSource() Source {
+func NewAwsCloudWatchSource() row_source.RowSource {
 	return &AwsCloudWatchSource{}
 }
 
-func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *hcl.Data) error {
-	// parse the config
-	var c, _, err = hcl.ParseConfig[AwsCloudWatchSourceConfig](configData)
-	if err != nil {
-		slog.Error("AwsS3BucketSource Init - error parsing config", "error", err)
+func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+	// call base to parse config and apply options
+	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
 
-	s.config = c
-
-	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("cloudwatch-%s", c.LogGroupName))
+	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("cloudwatch-%s", s.Config.LogGroupName))
 
 	if err := s.ValidateConfig(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
@@ -105,9 +105,9 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
 	pagingData, _ := s.PagingData.(*paging.Cloudwatch)
 
 	input := &cloudwatchlogs.DescribeLogStreamsInput{
-		LogGroupName: &s.config.LogGroupName,
+		LogGroupName: &s.Config.LogGroupName,
 		// // set prefix (this may be nil)
-		LogStreamNamePrefix: s.config.LogStreamPrefix,
+		LogStreamNamePrefix: s.Config.LogStreamPrefix,
 	}
 
 	paginator := cloudwatchlogs.NewDescribeLogStreamsPaginator(s.client, input)
@@ -172,7 +172,7 @@ func logStreamNameWithinTimeRange(logStream cloudwatch_types.LogStream, startTim
 //	}
 //
 //	startQueryInput := &cloudwatchlogs.StartQueryInput{
-//		LogGroupName: &s.config.LogGroupName,
+//		LogGroupName: &s.Config.LogGroupName,
 //		QueryString:  &queryString,
 //		StartTime:    &startTime,
 //		EndTime:      &endTime,
@@ -260,7 +260,7 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 	}
 
 	input := &cloudwatchlogs.GetLogEventsInput{
-		LogGroupName:  &s.config.LogGroupName,
+		LogGroupName:  &s.Config.LogGroupName,
 		LogStreamName: &info.Name,
 		StartTime:     &startTime,
 		EndTime:       &endTime,
@@ -343,8 +343,8 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 
 // use the paging data (if present) and the configured time range to determine the start and end time
 func (s *AwsCloudWatchSource) getTimeRange(ctx context.Context, logStream string, paging *paging.Cloudwatch) (int64, int64) {
-	startTime := s.config.StartTime.UnixMilli()
-	endTime := s.config.EndTime.UnixMilli()
+	startTime := s.Config.StartTime.UnixMilli()
+	endTime := s.Config.EndTime.UnixMilli()
 
 	if paging != nil {
 		// set start time from paging data if present
@@ -359,8 +359,8 @@ func (s *AwsCloudWatchSource) getClient(ctx context.Context) (*cloudwatchlogs.Cl
 	var opts []func(*config.LoadOptions) error
 	// TODO handle all credential types
 	// add credentials if provided
-	if s.config.AccessKey != "" && s.config.SecretKey != "" {
-		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.config.AccessKey, s.config.SecretKey, s.config.SessionToken)))
+	if s.Config.AccessKey != "" && s.Config.SecretKey != "" {
+		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.Config.AccessKey, s.Config.SecretKey, s.Config.SessionToken)))
 	}
 	// TODO do we need to specify a region?
 	// add with region

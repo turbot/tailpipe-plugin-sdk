@@ -17,7 +17,7 @@ import (
 // - Webhook source
 // Sources may be configured with data transfo
 type RowSource interface {
-	// Observable must be implemented by row sources (it is implemented by row_source.Base)
+	// Observable must be implemented by row sources (it is implemented by row_source.RowSourceBase)
 	observable.Observable
 
 	// Init is called when the row source is created
@@ -33,7 +33,7 @@ type RowSource interface {
 	Collect(context.Context) error
 
 	// GetPagingDataSchema returns an empty instance of the paging data struct
-	// Should be implemented only if paging is supported (Base bas an empty implementation)
+	// Should be implemented only if paging is supported (RowSourceBase bas an empty implementation)
 	GetPagingDataSchema() paging.Data
 
 	// GetPagingData returns the current paging data for the ongoing collection
