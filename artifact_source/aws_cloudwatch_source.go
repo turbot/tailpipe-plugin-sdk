@@ -22,6 +22,10 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+const (
+	AWSCloudwatchSourceIdentifier = "aws_cloudwatch"
+)
+
 func init() {
 	// register source
 	Factory.RegisterArtifactSources(NewAwsCloudWatchSource)

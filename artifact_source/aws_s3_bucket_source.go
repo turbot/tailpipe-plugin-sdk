@@ -20,6 +20,10 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+const (
+	AwsS3BucketSourceIdentifier = "aws_s3_bucket"
+)
+
 func init() {
 	// register source
 	Factory.RegisterArtifactSources(NewAwsS3BucketSource)

@@ -58,4 +58,5 @@
 //
 // - source: FileSystemSource
 // - loader: GzipRowLoader
+
 package artifact_row_source

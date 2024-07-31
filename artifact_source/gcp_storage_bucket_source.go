@@ -21,6 +21,10 @@ import (
 	"google.golang.org/api/option"
 )
 
+const (
+	GcpStorageBucketSourceIdentifier = "gcp_storage_bucket"
+)
+
 func init() {
 	// register source
 	Factory.RegisterArtifactSources(NewGcpStorageBucketSource)
@@ -65,7 +69,7 @@ func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *hcl.Data)
 }
 
 func (s *GcpStorageBucketSource) Identifier() string {
-	return "gcp_storage_bucket"
+	return GcpStorageBucketSourceIdentifier
 }
 
 func (s *GcpStorageBucketSource) Close() error {

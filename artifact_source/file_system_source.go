@@ -12,6 +12,10 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+const (
+	FileSystemSourceIdentifier = "file_system"
+)
+
 func init() {
 	// register source
 	Factory.RegisterArtifactSources(NewFileSystemSource)

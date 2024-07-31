@@ -23,6 +23,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+const ArtifactRowSourceIdentifier = "artifact_row_source"
+
 func init() {
 	// register artifact row source
 	row_source.Factory.RegisterRowSources(NewArtifactRowSource)
