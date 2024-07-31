@@ -6,7 +6,7 @@ import (
 )
 
 // Mapper is an interface which provides a method for mapping artifact data to a different format
-// an [row_source.ArtifactRowSource] may be configured to have one or more Mappers.
+// an [row_source.Base] may be configured to have one or more Mappers.
 // Mappers provided by the SDK: [CloudwatchMapper]
 type Mapper interface {
 	Identifier() string

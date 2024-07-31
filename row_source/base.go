@@ -32,7 +32,7 @@ type Base[T hcl.Config] struct {
 
 func (b *Base[T]) Init(ctx context.Context, configData *hcl.Data, opts ...RowSourceOption) error {
 	// ignore opts - not used in the base implementation
-	// TODO #design -= they are only needed for ArtifactRowSource - how can we remove from signature?
+	// TODO #design -= they are only needed for Base - how can we remove from signature?
 
 	// parse the config
 	c, unknownHcl, err := hcl.ParseConfig[T](configData)

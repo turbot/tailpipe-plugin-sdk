@@ -1,4 +1,4 @@
-package artifact_source
+package artifact_row_source
 
 type FileSystemSourceConfig struct {
 	Paths      []string `hcl:"paths"`

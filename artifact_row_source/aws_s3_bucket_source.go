@@ -1,4 +1,4 @@
-package artifact_source
+package artifact_row_source
 
 import (
 	"context"
@@ -31,9 +31,8 @@ func init() {
 
 // AwsS3BucketSource is a [Source] implementation that reads artifacts from an S3 bucket
 type AwsS3BucketSource struct {
-	Base
+	Base[AwsS3BucketSourceConfig]
 
-	Config     AwsS3BucketSourceConfig
 	Extensions types.ExtensionLookup
 	client     *s3.Client
 }

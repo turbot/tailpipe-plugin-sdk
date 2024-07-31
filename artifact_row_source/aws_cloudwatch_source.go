@@ -1,4 +1,4 @@
-package artifact_source
+package artifact_row_source
 
 import (
 	"context"
@@ -34,9 +34,8 @@ func init() {
 // AwsCloudWatchSource is a [Source] implementation that reads logs from AWS CloudWatch
 // and writes them to a temp JSON file
 type AwsCloudWatchSource struct {
-	Base
+	Base[AwsCloudWatchSourceConfig]
 
-	config  AwsCloudWatchSourceConfig
 	client  *cloudwatchlogs.Client
 	limiter *rate_limiter.APILimiter
 }

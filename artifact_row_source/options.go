@@ -7,31 +7,31 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 )
 
-// WithMapper is used when creating an ArtifactRowSource
+// WithMapper is used when creating an Base
 // It adds a mapper to the row source
 func WithMapper(mappers ...artifact_mapper.Mapper) row_source.RowSourceOption {
 	return func(r observable.Observable) {
-		if a, ok := r.(*ArtifactRowSource); ok {
+		if a, ok := r.(*Base); ok {
 			a.AddMappers(mappers...)
 		}
 	}
 }
 
-// WithLoader is used when creating an ArtifactRowSource
+// WithLoader is used when creating an Base
 // It sets the a loader to the row source
 func WithLoader(loader artifact_loader.Loader) row_source.RowSourceOption {
 	return func(r observable.Observable) {
-		if a, ok := r.(*ArtifactRowSource); ok {
+		if a, ok := r.(*Base); ok {
 			a.SetLoader(loader)
 		}
 	}
 }
 
-// WithRowPerLine is used when creating an ArtifactRowSource
+// WithRowPerLine is used when creating an Base
 // it specifies that the row source should treat each line as a separate row
 func WithRowPerLine() row_source.RowSourceOption {
 	return func(r observable.Observable) {
-		if a, ok := r.(*ArtifactRowSource); ok {
+		if a, ok := r.(*Base); ok {
 			a.SetRowPerLine(true)
 		}
 	}
