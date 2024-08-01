@@ -18,7 +18,7 @@ import (
 // Close(), and contains the logic to raise a Row event
 // It should be embedded in all [plugin.RowSource] implementations
 type RowSourceBase[T hcl.Config] struct {
-	observable.Base
+	observable.ObservableBase
 	Config T
 	// store a reference to the derived RowSource type so we can call its methods
 	Impl RowSource

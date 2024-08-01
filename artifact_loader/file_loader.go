@@ -8,11 +8,6 @@ import (
 	"os"
 )
 
-func init() {
-	// register loaders
-	Factory.RegisterArtifactLoaders(NewFileLoader)
-}
-
 // FileLoader is an Loader that can loads a file from a path and extracts all the content
 type FileLoader struct {
 }

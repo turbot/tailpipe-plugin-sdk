@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 )
 
-// jsonL writer
+// JSONLWriter implements [ChunkWriter] and writes rows to JSONL files
 type JSONLWriter struct {
 	// the path to write the JSONL files to
 	destPath string

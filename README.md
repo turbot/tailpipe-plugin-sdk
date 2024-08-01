@@ -186,7 +186,7 @@ This schema will have a number of standard fields (see `GetRowSchema` below) as 
 A plugin must define at least one collection, and may define more. 
 
 #### 2.3.1 Collection Interface
-The collection must implement the [plugin.Collection interface](https://github.com/turbot/tailpipe-plugin-sdk/blob/development/plugin/interfaces.go):
+The collection must implement the [collection.Collection interface](https://github.com/turbot/tailpipe-plugin-sdk/blob/development/plugin/interfaces.go):
 
 ```go
 type Collection interface {

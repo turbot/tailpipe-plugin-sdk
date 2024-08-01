@@ -28,18 +28,23 @@ func (c *CloudwatchMapper) Identifier() string {
 
 // Map unmarshalls JSON into an AWSCloudTrailBatch object and extracts AWSCloudTrail records from it
 func (c *CloudwatchMapper) Map(_ context.Context, a *types.RowData) ([]*types.RowData, error) {
+	// TODO #mapper make this more resilient to input type
 	// the expected input type is a JSON string deserializable to a map with keys "IngestionTime", "Timestamp" and "Message"
-	jsonString, ok := a.Data.(string)
+	jsonBytes, ok := a.Data.([]byte)
 	if !ok {
-		return nil, fmt.Errorf("expected string, got %T", a)
+		return nil, fmt.Errorf("expected string, got %T", a.Data)
 	}
 
 	var cloudwatchEntry map[string]any
-	err := json.Unmarshal([]byte(jsonString), &cloudwatchEntry)
+	err := json.Unmarshal(jsonBytes, &cloudwatchEntry)
 	if err != nil {
 		return nil, fmt.Errorf("error decoding json: %w", err)
 	}
-	row := cloudwatchEntry["Message"].(string)
+	msg, ok := cloudwatchEntry["Message"]
+	if !ok {
+		return nil, fmt.Errorf("expected key 'Message' in cloudwatch log entry")
+	}
+	row := msg.(string)
 	metadata := a.Metadata.Clone()
 	metadata.TpIngestTimestamp = helpers.UnixMillis(cloudwatchEntry["IngestionTime"].(float64))
 	metadata.TpTimestamp = helpers.UnixMillis(cloudwatchEntry["Timestamp"].(float64))

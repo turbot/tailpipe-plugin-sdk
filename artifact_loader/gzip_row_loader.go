@@ -9,11 +9,6 @@ import (
 	"os"
 )
 
-func init() {
-	// register loader
-	Factory.RegisterArtifactLoaders(NewGzipRowLoader)
-}
-
 // GzipRowLoader is an Loader that can extracts an object from a gzip file
 type GzipRowLoader struct {
 }

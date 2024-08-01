@@ -26,15 +26,12 @@ type Collection interface {
 	SupportedSources() []string
 	// GetRowSchema returns an empty instance of the row struct returned by the collection
 	GetRowSchema() any
-	// GetConfigSchema returns an empty instance of the config struct returned by the collection
-	GetConfigSchema() any
 	// GetSourceOptions returns any options which should be passed to the given source type
 	GetSourceOptions(sourceType string) []row_source.RowSourceOption
 
 	// Collect is called to start collecting data,
 	// Collect will send enriched rows which satisfy the tailpipe row requirements (todo link/document)
 	Collect(context.Context, *proto.CollectRequest) (paging.Data, error)
-
 	// EnrichRow is called for each raw row of data, it must enrich the row and return it
 	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)
 }

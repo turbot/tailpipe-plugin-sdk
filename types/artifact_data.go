@@ -7,7 +7,7 @@ import (
 // RowData is a container for the data and metadata of an row
 // It is used to pass data the [Loader] and any configured [Mapper]s
 // The RowData returned by the final mapper is used as the payload of a [events.Row] which is sent to the
-// [plugin.Collection]
+// [collection.Collection]
 type RowData struct {
 	Data     any
 	Metadata *enrichment.CommonFields

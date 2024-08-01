@@ -12,14 +12,14 @@ import (
 // it should be embedded in all tailpipe plugin, collection and source implementations
 // (via collection.RowSourceBase, source.RowSourceBase and plugin.RowSourceBase)
 
-type Base struct {
+type ObservableBase struct {
 	observerLock sync.RWMutex
 	// Observers is a list of all Observers that are currently connected
 	// for now these are just the GRPC stream corresponding to the AddObserver call
 	Observers []Observer
 }
 
-func (p *Base) AddObserver(o Observer) error {
+func (p *ObservableBase) AddObserver(o Observer) error {
 	log.Println("[INFO] AddObserver")
 	// add to list of Observers
 	p.observerLock.Lock()
@@ -29,7 +29,7 @@ func (p *Base) AddObserver(o Observer) error {
 	return nil
 }
 
-func (p *Base) NotifyObservers(ctx context.Context, e events.Event) error {
+func (p *ObservableBase) NotifyObservers(ctx context.Context, e events.Event) error {
 	p.observerLock.RLock()
 	defer p.observerLock.RUnlock()
 	var notifyErrors []error

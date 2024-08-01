@@ -15,10 +15,10 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 )
 
-// CollectionBase provides a base implementation of the [plugin.Collection] interface
+// CollectionBase provides a base implementation of the [collection.Collection] interface
 // it should be embedded in all Collection implementations
 type CollectionBase[T hcl.Config] struct {
-	observable.Base
+	observable.ObservableBase
 
 	// the row Source
 	Source row_source.RowSource
@@ -33,7 +33,7 @@ type CollectionBase[T hcl.Config] struct {
 	rowWg                 sync.WaitGroup
 }
 
-// Init implements plugin.Collection
+// Init implements collection.Collection
 func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// parse the config
 	c, unknownHcl, err := hcl.ParseConfig[T](collectionConfigData)
@@ -78,12 +78,6 @@ func (b *CollectionBase[T]) RegisterImpl(impl Collection) {
 	b.supportedSourceLookup = utils.SliceToLookup(impl.SupportedSources())
 }
 
-// GetConfigSchema implements plugin.Collection
-func (b *CollectionBase[T]) GetConfigSchema() any {
-	var emptyConfig T
-	return emptyConfig
-}
-
 func (*CollectionBase[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
 	return nil
 }
@@ -125,7 +119,9 @@ func (b *CollectionBase[T]) Notify(ctx context.Context, event events.Event) erro
 	case *events.Error:
 		return b.handeErrorEvent(e)
 	default:
-		return fmt.Errorf("collection does not handle event type: %T", e)
+		// ignore
+		slog.Debug("Collection RowSourceBase: event received but it's not for us ", "event", event)
+		return nil
 	}
 }
 
@@ -149,7 +145,7 @@ func (b *CollectionBase[T]) handleRowEvent(ctx context.Context, e *events.Row) e
 }
 
 func (b *CollectionBase[T]) handeErrorEvent(e *events.Error) error {
-	// todo #err how to bubble up error
 	slog.Error("Collection RowSourceBase: error event received", "error", e.Err)
+	b.NotifyObservers(context.Background(), e)
 	return nil
 }

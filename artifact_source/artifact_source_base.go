@@ -64,18 +64,13 @@ type ArtifactSourceBase[T hcl.Config] struct {
 
 func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
 	// call base to apply options and parse config
-	if err := b.RowSourceBase.Init(ctx, configData); err != nil {
+	if err := b.RowSourceBase.Init(ctx, configData, opts...); err != nil {
 		slog.Warn("Initializing artifact_row_source.RowSourceBase failed", "error", err)
 		return err
 	}
 	slog.Info("Initialized artifact_row_source.RowSourceBase", "config", b.Config)
 
 	b.Impl = b.RowSourceBase.Impl.(ArtifactSource)
-
-	// add ourselves as observer to the actual source
-	if err := b.Impl.AddObserver(b); err != nil {
-		return err
-	}
 
 	// setup rate limiter
 	b.artifactLoadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
@@ -84,68 +79,8 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, 
 		MaxConcurrency: 1,
 	})
 
-	return nil
-}
-
-// Notify  handles all events which the ArtifactSourceBase expects to receive (ArtifactDiscovered, ArtifactDownloaded)
-// implements [observable.Observer]
-func (b *ArtifactSourceBase[T]) Notify(ctx context.Context, event events.Event) error {
-	executionId, err := context_values.ExecutionIdFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	switch e := event.(type) {
-	case *events.ArtifactDiscovered:
-		// increment the wait group - this weill be decremented when the artifact is extracted (or there is an error
-		b.artifactWg.Add(1)
-		slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", e.Info.Name)
-		t := time.Now()
-
-		// rate limit the download
-		err := b.artifactLoadLimiter.Wait(ctx)
-		if err != nil {
-			return fmt.Errorf("error acquiring rate limiter: %w", err)
-		}
-		slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", e.Info.Name)
-
-		go func() {
-			defer func() {
-				b.artifactLoadLimiter.Release()
-				slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", e.Info.Name)
-			}()
-			// cast the source to an ArtifactSource and download the artifact
-			err = b.Impl.DownloadArtifact(ctx, e.Info)
-
-			if err != nil {
-				b.artifactWg.Done()
-				err := b.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
-				if err != nil {
-					slog.Error("Error notifying observers of download error", "download error", err, "notify error", err)
-				}
-			}
-		}()
-	case *events.ArtifactDownloaded:
-		// update our paging data with the paging data from the this artifact event
-		b.updatePagingData(e.PagingData)
-
-		//extract
-		go func() {
-			// TODO #err make sure errors handles and bubble back
-			err := b.extractArtifact(ctx, e.Info)
-			// close wait group whether there is an error or not
-			b.artifactWg.Done()
-			if err != nil {
-				err := b.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
-				if err != nil {
-					slog.Error("Error notifying observers of extract error", "extract error", err, "notify error", err)
-				}
-			}
-		}()
-	default:
-		// TODO just ignore?
-		return fmt.Errorf("artifact_row_source.RowSourceBase does not handle event type: %T", e)
-	}
+	// create loader map
+	b.loaders = make(map[string]artifact_loader.Loader)
 	return nil
 }
 
@@ -180,6 +115,43 @@ func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *
 	if err != nil {
 		return err
 	}
+
+	// start a download
+	// increment the wait group - this will be decremented when the artifact is extracted (or there is an error)
+
+	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.Name)
+	slog.Debug("wg ** inc")
+	b.artifactWg.Add(1)
+	t := time.Now()
+
+	// rate limit the download
+	err = b.artifactLoadLimiter.Wait(ctx)
+	if err != nil {
+		return fmt.Errorf("error acquiring rate limiter: %w", err)
+	}
+	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.Name)
+
+	go func() {
+		defer func() {
+			b.artifactLoadLimiter.Release()
+			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
+		}()
+		// cast the source to an ArtifactSource and download the artifact
+		err = b.Impl.DownloadArtifact(ctx, info)
+
+		if err != nil {
+			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
+			slog.Debug("wg ** dec")
+			// if this returns an error we may get a wg double decrement we also receive ArtifactDownloaded event
+			b.artifactWg.Done()
+			err := b.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
+			if err != nil {
+				slog.Error("Error notifying observers of download error", "download error", err, "notify error", err)
+			}
+		}
+	}()
+
+	// also send event - in case we want to track progress etc (nothing handles this yet)
 	if err = b.NotifyObservers(ctx, events.NewArtifactDiscoveredEvent(executionId, info)); err != nil {
 		return fmt.Errorf("error notifying observers of discovered artifact: %w", err)
 	}
@@ -191,6 +163,27 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 	if err != nil {
 		return err
 	}
+
+	// update our paging data with the paging data from the this artifact event
+	b.updatePagingData(paging)
+
+	//extract
+	go func() {
+		// TODO #err make sure errors handles and bubble back
+		err := b.extractArtifact(ctx, info)
+		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name)
+		slog.Debug("wg ** dec")
+		// close wait group whether there is an error or not
+		b.artifactWg.Done()
+		if err != nil {
+			err := b.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
+			if err != nil {
+				slog.Error("Error notifying observers of extract error", "extract error", err, "notify error", err)
+			}
+		}
+	}()
+
+	// also send event - in case we want to track progress etc (nothing handles this yet)
 	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, paging)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
@@ -283,7 +276,6 @@ func (b *ArtifactSourceBase[T]) mapArtifacts(ctx context.Context, artifactData *
 // - if a loader has been specified, just use that
 // - otherwise create a default loader based on the extension
 func (b *ArtifactSourceBase[T]) resolveLoader(info *types.ArtifactInfo) (artifact_loader.Loader, error) {
-
 	// a loader was specified when creating the row source - use that
 	if b.Loader != nil {
 		return b.Loader, nil

@@ -28,7 +28,7 @@ const JSONLChunkSize = 1000
 
 // PluginBase should be embedded in all [TailpipePlugin] implementations
 type PluginBase struct {
-	observable.Base
+	observable.ObservableBase
 
 	// row buffer keyed by execution id
 	// each row buffer is used to write a JSONL file

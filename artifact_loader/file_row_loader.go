@@ -8,11 +8,6 @@ import (
 	"os"
 )
 
-func init() {
-	// register loader
-	Factory.RegisterArtifactLoaders(NewFileRowLoader)
-}
-
 // FileRowLoader is an Loader that can loads a file from a path and extracts the contenst a line at a time
 type FileRowLoader struct {
 }

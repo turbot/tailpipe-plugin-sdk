@@ -9,11 +9,6 @@ import (
 	"os"
 )
 
-func init() {
-	// register loader
-	Factory.RegisterArtifactLoaders(NewGzipLoader)
-}
-
 // GzipLoader is an Loader that can extracts a gzip file and returns all the content
 type GzipLoader struct {
 }
