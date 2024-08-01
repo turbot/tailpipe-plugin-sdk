@@ -23,7 +23,7 @@ func init() {
 }
 
 type FileSystemSource struct {
-	ArtifactSourceBase[FileSystemSourceConfig]
+	ArtifactSourceBase[*FileSystemSourceConfig]
 	Paths      []string
 	Extensions types.ExtensionLookup
 }
@@ -46,6 +46,10 @@ func (s *FileSystemSource) Init(ctx context.Context, configData *hcl.Data, opts 
 
 func (s *FileSystemSource) Identifier() string {
 	return FileSystemSourceIdentifier
+}
+
+func (s *FileSystemSource) GetConfigSchema() hcl.Config {
+	return &FileSystemSourceConfig{}
 }
 
 func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {

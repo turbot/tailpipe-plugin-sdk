@@ -40,7 +40,7 @@ func init() {
 // AwsCloudWatchSource is a [ArtifactSource] implementation that reads logs from AWS CloudWatch
 // and writes them to a temp JSON file
 type AwsCloudWatchSource struct {
-	ArtifactSourceBase[AwsCloudWatchSourceConfig]
+	ArtifactSourceBase[*AwsCloudWatchSourceConfig]
 
 	client  *cloudwatchlogs.Client
 	limiter *rate_limiter.APILimiter
@@ -55,6 +55,9 @@ func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *hcl.Data, op
 	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
+
+	// NOTE: add the cloudwatch mapper to ensure rows are in correct format
+	s.AddMappers(artifact_mapper.NewCloudwatchMapper())
 
 	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("cloudwatch-%s", s.Config.LogGroupName))
 
@@ -83,10 +86,8 @@ func (s *AwsCloudWatchSource) Identifier() string {
 	return AWSCloudwatchSourceIdentifier
 }
 
-// Mapper returns a function that creates a new [Mapper] required by this source
-// [CloudwatchMapper] knows how to extract the row and metadata fields from the JSON that we save
-func (s *AwsCloudWatchSource) Mapper() func() artifact_mapper.Mapper {
-	return artifact_mapper.NewCloudwatchMapper
+func (s *AwsCloudWatchSource) GetConfigSchema() hcl.Config {
+	return &AwsCloudWatchSourceConfig{}
 }
 
 // Close deletes the temp directory and all files

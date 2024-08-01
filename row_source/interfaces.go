@@ -35,6 +35,8 @@ type RowSource interface {
 	// GetPagingDataSchema returns an empty instance of the paging data struct
 	// Should be implemented only if paging is supported (RowSourceBase bas an empty implementation)
 	GetPagingDataSchema() paging.Data
+	// GetConfigSchema returns an empty instance of the config struct used by the source
+	GetConfigSchema() hcl.Config
 
 	// GetPagingData returns the current paging data for the ongoing collection
 	GetPagingData() paging.Data

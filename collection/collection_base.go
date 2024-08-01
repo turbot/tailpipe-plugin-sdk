@@ -33,7 +33,8 @@ type CollectionBase[T hcl.Config] struct {
 // Init implements collection.Collection
 func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// parse the config
-	c, unknownHcl, err := hcl.ParseConfig[T](collectionConfigData)
+	var emptyConfig = b.impl.GetConfigSchema().(T)
+	c, unknownHcl, err := hcl.ParseConfig[T](collectionConfigData, emptyConfig)
 	if err != nil {
 		return fmt.Errorf("error parsing config: %w", err)
 	}

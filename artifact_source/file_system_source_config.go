@@ -5,7 +5,7 @@ type FileSystemSourceConfig struct {
 	Extensions []string `hcl:"extensions"`
 }
 
-func (f FileSystemSourceConfig) Validate() error {
+func (f *FileSystemSourceConfig) Validate() error {
 	//TODO #config  implement me
 	return nil
 }

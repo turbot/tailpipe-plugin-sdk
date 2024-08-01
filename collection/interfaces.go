@@ -24,6 +24,8 @@ type Collection interface {
 	Identifier() string
 	// GetRowSchema returns an empty instance of the row struct returned by the collection
 	GetRowSchema() any
+	// GetConfigSchema returns an empty instance of the config struct used by the collection
+	GetConfigSchema() hcl.Config
 	// GetSourceOptions returns any options which should be passed to the given source type
 	GetSourceOptions() []row_source.RowSourceOption
 

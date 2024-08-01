@@ -1,28 +1,49 @@
 package artifact_source
 
 import (
+	"fmt"
 	"time"
 )
 
 // AwsCloudWatchSourceConfig is the configuration for an [AwsCloudWatchSource]
 type AwsCloudWatchSourceConfig struct {
-	// TODO #confif connection based credentiuals mechanism
-	AccessKey    string
-	SecretKey    string
-	SessionToken string
-
+	// TODO #config connection based credentials mechanism
+	AccessKey    string `hcl:"access_key"`
+	SecretKey    string `hcl:"secret_key"`
+	SessionToken string `hcl:"session_token"`
 	// the log group to collect
-	LogGroupName string
-
+	LogGroupName string `hcl:"log_group_name"`
 	// collect log streams with this prefixthe log stream prefix
-	LogStreamPrefix *string
-
+	LogStreamPrefix *string `hcl:"log_stream_prefix"`
 	// the time range to collect for
-	StartTime time.Time
-	EndTime   time.Time
+	StartTimeString string `hcl:"start_time"`
+	EndTimeString   string `hcl:"end_time"`
+	StartTime       time.Time
+	EndTime         time.Time
 }
 
-func (a AwsCloudWatchSourceConfig) Validate() error {
-	// TODO #config validate the config
+func (a *AwsCloudWatchSourceConfig) Validate() error {
+	// parse  start  and end time
+	if a.StartTimeString == "" {
+		return fmt.Errorf("start_time is required")
+	}
+	startTime, err := time.Parse(time.RFC3339, a.StartTimeString)
+	if err != nil {
+		return fmt.Errorf("invalid start_time: %v", err)
+	}
+	a.StartTime = startTime
+	if a.EndTimeString == "" {
+		return fmt.Errorf("end_time is required")
+
+	}
+	endTime, err := time.Parse(time.RFC3339, a.EndTimeString)
+	if err != nil {
+		return fmt.Errorf("invalid end_time: %v", err)
+	}
+	a.EndTime = endTime
+	if a.StartTime.After(a.EndTime) {
+		return fmt.Errorf("start_time must be before end_time")
+	}
+
 	return nil
 }

@@ -43,9 +43,15 @@ func (b *RowSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, opts 
 	}
 
 	// parse the config
-	c, unknownHcl, err := hcl.ParseConfig[T](configData)
+	var emptyConfig T = b.Impl.GetConfigSchema().(T)
+	c, unknownHcl, err := hcl.ParseConfig[T](configData, emptyConfig)
 	if err != nil {
 		return err
+	}
+
+	// validate config
+	if err := c.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
 	}
 
 	slog.Info("row_source RowSourceBase: c parsed", "c", c, "unknownHcl", string(unknownHcl))

@@ -2,13 +2,12 @@ package hcl
 
 import (
 	"bytes"
+	"fmt"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/turbot/pipe-fittings/error_helpers"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
-	"log/slog"
 )
 
 // ValueType is a constraint that permits only value types (non-pointer types)
@@ -16,33 +15,35 @@ type ValueType interface {
 	comparable
 }
 
-func ParseConfig[T Config](configData *Data) (T, []byte, error) {
-	// declare empty struct instance
-	var target T
-
-	// parse the config
+// ParseConfig parses the HCL config and returns the struct
+// Config is an interface that all configuration structs must implement
+// it usually has pointer receivers, which means T is actually a pointer to the struct
+// so we have to do some work to convert to a value type for the parsing, and then back the original type
+func ParseConfig[T Config](configData *Data, target T) (T, []byte, error) {
+	// Parse the config
 	file, diags := hclsyntax.ParseConfig(configData.ConfigData, configData.Filename, configData.Pos)
 	if diags.HasErrors() {
-		slog.Error("ParseConfig: Failed to parse config into hcl file", "diags", diags)
-		return target, nil, error_helpers.HclDiagsToError("failed to parse config", diags)
+		return target, nil, fmt.Errorf("failed to parse config: %s", diags)
 	}
-	// create empty eval context
+
+	// Create empty eval context
 	evalCtx := &hcl.EvalContext{
 		Variables: make(map[string]cty.Value),
 		Functions: make(map[string]function.Function),
 	}
-	// decode the body into the target struct - this also builds a buffer containing all unknown HCL properties
-	decodeDiags := gohcl.DecodeBody(file.Body, evalCtx, &target)
 
-	// handle unknown HCL properties
+	// Decode the body into the target struct
+	decodeDiags := gohcl.DecodeBody(file.Body, evalCtx, target)
+
+	// Handle unknown HCL properties
 	unknownConfig, decodeDiags := handleDecodeDiags(file, decodeDiags)
 
 	diags = append(diags, decodeDiags...)
 	if diags.HasErrors() {
-		slog.Error("ParseConfig: Failed to decode config body", "diags", diags)
-		return target, nil, error_helpers.HclDiagsToError("failed to parse config", diags)
+		return target, nil, fmt.Errorf("failed to decode config: %s", diags)
 	}
-	// return the struct by value
+
+	// Return the struct by value
 	return target, unknownConfig, nil
 }
 
