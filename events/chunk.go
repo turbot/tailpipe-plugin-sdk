@@ -14,17 +14,20 @@ type Chunk struct {
 }
 
 func NewChunkEvent(executionId string, chunkNumber int, paging paging.Data) (*Chunk, error) {
-	// serialise the paging data to json
-	cdJSON, err := json.Marshal(paging)
-	if err != nil {
-		return nil, err
-	}
-
 	c := &Chunk{
 		ExecutionId: executionId,
 		ChunkNumber: chunkNumber,
-		PagingData:  cdJSON,
 	}
+
+	// serialise the paging data to json
+	if paging != nil {
+		pagingJson, err := json.Marshal(paging)
+		if err != nil {
+			return nil, err
+		}
+		c.PagingData = pagingJson
+	}
+
 	return c, nil
 }
 
