@@ -80,10 +80,7 @@ func (f *CollectionFactory) GetCollection(ctx context.Context, req *proto.Collec
 	collectionConfigData := hcl.DataFromProto(req.CollectionData)
 	sourceConfigData := hcl.DataFromProto(req.SourceData)
 
-	// get any source options defined by collection for this source type
-	sourceOpts := col.GetSourceOptions()
-
-	err := col.Init(ctx, collectionConfigData, sourceConfigData, sourceOpts...)
+	err := col.Init(ctx, collectionConfigData, sourceConfigData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise collection: %w", err)
 	}

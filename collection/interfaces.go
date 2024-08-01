@@ -19,7 +19,7 @@ type Collection interface {
 
 	// Init is called when the collection created
 	// it is responsible for parsing the config and creating the configured Source
-	Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error
+	Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data) error
 	// Identifier must return the collection name
 	Identifier() string
 	// GetRowSchema returns an empty instance of the row struct returned by the collection

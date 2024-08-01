@@ -31,7 +31,7 @@ type CollectionBase[T hcl.Config] struct {
 }
 
 // Init implements collection.Collection
-func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
+func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data) error {
 	// parse the config
 	var emptyConfig = b.impl.GetConfigSchema().(T)
 	c, unknownHcl, err := hcl.ParseConfig[T](collectionConfigData, emptyConfig)
@@ -47,6 +47,7 @@ func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sour
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
+	sourceOpts := b.impl.GetSourceOptions()
 	return b.initSource(ctx, sourceConfigData, sourceOpts...)
 }
 
