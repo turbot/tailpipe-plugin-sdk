@@ -23,6 +23,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+//TODO #paging is timestamp reliable - do logs always come in order? is it should we/are we using ingestion time?
+
 const (
 	AWSCloudwatchSourceIdentifier = "aws_cloudwatch"
 )

@@ -81,7 +81,7 @@ func (f *CollectionFactory) GetCollection(ctx context.Context, req *proto.Collec
 	sourceConfigData := hcl.DataFromProto(req.SourceData)
 
 	// get any source options defined by collection for this source type
-	sourceOpts := col.GetSourceOptions(req.SourceData.Type)
+	sourceOpts := col.GetSourceOptions()
 
 	err := col.Init(ctx, collectionConfigData, sourceConfigData, sourceOpts...)
 	if err != nil {

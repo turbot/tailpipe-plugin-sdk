@@ -22,12 +22,10 @@ type Collection interface {
 	Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error
 	// Identifier must return the collection name
 	Identifier() string
-	// SupportedSources returns a list of source names that the collection supports
-	SupportedSources() []string
 	// GetRowSchema returns an empty instance of the row struct returned by the collection
 	GetRowSchema() any
 	// GetSourceOptions returns any options which should be passed to the given source type
-	GetSourceOptions(sourceType string) []row_source.RowSourceOption
+	GetSourceOptions() []row_source.RowSourceOption
 
 	// Collect is called to start collecting data,
 	// Collect will send enriched rows which satisfy the tailpipe row requirements (todo link/document)

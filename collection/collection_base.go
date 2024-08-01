@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"sync"
 
-	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
@@ -28,9 +27,7 @@ type CollectionBase[T hcl.Config] struct {
 
 	// the collection config
 	Config T
-	// the supported sources for this collection, converted to a lookup
-	supportedSourceLookup map[string]struct{}
-	rowWg                 sync.WaitGroup
+	rowWg  sync.WaitGroup
 }
 
 // Init implements collection.Collection
@@ -54,10 +51,7 @@ func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sour
 
 // initialise the row source
 func (b *CollectionBase[T]) initSource(ctx context.Context, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
-	// first verify we support this source type
-	if _, supportsSource := b.supportedSourceLookup[configData.Type]; !supportsSource {
-		return fmt.Errorf("source type '%s' is not supported by collection '%s'", configData.Type, b.impl.Identifier())
-	}
+	// TODO verify we support this source type
 
 	// now ask plugin to create and initialise the source for us
 	source, err := row_source.Factory.GetRowSource(ctx, configData, sourceOpts...)
@@ -75,10 +69,9 @@ func (b *CollectionBase[T]) initSource(ctx context.Context, configData *hcl.Data
 // this is required so that the CollectionBase can call the collection's methods
 func (b *CollectionBase[T]) RegisterImpl(impl Collection) {
 	b.impl = impl
-	b.supportedSourceLookup = utils.SliceToLookup(impl.SupportedSources())
 }
 
-func (*CollectionBase[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
+func (*CollectionBase[T]) GetSourceOptions() []row_source.RowSourceOption {
 	return nil
 }
 

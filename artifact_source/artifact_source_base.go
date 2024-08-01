@@ -331,6 +331,7 @@ func (b *ArtifactSourceBase[T]) resolveLoader(info *types.ArtifactInfo) (artifac
 	return l, nil
 }
 
+// TODO #design move to RowSourceBase?
 func (b *ArtifactSourceBase[T]) updatePagingData(data paging.Data) {
 	if data == nil {
 		return
