@@ -70,6 +70,10 @@ func (s *AwsS3BucketSource) GetConfigSchema() hcl.Config {
 	return &AwsS3BucketSourceConfig{}
 }
 
+func (s *AwsS3BucketSource) GetPagingDataSchema() paging.Data {
+	return &paging.S3Bucket{}
+}
+
 func (s *AwsS3BucketSource) Close() error {
 	// delete the temp dir and all files
 	return os.RemoveAll(s.TmpDir)
@@ -97,6 +101,12 @@ func (s *AwsS3BucketSource) ValidateConfig() error {
 }
 
 func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
+	// TODO: #paging is there a better place to initialize this?
+	if s.PagingData == nil {
+		s.PagingData = paging.NewS3Bucket(s.Config.Bucket, s.Config.Prefix, s.Config.Region)
+	}
+	pagingData, _ := s.PagingData.(*paging.S3Bucket) // TODO: #err handle error
+
 	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
 		Bucket: &s.Config.Bucket,
 		Prefix: &s.Config.Prefix,
@@ -109,11 +119,21 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 		}
 		for _, object := range output.Contents {
 			path := *object.Key
+
+			// check if we've seen this object before and skip if we have
+			if pagingEntry, ok := pagingData.Objects[path]; ok {
+				if !object.LastModified.After(pagingEntry.LastModified) {
+					continue
+				}
+			}
+
 			// check the extension
 			if s.Extensions.IsValid(path) {
 				// populate enrichment fields the the source is aware of
 				// - in this case the source location
 				sourceEnrichmentFields := &enrichment.CommonFields{
+					TpSourceType:     "aws_s3_bucket",
+					TpSourceName:     s.Config.Bucket,
 					TpSourceLocation: &path,
 				}
 
@@ -131,6 +151,8 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 }
 
 func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
+	pagingData, _ := s.PagingData.(*paging.S3Bucket) // TODO: #err handle error
+
 	// Get the object from S3
 	getObjectOutput, err := s.client.GetObject(ctx, &s3.GetObjectInput{
 		Bucket: &s.Config.Bucket,
@@ -162,13 +184,10 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.Ar
 	}
 
 	// notify observers of the discovered artifact
-	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
+	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name, EnrichmentFields: info.EnrichmentFields}
 
-	// create paging data
-	// TODO #paging
-	// figure out s3 paging
-	paging := paging.NewS3Bucket()
-	return s.OnArtifactDownloaded(ctx, downloadInfo, paging)
+	pagingData.Add(info.Name, *getObjectOutput.LastModified, *getObjectOutput.ContentLength)
+	return s.OnArtifactDownloaded(ctx, downloadInfo, pagingData)
 }
 
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {
