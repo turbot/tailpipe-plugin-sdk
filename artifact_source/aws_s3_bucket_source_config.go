@@ -5,6 +5,8 @@ type AwsS3BucketSourceConfig struct {
 	Bucket     string   `hcl:"bucket"`
 	Prefix     string   `hcl:"prefix"`
 	Extensions []string `hcl:"extensions"`
+	Region     string   `hcl:"region"`
+
 	// TODO #config use Connection for credentials
 	AccessKey    string `hcl:"access_key"`
 	SecretKey    string `hcl:"secret_key"`

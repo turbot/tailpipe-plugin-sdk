@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"io"
 	"log/slog"
 	"os"
@@ -18,6 +17,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -178,9 +178,12 @@ func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {
 	if s.Config.AccessKey != "" && s.Config.SecretKey != "" {
 		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.Config.AccessKey, s.Config.SecretKey, s.Config.SessionToken)))
 	}
-	// TODO do we need to specify a region?
-	// add with region
-	opts = append(opts, config.WithRegion("us-east-1"))
+
+	region := s.Config.Region
+	if region == "" {
+		region = "us-east-1"
+	}
+	opts = append(opts, config.WithRegion(region))
 
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
