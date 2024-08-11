@@ -18,10 +18,11 @@ import (
 
 /* TODO VALIDATION
 - check plugin ref is stored in collections
-- check all sources and colleciton shave identifier
+- check all sources and collections have identifier
 - check all colleciton supported sources exist
 - collection.CollectionBase Init is called
 */
+
 // how may rows to write in each JSONL file
 // TODO configure?
 const JSONLChunkSize = 1000
