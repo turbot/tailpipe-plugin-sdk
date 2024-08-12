@@ -35,6 +35,9 @@ type TailpipePlugin interface {
 	// Shutdown is implemented by plugin.PluginBase (empty implementation)
 	// it may be overridden by the plugin
 	Shutdown(context.Context) error
+
+	// Base returns the base instance - used for validation testing
+	Base() *PluginBase
 }
 
 type ChunkWriter interface {

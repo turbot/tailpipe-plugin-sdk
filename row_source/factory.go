@@ -58,3 +58,7 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *h
 	}
 	return source, nil
 }
+
+func (b *RowSourceFactory) GetSources() map[string]func() RowSource {
+	return b.sources
+}

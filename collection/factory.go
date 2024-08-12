@@ -87,3 +87,7 @@ func (f *CollectionFactory) GetCollection(ctx context.Context, req *proto.Collec
 
 	return col, nil
 }
+
+func (f *CollectionFactory) GetCollections() map[string]func() Collection {
+	return f.collections
+}

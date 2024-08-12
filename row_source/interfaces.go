@@ -33,7 +33,7 @@ type RowSource interface {
 	Collect(context.Context) error
 
 	// GetPagingDataSchema returns an empty instance of the paging data struct
-	// Should be implemented only if paging is supported (RowSourceBase bas an empty implementation)
+	// Should be implemented only if paging is supported (RowSourceBase has an empty implementation)
 	GetPagingDataSchema() paging.Data
 	// GetConfigSchema returns an empty instance of the config struct used by the source
 	GetConfigSchema() hcl.Config

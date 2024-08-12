@@ -43,6 +43,11 @@ type PluginBase struct {
 	writer ChunkWriter
 }
 
+func (b *PluginBase) Identifier() string {
+	//TODO implement me
+	panic("identifier must be implemented by the plugin")
+}
+
 // Init implements [plugin.TailpipePlugin]
 func (b *PluginBase) Init(context.Context) error {
 	// if the plugin overrides this function it must call the base implementation
@@ -50,6 +55,11 @@ func (b *PluginBase) Init(context.Context) error {
 	b.rowBufferMap = make(map[string][]any)
 	b.rowCountMap = make(map[string]int)
 	return nil
+}
+
+// initialized returns true if the plugin has been initialized
+func (b *PluginBase) initialized() bool {
+	return b.rowBufferMap != nil
 }
 
 func (b *PluginBase) Collect(ctx context.Context, req *proto.CollectRequest) error {
@@ -80,6 +90,11 @@ func (b *PluginBase) Shutdown(context.Context) error {
 func (b *PluginBase) GetSchema() schema.SchemaMap {
 	// ask the collection factory
 	return collection.Factory.GetSchema()
+}
+
+// Base returns the base instance - used for validation testing
+func (b *PluginBase) Base() *PluginBase {
+	return b
 }
 
 func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, pagingData paging.Data, err error) error {
