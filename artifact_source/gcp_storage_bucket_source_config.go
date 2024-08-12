@@ -11,8 +11,8 @@ type GcpStorageBucketSourceConfig struct {
 	Bucket     string   `hcl:"bucket"`
 	Prefix     string   `hcl:"prefix"`
 	Extensions []string `hcl:"extensions"`
-	// TODO: Add additional fields
-	// Project      *string // TODO: Revisit if we need this, doesn't seem to be settable on
+	// TODO: Add additional fields https://github.com/turbot/tailpipe-plugin-sdk/issues/15
+	// Project      *string // TODO: Revisit if we need this, doesn't seem to be settable on https://github.com/turbot/tailpipe-plugin-sdk/issues/15
 	Credentials  *string `hcl:"credentials"`
 	QuotaProject *string `hcl:"quota_project"`
 	Impersonate  *string `hcl:"impersonate"`

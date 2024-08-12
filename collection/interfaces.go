@@ -30,7 +30,7 @@ type Collection interface {
 	GetSourceOptions() []row_source.RowSourceOption
 
 	// Collect is called to start collecting data,
-	// Collect will send enriched rows which satisfy the tailpipe row requirements (todo link/document)
+	// Collect will send enriched rows which satisfy the tailpipe row requirements
 	Collect(context.Context, *proto.CollectRequest) (paging.Data, error)
 	// EnrichRow is called for each raw row of data, it must enrich the row and return it
 	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)

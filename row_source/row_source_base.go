@@ -99,3 +99,14 @@ func (b *RowSourceBase[T]) SetPagingData(pagingDataJSON json.RawMessage) error {
 	b.PagingData = target
 	return nil
 }
+
+func (b *RowSourceBase[T]) UpdatePagingData(data paging.Data) {
+	if data == nil {
+		return
+	}
+	if b.PagingData == nil {
+		b.PagingData = data
+		return
+	}
+	b.PagingData.Update(data)
+}

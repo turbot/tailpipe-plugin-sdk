@@ -53,7 +53,7 @@ func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sour
 
 // initialise the row source
 func (b *CollectionBase[T]) initSource(ctx context.Context, configData *hcl.Data, sourceOpts ...row_source.RowSourceOption) error {
-	// TODO verify we support this source type
+	// TODO verify we support this source type https://github.com/turbot/tailpipe-plugin-sdk/issues/16
 
 	// now ask plugin to create and initialise the source for us
 	source, err := row_source.Factory.GetRowSource(ctx, configData, sourceOpts...)

@@ -16,15 +16,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
-/* TODO VALIDATION
-- check plugin ref is stored in collections
-- check all sources and collections have identifier
-- check all colleciton supported sources exist
-- collection.CollectionBase Init is called
-*/
-
 // how may rows to write in each JSONL file
-// TODO configure?
+// TODO configure? https://github.com/turbot/tailpipe-plugin-sdk/issues/18
 const JSONLChunkSize = 1000
 
 // PluginBase should be embedded in all [TailpipePlugin] implementations
@@ -44,14 +37,13 @@ type PluginBase struct {
 }
 
 func (b *PluginBase) Identifier() string {
-	//TODO implement me
+
 	panic("identifier must be implemented by the plugin")
 }
 
 // Init implements [plugin.TailpipePlugin]
 func (b *PluginBase) Init(context.Context) error {
 	// if the plugin overrides this function it must call the base implementation
-	// TODO #validation if overriden by plugin implementation, we need a way to validate this has been called
 	b.rowBufferMap = make(map[string][]any)
 	b.rowCountMap = make(map[string]int)
 	return nil
@@ -134,7 +126,7 @@ func (b *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) e
 
 	// add ourselves as an observer
 	if err := col.AddObserver(b); err != nil {
-		// TODO #err handle error
+		// TODO #error handle error
 		slog.Error("add observer error", "error", err)
 	}
 

@@ -14,7 +14,7 @@ package hcl
 //		want    any
 //		wantErr bool
 //	}{
-//		// TODO: Add test cases.
+//		// TODO: Add test cases. https://github.com/turbot/tailpipe-plugin-sdk/issues/17
 //	}
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {

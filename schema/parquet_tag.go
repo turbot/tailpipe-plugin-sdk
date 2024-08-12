@@ -58,8 +58,8 @@ func ParseParquetTag(tag string) (*ParquetTag, error) {
 
 // Define valid DuckDB types using a struct{} map for efficient membership checking
 var validDuckDBTypes = map[string]struct{}{
-	// TODO #schema STRUCT/LIST/
-	// TODO #schema test all types for parquety conversio
+	// TODO #schema STRUCT/LIST/ https://github.com/turbot/tailpipe-plugin-sdk/issues/21
+	// TODO #schema test all types for parquet conversion https://github.com/turbot/tailpipe-plugin-sdk/issues/22
 
 	"BOOLEAN":   {},
 	"TINYINT":   {},
@@ -84,17 +84,8 @@ var validDuckDBTypes = map[string]struct{}{
 }
 
 func (t *ParquetTag) validate() (*ParquetTag, error) {
-	// TODO at present we allow incomplete tags, to just override name or type
-	//if t.Name == "" {
-	//	return nil, fmt.Errorf("invalid parquet tag: 'name' must be set")
-	//}
-	//
-	//if t.Type == "" {
-	//	return nil, fmt.Errorf("invalid parquet tag: 'type' must be set")
-	//}
-	// TODO validate name is duckdb compliant?
+	// validate name is duckdb compliant?
 	if t.Type != "" {
-
 		// Convert type to upper case for case-insensitive comparison
 		normalizedType := strings.ToUpper(t.Type)
 		if _, valid := validDuckDBTypes[normalizedType]; !valid {

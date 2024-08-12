@@ -46,7 +46,7 @@ type ArtifactSourceBase[T hcl.Config] struct {
 	Loader     artifact_loader.Loader
 	Mappers    []artifact_mapper.Mapper
 
-	// TODO #config should this be in base - means the risk that a derived struct will not set it
+	// TODO #config should this be in base - means the risk that a derived struct will not set it https://github.com/turbot/tailpipe-plugin-sdk/issues/3
 	TmpDir string
 
 	// shadow the row_source.RowSourceBase Impl property
@@ -75,7 +75,7 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, 
 	// setup rate limiter
 	b.artifactLoadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
 		Name: "artifact_load_limiter",
-		// TODO #config #debug set to one for simplicity for now
+		// TODO #config #debug set to one for simplicity for now https://github.com/turbot/tailpipe-plugin-sdk/issues/4
 		MaxConcurrency: 1,
 	})
 
@@ -165,11 +165,11 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 	}
 
 	// update our paging data with the paging data from the this artifact event
-	b.updatePagingData(paging)
+	b.UpdatePagingData(paging)
 
 	//extract
 	go func() {
-		// TODO #err make sure errors handles and bubble back
+		// TODO #error make sure errors handles and bubble back
 		err := b.extractArtifact(ctx, info)
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name)
 		slog.Debug("wg ** dec")
@@ -255,7 +255,7 @@ func (b *ArtifactSourceBase[T]) mapArtifacts(ctx context.Context, artifactData *
 		for _, d := range dataList {
 			mappedData, err := m.Map(ctx, d)
 			if err != nil {
-				// TODO #err should we give up immediately
+				// TODO #error should we give up immediately
 				errList = append(errList, err)
 			} else {
 				mappedDataList = append(mappedDataList, mappedData...)
@@ -329,16 +329,4 @@ func (b *ArtifactSourceBase[T]) resolveLoader(info *types.ArtifactInfo) (artifac
 	b.loaders[key] = l
 
 	return l, nil
-}
-
-// TODO #design move to RowSourceBase?
-func (b *ArtifactSourceBase[T]) updatePagingData(data paging.Data) {
-	if data == nil {
-		return
-	}
-	if b.PagingData == nil {
-		b.PagingData = data
-		return
-	}
-	b.PagingData.Update(data)
 }

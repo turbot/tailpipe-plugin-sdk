@@ -83,7 +83,7 @@ func TestSchemaFromStruct(t *testing.T) {
 		s any
 	}
 
-	// TODO #testing add parquet tag tests
+	// TODO #testing add parquet tag tests https://github.com/turbot/tailpipe-plugin-sdk/issues/20
 	tests := []struct {
 		name    string
 		args    args
@@ -249,7 +249,6 @@ func TestSchemaFromStruct(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			// TODO #schema should we set interface as JSON???
 			name: "interface struct",
 			args: args{
 				s: InterfaceStruct{},

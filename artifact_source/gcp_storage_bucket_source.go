@@ -97,7 +97,7 @@ func (s *GcpStorageBucketSource) DiscoverArtifacts(ctx context.Context) error {
 			info := &types.ArtifactInfo{Name: objPath, OriginalName: objPath, EnrichmentFields: sourceEnrichmentFields}
 
 			if err := s.OnArtifactDiscovered(ctx, info); err != nil {
-				// TODO: #err should we continue or fail?
+				// TODO: #error should we continue or fail?
 				return fmt.Errorf("failed to notify observers of discovered artifact, %w", err)
 			}
 		}
@@ -132,7 +132,7 @@ func (s *GcpStorageBucketSource) DownloadArtifact(ctx context.Context, info *typ
 
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
-	// TODO: #paging create paging data
+	// TODO: #paging create paging data https://github.com/turbot/tailpipe-plugin-sdk/issues/13
 	pagingInfo := paging.NewStorageBucket()
 	return s.OnArtifactDownloaded(ctx, downloadInfo, pagingInfo)
 }
@@ -191,7 +191,7 @@ func (s *GcpStorageBucketSource) setSessionConfig(ctx context.Context) ([]option
 	return opts, nil
 }
 
-// TODO: Determine where this actually belongs, maybe a useful util func?
+// TODO: Determine where this actually belongs, maybe a useful util func? https://github.com/turbot/tailpipe-plugin-sdk/issues/14
 func (s *GcpStorageBucketSource) pathOrContents(in string) (string, error) {
 	if len(in) == 0 {
 		return "", nil

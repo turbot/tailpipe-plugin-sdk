@@ -47,7 +47,7 @@ func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer)
 		return err
 	}
 
-	// TODO do we need a remove observer function, in which case this could wait on a waitgroup associated with the observer?
+	// TODO do we need a remove observer function, in which case this could wait on a waitgroup associated with the observer? https://github.com/turbot/tailpipe-plugin-sdk/issues/19
 	// hold stream open
 	<-stream.Context().Done()
 
@@ -97,7 +97,7 @@ func (s PluginServer) Serve() error {
 	// shutdown the plugin when done
 	defer func() {
 		if err := s.impl.Shutdown(ctx); err != nil {
-			// TODO #err what to do with this error?
+			// TODO #error what to do with this error?
 			slog.Error("failed to shutdown plugin", "error", err)
 		}
 	}()

@@ -23,13 +23,13 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-//TODO #paging is timestamp reliable - do logs always come in order? is it should we/are we using ingestion time?
+//TODO #paging is timestamp reliable - do logs always come in order? is it should we/are we using ingestion time? https://github.com/turbot/tailpipe-plugin-sdk/issues/5
 
 const (
 	AWSCloudwatchSourceIdentifier = "aws_cloudwatch"
 )
 
-// TODO #config TMP
+// TODO #config TMP https://github.com/turbot/tailpipe-plugin-sdk/issues/3
 const BaseTmpDir = "/tmp/tailpipe"
 
 func init() {
@@ -61,10 +61,6 @@ func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *hcl.Data, op
 
 	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("cloudwatch-%s", s.Config.LogGroupName))
 
-	if err := s.ValidateConfig(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
-	}
-
 	// initialize client
 	client, err := s.getClient(ctx)
 	if err != nil {
@@ -72,7 +68,7 @@ func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *hcl.Data, op
 	}
 	s.client = client
 
-	// TODO NEEDED?
+	// TODO NEEDED? https://github.com/turbot/tailpipe-plugin-sdk/issues/6
 	s.limiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
 		Name:       "cloudwatch_limiter",
 		FillRate:   5,
@@ -94,12 +90,6 @@ func (s *AwsCloudWatchSource) GetConfigSchema() hcl.Config {
 func (s *AwsCloudWatchSource) Close() error {
 	// delete the temp dir and all files
 	return os.RemoveAll(s.TmpDir)
-}
-
-// ValidateConfig checks the config for required fields
-func (s *AwsCloudWatchSource) ValidateConfig() error {
-	// #TODO #config - validate the config
-	return nil
 }
 
 // DiscoverArtifacts gets the log streams for the configured log group and log stream prefix,
@@ -137,17 +127,17 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
 
 			// populate enrichment fields the the source is aware of
 			// - in this case the source type and name
-			// TODO #enrich check these
+			// TODO #enrich check these https://github.com/turbot/tailpipe-plugin-sdk/issues/7
 			sourceEnrichmentFields := &enrichment.CommonFields{
 				TpSourceType: "cloudwatch",
 				TpSourceName: streamName,
 			}
 
-			// TODO handle rate limiting errors
+			// TODO #error handle rate limiting errors
 			info := &types.ArtifactInfo{Name: streamName, EnrichmentFields: sourceEnrichmentFields}
 			// notify observers of the discovered artifact
 			if err := s.OnArtifactDiscovered(ctx, info); err != nil {
-				// TODO #err - should we return an error here or gather all errors?
+				// TODO #error - should we return an error here or gather all errors?
 				return fmt.Errorf("failed to notify observers of discovered artifact, %w", err)
 			}
 		}
@@ -207,7 +197,6 @@ func logStreamNameWithinTimeRange(logStream cloudwatch_types.LogStream, startTim
 //	timeout := 5 * time.Minute
 //	err = retry.Do(ctx, retry.WithMaxDuration(timeout, retry.NewConstant(50*time.Millisecond)), func(ctx context.Context) error {
 //		// apply rate limiter
-//		// TODO necessary - we can just control backoff?
 //		if err := s.limiter.Wait(ctx); err != nil {
 //			return fmt.Errorf("error acquiring rate limiter: %w", err)
 //		}
@@ -360,7 +349,7 @@ func (s *AwsCloudWatchSource) getTimeRange(ctx context.Context, logStream string
 
 func (s *AwsCloudWatchSource) getClient(ctx context.Context) (*cloudwatchlogs.Client, error) {
 	var opts []func(*config.LoadOptions) error
-	// TODO handle all credential types
+	// TODO handle all credential types https://github.com/turbot/tailpipe-plugin-sdk/issues/8
 	// add credentials if provided
 	if s.Config.AccessKey != "" && s.Config.SecretKey != "" {
 		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.Config.AccessKey, s.Config.SecretKey, s.Config.SessionToken)))

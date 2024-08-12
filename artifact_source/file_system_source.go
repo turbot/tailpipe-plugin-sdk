@@ -53,8 +53,6 @@ func (s *FileSystemSource) GetConfigSchema() hcl.Config {
 }
 
 func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
-	// TODO async????
-
 	var errList []error
 	for _, path := range s.Paths {
 		err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
@@ -92,12 +90,12 @@ func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
 
 func (s *FileSystemSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 
-	// TODO consider large/remote files/download progress
+	// TODO consider large/remote files/download progress https://github.com/turbot/tailpipe-plugin-sdk/issues/10
 	//s.NotifyObservers(events.NewArtifactDownloadProgress(request, info))
 
 	// notify observers of the discovered artifact
 	// NOTE: for now just pass on the info as is
 	// if the file was downloaded we would update the Name to the local path, leaving OriginalName as the source path
-	// TODO CREATE PAGING DATA
+	// TODO CREATE PAGING DATA https://github.com/turbot/tailpipe-plugin-sdk/issues/11
 	return s.OnArtifactDownloaded(ctx, info, nil)
 }

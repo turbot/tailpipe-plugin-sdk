@@ -58,7 +58,11 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data, opts
 	}
 	s.client = client
 
+	// now we have config, create the paging data
+	s.PagingData = paging.NewS3Bucket(s.Config.Bucket, s.Config.Prefix, s.Config.Region)
+
 	slog.Info("Initialized AwsS3BucketSource", "bucket", s.Config.Bucket, "prefix", s.Config.Prefix, "extensions", s.Extensions)
+
 	return err
 }
 
@@ -101,11 +105,7 @@ func (s *AwsS3BucketSource) ValidateConfig() error {
 }
 
 func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
-	// TODO: #paging is there a better place to initialize this?
-	if s.PagingData == nil {
-		s.PagingData = paging.NewS3Bucket(s.Config.Bucket, s.Config.Prefix, s.Config.Region)
-	}
-	pagingData, _ := s.PagingData.(*paging.S3Bucket) // TODO: #err handle error
+	pagingData := s.PagingData.(*paging.S3Bucket)
 
 	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
 		Bucket: &s.Config.Bucket,
@@ -140,7 +140,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 				info := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
 				// notify observers of the discovered artifact
 				if err := s.OnArtifactDiscovered(ctx, info); err != nil {
-					// TODO #err should we continue or fail?
+					// TODO #error should we continue or fail?
 					return fmt.Errorf("failed to notify observers of discovered artifact, %w", err)
 				}
 			}
@@ -151,7 +151,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 }
 
 func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
-	pagingData, _ := s.PagingData.(*paging.S3Bucket) // TODO: #err handle error
+	pagingData := s.PagingData.(*paging.S3Bucket)
 
 	// Get the object from S3
 	getObjectOutput, err := s.client.GetObject(ctx, &s3.GetObjectInput{
@@ -193,7 +193,7 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.Ar
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {
 	var opts []func(*config.LoadOptions) error
 	// add credentials if provided
-	// TODO handle all credential types
+	// TODO handle all credential types https://github.com/turbot/tailpipe-plugin-sdk/issues/8
 	if s.Config.AccessKey != "" && s.Config.SecretKey != "" {
 		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.Config.AccessKey, s.Config.SecretKey, s.Config.SessionToken)))
 	}

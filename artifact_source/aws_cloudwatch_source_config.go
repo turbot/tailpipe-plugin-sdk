@@ -7,7 +7,7 @@ import (
 
 // AwsCloudWatchSourceConfig is the configuration for an [AwsCloudWatchSource]
 type AwsCloudWatchSourceConfig struct {
-	// TODO #config connection based credentials mechanism
+	// TODO #config connection based credentials mechanism https://github.com/turbot/tailpipe-plugin-sdk/issues/8
 	AccessKey    string `hcl:"access_key"`
 	SecretKey    string `hcl:"secret_key"`
 	SessionToken string `hcl:"session_token"`
