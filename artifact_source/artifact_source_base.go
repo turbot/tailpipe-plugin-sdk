@@ -21,6 +21,9 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// TODO #config #debug set to one for simplicity for now https://github.com/turbot/tailpipe-plugin-sdk/issues/4
+const ArtifactSourceMaxConcurrency = 1
+
 // ArtifactSourceBase is a [row_source.RowSource] that extracts rows from an 'artifact'
 //
 // Artifacts are defined as some entity which contains a collection of rows, which must be extracted/processed in
@@ -74,9 +77,8 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, 
 
 	// setup rate limiter
 	b.artifactLoadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
-		Name: "artifact_load_limiter",
-		// TODO #config #debug set to one for simplicity for now https://github.com/turbot/tailpipe-plugin-sdk/issues/4
-		MaxConcurrency: 1,
+		Name:           "artifact_load_limiter",
+		MaxConcurrency: ArtifactSourceMaxConcurrency,
 	})
 
 	// create loader map
