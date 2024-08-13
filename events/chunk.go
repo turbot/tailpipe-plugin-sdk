@@ -21,7 +21,7 @@ func NewChunkEvent(executionId string, chunkNumber int, paging paging.Data) (*Ch
 
 	// serialise the paging data to json
 	if paging != nil {
-		pagingJson, err := json.Marshal(paging)
+		pagingJson, err := getPagingJSON(paging)
 		if err != nil {
 			return nil, err
 		}
@@ -29,6 +29,15 @@ func NewChunkEvent(executionId string, chunkNumber int, paging paging.Data) (*Ch
 	}
 
 	return c, nil
+}
+
+func getPagingJSON(paging paging.Data) ([]byte, error) {
+	// NOTE: lock the paging data to ensure it is not modified while we are serialising it
+	mut := paging.GetMut()
+	mut.RLock()
+	defer mut.RUnlock()
+
+	return json.Marshal(paging)
 }
 
 // ToProto converts the event to a proto.Event

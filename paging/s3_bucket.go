@@ -1,17 +1,15 @@
 package paging
 
 import (
-	"sync"
 	"time"
 )
 
 type S3Bucket struct {
+	PagingBase
 	Bucket  string                       `json:"bucket"`
 	Prefix  string                       `json:"prefix"`
 	Region  string                       `json:"region"`
 	Objects map[string]*S3BucketMetadata `json:"objects"`
-
-	objectLock sync.RWMutex
 }
 
 type S3BucketMetadata struct {
@@ -33,8 +31,8 @@ func NewS3Bucket(name string, prefix string, region string) *S3Bucket {
 
 // Upsert adds new/updates an existing object with its current metadata
 func (s *S3Bucket) Upsert(name string, lastModified time.Time, size int64) {
-	s.objectLock.Lock()
-	defer s.objectLock.Unlock()
+	s.mut.Lock()
+	defer s.mut.Unlock()
 
 	s.Objects[name] = &S3BucketMetadata{
 		LastModified: lastModified,
@@ -44,13 +42,10 @@ func (s *S3Bucket) Upsert(name string, lastModified time.Time, size int64) {
 
 // Get returns the metadata for the given path (if it is currently stored) or null if not found
 func (s *S3Bucket) Get(path string) *S3BucketMetadata {
-	s.objectLock.RLock()
-	defer s.objectLock.RUnlock()
+	s.mut.RLock()
+	defer s.mut.RUnlock()
 
 	metadata, _ := s.Objects[path]
 	// return metadata (or null if it does not exist)
 	return metadata
 }
-
-// implement marker interface
-func (*S3Bucket) pagingData() {}

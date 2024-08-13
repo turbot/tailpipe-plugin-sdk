@@ -1,6 +1,7 @@
 package paging
 
+import "sync"
+
 type Data interface {
-	// marker interface
-	pagingData()
+	GetMut() *sync.RWMutex
 }

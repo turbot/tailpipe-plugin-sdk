@@ -1,10 +1,9 @@
 package paging
 
-type StorageBuckets struct{}
+type StorageBuckets struct {
+	PagingBase
+}
 
 func NewStorageBucket() *StorageBuckets {
 	return &StorageBuckets{}
 }
-
-// implement marker interface
-func (*StorageBuckets) pagingData() {}
