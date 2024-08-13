@@ -3,6 +3,7 @@ package paging
 import (
 	"fmt"
 	"maps"
+	"sync"
 	"time"
 )
 
@@ -11,6 +12,8 @@ type S3Bucket struct {
 	Prefix  string                      `json:"prefix"`
 	Region  string                      `json:"region"`
 	Objects map[string]S3BucketMetadata `json:"objects"`
+
+	mu sync.Mutex
 }
 
 type S3BucketMetadata struct {
@@ -37,6 +40,8 @@ func (s *S3Bucket) Update(data Data) error {
 		return fmt.Errorf("cannot update S3Bucket paging data with %T", data)
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	// merge the objects, preferring the latest
 	maps.Copy(s.Objects, other.Objects)
 	return nil
@@ -46,6 +51,8 @@ func (s *S3Bucket) Add(name string, lastModified time.Time, size int64) {
 	if lastModified.IsZero() {
 		return
 	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.Objects[name] = S3BucketMetadata{
 		LastModified: lastModified,
 		Size:         size,

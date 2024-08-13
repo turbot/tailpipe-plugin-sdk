@@ -113,8 +113,9 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 	pagingData := s.PagingData.(*paging.S3Bucket)
 
 	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
-		Bucket: &s.Config.Bucket,
-		Prefix: &s.Config.Prefix,
+		Bucket:     &s.Config.Bucket,
+		Prefix:     &s.Config.Prefix,
+		StartAfter: s.Config.StartAfterKey,
 	})
 
 	for paginator.HasMorePages() {
