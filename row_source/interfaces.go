@@ -38,8 +38,8 @@ type RowSource interface {
 	// GetConfigSchema returns an empty instance of the config struct used by the source
 	GetConfigSchema() hcl.Config
 
-	// GetPagingData returns the current paging data for the ongoing collection
-	GetPagingData() paging.Data
+	// GetPagingData returns the json serialised paging data for the ongoing collection
+	GetPagingData() (json.RawMessage, error)
 	// SetPagingData unmarshalls the paging data JSON into the target object
 	SetPagingData(pagingDataJSON json.RawMessage) error
 }

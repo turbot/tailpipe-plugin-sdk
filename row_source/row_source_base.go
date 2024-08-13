@@ -63,7 +63,7 @@ func (b *RowSourceBase[T]) Close() error {
 
 // OnRow raise an [events.Row] event, which is handled by the collection.
 // It is called by the row source when it has a row to send
-func (b *RowSourceBase[T]) OnRow(ctx context.Context, row *types.RowData, pagingData paging.Data) error {
+func (b *RowSourceBase[T]) OnRow(ctx context.Context, row *types.RowData, pagingData json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -78,8 +78,11 @@ func (b *RowSourceBase[T]) GetPagingDataSchema() paging.Data {
 }
 
 // GetPagingData returns the current paging data for the ongoing collection
-func (b *RowSourceBase[T]) GetPagingData() paging.Data {
-	return b.PagingData
+func (b *RowSourceBase[T]) GetPagingData() (json.RawMessage, error) {
+	mut := b.PagingData.GetMut()
+	mut.RLock()
+	defer mut.RUnlock()
+	return json.Marshal(b.PagingData)
 }
 
 // SetPagingData unmarshalls the paging data JSON into the target object

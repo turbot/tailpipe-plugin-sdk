@@ -2,11 +2,11 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"log/slog"
 )
 
@@ -27,16 +27,14 @@ func (b *PluginBase) OnStarted(ctx context.Context, executionId string) error {
 }
 
 // OnChunk is called by the plugin when it has written a chunk of enriched rows to a [JSONL/CSV] file
-func (b *PluginBase) OnChunk(ctx context.Context, chunkNumber int, paging paging.Data) error {
+func (b *PluginBase) OnChunk(ctx context.Context, chunkNumber int, paging json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
 	// construct proto event
-	e, err := events.NewChunkEvent(executionId, chunkNumber, paging)
-	if err != nil {
-		return err
-	}
+	e := events.NewChunkEvent(executionId, chunkNumber, paging)
+
 	return b.NotifyObservers(ctx, e)
 }
 
@@ -80,7 +78,7 @@ func (b *PluginBase) handleRowEvent(ctx context.Context, e *events.Row) error {
 	return nil
 }
 
-func (b *PluginBase) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, pagingData paging.Data) error {
+func (b *PluginBase) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, pagingData json.RawMessage) error {
 	// determine chunk number from rowCountMap
 	chunkNumber := int(rowCount / JSONLChunkSize)
 	// check for final partial chunk

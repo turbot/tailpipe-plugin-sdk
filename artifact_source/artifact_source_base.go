@@ -2,6 +2,7 @@ package artifact_source
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -165,10 +166,16 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 		return err
 	}
 
-	//extract
+	// serialise the paging data so that we capture it at the time of the download of this artifact
+	pagingData, err := b.getPagingDataJSON()
+	if err != nil {
+		return fmt.Errorf("error serialising paging data: %w", err)
+	}
+
+	// extract asynchronously
 	go func() {
 		// TODO #error make sure errors handles and bubble back
-		err := b.extractArtifact(ctx, info)
+		err := b.extractArtifact(ctx, info, pagingData)
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name)
 		slog.Debug("wg ** dec")
 		// close wait group whether there is an error or not
@@ -182,7 +189,7 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 	}()
 
 	// also send event - in case we want to track progress etc (nothing handles this yet)
-	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, b.PagingData)); err != nil {
+	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, pagingData)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil
@@ -191,7 +198,7 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 // convert a downloaded artifact to a set of raw rows, with optional metadata
 // invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
-func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types.ArtifactInfo) error {
+func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types.ArtifactInfo, pagingData json.RawMessage) error {
 	// load artifact data
 	// resolve the loader - if one has not been specified, create a default for the file tyoe
 	loader, err := b.resolveLoader(info)
@@ -223,7 +230,7 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 			if row.Metadata == nil {
 				row.Metadata = info.EnrichmentFields
 			}
-			if err := b.OnRow(ctx, row, b.PagingData); err != nil {
+			if err := b.OnRow(ctx, row, pagingData); err != nil {
 				notifyErrors = append(notifyErrors, err)
 			}
 		}
@@ -234,6 +241,16 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 
 	slog.Debug("RowSourceBase extractArtifact complete", "artifact", info.Name, "rows", count)
 	return nil
+}
+
+// marshal the paging data to JSON (within a lock)
+func (b *ArtifactSourceBase[T]) getPagingDataJSON() (json.RawMessage, error) {
+	// NOTE: lock the paging data to ensure it is not modified while we are serialising it
+	mut := b.PagingData.GetMut()
+	mut.RLock()
+	defer mut.RUnlock()
+
+	return json.Marshal(b.PagingData)
 }
 
 // mapArtifacts applies any configured mappers to the artifact data

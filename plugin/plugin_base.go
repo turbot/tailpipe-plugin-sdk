@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -12,7 +13,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
@@ -89,7 +89,7 @@ func (b *PluginBase) Base() *PluginBase {
 	return b
 }
 
-func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, pagingData paging.Data, err error) error {
+func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, pagingData json.RawMessage, err error) error {
 	// get row count and the rows in the buffers
 	b.rowBufferLock.Lock()
 	rowCount := b.rowCountMap[executionId]

@@ -2,12 +2,12 @@ package collection
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 )
 
@@ -31,7 +31,7 @@ type Collection interface {
 
 	// Collect is called to start collecting data,
 	// Collect will send enriched rows which satisfy the tailpipe row requirements
-	Collect(context.Context, *proto.CollectRequest) (paging.Data, error)
+	Collect(context.Context, *proto.CollectRequest) (json.RawMessage, error)
 	// EnrichRow is called for each raw row of data, it must enrich the row and return it
 	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)
 }

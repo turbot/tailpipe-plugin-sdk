@@ -1,6 +1,8 @@
 package types
 
-import "github.com/turbot/tailpipe-plugin-sdk/enrichment"
+import (
+	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
+)
 
 type ArtifactInfo struct {
 	// if the artifact is has been dowloaded, Name will be the path to the downloaded file

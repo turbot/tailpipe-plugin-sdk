@@ -2,6 +2,7 @@ package collection
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"sync"
@@ -10,7 +11,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 )
 
@@ -77,7 +77,7 @@ func (*CollectionBase[T]) GetSourceOptions() []row_source.RowSourceOption {
 	return nil
 }
 
-func (b *CollectionBase[T]) Collect(ctx context.Context, req *proto.CollectRequest) (paging.Data, error) {
+func (b *CollectionBase[T]) Collect(ctx context.Context, req *proto.CollectRequest) (json.RawMessage, error) {
 	slog.Info("Start collection")
 	// if the req contains paging data, tell the source to deserialize and store it
 	if req.PagingData != nil {
@@ -97,11 +97,9 @@ func (b *CollectionBase[T]) Collect(ctx context.Context, req *proto.CollectReque
 	// wait for all rows to be processed
 	b.rowWg.Wait()
 
+	defer slog.Info("Enrichment complete")
 	// now ask the source for its updated paging data
-	pagingData := b.Source.GetPagingData()
-
-	slog.Info("Enrichment complete")
-	return pagingData, nil
+	return b.Source.GetPagingData()
 }
 
 // Notify implements observable.Observer

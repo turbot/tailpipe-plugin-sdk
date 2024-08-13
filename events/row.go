@@ -1,8 +1,8 @@
 package events
 
 import (
+	"encoding/json"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
 )
 
 type Row struct {
@@ -12,7 +12,7 @@ type Row struct {
 	// enrichment values passed from the source to the collection to include in the enrichment process
 	EnrichmentFields *enrichment.CommonFields
 	Row              any
-	PagingData       paging.Data
+	PagingData       json.RawMessage
 }
 
 type RowEventOption func(*Row)
@@ -22,7 +22,7 @@ func WithEnrichmentFields(enrichmentFields *enrichment.CommonFields) RowEventOpt
 		r.EnrichmentFields = enrichmentFields
 	}
 }
-func NewRowEvent(executionId string, row any, paging paging.Data, opts ...RowEventOption) *Row {
+func NewRowEvent(executionId string, row any, paging json.RawMessage, opts ...RowEventOption) *Row {
 	r := &Row{
 		ExecutionId: executionId,
 		Row:         row,
