@@ -51,6 +51,11 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data, opts
 	s.Extensions = types.NewExtensionLookup(s.Config.Extensions)
 	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("s3-%s", s.Config.Bucket))
 
+	defaultBucketRegion := "us-east-1"
+	if s.Config.Region == nil {
+		s.Config.Region = &defaultBucketRegion
+	}
+
 	// initialize client
 	client, err := s.getClient(ctx)
 	if err != nil {
@@ -59,7 +64,7 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data, opts
 	s.client = client
 
 	// now we have config, create the paging data
-	s.PagingData = paging.NewS3Bucket(s.Config.Bucket, s.Config.Prefix, s.Config.Region)
+	s.PagingData = paging.NewS3Bucket(s.Config.Bucket, s.Config.Prefix, *s.Config.Region)
 
 	slog.Info("Initialized AwsS3BucketSource", "bucket", s.Config.Bucket, "prefix", s.Config.Prefix, "extensions", s.Extensions)
 
@@ -198,11 +203,7 @@ func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {
 		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.Config.AccessKey, s.Config.SecretKey, s.Config.SessionToken)))
 	}
 
-	region := s.Config.Region
-	if region == "" {
-		region = "us-east-1"
-	}
-	opts = append(opts, config.WithRegion(region))
+	opts = append(opts, config.WithRegion(*s.Config.Region))
 
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {
