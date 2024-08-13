@@ -113,7 +113,6 @@ func (b *CollectionBase[T]) Notify(ctx context.Context, event events.Event) erro
 		return b.handeErrorEvent(e)
 	default:
 		// ignore
-		slog.Debug("Collection RowSourceBase: event received but it's not for us ", "event", event)
 		return nil
 	}
 }
