@@ -127,7 +127,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 			path := *object.Key
 
 			// check if we've seen this object before and skip if we have
-			if pagingEntry, ok := pagingData.Objects[path]; ok {
+			if pagingEntry := pagingData.Get(path); pagingEntry != nil {
 				if !object.LastModified.After(pagingEntry.LastModified) {
 					continue
 				}
@@ -192,8 +192,8 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.Ar
 	// notify observers of the discovered artifact
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name, EnrichmentFields: info.EnrichmentFields}
 
-	pagingData.Add(info.Name, *getObjectOutput.LastModified, *getObjectOutput.ContentLength)
-	return s.OnArtifactDownloaded(ctx, downloadInfo, pagingData)
+	pagingData.Upsert(info.Name, *getObjectOutput.LastModified, *getObjectOutput.ContentLength)
+	return s.OnArtifactDownloaded(ctx, downloadInfo)
 }
 
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {

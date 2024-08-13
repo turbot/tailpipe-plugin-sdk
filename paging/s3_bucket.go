@@ -1,19 +1,17 @@
 package paging
 
 import (
-	"fmt"
-	"maps"
 	"sync"
 	"time"
 )
 
 type S3Bucket struct {
-	Bucket  string                      `json:"bucket"`
-	Prefix  string                      `json:"prefix"`
-	Region  string                      `json:"region"`
-	Objects map[string]S3BucketMetadata `json:"objects"`
+	Bucket  string                       `json:"bucket"`
+	Prefix  string                       `json:"prefix"`
+	Region  string                       `json:"region"`
+	Objects map[string]*S3BucketMetadata `json:"objects"`
 
-	mu sync.Mutex
+	objectLock sync.RWMutex
 }
 
 type S3BucketMetadata struct {
@@ -29,32 +27,30 @@ func NewS3Bucket(name string, prefix string, region string) *S3Bucket {
 		Bucket:  name,
 		Prefix:  prefix,
 		Region:  region,
-		Objects: make(map[string]S3BucketMetadata),
+		Objects: make(map[string]*S3BucketMetadata),
 	}
 }
 
-// Update implements the Data interface
-func (s *S3Bucket) Update(data Data) error {
-	other, ok := data.(*S3Bucket)
-	if !ok {
-		return fmt.Errorf("cannot update S3Bucket paging data with %T", data)
-	}
+// Upsert adds new/updates an existing object with its current metadata
+func (s *S3Bucket) Upsert(name string, lastModified time.Time, size int64) {
+	s.objectLock.Lock()
+	defer s.objectLock.Unlock()
 
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	// merge the objects, preferring the latest
-	maps.Copy(s.Objects, other.Objects)
-	return nil
-}
-
-func (s *S3Bucket) Add(name string, lastModified time.Time, size int64) {
-	if lastModified.IsZero() {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.Objects[name] = S3BucketMetadata{
+	s.Objects[name] = &S3BucketMetadata{
 		LastModified: lastModified,
 		Size:         size,
 	}
 }
+
+// Get returns the metadata for the given path (if it is currently stored) or null if not found
+func (s *S3Bucket) Get(path string) *S3BucketMetadata {
+	s.objectLock.RLock()
+	defer s.objectLock.RUnlock()
+
+	metadata, _ := s.Objects[path]
+	// return metadata (or null if it does not exist)
+	return metadata
+}
+
+// implement marker interface
+func (*S3Bucket) pagingData() {}

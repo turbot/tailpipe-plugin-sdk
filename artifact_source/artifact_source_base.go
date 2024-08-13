@@ -15,7 +15,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -160,14 +159,11 @@ func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *
 	return nil
 }
 
-func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo, paging paging.Data) error {
+func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
-
-	// update our paging data with the paging data from the this artifact event
-	b.UpdatePagingData(paging)
 
 	//extract
 	go func() {
@@ -186,7 +182,7 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 	}()
 
 	// also send event - in case we want to track progress etc (nothing handles this yet)
-	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, paging)); err != nil {
+	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, b.PagingData)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil

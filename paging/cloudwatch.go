@@ -1,36 +1,27 @@
 package paging
 
-import (
-	"fmt"
-	"maps"
-)
+import "sync"
 
 // Cloudwatch contains paging data for the Cloudwatch artifact source
 // This contains the latest timestamp fetched for each log stream in a SINGLE log group
 type Cloudwatch struct {
 	// The timestamp of the last collected log for each log stream
 	// expressed as the number of milliseconds after Jan 1, 1970 00:00:00 UTC.
-	Timestamps map[string]int64 `json:"timestamps"`
+	Timestamps    map[string]int64 `json:"timestamps"`
+	timestampLock sync.Mutex
 }
 
-func (c *Cloudwatch) NewCloudwatch() *Cloudwatch {
+func NewCloudwatch() *Cloudwatch {
 	return &Cloudwatch{
 		Timestamps: make(map[string]int64),
 	}
 }
 
-// Update the Cloudwatch paging data with the latest data
-func (c *Cloudwatch) Update(data Data) error {
-	other, ok := data.(*Cloudwatch)
-	if !ok {
-		return fmt.Errorf("cannot update Cloudwatch paging data with %T", data)
-	}
-	// merge the timestamps, preferring the latest
-	maps.Copy(c.Timestamps, other.Timestamps)
-	return nil
-}
+// Upsert adds new/updates an existing logstream  with its current timestamp
+func (c *Cloudwatch) Upsert(name string, time int64) {
+	c.timestampLock.Lock()
+	defer c.timestampLock.Unlock()
 
-func (c *Cloudwatch) Add(name string, time int64) {
 	if c.Timestamps == nil {
 		c.Timestamps = make(map[string]int64)
 	}
@@ -40,8 +31,5 @@ func (c *Cloudwatch) Add(name string, time int64) {
 	c.Timestamps[name] = time
 }
 
-func NewCloudwatch() *Cloudwatch {
-	return &Cloudwatch{
-		Timestamps: make(map[string]int64),
-	}
-}
+// implement marker interface
+func (*Cloudwatch) pagingData() {}

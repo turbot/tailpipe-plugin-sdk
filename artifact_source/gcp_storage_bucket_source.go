@@ -5,19 +5,19 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"log/slog"
+	"os"
+	"path"
+
 	"github.com/mitchellh/go-homedir"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"google.golang.org/api/impersonate"
 	"google.golang.org/api/iterator"
 	"google.golang.org/api/option"
-	"io"
-	"log/slog"
-	"os"
-	"path"
 )
 
 const (
@@ -133,8 +133,7 @@ func (s *GcpStorageBucketSource) DownloadArtifact(ctx context.Context, info *typ
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
 	// TODO: #paging create paging data https://github.com/turbot/tailpipe-plugin-sdk/issues/13
-	pagingInfo := paging.NewStorageBucket()
-	return s.OnArtifactDownloaded(ctx, downloadInfo, pagingInfo)
+	return s.OnArtifactDownloaded(ctx, downloadInfo)
 }
 
 func (s *GcpStorageBucketSource) getClient(ctx context.Context) (*storage.Client, error) {

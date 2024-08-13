@@ -97,5 +97,5 @@ func (s *FileSystemSource) DownloadArtifact(ctx context.Context, info *types.Art
 	// NOTE: for now just pass on the info as is
 	// if the file was downloaded we would update the Name to the local path, leaving OriginalName as the source path
 	// TODO CREATE PAGING DATA https://github.com/turbot/tailpipe-plugin-sdk/issues/11
-	return s.OnArtifactDownloaded(ctx, info, nil)
+	return s.OnArtifactDownloaded(ctx, info)
 }

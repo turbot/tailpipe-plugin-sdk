@@ -326,11 +326,10 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 	// notify observers of the discovered artifact
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
-	// build paging data
-	pagingData = paging.NewCloudwatch()
-	pagingData.Add(info.Name, maxTime)
+	// update paging data for this log stream
+	pagingData.Upsert(info.Name, maxTime)
 
-	return s.OnArtifactDownloaded(ctx, downloadInfo, pagingData)
+	return s.OnArtifactDownloaded(ctx, downloadInfo)
 }
 
 // use the paging data (if present) and the configured time range to determine the start and end time
