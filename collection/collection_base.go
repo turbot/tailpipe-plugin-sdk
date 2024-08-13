@@ -34,13 +34,13 @@ type CollectionBase[T hcl.Config] struct {
 func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data) error {
 	// parse the config
 	var emptyConfig = b.impl.GetConfigSchema().(T)
-	c, unknownHcl, err := hcl.ParseConfig[T](collectionConfigData, emptyConfig)
+	c, err := hcl.ParseConfig[T](collectionConfigData, emptyConfig)
 	if err != nil {
 		return fmt.Errorf("error parsing config: %w", err)
 	}
 	b.Config = c
 
-	slog.Info("Collection RowSourceBase: config parsed", "config", c, "unknownHcl", string(unknownHcl))
+	slog.Info("Collection RowSourceBase: config parsed", "config", c)
 
 	// validate config
 	if err := c.Validate(); err != nil {

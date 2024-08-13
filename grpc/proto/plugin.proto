@@ -16,13 +16,11 @@ message CollectRequest {
 //  dest path for jsonl files
   string output_path= 2;
 
+  // the collection to run (with raw config)
   config_data collection_data = 3;
-  // raw hcl for collection specific config
+  // the source to use (with raw config)
   config_data source_data = 4;
-  // raw hcl for source specific config
-  bytes source_config = 5;
 
-  //
   // this is json encoded data that can be used to resume a collection
   // the plugin will know how to de
   bytes paging_data = 7;

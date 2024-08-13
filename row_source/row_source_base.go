@@ -10,7 +10,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"log/slog"
 )
 
 // RowSourceBase is a base implementation of the [plugin.RowSource] interface
@@ -44,7 +43,7 @@ func (b *RowSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, opts 
 
 	// parse the config
 	var emptyConfig T = b.Impl.GetConfigSchema().(T)
-	c, unknownHcl, err := hcl.ParseConfig[T](configData, emptyConfig)
+	c, err := hcl.ParseConfig[T](configData, emptyConfig)
 	if err != nil {
 		return err
 	}
@@ -53,8 +52,6 @@ func (b *RowSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, opts 
 	if err := c.Validate(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
 	}
-
-	slog.Info("row_source RowSourceBase: c parsed", "c", c, "unknownHcl", string(unknownHcl))
 	b.Config = c
 	return nil
 }
