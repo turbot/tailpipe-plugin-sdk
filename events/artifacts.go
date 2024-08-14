@@ -38,12 +38,12 @@ func NewArtifactDownloadedEvent(executionId string, info *types.ArtifactInfo, pa
 type ArtifactExtracted struct {
 	Base
 	ExecutionId string
-	Artifact    *types.Artifact
+	Info        *types.ArtifactInfo
 }
 
-func NewArtifactExtractedEvent(executionId string, a *types.Artifact) *ArtifactExtracted {
+func NewArtifactExtractedEvent(executionId string, info *types.ArtifactInfo) *ArtifactExtracted {
 	return &ArtifactExtracted{
 		ExecutionId: executionId,
-		Artifact:    a,
+		Info:        info,
 	}
 }

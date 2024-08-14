@@ -200,6 +200,9 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 // invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
 func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types.ArtifactInfo, pagingData json.RawMessage) error {
+	slog.Debug("RowSourceBase extractArtifact", "artifact", info.Name)
+
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	// load artifact data
 	// resolve the loader - if one has not been specified, create a default for the file tyoe
 	loader, err := b.resolveLoader(info)
@@ -219,7 +222,6 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 	for artifactData := range artifactChan {
 		// pout data into an array as that is what mappers expect
 		rows, err := b.mapArtifacts(ctx, artifactData)
-
 		if err != nil {
 			return fmt.Errorf("error mapping artifact: %w", err)
 		}
@@ -238,6 +240,11 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 		if len(notifyErrors) > 0 {
 			return fmt.Errorf("error notifying %d %s of row event: %w", len(notifyErrors), utils.Pluralize("observer", len(notifyErrors)), errors.Join(notifyErrors...))
 		}
+	}
+
+	// notify observers of download
+	if err := b.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
+		return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
 	}
 
 	slog.Debug("RowSourceBase extractArtifact complete", "artifact", info.Name, "rows", count)

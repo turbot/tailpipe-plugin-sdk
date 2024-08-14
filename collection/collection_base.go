@@ -16,7 +16,7 @@ import (
 )
 
 // how ofted to send status events
-const statusUpdateInterval = 10 * time.Millisecond
+const statusUpdateInterval = 250 * time.Millisecond
 
 // CollectionBase provides a base implementation of the [collection.Collection] interface
 // it should be embedded in all Collection implementations
@@ -148,11 +148,12 @@ func (b *CollectionBase[T]) updateStatus(ctx context.Context, e events.Event) {
 	b.status.Update(e)
 
 	if time.Since(b.lastStatusEventTime) > statusUpdateInterval {
-		slog.Info("Collection RowSourceBase: sending status event", "status", b.status)
 		// notify observers
 		if err := b.NotifyObservers(ctx, b.status); err != nil {
 			slog.Error("Collection RowSourceBase: error notifying observers of status", "error", err)
 		}
+		// update lastStatusEventTime
+		b.lastStatusEventTime = time.Now()
 	}
 }
 
