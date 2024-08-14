@@ -62,6 +62,8 @@ type ArtifactSourceBase[T hcl.Config] struct {
 	// rate limiters
 	artifactLoadLimiter *rate_limiter.APILimiter
 
+	// wait group to wait for all artifacts to be processed
+	// this is incremented each time we discover an artifact and decremented when we have processed it
 	artifactWg sync.WaitGroup
 }
 
@@ -143,8 +145,7 @@ func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *
 
 		if err != nil {
 			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
-			slog.Debug("wg ** dec")
-			// if this returns an error we may get a wg double decrement we also receive ArtifactDownloaded event
+			// we failed to download artifact so decrement the wait group
 			b.artifactWg.Done()
 			err := b.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
 			if err != nil {
@@ -177,7 +178,7 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 		// TODO #error make sure errors handles and bubble back
 		err := b.extractArtifact(ctx, info, pagingData)
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name)
-		slog.Debug("wg ** dec")
+
 		// close wait group whether there is an error or not
 		b.artifactWg.Done()
 		if err != nil {
@@ -188,7 +189,7 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 		}
 	}()
 
-	// also send event - in case we want to track progress etc (nothing handles this yet)
+	// notify observers of download
 	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, pagingData)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
@@ -245,6 +246,9 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 
 // marshal the paging data to JSON (within a lock)
 func (b *ArtifactSourceBase[T]) getPagingDataJSON() (json.RawMessage, error) {
+	if b.PagingData == nil {
+		return nil, nil
+	}
 	// NOTE: lock the paging data to ensure it is not modified while we are serialising it
 	mut := b.PagingData.GetMut()
 	mut.RLock()

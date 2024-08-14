@@ -15,6 +15,8 @@ func (b *PluginBase) Notify(ctx context.Context, event events.Event) error {
 	switch e := event.(type) {
 	case *events.Row:
 		return b.handleRowEvent(ctx, e)
+	case *events.Status:
+		return b.NotifyObservers(ctx, e)
 	default:
 		return fmt.Errorf("unexpected event type: %T", e)
 	}

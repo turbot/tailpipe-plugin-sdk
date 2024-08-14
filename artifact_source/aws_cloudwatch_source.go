@@ -134,8 +134,9 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
 			}
 
 			// TODO #error handle rate limiting errors
+
 			info := &types.ArtifactInfo{Name: streamName, EnrichmentFields: sourceEnrichmentFields}
-			// notify observers of the discovered artifact
+			// handle the artifact discovery - trigger a download and notify observers
 			if err := s.OnArtifactDiscovered(ctx, info); err != nil {
 				// TODO #error - should we return an error here or gather all errors?
 				return fmt.Errorf("failed to notify observers of discovered artifact, %w", err)

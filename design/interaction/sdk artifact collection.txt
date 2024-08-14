@@ -1,62 +1,62 @@
 title Plugin collection
 
 participant Collection
-participant RowSource
+participant ArtifactSourceBase
 participant ArtifactSource
 participant ArtifactLoader
 participant ArtifactMapper
 
 [->Collection:Collect
 activate Collection
-Collection->RowSource:Collect
-activate RowSource
-RowSource->ArtifactSource:DiscoverArtifacts
+Collection->ArtifactSourceBase:Collect
+activate ArtifactSourceBase
+ArtifactSourceBase->ArtifactSource:DiscoverArtifacts
 activate ArtifactSource
 
-ArtifactSource->RowSource:Notify(ArtifactDiscovered)
-activate RowSource
-RowSource->RowSource:artifactWg.Add(1)
-RowSource->ArtifactSource:DownloadArtifact
-deactivate RowSource
+ArtifactSource->ArtifactSourceBase:Notify(ArtifactDiscovered)
+activate ArtifactSourceBase
+ArtifactSourceBase->ArtifactSourceBase:artifactWg.Add(1)
+ArtifactSourceBase->ArtifactSource:DownloadArtifact
+deactivate ArtifactSourceBase
 activate ArtifactSource
-ArtifactSource->RowSource:Notify(ArtifactDownloaded)
+ArtifactSource->ArtifactSourceBase:Notify(ArtifactDownloaded)
 deactivate ArtifactSource
-activate RowSource
-RowSource->ArtifactLoader:Load
+activate ArtifactSourceBase
+ArtifactSourceBase->ArtifactLoader:Load
 activate ArtifactLoader
-ArtifactLoader-->>RowSource:Data
+ArtifactLoader-->>ArtifactSourceBase:Data
 deactivate ArtifactLoader
-RowSource->ArtifactMapper:Map
+ArtifactSourceBase->ArtifactMapper:Map
 activate ArtifactMapper
-ArtifactMapper-->>RowSource:Data
+ArtifactMapper-->>ArtifactSourceBase:Data
 deactivate ArtifactMapper
-RowSource->RowSource:artifactWg.Done()
-RowSource->Collection:Notify(Row)
-deactivate RowSource
+ArtifactSourceBase->ArtifactSourceBase:artifactWg.Done()
+ArtifactSourceBase->Collection:Notify(Row)
+deactivate ArtifactSourceBase
 
 
-ArtifactSource->RowSource:Notify(ArtifactDiscovered)
-activate RowSource
-RowSource->RowSource:artifactWg.Add(1)
-RowSource->ArtifactSource:DownloadArtifact
-deactivate RowSource
+ArtifactSource->ArtifactSourceBase:Notify(ArtifactDiscovered)
+activate ArtifactSourceBase
+ArtifactSourceBase->ArtifactSourceBase:artifactWg.Add(1)
+ArtifactSourceBase->ArtifactSource:DownloadArtifact
+deactivate ArtifactSourceBase
 activate ArtifactSource
-ArtifactSource->RowSource:Notify(ArtifactDownloaded)
+ArtifactSource->ArtifactSourceBase:Notify(ArtifactDownloaded)
 deactivate ArtifactSource
-activate RowSource
-RowSource->ArtifactLoader:Load
+activate ArtifactSourceBase
+ArtifactSourceBase->ArtifactLoader:Load
 activate ArtifactLoader
-ArtifactLoader-->>RowSource:Data
+ArtifactLoader-->>ArtifactSourceBase:Data
 deactivate ArtifactLoader
-RowSource->ArtifactMapper:Map
+ArtifactSourceBase->ArtifactMapper:Map
 activate ArtifactMapper
-ArtifactMapper-->>RowSource:Data
+ArtifactMapper-->>ArtifactSourceBase:Data
 deactivate ArtifactMapper
-RowSource->RowSource:artifactWg.Done()
-RowSource->Collection:Notify(Row)
-deactivate RowSource
+ArtifactSourceBase->ArtifactSourceBase:artifactWg.Done()
+ArtifactSourceBase->Collection:Notify(Row)
+deactivate ArtifactSourceBase
 
-RowSource->RowSource:artifactWg.Wait()
+ArtifactSourceBase->ArtifactSourceBase:artifactWg.Wait()
 
 deactivate ArtifactSource
-deactivate RowSource
+deactivate ArtifactSourceBase

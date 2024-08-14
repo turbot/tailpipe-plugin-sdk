@@ -51,3 +51,17 @@ func NewErrorEvent(executionId string, err error) *Event {
 		},
 	}
 }
+
+func NewStatusEvent(artifactsDiscovered, artifactsDownloaded, artifactsExtracted, rowsEnriched int, errors int) *Event {
+	return &Event{
+		Event: &Event_StatusEvent{
+			StatusEvent: &EventStatus{
+				ArtifactsDiscovered: int64(artifactsDiscovered),
+				ArtifactsDownloaded: int64(artifactsDownloaded),
+				ArtifactsExtracted:  int64(artifactsExtracted),
+				RowsEnriched:        int64(rowsEnriched),
+				Errors:              int32(errors),
+			},
+		},
+	}
+}
