@@ -115,8 +115,11 @@ func (b *ArtifactSourceBase[T]) Collect(ctx context.Context) error {
 		return err
 	}
 
-	// start goroutine to wait for all downloads
-	go b.recordDownloadEndTime(ctx)
+	// wait for all downloads
+	b.waitForDownload(ctx)
+	// set download end time
+	b.DownloadTiming.End = time.Now()
+	slog.Info("All artifacts downloaded", "download end time", b.DownloadTiming.End)
 
 	// now wait for all extractions
 	b.artifactExtractWg.Wait()
@@ -126,22 +129,16 @@ func (b *ArtifactSourceBase[T]) Collect(ctx context.Context) error {
 	return nil
 }
 
-func (b *ArtifactSourceBase[T]) recordDownloadEndTime(ctx context.Context) {
-	func() {
-		retry.Constant(ctx, time.Second, func(ctx context.Context) error {
-			// by this time, all artifacts are discovered so to get the download end time,
-			// we can compare the artifact count with the download count
-			if atomic.LoadInt32(&b.artifactCount) == atomic.LoadInt32(&b.downloadCount) {
-				return nil
-			}
-			// otherwise retry
-			return retry.RetryableError(fmt.Errorf("artifact count %d does not match download count %d", atomic.LoadInt32(&b.artifactCount), atomic.LoadInt32(&b.downloadCount)))
-		})
-
-		// set download end time
-		b.DownloadTiming.End = time.Now()
-		slog.Info("All artifacts downloaded", "download end time", b.DownloadTiming.End)
-	}()
+func (b *ArtifactSourceBase[T]) waitForDownload(ctx context.Context) {
+	retry.Constant(ctx, time.Second, func(ctx context.Context) error {
+		// by this time, all artifacts are discovered so to get the download end time,
+		// we can compare the artifact count with the download count
+		if atomic.LoadInt32(&b.artifactCount) == atomic.LoadInt32(&b.downloadCount) {
+			return nil
+		}
+		// otherwise retry
+		return retry.RetryableError(fmt.Errorf("artifact count %d does not match download count %d", atomic.LoadInt32(&b.artifactCount), atomic.LoadInt32(&b.downloadCount)))
+	})
 }
 
 func (b *ArtifactSourceBase[T]) SetLoader(loader artifact_loader.Loader) {
