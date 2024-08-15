@@ -35,5 +35,5 @@ type Collection interface {
 	// EnrichRow is called for each raw row of data, it must enrich the row and return it
 	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)
 	// GetTiming returns the timing for the collection
-	GetTiming() types.TimingMap
+	GetTiming() types.TimingCollection
 }

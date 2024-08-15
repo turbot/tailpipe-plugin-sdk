@@ -11,10 +11,10 @@ type Completed struct {
 	RowCount      int
 	ChunksWritten int
 	Err           error
-	Timing        types.TimingMap
+	Timing        types.TimingCollection
 }
 
-func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, timing types.TimingMap, err error) *Completed {
+func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, timing types.TimingCollection, err error) *Completed {
 	return &Completed{
 		ExecutionId:   executionId,
 		RowCount:      rowCount,

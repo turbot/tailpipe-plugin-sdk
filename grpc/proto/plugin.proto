@@ -1,7 +1,6 @@
 syntax = "proto3";
 package proto;
 
-import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
 
@@ -105,12 +104,12 @@ message EventComplete {
   int64 row_count=2;
   int32 chunk_count=3;
   map<string, string> metadata = 4;
-  map<string,Timing> timing = 5;
+  repeated Timing timing = 5;
   string error = 6;
 }
 
 message Timing{
-  google.protobuf.Timestamp start_time = 1;
-  google.protobuf.Timestamp end_time = 2;
-  google.protobuf.Duration duration = 3;
+  string operation = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
 }

@@ -90,7 +90,7 @@ func (b *PluginBase) Base() *PluginBase {
 	return b
 }
 
-func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, pagingData json.RawMessage, timing types.TimingMap, err error) error {
+func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, pagingData json.RawMessage, timing types.TimingCollection, err error) error {
 	// get row count and the rows in the buffers
 	b.rowBufferLock.Lock()
 	rowCount := b.rowCountMap[executionId]

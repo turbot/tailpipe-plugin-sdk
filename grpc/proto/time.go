@@ -24,25 +24,26 @@ func ProtoToDuration(d *durationpb.Duration) time.Duration {
 	return d.AsDuration()
 }
 
-func TimingMapToProto(timing types.TimingMap) map[string]*Timing {
-	var protoTimingMap = make(map[string]*Timing, len(timing))
-	for k, v := range timing {
-		protoTimingMap[k] = &Timing{
-			StartTime: TimeToProto(v.Start),
-			EndTime:   TimeToProto(v.End),
-			Duration:  DurationToProto(v.Duration()),
+func TimingCollectionToProto(timing types.TimingCollection) []*Timing {
+	var protoTimingCollection = make([]*Timing, len(timing))
+	for i, t := range timing {
+		protoTimingCollection[i] = &Timing{
+			Operation: t.Operation,
+			StartTime: TimeToProto(t.Start),
+			EndTime:   TimeToProto(t.End),
 		}
 	}
-	return protoTimingMap
+	return protoTimingCollection
 }
 
-func TimingMapFromProto(protoTimingMap map[string]*Timing) types.TimingMap {
-	var timingMap = make(types.TimingMap, len(protoTimingMap))
-	for k, v := range protoTimingMap {
-		timingMap[k] = types.Timing{
-			Start: ProtoToTime(v.StartTime),
-			End:   ProtoToTime(v.EndTime),
+func TimingCollectionFromProto(protoTimingCollection []*Timing) types.TimingCollection {
+	var TimingCollection = make(types.TimingCollection, len(protoTimingCollection))
+	for i, t := range protoTimingCollection {
+		TimingCollection[i] = &types.Timing{
+			Operation: t.Operation,
+			Start:     ProtoToTime(t.StartTime),
+			End:       ProtoToTime(t.EndTime),
 		}
 	}
-	return timingMap
+	return TimingCollection
 }

@@ -6,32 +6,34 @@ import (
 )
 
 type Timing struct {
-	Start time.Time
-	End   time.Time
+	Operation string
+	Start     time.Time
+	End       time.Time
 }
 
 func (t *Timing) Duration() time.Duration {
 	return t.End.Sub(t.Start)
 }
 
-type TimingMap map[string]Timing
+type TimingCollection []*Timing
 
-func (m TimingMap) String() string {
+func (m TimingCollection) String() string {
 	var sb strings.Builder
-	sb.WriteString("Timing:\n")
+	sb.WriteString("Timing (may overlap):\n")
 	// get max label length
 	maxLabelLen := 0
-	for k := range m {
-		if len(k) > maxLabelLen {
-			maxLabelLen = len(k)
+	for _, k := range m {
+		if len(k.Operation) > maxLabelLen {
+			maxLabelLen = len(k.Operation)
 		}
 	}
 
-	for k, v := range m {
-		sb.WriteString(k)
-		sb.WriteString(":")
+	for _, v := range m {
+		sb.WriteString(" - ")
+		sb.WriteString(v.Operation)
+		sb.WriteString(": ")
 		// pad label to max length
-		for i := len(k); i < maxLabelLen; i++ {
+		for i := len(v.Operation); i < maxLabelLen; i++ {
 			sb.WriteString(" ")
 		}
 		sb.WriteString(v.Duration().String())

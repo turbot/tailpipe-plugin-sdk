@@ -45,5 +45,5 @@ type RowSource interface {
 	SetPagingData(pagingDataJSON json.RawMessage) error
 
 	// GetTiming returns the timing for the source row collection
-	GetTiming() types.TimingMap
+	GetTiming() types.TimingCollection
 }

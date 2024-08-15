@@ -69,9 +69,9 @@ type ArtifactSourceBase[T hcl.Config] struct {
 	artifactExtractWg sync.WaitGroup
 
 	// keep track to the time taken for each phase
-	DiscoveryTiming types.Timing
-	DownloadTiming  types.Timing
-	ExtractTiming   types.Timing
+	DiscoveryTiming *types.Timing
+	DownloadTiming  *types.Timing
+	ExtractTiming   *types.Timing
 
 	// these counters are used to record the download end time
 	artifactCount int32
@@ -104,7 +104,7 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, 
 func (b *ArtifactSourceBase[T]) Collect(ctx context.Context) error {
 
 	// store discovery start time
-	b.DiscoveryTiming.Start = time.Now()
+	b.ensureDiscoveryTiming()
 
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
@@ -179,9 +179,7 @@ func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *
 	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.Name)
 
 	// set the download time if not already set
-	if b.DownloadTiming.Start.IsZero() {
-		b.DownloadTiming.Start = time.Now()
-	}
+	b.ensureDownloadTiming()
 
 	go func() {
 		defer func() {
@@ -217,10 +215,8 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 		return err
 	}
 
-	// set the download time if not already set
-	if b.ExtractTiming.Start.IsZero() {
-		b.ExtractTiming.Start = time.Now()
-	}
+	// set the extract start time if not already set
+	b.ensureExtractTiming()
 
 	// serialise the paging data so that we capture it at the time of the download of this artifact
 	pagingData, err := b.getPagingDataJSON()
@@ -249,6 +245,10 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil
+}
+
+func (b *ArtifactSourceBase[T]) GetTiming() types.TimingCollection {
+	return types.TimingCollection{b.DiscoveryTiming, b.DownloadTiming, b.ExtractTiming}
 }
 
 // convert a downloaded artifact to a set of raw rows, with optional metadata
@@ -412,10 +412,27 @@ func (b *ArtifactSourceBase[T]) resolveLoader(info *types.ArtifactInfo) (artifac
 	return l, nil
 }
 
-func (b *ArtifactSourceBase[T]) GetTiming() types.TimingMap {
-	return types.TimingMap{
-		"discovery": b.DiscoveryTiming,
-		"download":  b.DownloadTiming,
-		"extract":   b.ExtractTiming,
+func (b *ArtifactSourceBase[T]) ensureDiscoveryTiming() {
+	b.DiscoveryTiming = &types.Timing{
+		Operation: "discovery",
+		Start:     time.Now(),
+	}
+}
+
+func (b *ArtifactSourceBase[T]) ensureDownloadTiming() {
+	if b.DownloadTiming == nil {
+		b.DownloadTiming = &types.Timing{
+			Operation: "download",
+			Start:     time.Now(),
+		}
+	}
+}
+
+func (b *ArtifactSourceBase[T]) ensureExtractTiming() {
+	if b.ExtractTiming == nil {
+		b.ExtractTiming = &types.Timing{
+			Operation: "extract",
+			Start:     time.Now(),
+		}
 	}
 }

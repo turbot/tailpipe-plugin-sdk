@@ -14,7 +14,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"golang.org/x/exp/maps"
 )
 
 // how ofted to send status events
@@ -43,7 +42,7 @@ type CollectionBase[T hcl.Config] struct {
 	lastStatusEventTime time.Time
 	statusLock          sync.RWMutex
 
-	enrichTiming types.Timing
+	enrichTiming *types.Timing
 }
 
 // Init implements collection.Collection
@@ -153,14 +152,8 @@ func (b *CollectionBase[T]) Notify(ctx context.Context, event events.Event) erro
 	}
 }
 
-func (b *CollectionBase[T]) GetTiming() types.TimingMap {
-	sourceTiming := b.Source.GetTiming()
-	collectionTiming := types.TimingMap{
-		"enrich": b.enrichTiming,
-	}
-	maps.Copy(collectionTiming, sourceTiming)
-
-	return collectionTiming
+func (b *CollectionBase[T]) GetTiming() types.TimingCollection {
+	return append(b.Source.GetTiming(), b.enrichTiming)
 }
 
 // updateStatus updates the status counters with the latest event
@@ -189,8 +182,11 @@ func (b *CollectionBase[T]) handleRowEvent(ctx context.Context, e *events.Row) e
 	defer b.rowWg.Done()
 
 	// set the download time if not already set
-	if b.enrichTiming.Start.IsZero() {
-		b.enrichTiming.Start = time.Now()
+	if b.enrichTiming == nil {
+		b.enrichTiming = &types.Timing{
+			Operation: "enrich",
+			Start:     time.Now(),
+		}
 	}
 
 	// when all rows, a null row will be sent - DO NOT try to enrich this!

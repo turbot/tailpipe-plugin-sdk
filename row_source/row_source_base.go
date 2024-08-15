@@ -103,7 +103,7 @@ func (b *RowSourceBase[T]) SetPagingData(pagingDataJSON json.RawMessage) error {
 	return nil
 }
 
-func (b *RowSourceBase[T]) GetTiming() types.TimingMap {
+func (b *RowSourceBase[T]) GetTiming() types.TimingCollection {
 	// TODO #observability implement default timing for custom row sources
-	return types.TimingMap{}
+	return types.TimingCollection{}
 }
