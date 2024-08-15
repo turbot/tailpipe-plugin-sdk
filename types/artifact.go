@@ -10,23 +10,13 @@ type ArtifactInfo struct {
 	Name             string
 	OriginalName     string
 	EnrichmentFields *enrichment.CommonFields
+	// TODO #observeability - add timings
 }
 
+// TODO add WithEnrichment options and update usage to call this instaed of just creating
 func NewArtifactInfo(name string) *ArtifactInfo {
 	return &ArtifactInfo{
 		Name:         name,
 		OriginalName: name,
-	}
-}
-
-type Artifact struct {
-	ArtifactInfo
-	Data any
-}
-
-func NewArtifact(info *ArtifactInfo, item any) *Artifact {
-	return &Artifact{
-		ArtifactInfo: *info,
-		Data:         item,
 	}
 }

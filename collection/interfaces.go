@@ -3,12 +3,12 @@ package collection
 import (
 	"context"
 	"encoding/json"
-
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // Collection is the interface that represents a single schema/'table' provided by a plugin.
@@ -34,4 +34,6 @@ type Collection interface {
 	Collect(context.Context, *proto.CollectRequest) (json.RawMessage, error)
 	// EnrichRow is called for each raw row of data, it must enrich the row and return it
 	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)
+	// GetTiming returns the timing for the collection
+	GetTiming() types.TimingMap
 }

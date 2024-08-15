@@ -13,6 +13,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"golang.org/x/exp/maps"
 )
 
 // how ofted to send status events
@@ -40,6 +42,8 @@ type CollectionBase[T hcl.Config] struct {
 	status              *events.Status
 	lastStatusEventTime time.Time
 	statusLock          sync.RWMutex
+
+	enrichTiming types.Timing
 }
 
 // Init implements collection.Collection
@@ -118,7 +122,15 @@ func (b *CollectionBase[T]) Collect(ctx context.Context, req *proto.CollectReque
 	// wait for all rows to be processed
 	b.rowWg.Wait()
 
+	// set the end time
+	b.enrichTiming.End = time.Now()
+
 	defer slog.Info("Enrichment complete")
+
+	// notify observers of final status
+	if err := b.NotifyObservers(ctx, b.status); err != nil {
+		slog.Error("Collection RowSourceBase: error notifying observers of status", "error", err)
+	}
 
 	// now ask the source for its updated paging data
 	return b.Source.GetPagingData()
@@ -141,12 +153,26 @@ func (b *CollectionBase[T]) Notify(ctx context.Context, event events.Event) erro
 	}
 }
 
+func (b *CollectionBase[T]) GetTiming() types.TimingMap {
+	sourceTiming := b.Source.GetTiming()
+	collectionTiming := types.TimingMap{
+		"enrich": b.enrichTiming,
+	}
+	maps.Copy(collectionTiming, sourceTiming)
+
+	return collectionTiming
+}
+
+// updateStatus updates the status counters with the latest event
+// it also sends raises status event periodically (determined by statusUpdateInterval)
+// note: we will send a final status event when the collection completes
 func (b *CollectionBase[T]) updateStatus(ctx context.Context, e events.Event) {
 	b.statusLock.Lock()
 	defer b.statusLock.Unlock()
 
 	b.status.Update(e)
 
+	// send a status event periodically
 	if time.Since(b.lastStatusEventTime) > statusUpdateInterval {
 		// notify observers
 		if err := b.NotifyObservers(ctx, b.status); err != nil {
@@ -162,9 +188,13 @@ func (b *CollectionBase[T]) handleRowEvent(ctx context.Context, e *events.Row) e
 	b.rowWg.Add(1)
 	defer b.rowWg.Done()
 
+	// set the download time if not already set
+	if b.enrichTiming.Start.IsZero() {
+		b.enrichTiming.Start = time.Now()
+	}
+
 	// when all rows, a null row will be sent - DO NOT try to enrich this!
 	row := e.Row
-
 	if row != nil {
 		var err error
 		row, err = b.impl.EnrichRow(e.Row, e.EnrichmentFields)

@@ -1,6 +1,9 @@
 package proto
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
+)
 
 func NewStartedEvent(executionId string) *Event {
 	return &Event{
@@ -24,11 +27,15 @@ func NewChunkWrittenEvent(executionId string, chunkNumber int, pagingData json.R
 	}
 }
 
-func NewCompleteEvent(executionId string, rowCount int, chunkCount int, err error) *Event {
+func NewCompleteEvent(executionId string, rowCount int, chunkCount int, timing types.TimingMap, err error) *Event {
 	errString := ""
 	if err != nil {
 		errString = err.Error()
 	}
+
+	// convert timing map to proto
+	protoTimingMap := TimingMapToProto(timing)
+
 	return &Event{
 		Event: &Event_CompleteEvent{
 			CompleteEvent: &EventComplete{
@@ -36,6 +43,7 @@ func NewCompleteEvent(executionId string, rowCount int, chunkCount int, err erro
 				RowCount:    int64(rowCount),
 				ChunkCount:  int32(chunkCount),
 				Error:       errString,
+				Timing:      protoTimingMap,
 			},
 		},
 	}
