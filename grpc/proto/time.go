@@ -39,7 +39,7 @@ func TimingCollectionToProto(timing types.TimingCollection) []*Timing {
 func TimingCollectionFromProto(protoTimingCollection []*Timing) types.TimingCollection {
 	var TimingCollection = make(types.TimingCollection, len(protoTimingCollection))
 	for i, t := range protoTimingCollection {
-		TimingCollection[i] = &types.Timing{
+		TimingCollection[i] = types.Timing{
 			Operation: t.Operation,
 			Start:     ProtoToTime(t.StartTime),
 			End:       ProtoToTime(t.EndTime),

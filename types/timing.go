@@ -15,7 +15,17 @@ func (t *Timing) Duration() time.Duration {
 	return t.End.Sub(t.Start)
 }
 
-type TimingCollection []*Timing
+// TryStart checks if start time has not been set and if so, set now
+// (and set the operation label)
+func (t *Timing) TryStart(operation string) {
+	// check if start time is unset
+	if t.Start.IsZero() {
+		t.Start = time.Now()
+		t.Operation = operation
+	}
+}
+
+type TimingCollection []Timing
 
 func (m TimingCollection) String() string {
 	var sb strings.Builder

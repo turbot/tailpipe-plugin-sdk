@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
@@ -42,7 +43,7 @@ type CollectionBase[T hcl.Config] struct {
 	lastStatusEventTime time.Time
 	statusLock          sync.RWMutex
 
-	enrichTiming *types.Timing
+	enrichTiming types.Timing
 }
 
 // Init implements collection.Collection
@@ -181,13 +182,8 @@ func (b *CollectionBase[T]) handleRowEvent(ctx context.Context, e *events.Row) e
 	b.rowWg.Add(1)
 	defer b.rowWg.Done()
 
-	// set the download time if not already set
-	if b.enrichTiming == nil {
-		b.enrichTiming = &types.Timing{
-			Operation: "enrich",
-			Start:     time.Now(),
-		}
-	}
+	// set the enrich time if not already set
+	b.enrichTiming.TryStart(constants.TimingEnrich)
 
 	// when all rows, a null row will be sent - DO NOT try to enrich this!
 	row := e.Row
