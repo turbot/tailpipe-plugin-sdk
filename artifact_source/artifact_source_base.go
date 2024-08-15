@@ -140,6 +140,7 @@ func (b *ArtifactSourceBase[T]) recordDownloadEndTime(ctx context.Context) {
 
 		// set download end time
 		b.DownloadTiming.End = time.Now()
+		slog.Info("All artifacts downloaded", "download end time", b.DownloadTiming.End)
 	}()
 }
 
@@ -425,6 +426,8 @@ func (b *ArtifactSourceBase[T]) ensureDownloadTiming() {
 			Operation: "download",
 			Start:     time.Now(),
 		}
+
+		slog.Info("Start downloading", "download start time", b.DownloadTiming.Start)
 	}
 }
 
