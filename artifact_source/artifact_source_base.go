@@ -8,10 +8,8 @@ import (
 	"log/slog"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"time"
 
-	"github.com/sethvargo/go-retry"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
@@ -72,10 +70,7 @@ type ArtifactSourceBase[T hcl.Config] struct {
 	DiscoveryTiming *types.Timing
 	DownloadTiming  *types.Timing
 	ExtractTiming   *types.Timing
-
-	// these counters are used to record the download end time
-	artifactCount int32
-	downloadCount int32
+	timingLock      sync.Mutex
 }
 
 func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
@@ -115,30 +110,12 @@ func (b *ArtifactSourceBase[T]) Collect(ctx context.Context) error {
 		return err
 	}
 
-	// wait for all downloads
-	b.waitForDownload(ctx)
-	// set download end time
-	b.DownloadTiming.End = time.Now()
-	slog.Info("All artifacts downloaded", "download end time", b.DownloadTiming.End)
-
 	// now wait for all extractions
 	b.artifactExtractWg.Wait()
 	// set extract end time
 	b.ExtractTiming.End = time.Now()
 
 	return nil
-}
-
-func (b *ArtifactSourceBase[T]) waitForDownload(ctx context.Context) {
-	retry.Constant(ctx, time.Second, func(ctx context.Context) error {
-		// by this time, all artifacts are discovered so to get the download end time,
-		// we can compare the artifact count with the download count
-		if atomic.LoadInt32(&b.artifactCount) == atomic.LoadInt32(&b.downloadCount) {
-			return nil
-		}
-		// otherwise retry
-		return retry.RetryableError(fmt.Errorf("artifact count %d does not match download count %d", atomic.LoadInt32(&b.artifactCount), atomic.LoadInt32(&b.downloadCount)))
-	})
 }
 
 func (b *ArtifactSourceBase[T]) SetLoader(loader artifact_loader.Loader) {
@@ -163,8 +140,6 @@ func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *
 
 	// increment the extract wait group - this will be decremented when the artifact is extracted (or there is an error)
 	b.artifactExtractWg.Add(1)
-	// increment the artifact count
-	atomic.AddInt32(&b.artifactCount, 1)
 
 	t := time.Now()
 
@@ -183,8 +158,6 @@ func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *
 		defer func() {
 			b.artifactDownloadLimiter.Release()
 			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
-			// increment the download count
-			atomic.AddInt32(&b.downloadCount, 1)
 		}()
 		// cast the source to an ArtifactSource and download the artifact
 		err = b.Impl.DownloadArtifact(ctx, info)
@@ -212,6 +185,11 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 	if err != nil {
 		return err
 	}
+
+	// update the download end time
+	b.timingLock.Lock()
+	b.DownloadTiming.End = time.Now()
+	b.timingLock.Unlock()
 
 	// set the extract start time if not already set
 	b.ensureExtractTiming()

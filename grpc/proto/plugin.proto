@@ -81,11 +81,13 @@ message Event {
 message EventStarted {
   string execution_id = 1;
 }
+
 message EventChunkWritten {
   string execution_id = 1;
   int32 chunk_number = 2;
   bytes paging_data = 3;
 }
+
 message EventError {
   string execution_id = 1;
   string error = 2;
