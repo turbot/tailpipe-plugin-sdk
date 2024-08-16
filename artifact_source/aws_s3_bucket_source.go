@@ -64,7 +64,7 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data, opts
 	s.client = client
 
 	// now we have config, create the paging data
-	s.PagingData = paging.NewS3Bucket(s.Config.Bucket, s.Config.Prefix, *s.Config.Region)
+	s.PagingData = paging.NewS3Bucket(s.Config.Bucket)
 
 	slog.Info("Initialized AwsS3BucketSource", "bucket", s.Config.Bucket, "prefix", s.Config.Prefix, "extensions", s.Extensions)
 

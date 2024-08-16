@@ -7,8 +7,6 @@ import (
 type S3Bucket struct {
 	PagingBase
 	Bucket  string                       `json:"bucket"`
-	Prefix  string                       `json:"prefix"`
-	Region  string                       `json:"region"`
 	Objects map[string]*S3BucketMetadata `json:"objects"`
 }
 
@@ -17,14 +15,9 @@ type S3BucketMetadata struct {
 	Size         int64     `json:"size"`
 }
 
-func NewS3Bucket(name string, prefix string, region string) *S3Bucket {
-	if region == "" {
-		region = "us-east-1"
-	}
+func NewS3Bucket(name string) *S3Bucket {
 	return &S3Bucket{
 		Bucket:  name,
-		Prefix:  prefix,
-		Region:  region,
 		Objects: make(map[string]*S3BucketMetadata),
 	}
 }
