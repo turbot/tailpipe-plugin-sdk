@@ -210,7 +210,9 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 		err := b.extractArtifact(ctx, info, pagingData)
 
 		// update extract active duration
-		b.ExtractTiming.UpdateActiveDuration(time.Since(extractStart))
+		activeDuration := time.Since(extractStart)
+		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name, "duration (ms)", activeDuration.Milliseconds())
+		b.ExtractTiming.UpdateActiveDuration(activeDuration)
 
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name)
 
