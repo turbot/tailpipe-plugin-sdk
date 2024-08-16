@@ -79,6 +79,9 @@ func (b *RowSourceBase[T]) GetPagingDataSchema() paging.Data {
 
 // GetPagingData returns the current paging data for the ongoing collection
 func (b *RowSourceBase[T]) GetPagingData() (json.RawMessage, error) {
+	if b.PagingData == nil {
+		return nil, nil
+	}
 	mut := b.PagingData.GetMut()
 	mut.RLock()
 	defer mut.RUnlock()
@@ -98,4 +101,9 @@ func (b *RowSourceBase[T]) SetPagingData(pagingDataJSON json.RawMessage) error {
 
 	b.PagingData = target
 	return nil
+}
+
+func (b *RowSourceBase[T]) GetTiming() types.TimingCollection {
+	// TODO #observability implement default timing for custom row sources
+	return types.TimingCollection{}
 }

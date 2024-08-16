@@ -17,8 +17,8 @@ func NewCloudwatch() *Cloudwatch {
 
 // Upsert adds new/updates an existing logstream  with its current timestamp
 func (c *Cloudwatch) Upsert(name string, time int64) {
-	c.mut.Lock()
-	defer c.mut.Unlock()
+	c.Mut.Lock()
+	defer c.Mut.Unlock()
 
 	if c.Timestamps == nil {
 		c.Timestamps = make(map[string]int64)

@@ -1,62 +1,54 @@
 title Plugin collection
 
 participant Collection
-participant RowSource
+participant ArtifactSourceBase
 participant ArtifactSource
 participant ArtifactLoader
 participant ArtifactMapper
 
 [->Collection:Collect
 activate Collection
-Collection->RowSource:Collect
-activate RowSource
-RowSource->ArtifactSource:DiscoverArtifacts
+Collection->ArtifactSourceBase:Collect
+activate ArtifactSourceBase
 activate ArtifactSource
 
-ArtifactSource->RowSource:Notify(ArtifactDiscovered)
-activate RowSource
-RowSource->RowSource:artifactWg.Add(1)
-RowSource->ArtifactSource:DownloadArtifact
-deactivate RowSource
-activate ArtifactSource
-ArtifactSource->RowSource:Notify(ArtifactDownloaded)
+ArtifactSource->ArtifactSourceBase:OnArtifactDiscovered
+activate ArtifactSourceBase
 deactivate ArtifactSource
-activate RowSource
-RowSource->ArtifactLoader:Load
+
+ArtifactSourceBase->ArtifactSourceBase:artifactWg.Add(1)
+ArtifactSourceBase->ArtifactSource:DownloadArtifact
+activate ArtifactSource
+ArtifactSourceBase->Collection:Notify(ArtifactDiscovered)
+deactivate ArtifactSourceBase
+
+
+ArtifactSource->ArtifactSourceBase:OnArtifactDownloaded
+deactivate ArtifactSource
+activate ArtifactSourceBase
+ArtifactSourceBase->Collection:Notify(ArtifactDownloaded)
+ArtifactSourceBase->ArtifactSourceBase:extractArtifact
+
+
+
+
+
+
+ArtifactSourceBase->ArtifactLoader:Load
 activate ArtifactLoader
-ArtifactLoader-->>RowSource:Data
+ArtifactLoader-->>ArtifactSourceBase:Data
 deactivate ArtifactLoader
-RowSource->ArtifactMapper:Map
+ArtifactSourceBase->ArtifactMapper:Map
 activate ArtifactMapper
-ArtifactMapper-->>RowSource:Data
+ArtifactMapper-->>ArtifactSourceBase:Data
 deactivate ArtifactMapper
-RowSource->RowSource:artifactWg.Done()
-RowSource->Collection:Notify(Row)
-deactivate RowSource
+ArtifactSourceBase->ArtifactSourceBase:artifactWg.Done()
+ArtifactSourceBase->Collection:Notify(Row)
+deactivate ArtifactSourceBase
 
 
-ArtifactSource->RowSource:Notify(ArtifactDiscovered)
-activate RowSource
-RowSource->RowSource:artifactWg.Add(1)
-RowSource->ArtifactSource:DownloadArtifact
-deactivate RowSource
-activate ArtifactSource
-ArtifactSource->RowSource:Notify(ArtifactDownloaded)
-deactivate ArtifactSource
-activate RowSource
-RowSource->ArtifactLoader:Load
-activate ArtifactLoader
-ArtifactLoader-->>RowSource:Data
-deactivate ArtifactLoader
-RowSource->ArtifactMapper:Map
-activate ArtifactMapper
-ArtifactMapper-->>RowSource:Data
-deactivate ArtifactMapper
-RowSource->RowSource:artifactWg.Done()
-RowSource->Collection:Notify(Row)
-deactivate RowSource
 
-RowSource->RowSource:artifactWg.Wait()
+ArtifactSourceBase->ArtifactSourceBase:artifactWg.Wait()
 
 deactivate ArtifactSource
-deactivate RowSource
+deactivate ArtifactSourceBase

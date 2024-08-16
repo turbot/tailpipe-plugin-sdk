@@ -31,8 +31,8 @@ func NewS3Bucket(name string, prefix string, region string) *S3Bucket {
 
 // Upsert adds new/updates an existing object with its current metadata
 func (s *S3Bucket) Upsert(name string, lastModified time.Time, size int64) {
-	s.mut.Lock()
-	defer s.mut.Unlock()
+	s.Mut.Lock()
+	defer s.Mut.Unlock()
 
 	s.Objects[name] = &S3BucketMetadata{
 		LastModified: lastModified,
@@ -42,8 +42,8 @@ func (s *S3Bucket) Upsert(name string, lastModified time.Time, size int64) {
 
 // Get returns the metadata for the given path (if it is currently stored) or null if not found
 func (s *S3Bucket) Get(path string) *S3BucketMetadata {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
+	s.Mut.RLock()
+	defer s.Mut.RUnlock()
 
 	metadata, _ := s.Objects[path]
 	// return metadata (or null if it does not exist)

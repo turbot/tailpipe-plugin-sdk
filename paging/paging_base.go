@@ -5,9 +5,9 @@ import (
 )
 
 type PagingBase struct {
-	mut sync.RWMutex
+	Mut sync.RWMutex
 }
 
 func (b *PagingBase) GetMut() *sync.RWMutex {
-	return &b.mut
+	return &b.Mut
 }

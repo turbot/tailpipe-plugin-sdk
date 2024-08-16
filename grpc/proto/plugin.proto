@@ -1,5 +1,10 @@
 syntax = "proto3";
 package proto;
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
+
+
 option go_package = ".;proto";
 
 service TailpipePlugin {
@@ -70,25 +75,45 @@ message Event {
     EventChunkWritten chunk_written_event = 2;
     EventComplete complete_event = 3;
     EventError error_event = 4;
+    EventStatus status_event = 5;
   }
 }
 
 message EventStarted {
   string execution_id = 1;
 }
+
 message EventChunkWritten {
   string execution_id = 1;
   int32 chunk_number = 2;
   bytes paging_data = 3;
 }
+
 message EventError {
   string execution_id = 1;
   string error = 2;
+}
+
+message EventStatus {
+  int64 artifacts_discovered = 1;
+  int64 artifacts_downloaded = 2;
+  int64 artifacts_extracted = 3;
+  int64 rows_enriched = 4;
+  int32 errors = 5;
 }
 
 message EventComplete {
   string execution_id = 1;
   int64 row_count=2;
   int32 chunk_count=3;
-  string error = 4;
+  map<string, string> metadata = 4;
+  repeated Timing timing = 5;
+  string error = 6;
+}
+
+message Timing{
+  string operation = 1;
+  google.protobuf.Timestamp start_time = 2;
+  google.protobuf.Timestamp end_time = 3;
+  google.protobuf.Duration active_duration = 4;
 }

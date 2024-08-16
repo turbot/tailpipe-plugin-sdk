@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log"
 	"log/slog"
 	"sync"
@@ -66,7 +67,7 @@ func (b *PluginBase) Collect(ctx context.Context, req *proto.CollectRequest) err
 
 		if err := b.doCollect(ctx, req); err != nil {
 			slog.Error("doCollect failed", "error", err)
-			b.OnCompleted(ctx, req.ExecutionId, nil, err)
+			b.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
 		}
 	}()
 
@@ -89,7 +90,7 @@ func (b *PluginBase) Base() *PluginBase {
 	return b
 }
 
-func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, pagingData json.RawMessage, err error) error {
+func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, pagingData json.RawMessage, timing types.TimingCollection, err error) error {
 	// get row count and the rows in the buffers
 	b.rowBufferLock.Lock()
 	rowCount := b.rowCountMap[executionId]
@@ -113,7 +114,7 @@ func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, paging
 		chunksWritten++
 	}
 
-	return b.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, err))
+	return b.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, timing, err))
 }
 
 func (b *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) error {
@@ -139,6 +140,8 @@ func (b *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) e
 	// tell the collection to start collecting - this is a blocking call
 	pagingData, err := col.Collect(ctx, req)
 
+	timing := col.GetTiming()
+
 	// signal we have completed - pass error if there was one
-	return b.OnCompleted(ctx, req.ExecutionId, pagingData, err)
+	return b.OnCompleted(ctx, req.ExecutionId, pagingData, timing, err)
 }

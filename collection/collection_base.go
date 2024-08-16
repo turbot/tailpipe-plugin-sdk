@@ -6,13 +6,19 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"time"
 
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
+
+// how ofted to send status events
+const statusUpdateInterval = 250 * time.Millisecond
 
 // CollectionBase provides a base implementation of the [collection.Collection] interface
 // it should be embedded in all Collection implementations
@@ -27,7 +33,17 @@ type CollectionBase[T hcl.Config] struct {
 
 	// the collection config
 	Config T
-	rowWg  sync.WaitGroup
+	// wait group to wait for all rows to be processed
+	// this is incremented each time we receive a row event and decremented when we have processed it
+	rowWg sync.WaitGroup
+
+	// we only send status events periodically, to avoid flooding the event stream
+	// store a status event and we will update it each time we receive artifact or row events
+	status              *events.Status
+	lastStatusEventTime time.Time
+	statusLock          sync.RWMutex
+
+	enrichTiming types.Timing
 }
 
 // Init implements collection.Collection
@@ -48,6 +64,7 @@ func (b *CollectionBase[T]) Init(ctx context.Context, collectionConfigData, sour
 	}
 
 	sourceOpts := b.impl.GetSourceOptions()
+
 	return b.initSource(ctx, sourceConfigData, sourceOpts...)
 }
 
@@ -73,10 +90,13 @@ func (b *CollectionBase[T]) RegisterImpl(impl Collection) {
 	b.impl = impl
 }
 
+// GetSourceOptions give the collection a chance to specify options for the source
+// default implementation returning nothing
 func (*CollectionBase[T]) GetSourceOptions() []row_source.RowSourceOption {
 	return nil
 }
 
+// Collect executes the collection process. Tell our source to start collection
 func (b *CollectionBase[T]) Collect(ctx context.Context, req *proto.CollectRequest) (json.RawMessage, error) {
 	slog.Info("Start collection")
 	// if the req contains paging data, tell the source to deserialize and store it
@@ -87,17 +107,31 @@ func (b *CollectionBase[T]) Collect(ctx context.Context, req *proto.CollectReque
 		}
 	}
 
-	// tell our source to collect - we will calls to EnrichRow for each row
+	// create empty status event
+	b.status = events.NewStatusEvent(req.ExecutionId)
+
+	// tell our source to collect
+	// this is a blocking call, but we will receive and processrow events during the execution
 	err := b.Source.Collect(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	slog.Info("Source collection complete - waiting for enrichment")
+
 	// wait for all rows to be processed
 	b.rowWg.Wait()
 
+	// set the end time
+	b.enrichTiming.End = time.Now()
+
 	defer slog.Info("Enrichment complete")
+
+	// notify observers of final status
+	if err := b.NotifyObservers(ctx, b.status); err != nil {
+		slog.Error("Collection RowSourceBase: error notifying observers of status", "error", err)
+	}
+
 	// now ask the source for its updated paging data
 	return b.Source.GetPagingData()
 }
@@ -105,10 +139,12 @@ func (b *CollectionBase[T]) Collect(ctx context.Context, req *proto.CollectReque
 // Notify implements observable.Observer
 // it handles all events which collections may receive (these will all come from the source)
 func (b *CollectionBase[T]) Notify(ctx context.Context, event events.Event) error {
+	// update the status counts
+	b.updateStatus(ctx, event)
+
 	switch e := event.(type) {
 	case *events.Row:
 		return b.handleRowEvent(ctx, e)
-		// error
 	case *events.Error:
 		return b.handeErrorEvent(e)
 	default:
@@ -117,20 +153,50 @@ func (b *CollectionBase[T]) Notify(ctx context.Context, event events.Event) erro
 	}
 }
 
+func (b *CollectionBase[T]) GetTiming() types.TimingCollection {
+	return append(b.Source.GetTiming(), b.enrichTiming)
+}
+
+// updateStatus updates the status counters with the latest event
+// it also sends raises status event periodically (determined by statusUpdateInterval)
+// note: we will send a final status event when the collection completes
+func (b *CollectionBase[T]) updateStatus(ctx context.Context, e events.Event) {
+	b.statusLock.Lock()
+	defer b.statusLock.Unlock()
+
+	b.status.Update(e)
+
+	// send a status event periodically
+	if time.Since(b.lastStatusEventTime) > statusUpdateInterval {
+		// notify observers
+		if err := b.NotifyObservers(ctx, b.status); err != nil {
+			slog.Error("Collection RowSourceBase: error notifying observers of status", "error", err)
+		}
+		// update lastStatusEventTime
+		b.lastStatusEventTime = time.Now()
+	}
+}
+
 // handleRowEvent is invoked when a Row event is received - enrich the row and publish it
 func (b *CollectionBase[T]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	b.rowWg.Add(1)
 	defer b.rowWg.Done()
 
+	// set the enrich time if not already set
+	b.enrichTiming.TryStart(constants.TimingEnrich)
+
 	// when all rows, a null row will be sent - DO NOT try to enrich this!
 	row := e.Row
-
 	if row != nil {
 		var err error
+		enrichStart := time.Now()
 		row, err = b.impl.EnrichRow(e.Row, e.EnrichmentFields)
 		if err != nil {
 			return err
 		}
+
+		// update the enrich active duration
+		b.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
 	}
 
 	return b.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, row, e.PagingData))

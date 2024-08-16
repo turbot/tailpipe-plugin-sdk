@@ -3,9 +3,10 @@ package observable
 import (
 	"context"
 	"errors"
-	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"log"
 	"sync"
+
+	"github.com/turbot/tailpipe-plugin-sdk/events"
 )
 
 // RowSourceBase provides a base implementation of the Observable interface

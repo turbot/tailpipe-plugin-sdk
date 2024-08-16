@@ -13,6 +13,7 @@ import (
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
@@ -60,9 +61,17 @@ type ArtifactSourceBase[T hcl.Config] struct {
 	loaderLock sync.RWMutex
 
 	// rate limiters
-	artifactLoadLimiter *rate_limiter.APILimiter
+	artifactDownloadLimiter *rate_limiter.APILimiter
 
-	artifactWg sync.WaitGroup
+	// wait group to wait for all artifacts to be extracted
+	// this is incremented each time we discover an artifact and decremented when we have extracted it
+	artifactExtractWg sync.WaitGroup
+
+	// keep track to the time taken for each phase
+	DiscoveryTiming types.Timing
+	DownloadTiming  types.Timing
+	ExtractTiming   types.Timing
+	timingLock      sync.Mutex
 }
 
 func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
@@ -76,7 +85,7 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, 
 	b.Impl = b.RowSourceBase.Impl.(ArtifactSource)
 
 	// setup rate limiter
-	b.artifactLoadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
+	b.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
 		Name:           "artifact_load_limiter",
 		MaxConcurrency: ArtifactSourceMaxConcurrency,
 	})
@@ -89,13 +98,23 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, 
 // Collect tells our ArtifactSourceBase to start discovering artifacts
 // Implements [plugin.RowSource]
 func (b *ArtifactSourceBase[T]) Collect(ctx context.Context) error {
+
+	// record discovery start time
+	b.DiscoveryTiming.TryStart(constants.TimingDiscover)
+
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
-	if err := b.Impl.DiscoverArtifacts(ctx); err != nil {
+	err := b.Impl.DiscoverArtifacts(ctx)
+	// store discover end time
+	b.DiscoveryTiming.End = time.Now()
+	if err != nil {
 		return err
 	}
+
 	// now wait for all extractions
-	b.artifactWg.Wait()
+	b.artifactExtractWg.Wait()
+	// set extract end time
+	b.ExtractTiming.End = time.Now()
 
 	return nil
 }
@@ -119,41 +138,45 @@ func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *
 	}
 
 	// start a download
-	// increment the wait group - this will be decremented when the artifact is extracted (or there is an error)
 
-	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.Name)
-	slog.Debug("wg ** inc")
-	b.artifactWg.Add(1)
+	// increment the extract wait group - this will be decremented when the artifact is extracted (or there is an error)
+	b.artifactExtractWg.Add(1)
+
 	t := time.Now()
 
 	// rate limit the download
-	err = b.artifactLoadLimiter.Wait(ctx)
+	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.Name)
+	err = b.artifactDownloadLimiter.Wait(ctx)
 	if err != nil {
 		return fmt.Errorf("error acquiring rate limiter: %w", err)
 	}
 	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.Name)
 
+	// set the download start time if not already set
+	b.DownloadTiming.TryStart(constants.TimingDownload)
+
 	go func() {
 		defer func() {
-			b.artifactLoadLimiter.Release()
+			b.artifactDownloadLimiter.Release()
 			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
 		}()
+		downloadStart := time.Now()
 		// cast the source to an ArtifactSource and download the artifact
 		err = b.Impl.DownloadArtifact(ctx, info)
-
 		if err != nil {
 			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
-			slog.Debug("wg ** dec")
-			// if this returns an error we may get a wg double decrement we also receive ArtifactDownloaded event
-			b.artifactWg.Done()
+			// we failed to download artifact so decrement the wait group
+			b.artifactExtractWg.Done()
 			err := b.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
 			if err != nil {
 				slog.Error("Error notifying observers of download error", "download error", err, "notify error", err)
 			}
 		}
+		// update the download active duration
+		b.DownloadTiming.UpdateActiveDuration(time.Since(downloadStart))
 	}()
 
-	// also send event - in case we want to track progress etc (nothing handles this yet)
+	// send discovery event
 	if err = b.NotifyObservers(ctx, events.NewArtifactDiscoveredEvent(executionId, info)); err != nil {
 		return fmt.Errorf("error notifying observers of discovered artifact: %w", err)
 	}
@@ -166,6 +189,14 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 		return err
 	}
 
+	// update the download end time
+	b.timingLock.Lock()
+	b.DownloadTiming.End = time.Now()
+	b.timingLock.Unlock()
+
+	// set the extract start time if not already set
+	b.ExtractTiming.TryStart(constants.TimingExtract)
+
 	// serialise the paging data so that we capture it at the time of the download of this artifact
 	pagingData, err := b.getPagingDataJSON()
 	if err != nil {
@@ -174,12 +205,19 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 
 	// extract asynchronously
 	go func() {
+		extractStart := time.Now()
 		// TODO #error make sure errors handles and bubble back
 		err := b.extractArtifact(ctx, info, pagingData)
+
+		// update extract active duration
+		activeDuration := time.Since(extractStart)
+		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name, "duration (ms)", activeDuration.Milliseconds())
+		b.ExtractTiming.UpdateActiveDuration(activeDuration)
+
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name)
-		slog.Debug("wg ** dec")
+
 		// close wait group whether there is an error or not
-		b.artifactWg.Done()
+		b.artifactExtractWg.Done()
 		if err != nil {
 			err := b.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
 			if err != nil {
@@ -188,17 +226,24 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 		}
 	}()
 
-	// also send event - in case we want to track progress etc (nothing handles this yet)
+	// notify observers of download
 	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, pagingData)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil
 }
 
+func (b *ArtifactSourceBase[T]) GetTiming() types.TimingCollection {
+	return types.TimingCollection{b.DiscoveryTiming, b.DownloadTiming, b.ExtractTiming}
+}
+
 // convert a downloaded artifact to a set of raw rows, with optional metadata
 // invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
 func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types.ArtifactInfo, pagingData json.RawMessage) error {
+	slog.Debug("RowSourceBase extractArtifact", "artifact", info.Name)
+
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	// load artifact data
 	// resolve the loader - if one has not been specified, create a default for the file tyoe
 	loader, err := b.resolveLoader(info)
@@ -218,7 +263,6 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 	for artifactData := range artifactChan {
 		// pout data into an array as that is what mappers expect
 		rows, err := b.mapArtifacts(ctx, artifactData)
-
 		if err != nil {
 			return fmt.Errorf("error mapping artifact: %w", err)
 		}
@@ -239,12 +283,20 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 		}
 	}
 
+	// notify observers of download
+	if err := b.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
+		return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
+	}
+
 	slog.Debug("RowSourceBase extractArtifact complete", "artifact", info.Name, "rows", count)
 	return nil
 }
 
 // marshal the paging data to JSON (within a lock)
 func (b *ArtifactSourceBase[T]) getPagingDataJSON() (json.RawMessage, error) {
+	if b.PagingData == nil {
+		return nil, nil
+	}
 	// NOTE: lock the paging data to ensure it is not modified while we are serialising it
 	mut := b.PagingData.GetMut()
 	mut.RLock()

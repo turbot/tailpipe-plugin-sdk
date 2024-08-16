@@ -6,6 +6,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // RowSource is the interface that represents a data source
@@ -42,4 +43,7 @@ type RowSource interface {
 	GetPagingData() (json.RawMessage, error)
 	// SetPagingData unmarshalls the paging data JSON into the target object
 	SetPagingData(pagingDataJSON json.RawMessage) error
+
+	// GetTiming returns the timing for the source row collection
+	GetTiming() types.TimingCollection
 }
