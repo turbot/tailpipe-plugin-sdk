@@ -2,6 +2,7 @@ syntax = "proto3";
 package proto;
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/duration.proto";
 
 
 option go_package = ".;proto";
@@ -114,4 +115,5 @@ message Timing{
   string operation = 1;
   google.protobuf.Timestamp start_time = 2;
   google.protobuf.Timestamp end_time = 3;
+  google.protobuf.Duration active_duration = 4;
 }

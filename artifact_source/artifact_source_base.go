@@ -160,9 +160,9 @@ func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *
 			b.artifactDownloadLimiter.Release()
 			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
 		}()
+		downloadStart := time.Now()
 		// cast the source to an ArtifactSource and download the artifact
 		err = b.Impl.DownloadArtifact(ctx, info)
-
 		if err != nil {
 			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
 			// we failed to download artifact so decrement the wait group
@@ -172,6 +172,8 @@ func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *
 				slog.Error("Error notifying observers of download error", "download error", err, "notify error", err)
 			}
 		}
+		// update the download active duration
+		b.DownloadTiming.UpdateActiveDuration(time.Since(downloadStart))
 	}()
 
 	// send discovery event
@@ -203,8 +205,13 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 
 	// extract asynchronously
 	go func() {
+		extractStart := time.Now()
 		// TODO #error make sure errors handles and bubble back
 		err := b.extractArtifact(ctx, info, pagingData)
+
+		// update extract active duration
+		b.ExtractTiming.UpdateActiveDuration(time.Since(extractStart))
+
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name)
 
 		// close wait group whether there is an error or not

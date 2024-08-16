@@ -189,10 +189,14 @@ func (b *CollectionBase[T]) handleRowEvent(ctx context.Context, e *events.Row) e
 	row := e.Row
 	if row != nil {
 		var err error
+		enrichStart := time.Now()
 		row, err = b.impl.EnrichRow(e.Row, e.EnrichmentFields)
 		if err != nil {
 			return err
 		}
+
+		// update the enrich active duration
+		b.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
 	}
 
 	return b.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, row, e.PagingData))

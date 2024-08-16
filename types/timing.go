@@ -2,17 +2,18 @@ package types
 
 import (
 	"strings"
+	"sync"
 	"time"
 )
 
 type Timing struct {
-	Operation string
-	Start     time.Time
-	End       time.Time
-}
+	Operation      string
+	Start          time.Time
+	End            time.Time
+	ActiveDuration time.Duration
 
-func (t *Timing) Duration() time.Duration {
-	return t.End.Sub(t.Start)
+	Threads int
+	mut     sync.Mutex
 }
 
 // TryStart checks if start time has not been set and if so, set now
@@ -23,6 +24,16 @@ func (t *Timing) TryStart(operation string) {
 		t.Start = time.Now()
 		t.Operation = operation
 	}
+}
+
+func (t *Timing) TotalDuration() time.Duration {
+	return t.End.Sub(t.Start)
+}
+
+func (t *Timing) UpdateActiveDuration(increment time.Duration) {
+	t.mut.Lock()
+	defer t.mut.Unlock()
+	t.ActiveDuration += increment
 }
 
 type TimingCollection []Timing
@@ -46,7 +57,12 @@ func (m TimingCollection) String() string {
 		for i := len(v.Operation); i < maxLabelLen; i++ {
 			sb.WriteString(" ")
 		}
-		sb.WriteString(v.Duration().String())
+		sb.WriteString(v.TotalDuration().String())
+		if v.ActiveDuration > 0 {
+			sb.WriteString(" (active: ")
+			sb.WriteString(v.ActiveDuration.String())
+			sb.WriteString(")")
+		}
 		sb.WriteString("\n")
 	}
 	return sb.String()

@@ -10,18 +10,30 @@ participant ArtifactMapper
 activate Collection
 Collection->ArtifactSourceBase:Collect
 activate ArtifactSourceBase
-ArtifactSourceBase->ArtifactSource:DiscoverArtifacts
 activate ArtifactSource
 
-ArtifactSource->ArtifactSourceBase:Notify(ArtifactDiscovered)
+ArtifactSource->ArtifactSourceBase:OnArtifactDiscovered
 activate ArtifactSourceBase
+deactivate ArtifactSource
+
 ArtifactSourceBase->ArtifactSourceBase:artifactWg.Add(1)
 ArtifactSourceBase->ArtifactSource:DownloadArtifact
-deactivate ArtifactSourceBase
 activate ArtifactSource
-ArtifactSource->ArtifactSourceBase:Notify(ArtifactDownloaded)
+ArtifactSourceBase->Collection:Notify(ArtifactDiscovered)
+deactivate ArtifactSourceBase
+
+
+ArtifactSource->ArtifactSourceBase:OnArtifactDownloaded
 deactivate ArtifactSource
 activate ArtifactSourceBase
+ArtifactSourceBase->Collection:Notify(ArtifactDownloaded)
+ArtifactSourceBase->ArtifactSourceBase:extractArtifact
+
+
+
+
+
+
 ArtifactSourceBase->ArtifactLoader:Load
 activate ArtifactLoader
 ArtifactLoader-->>ArtifactSourceBase:Data
@@ -35,26 +47,6 @@ ArtifactSourceBase->Collection:Notify(Row)
 deactivate ArtifactSourceBase
 
 
-ArtifactSource->ArtifactSourceBase:Notify(ArtifactDiscovered)
-activate ArtifactSourceBase
-ArtifactSourceBase->ArtifactSourceBase:artifactWg.Add(1)
-ArtifactSourceBase->ArtifactSource:DownloadArtifact
-deactivate ArtifactSourceBase
-activate ArtifactSource
-ArtifactSource->ArtifactSourceBase:Notify(ArtifactDownloaded)
-deactivate ArtifactSource
-activate ArtifactSourceBase
-ArtifactSourceBase->ArtifactLoader:Load
-activate ArtifactLoader
-ArtifactLoader-->>ArtifactSourceBase:Data
-deactivate ArtifactLoader
-ArtifactSourceBase->ArtifactMapper:Map
-activate ArtifactMapper
-ArtifactMapper-->>ArtifactSourceBase:Data
-deactivate ArtifactMapper
-ArtifactSourceBase->ArtifactSourceBase:artifactWg.Done()
-ArtifactSourceBase->Collection:Notify(Row)
-deactivate ArtifactSourceBase
 
 ArtifactSourceBase->ArtifactSourceBase:artifactWg.Wait()
 
