@@ -16,14 +16,14 @@ import (
 	cloudwatch_types "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-//TODO #paging is timestamp reliable - do logs always come in order? is it should we/are we using ingestion time? https://github.com/turbot/tailpipe-plugin-sdk/issues/5
+//TODO #delta is timestamp reliable - do logs always come in order? is it should we/are we using ingestion time? https://github.com/turbot/tailpipe-plugin-sdk/issues/5
 
 const (
 	AWSCloudwatchSourceIdentifier = "aws_cloudwatch"
@@ -50,12 +50,11 @@ func NewAwsCloudWatchSource() row_source.RowSource {
 	return &AwsCloudWatchSource{}
 }
 
-func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
 	// call base to parse config and apply options
 	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
-
 	// NOTE: add the cloudwatch mapper to ensure rows are in correct format
 	s.AddMappers(artifact_mapper.NewCloudwatchMapper())
 
@@ -82,7 +81,7 @@ func (s *AwsCloudWatchSource) Identifier() string {
 	return AWSCloudwatchSourceIdentifier
 }
 
-func (s *AwsCloudWatchSource) GetConfigSchema() hcl.Config {
+func (s *AwsCloudWatchSource) GetConfigSchema() parse.Config {
 	return &AwsCloudWatchSourceConfig{}
 }
 
@@ -93,9 +92,9 @@ func (s *AwsCloudWatchSource) Close() error {
 }
 
 // DiscoverArtifacts gets the log streams for the configured log group and log stream prefix,
-// within the configured time range, and respecting the time range in the paging data
+// within the configured time range, and respecting the time range in the collection state data
 func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
-	pagingData, _ := s.PagingData.(*paging.Cloudwatch)
+	collectionState, _ := s.CollectionState.(*collection_state.AwsCloudwatchState)
 
 	input := &cloudwatchlogs.DescribeLogStreamsInput{
 		LogGroupName: &s.Config.LogGroupName,
@@ -117,7 +116,7 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
 			streamName := typehelpers.SafeString(logStream.LogStreamName)
 
 			// get the time range of interest for this stream,
-			startTime, endTime := s.getTimeRange(ctx, streamName, pagingData)
+			startTime, endTime := s.getTimeRange(streamName, collectionState)
 			// does this stream have entries within this time range
 			if !logStreamNameWithinTimeRange(logStream, startTime, endTime) {
 				inactiveCount++
@@ -134,8 +133,7 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
 			}
 
 			// TODO #error handle rate limiting errors
-
-			info := &types.ArtifactInfo{Name: streamName, EnrichmentFields: sourceEnrichmentFields}
+			info := types.NewArtifactInfo(streamName, types.WithEnrichmentFields(sourceEnrichmentFields))
 			// handle the artifact discovery - trigger a download and notify observers
 			if err := s.OnArtifactDiscovered(ctx, info); err != nil {
 				// TODO #error - should we return an error here or gather all errors?
@@ -154,98 +152,14 @@ func logStreamNameWithinTimeRange(logStream cloudwatch_types.LogStream, startTim
 	return *logStream.LastIngestionTime > startTime && *logStream.FirstEventTimestamp < endTime
 }
 
-//func (s *AwsCloudWatchSource) DownloadArtifactsWithFilter(ctx context.Context, info *types.ArtifactInfo) error {
-//	// Define the query string to filter logs from the specified log stream
-//	queryString := fmt.Sprintf("fields @timestamp as Timestamp, @message as Message, @ingestionTime as IngestionTime | filter @logStream == '%s' | sort @timestamp desc", info.Name)
-//
-//	startTime, endTime := s.getTimeRange(ctx, info)
-//	// if start time is after the end time, return
-//	if startTime >= endTime {
-//		slog.Info("DownloadArtifact - log stream already downloaded", "log stream", info.Name)
-//		return nil
-//	}
-//
-//	startQueryInput := &cloudwatchlogs.StartQueryInput{
-//		LogGroupName: &s.Config.LogGroupName,
-//		QueryString:  &queryString,
-//		StartTime:    &startTime,
-//		EndTime:      &endTime,
-//	}
-//
-//	startQueryOutput, err := s.client.StartQuery(ctx, startQueryInput)
-//	if err != nil {
-//		return fmt.Errorf("failed to start query, %w", err)
-//	}
-//
-//	queryID := *startQueryOutput.QueryId
-//
-//	// copy the object data to a temp file
-//	localFilePath := path.Join(s.TmpDir, info.Name)
-//	// ensure the directory exists of the file to write to
-//	if err := os.MkdirAll(filepath.Dir(localFilePath), 0755); err != nil {
-//		return fmt.Errorf("failed to create directory for file, %w", err)
-//	}
-//
-//	// Create a local file to write the data to
-//	outFile, err := os.Create(localFilePath)
-//	if err != nil {
-//		return fmt.Errorf("failed to create file, %w", err)
-//	}
-//	defer outFile.Close()
-//	enc := json.NewEncoder(outFile)
-//
-//	// Poll for query results
-//	timeout := 5 * time.Minute
-//	err = retry.Do(ctx, retry.WithMaxDuration(timeout, retry.NewConstant(50*time.Millisecond)), func(ctx context.Context) error {
-//		// apply rate limiter
-//		if err := s.limiter.Wait(ctx); err != nil {
-//			return fmt.Errorf("error acquiring rate limiter: %w", err)
-//		}
-//
-//		getQueryResultsInput := &cloudwatchlogs.GetQueryResultsInput{
-//			QueryId: &queryID,
-//		}
-//
-//		getQueryResultsOutput, err := s.client.GetQueryResults(ctx, getQueryResultsInput)
-//		if err != nil {
-//			return fmt.Errorf("failed to get query results, %w", err)
-//		}
-//
-//		isComplete := getQueryResultsOutput.Status == cloudwatch_types.QueryStatusComplete || getQueryResultsOutput.Status == cloudwatch_types.QueryStatusFailed || getQueryResultsOutput.Status == cloudwatch_types.QueryStatusCancelled
-//		if !isComplete {
-//			return retry.RetryableError(fmt.Errorf("query not complete, %w", err))
-//		}
-//
-//		for _, result := range getQueryResultsOutput.Results {
-//			row := make(map[string]string)
-//			for _, field := range result {
-//				row[*field.Field] = *field.Value
-//			}
-//			err := enc.Encode(row)
-//			if err != nil {
-//				return fmt.Errorf("failed to write event to file, %w", err)
-//			}
-//		}
-//		return nil
-//	})
-//	if err != nil {
-//		return fmt.Errorf("failed to get query results, %w", err)
-//	}
-//
-//	// notify observers of the discovered artifact
-//	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
-//
-//	return s.OnArtifactDownloaded(ctx, downloadInfo, nil)
-//}
-
 // DownloadArtifact gets the log events for the specified log stream,
-// respecting the time range in the config and paging data
+// respecting the time range in the config and collection state data
 func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
-	// get the paging data
-	pagingData, _ := s.PagingData.(*paging.Cloudwatch)
+	// get the collection state data
+	collectionState, _ := s.CollectionState.(*collection_state.AwsCloudwatchState)
 
 	// get the time range for the log stream
-	startTime, endTime := s.getTimeRange(ctx, info.Name, pagingData)
+	startTime, endTime := s.getTimeRange(info.Name, collectionState)
 	// if start time is after the end time, return
 	if startTime >= endTime {
 		slog.Info("DownloadArtifact - log stream already downloaded", "log stream", info.Name)
@@ -275,7 +189,7 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 	// create an encoder to write the events to the file
 	enc := json.NewEncoder(outFile)
 
-	// keep track of the max time for the paging data
+	// keep track of the max time for the collection state data
 	var maxTime int64
 	// event count
 	var count int
@@ -325,22 +239,22 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 	}
 
 	// notify observers of the discovered artifact
-	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
+	downloadInfo := types.NewArtifactInfo(localFilePath)
 
-	// update paging data for this log stream
-	pagingData.Upsert(info.Name, maxTime)
+	// update collection state data for this log stream
+	collectionState.Upsert(info.Name, maxTime)
 
 	return s.OnArtifactDownloaded(ctx, downloadInfo)
 }
 
-// use the paging data (if present) and the configured time range to determine the start and end time
-func (s *AwsCloudWatchSource) getTimeRange(ctx context.Context, logStream string, paging *paging.Cloudwatch) (int64, int64) {
+// use the collection state data (if present) and the configured time range to determine the start and end time
+func (s *AwsCloudWatchSource) getTimeRange(logStream string, collectionState *collection_state.AwsCloudwatchState) (int64, int64) {
 	startTime := s.Config.StartTime.UnixMilli()
 	endTime := s.Config.EndTime.UnixMilli()
 
-	if paging != nil {
-		// set start time from paging data if present
-		if prevTimestamp, ok := paging.Timestamps[logStream]; ok {
+	if collectionState != nil {
+		// set start time from collection state data if present
+		if prevTimestamp, ok := collectionState.Timestamps[logStream]; ok {
 			startTime = prevTimestamp + 1
 		}
 	}

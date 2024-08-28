@@ -3,10 +3,11 @@ package collection
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -19,13 +20,13 @@ type Collection interface {
 
 	// Init is called when the collection created
 	// it is responsible for parsing the config and creating the configured Source
-	Init(ctx context.Context, collectionConfigData, sourceConfigData *hcl.Data) error
+	Init(ctx context.Context, collectionConfigData *parse.Data, collectionStateJSON json.RawMessage, sourceConfigData *parse.Data) error
 	// Identifier must return the collection name
 	Identifier() string
 	// GetRowSchema returns an empty instance of the row struct returned by the collection
 	GetRowSchema() any
 	// GetConfigSchema returns an empty instance of the config struct used by the collection
-	GetConfigSchema() hcl.Config
+	GetConfigSchema() parse.Config
 	// GetSourceOptions returns any options which should be passed to the given source type
 	GetSourceOptions() []row_source.RowSourceOption
 

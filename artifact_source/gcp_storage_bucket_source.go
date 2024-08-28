@@ -12,7 +12,7 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"google.golang.org/api/impersonate"
@@ -42,7 +42,7 @@ func NewGcpStorageBucketSource() row_source.RowSource {
 	return &GcpStorageBucketSource{}
 }
 
-func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
 	// call base to parse config and apply options
 	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
@@ -65,7 +65,7 @@ func (s *GcpStorageBucketSource) Identifier() string {
 	return GcpStorageBucketSourceIdentifier
 }
 
-func (s *GcpStorageBucketSource) GetConfigSchema() hcl.Config {
+func (s *GcpStorageBucketSource) GetConfigSchema() parse.Config {
 	return &GcpStorageBucketSourceConfig{}
 }
 
@@ -132,7 +132,7 @@ func (s *GcpStorageBucketSource) DownloadArtifact(ctx context.Context, info *typ
 
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
 
-	// TODO: #paging create paging data https://github.com/turbot/tailpipe-plugin-sdk/issues/13
+	// TODO: #delta create collection state data https://github.com/turbot/tailpipe-plugin-sdk/issues/13
 	return s.OnArtifactDownloaded(ctx, downloadInfo)
 }
 

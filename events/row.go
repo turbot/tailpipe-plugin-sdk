@@ -12,7 +12,7 @@ type Row struct {
 	// enrichment values passed from the source to the collection to include in the enrichment process
 	EnrichmentFields *enrichment.CommonFields
 	Row              any
-	PagingData       json.RawMessage
+	CollectionState  json.RawMessage
 }
 
 type RowEventOption func(*Row)
@@ -24,9 +24,9 @@ func WithEnrichmentFields(enrichmentFields *enrichment.CommonFields) RowEventOpt
 }
 func NewRowEvent(executionId string, row any, paging json.RawMessage, opts ...RowEventOption) *Row {
 	r := &Row{
-		ExecutionId: executionId,
-		Row:         row,
-		PagingData:  paging,
+		ExecutionId:     executionId,
+		Row:             row,
+		CollectionState: paging,
 	}
 	for _, opt := range opts {
 		opt(r)

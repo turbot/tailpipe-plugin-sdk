@@ -74,13 +74,13 @@ func (b *PluginBase) handleRowEvent(ctx context.Context, e *events.Row) error {
 	b.rowBufferLock.Unlock()
 
 	if numRowsToWrite := len(rowsToWrite); numRowsToWrite > 0 {
-		return b.writeChunk(ctx, rowCount, rowsToWrite, e.PagingData)
+		return b.writeChunk(ctx, rowCount, rowsToWrite, e.CollectionState)
 	}
 
 	return nil
 }
 
-func (b *PluginBase) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, pagingData json.RawMessage) error {
+func (b *PluginBase) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
 	// determine chunk number from rowCountMap
 	chunkNumber := int(rowCount / JSONLChunkSize)
 	// check for final partial chunk
@@ -95,6 +95,6 @@ func (b *PluginBase) writeChunk(ctx context.Context, rowCount int, rowsToWrite [
 		slog.Error("failed to write JSONL file", "error", err)
 		return fmt.Errorf("failed to write JSONL file: %w", err)
 	}
-	// notify observers, passing the paging data
-	return b.OnChunk(ctx, chunkNumber, pagingData)
+	// notify observers, passing the collection state data
+	return b.OnChunk(ctx, chunkNumber, collectionState)
 }

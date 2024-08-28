@@ -3,9 +3,10 @@ package row_source
 import (
 	"context"
 	"encoding/json"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
+
+	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -23,7 +24,7 @@ type RowSource interface {
 
 	// Init is called when the row source is created
 	// it is responsible for parsing the source config and configuring the source
-	Init(context.Context, *hcl.Data, ...RowSourceOption) error
+	Init(context.Context, *parse.Data, ...RowSourceOption) error
 
 	// Identifier must return the source name
 	Identifier() string
@@ -33,16 +34,18 @@ type RowSource interface {
 	// Collect is called to start collecting data,
 	Collect(context.Context) error
 
-	// GetPagingDataSchema returns an empty instance of the paging data struct
-	// Should be implemented only if paging is supported (RowSourceBase has an empty implementation)
-	GetPagingDataSchema() paging.Data
 	// GetConfigSchema returns an empty instance of the config struct used by the source
-	GetConfigSchema() hcl.Config
+	GetConfigSchema() parse.Config
 
-	// GetPagingData returns the json serialised paging data for the ongoing collection
-	GetPagingData() (json.RawMessage, error)
-	// SetPagingData unmarshalls the paging data JSON into the target object
-	SetPagingData(pagingDataJSON json.RawMessage) error
+	// SetCollectionStateFunc sets the function used to create the collection state data
+	SetCollectionStateFunc(func(...collection_state.CollectStateOption) collection_state.CollectionState)
+	// TODO needed??
+	// SetCollectionStateOpts sets the options to use when creating the collection state data
+	SetCollectionStateOpts(opts ...collection_state.CollectStateOption)
+	// 	GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
+	GetCollectionStateJSON() (json.RawMessage, error)
+	// SetCollectionStateJSON unmarshalls the collection state data JSON into the target object
+	SetCollectionStateJSON(stateJSON json.RawMessage) error
 
 	// GetTiming returns the timing for the source row collection
 	GetTiming() types.TimingCollection

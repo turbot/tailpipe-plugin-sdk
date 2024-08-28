@@ -15,7 +15,10 @@ type ArtifactSource interface {
 	row_source.RowSource
 	DiscoverArtifacts(ctx context.Context) error
 	DownloadArtifact(context.Context, *types.ArtifactInfo) error
+
+	// functions used by RowSourceOptions
 	AddMappers(mappers ...artifact_mapper.Mapper)
 	SetLoader(loader artifact_loader.Loader)
 	SetRowPerLine(b bool)
+	SetDefaultConfig(config *ArtifactSourceConfigBase)
 }

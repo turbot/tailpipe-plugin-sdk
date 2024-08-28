@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+//TODO #validation validate sources which implement ArtifactRowSource override th enecessray functions
+
 func Validate(t *testing.T, ctor func() (TailpipePlugin, error)) {
 	p, err := ctor()
 	assert.Nil(t, err)

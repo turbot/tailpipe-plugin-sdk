@@ -45,7 +45,6 @@ Examples:
     - `Identifier`
     - `GetRowSchema`
     - `GetConfigSchema`
-    - `GetPagingDataSchema` (optional)  
     - `EnrichRow` 
   - Define a row struct row the collection will return - this defines the schema of the collection and should embed `enrichment.CommonFields` 
   - Define a config struct with HCL tags for the collection config
@@ -202,10 +201,8 @@ type Collection interface {
 	GetRowSchema()any
 	// GetConfigStruct returns an empty instance of the config struct returned by the collection
 	GetConfigSchema()any
-	// GetPagingDataStruct returns an empty instance of the paging data struct 
-	// Should be implemented only if paging is supported (Base bas an empty implementation) 
-	GetPagingDataSchema()(paging.Data, error)
-
+	// GetCollectionStateStruct returns an empty instance of the collection state data struct 
+	
 	// Collect is called to start collecting data,
 	// Collect will send enriched rows which satisfy the tailpipe row requirements (todo link/document)
 	Collect(context.Context, *proto.CollectRequest) error
@@ -217,7 +214,7 @@ type Collection interface {
 
 ##### Base class
 All collection implementations should embed the [collection.Base](https://github.com/turbot/tailpipe-plugin-sdk/blob/development/collection/base.go) struct, which provides a default implementation of the [Observable](https://github.com/turbot/tailpipe-plugin-sdk/blob/114315fb39ed91e1f0b83f78d6f3aff4425c12d7/observable/observable.go#L8) interface.
-It also implements the [Collect](https://github.com/turbot/tailpipe-plugin-sdk/blob/114315fb39ed91e1f0b83f78d6f3aff4425c12d7/collection/base.go#L37) function and provides a default implementation of `GetPagingDataStruct`. 
+It also implements the [Collect](https://github.com/turbot/tailpipe-plugin-sdk/blob/114315fb39ed91e1f0b83f78d6f3aff4425c12d7/collection/base.go#L37) function and provides a default implementation of `GetCollectionStateStruct`. 
 
 ##### Interface functions which must be implemented when defining a collection
 
@@ -232,8 +229,6 @@ It also implements the [Collect](https://github.com/turbot/tailpipe-plugin-sdk/b
   - This specifies the row schema that the collection will return. This should return an empty instance of the struct that the collection will return.
 - `GetConfigSchema`
   - This specifies the schema of the config that the collection expects. This should return an empty instance of the struct that the collection expects. The struct should have HCL tags for the config fields.
-- `GetPagingDataSchema` (optional)
-  - This specifies the schema of the paging data that the collection expects. This should return an empty instance of the struct that the collection expects.
   
 #### Defining the Row Struct
 The 'row struct' is the type returned by the collection, and they define the collection schema.

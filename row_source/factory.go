@@ -3,7 +3,8 @@ package row_source
 import (
 	"context"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
+
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 )
 
 // Factory is a global newFactory instance
@@ -34,7 +35,7 @@ func (b *RowSourceFactory) RegisterRowSources(sourceFunc ...func() RowSource) {
 // GetRowSource attempts to instantiate a row source, using the provided row source data
 // It will fail if the requested source type is not registered
 // Implements [plugin.SourceFactory]
-func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *hcl.Data, sourceOpts ...RowSourceOption) (RowSource, error) {
+func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *parse.Data, sourceOpts ...RowSourceOption) (RowSource, error) {
 	// look for a constructor for the source
 	ctor, ok := b.sources[sourceConfigData.Type]
 	if !ok {
@@ -45,12 +46,12 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *h
 
 	//  register the rowsource implementation with the base struct (_before_ calling Init)
 	// create an interface type to use - we do not want to expose this function in the Collection interface
-	type BaseCollection interface{ RegisterImpl(rowSource RowSource) }
-	baseCol, ok := source.(BaseCollection)
+	type baseSource interface{ RegisterImpl(rowSource RowSource) }
+	base, ok := source.(baseSource)
 	if !ok {
 		return nil, fmt.Errorf("collection implementation must embed collection.RowSourceBase")
 	}
-	baseCol.RegisterImpl(source)
+	base.RegisterImpl(source)
 
 	// initialise the source, passing ourselves as source_factory
 	if err := source.Init(ctx, sourceConfigData, sourceOpts...); err != nil {

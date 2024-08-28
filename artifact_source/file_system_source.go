@@ -3,13 +3,13 @@ package artifact_source
 import (
 	"context"
 	"errors"
-	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -32,7 +32,7 @@ func NewFileSystemSource() row_source.RowSource {
 	return &FileSystemSource{}
 }
 
-func (s *FileSystemSource) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+func (s *FileSystemSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
 	// call base to parse config and apply options
 	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
@@ -48,7 +48,7 @@ func (s *FileSystemSource) Identifier() string {
 	return FileSystemSourceIdentifier
 }
 
-func (s *FileSystemSource) GetConfigSchema() hcl.Config {
+func (s *FileSystemSource) GetConfigSchema() parse.Config {
 	return &FileSystemSourceConfig{}
 }
 
@@ -96,6 +96,6 @@ func (s *FileSystemSource) DownloadArtifact(ctx context.Context, info *types.Art
 	// notify observers of the discovered artifact
 	// NOTE: for now just pass on the info as is
 	// if the file was downloaded we would update the Name to the local path, leaving OriginalName as the source path
-	// TODO CREATE PAGING DATA https://github.com/turbot/tailpipe-plugin-sdk/issues/11
+	// TODO CREATE collection state data https://github.com/turbot/tailpipe-plugin-sdk/issues/11
 	return s.OnArtifactDownloaded(ctx, info)
 }

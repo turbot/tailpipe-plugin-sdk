@@ -50,6 +50,9 @@ func (m TimingCollection) String() string {
 	}
 
 	for _, v := range m {
+		if v.Operation == "" {
+			continue
+		}
 		sb.WriteString(" - ")
 		sb.WriteString(v.Operation)
 		sb.WriteString(": ")

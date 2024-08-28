@@ -6,7 +6,7 @@ import (
 	"fmt"
 
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
@@ -67,20 +67,21 @@ func (f *CollectionFactory) GetCollection(ctx context.Context, req *proto.Collec
 
 	//  register the collection implementation with the base struct (_before_ calling Init)
 	// create an interface type to use - we do not want to expose this function in the Collection interface
-	type BaseCollection interface{ RegisterImpl(Collection) }
-	baseCol, ok := col.(BaseCollection)
+	type baseCollection interface{ RegisterImpl(Collection) }
+
+	base, ok := col.(baseCollection)
 	if !ok {
 		return nil, fmt.Errorf("collection implementation must embed collection.RowSourceBase")
 	}
-	baseCol.RegisterImpl(col)
+	base.RegisterImpl(col)
 
 	// prepare the data needed for Init
 
 	// convert req into collectionConfigData and sourceConfigData
-	collectionConfigData := hcl.DataFromProto(req.CollectionData)
-	sourceConfigData := hcl.DataFromProto(req.SourceData)
+	collectionConfigData := parse.DataFromProto(req.CollectionData)
+	sourceConfigData := parse.DataFromProto(req.SourceData)
 
-	err := col.Init(ctx, collectionConfigData, sourceConfigData)
+	err := col.Init(ctx, collectionConfigData, req.CollectionState, sourceConfigData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise collection: %w", err)
 	}

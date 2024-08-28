@@ -26,17 +26,30 @@ message CollectRequest {
   // the source to use (with raw config)
   config_data source_data = 4;
 
-  // this is json encoded data that can be used to resume a collection
-  // the plugin will know how to de
-  bytes paging_data = 7;
+  // this is json encoded data that represents the state of the collection, i.e. what data has been collected
+  // this is used to resume a collection
+  bytes collection_state = 7;
 }
 
 message config_data {
+  // what the type of the config target
   string type = 1;
   // raw hcl for collection specific config
-  bytes config_data = 2;
+  bytes hcl = 2;
+  Range range = 3;
 }
 
+message Range{
+  string filename = 1;
+  Pos start = 2;
+  Pos end = 3;
+}
+
+message Pos{
+  int64 line = 1;
+  int64 column = 2;
+  int64 byte = 3;
+}
 
 message Empty {}
 
@@ -86,7 +99,7 @@ message EventStarted {
 message EventChunkWritten {
   string execution_id = 1;
   int32 chunk_number = 2;
-  bytes paging_data = 3;
+  bytes collection_state = 3;
 }
 
 message EventError {
