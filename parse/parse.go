@@ -7,7 +7,7 @@ import (
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/error_helpers"
-	"github.com/turbot/pipe-fittings/parse"
+	pf_parse "github.com/turbot/pipe-fittings/parse"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 )
@@ -50,7 +50,7 @@ func decodeHclBodyWithNestedStructs(body hcl.Body, evalCtx *hcl.EvalContext, res
 		}
 	}()
 
-	nestedStructs, moreDiags := parse.GetNestedStructValsRecursive(resource)
+	nestedStructs, moreDiags := pf_parse.GetNestedStructValsRecursive(resource)
 	diags = append(diags, moreDiags...)
 
 	moreDiags = gohcl.DecodeBody(body, evalCtx, resource)
