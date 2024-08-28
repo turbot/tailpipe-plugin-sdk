@@ -475,8 +475,8 @@ are there `destination`s separate from sources?
 
 
 ```bash
-ls ~/src/tailpipe/dest/aws_cloudtrail_log/tp_collection\=default/tp_connection\=811596193553/tp_year\=2020/tp_month\=9/tp_day\=22/file_e52ccd80-551a-47e3-8ff2-2a86713482bc.parquet 
-/Users/jsmyth/src/tailpipe/dest/aws_cloudtrail_log/tp_collection=default/tp_connection=811596193553/tp_year=2020/tp_month=9/tp_day=22/file_e52ccd80-551a-47e3-8ff2-2a86713482bc.parquet
+ls ~/src/tailpipe/dest/aws_cloudtrail_log/tp_partition\=default/tp_index\=811596193553/tp_year\=2020/tp_month\=9/tp_day\=22/file_e52ccd80-551a-47e3-8ff2-2a86713482bc.parquet 
+/Users/jsmyth/src/tailpipe/dest/aws_cloudtrail_log/tp_partition=default/tp_index=811596193553/tp_year=2020/tp_month=9/tp_day=22/file_e52ccd80-551a-47e3-8ff2-2a86713482bc.parquet
 MacBook-Pro:source_files jsmyth$ 
 ```
 
@@ -484,8 +484,8 @@ MacBook-Pro:source_files jsmyth$
 MacBook-Pro:source_files jsmyth$ tree ~/src/tailpipe/dest
 /Users/jsmyth/src/tailpipe/dest
 └── aws_cloudtrail_log
-    └── tp_collection=default
-        └── tp_connection=811596193553
+    └── tp_partition=default
+        └── tp_index=811596193553
             ├── tp_year=2017
             │   ├── tp_month=10
             │   │   ├── tp_day=1
@@ -500,7 +500,7 @@ format assumes one connection per collection....
   - is connection that important in the storage structure?   
     - The account/subs/project from which you fetch the logs (the `connection` of the source) is not necessarily related to the account/subs/project to which the log records belong
     - in nathans design the collection had only a single source, thus a single connection per collection which would make this folder redundant
-    - if we did multiple sources per collection, this level would make sense, but perhaps `tp_source` would be more appropriate than `tp_connection` ?
+    - if we did multiple sources per collection, this level would make sense, but perhaps `tp_source` would be more appropriate than `tp_index` ?
 
 - table
   - collection
@@ -758,8 +758,8 @@ table with multiple collections, collection with multiple sources and  partition
               // tp_timestamp = 1697769820000
               // tp_source_ip = 
               // tp_destination_ip = 
-              // tp_collection = pipes_audit_log
-              // tp_connection = pipes.turbot.com:turbot-ops
+              // tp_partition = pipes_audit_log
+              // tp_index = pipes.turbot.com:turbot-ops
               // tp_year = 2023
               // tp_month = 10
               // tp_day = 20
@@ -916,8 +916,8 @@ tailpipe connection show as_prod_01
 MacBook-Pro:source_files jsmyth$ tree ~/src/tailpipe/dest
 /Users/jsmyth/src/tailpipe/dest
 └── aws_cloudtrail_log
-    └── tp_collection=default
-        └── tp_connection=811596193553
+    └── tp_partition=default
+        └── tp_index=811596193553
             ├── tp_year=2017
             │   ├── tp_month=10
             │   │   ├── tp_day=1
@@ -932,14 +932,14 @@ MacBook-Pro:source_files jsmyth$ tree ~/src/tailpipe/dest
 partition on any tp_ field, but default to a standard like:
 ```h
 partition "remote" {
-  partition_by =  ["tp_collection", "tp_connection", "tp_year", "tp_month", "tp_day" ]
+  partition_by =  ["tp_partition", "tp_index", "tp_year", "tp_month", "tp_day" ]
   location     = "s3://my-bucket/tailpipe/store"
   connection   = connection.aws.my_prod_account
 }
 
 // can customize default, but otherwise defaults to local files
 partition "default" {
-  partition_by =  ["tp_collection", "tp_connection", "tp_year", "tp_month", "tp_day" ]
+  partition_by =  ["tp_partition", "tp_index", "tp_year", "tp_month", "tp_day" ]
   location     = "~/.tailpipe/store"
 }
 
@@ -985,7 +985,7 @@ partition "default" {
 ```
 
 
-rename `tp_connection` ?  `tp_account` ??  `tp_cloud_account`?
+rename `tp_index` ?  `tp_account` ??  `tp_cloud_account`?
   - note that this is a per-row item of information in the source, not per file!!!
 
 

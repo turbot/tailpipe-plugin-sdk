@@ -31,7 +31,7 @@ type RowSourceBase[T parse.Config] struct {
 	collectionStateOpts    []collection_state.CollectStateOption
 }
 
-// RegisterImpl is called by the plugin implementation to register the collection implementation
+// RegisterImpl is called by the plugin implementation to register the partition implementation
 // this is required so that the RowSourceBase can call the RowSource's methods
 func (b *RowSourceBase[T]) RegisterImpl(impl RowSource) {
 	b.Impl = impl
@@ -78,7 +78,7 @@ func (b *RowSourceBase[T]) Close() error {
 	return nil
 }
 
-// OnRow raise an [events.Row] event, which is handled by the collection.
+// OnRow raise an [events.Row] event, which is handled by the partition.
 // It is called by the row source when it has a row to send
 func (b *RowSourceBase[T]) OnRow(ctx context.Context, row *types.RowData, collectionState json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
@@ -128,6 +128,6 @@ func (b *RowSourceBase[T]) SetCollectionStateJSON(collectionStateJSON json.RawMe
 }
 
 func (b *RowSourceBase[T]) GetTiming() types.TimingCollection {
-	// TODO #observability implement default timing for custom row sources
+	// TODO #observability implement default timing for custom row sourceFuncs
 	return types.TimingCollection{}
 }

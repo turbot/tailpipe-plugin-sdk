@@ -11,24 +11,24 @@ import (
 var Factory = newRowSourceFactoryFactory()
 
 type RowSourceFactory struct {
-	sources map[string]func() RowSource
+	sourceFuncs map[string]func() RowSource
 }
 
 func newRowSourceFactoryFactory() RowSourceFactory {
 	return RowSourceFactory{
-		sources: make(map[string]func() RowSource),
+		sourceFuncs: make(map[string]func() RowSource),
 	}
 }
 
 // RegisterRowSources registers RowSource implementations
-// is should be called by a plugin implementation to register the sources it provides
-// it is also called by the base implementation to register the sources the SDK provides
+// is should be called by a plugin implementation to register the sourceFuncs it provides
+// it is also called by the base implementation to register the sourceFuncs the SDK provides
 func (b *RowSourceFactory) RegisterRowSources(sourceFunc ...func() RowSource) {
 	for _, ctor := range sourceFunc {
 		// create an instance of the source to get the identifier
 		c := ctor()
-		// register the collection
-		b.sources[c.Identifier()] = ctor
+		// register the source
+		b.sourceFuncs[c.Identifier()] = ctor
 	}
 }
 
@@ -37,7 +37,7 @@ func (b *RowSourceFactory) RegisterRowSources(sourceFunc ...func() RowSource) {
 // Implements [plugin.SourceFactory]
 func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *parse.Data, sourceOpts ...RowSourceOption) (RowSource, error) {
 	// look for a constructor for the source
-	ctor, ok := b.sources[sourceConfigData.Type]
+	ctor, ok := b.sourceFuncs[sourceConfigData.Type]
 	if !ok {
 		return nil, fmt.Errorf("source not registered: %s", sourceConfigData.Type)
 	}
@@ -45,11 +45,11 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *p
 	source := ctor()
 
 	//  register the rowsource implementation with the base struct (_before_ calling Init)
-	// create an interface type to use - we do not want to expose this function in the Collection interface
+	// create an interface type to use - we do not want to expose this function in the RowSource interface
 	type baseSource interface{ RegisterImpl(rowSource RowSource) }
 	base, ok := source.(baseSource)
 	if !ok {
-		return nil, fmt.Errorf("collection implementation must embed collection.RowSourceBase")
+		return nil, fmt.Errorf("source implementation must embed row_source.RowSourceBase")
 	}
 	base.RegisterImpl(source)
 
@@ -61,5 +61,5 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *p
 }
 
 func (b *RowSourceFactory) GetSources() map[string]func() RowSource {
-	return b.sources
+	return b.sourceFuncs
 }

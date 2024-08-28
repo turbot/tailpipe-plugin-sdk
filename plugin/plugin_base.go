@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/collection"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/partition"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log"
@@ -81,7 +81,7 @@ func (b *PluginBase) Shutdown(context.Context) error {
 // GetSchema implements TailpipePlugin
 func (b *PluginBase) GetSchema() schema.SchemaMap {
 	// ask the collection factory
-	return collection.Factory.GetSchema()
+	return partition.Factory.GetSchema()
 }
 
 // Base returns the base instance - used for validation testing
@@ -119,7 +119,7 @@ func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, collec
 func (b *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) error {
 	// ask the factory to create the collection
 	// - this will configure the requested source
-	col, err := collection.Factory.GetCollection(ctx, req)
+	col, err := partition.Factory.GetPartition(ctx, req)
 	if err != nil {
 		return err
 	}

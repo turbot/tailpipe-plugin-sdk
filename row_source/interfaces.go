@@ -11,15 +11,15 @@ import (
 )
 
 // RowSource is the interface that represents a data source
-// A number of data sources are provided by the SDK, and plugins may provide their own
-// Built in data sources:
+// A number of data sourceFuncs are provided by the SDK, and plugins may provide their own
+// Built in data sourceFuncs:
 // - AWS S3 Bucket
 // - API Source (this must be implemented by the plugin)
 // - File Source
 // - Webhook source
 // Sources may be configured with data transfo
 type RowSource interface {
-	// Observable must be implemented by row sources (it is implemented by row_source.RowSourceBase)
+	// Observable must be implemented by row sourceFuncs (it is implemented by row_source.RowSourceBase)
 	observable.Observable
 
 	// Init is called when the row source is created

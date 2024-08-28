@@ -286,7 +286,7 @@ The following optional enrichment fields may also be added.
 - `TpIngestTimestamp`
 - `TpSourceIP`
 - `TpDestinationIP`
-- `TpCollection`
+- `TpPartition`
 - `TpAkas`
 - `TpIps`
 - `TpTags`

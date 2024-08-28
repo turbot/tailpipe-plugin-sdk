@@ -3,7 +3,7 @@ package plugin
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
-	"github.com/turbot/tailpipe-plugin-sdk/collection"
+	"github.com/turbot/tailpipe-plugin-sdk/partition"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"testing"
 )
@@ -23,8 +23,8 @@ func Validate(t *testing.T, ctor func() (TailpipePlugin, error)) {
 	t.Run("TestGetSchema", func(t *testing.T) {
 		TestGetSchema(t, p)
 	})
-	t.Run("TestCollections", func(t *testing.T) {
-		TestCollections(t, p)
+	t.Run("TestPartitions", func(t *testing.T) {
+		TestPartitions(t, p)
 	})
 	t.Run("TestSources", func(t *testing.T) {
 		TestSources(t, p)
@@ -57,15 +57,15 @@ func TestGetSchema(t *testing.T, p TailpipePlugin) {
 	configSchema := p.GetSchema()
 	assert.NotNil(t, configSchema)
 }
-func TestCollections(t *testing.T, p TailpipePlugin) {
-	collections := collection.Factory.GetCollections()
+func TestPartitions(t *testing.T, p TailpipePlugin) {
+	partitions := partition.Factory.GetPartitions()
 
 	// plugin must provide at least 1 collection
-	assert.True(t, len(collections) > 0)
+	assert.True(t, len(partitions) > 0)
 
-	for _, c := range collections {
+	for _, c := range partitions {
 		t.Run("TestInit", func(t *testing.T) {
-			collection.Validate(t, c)
+			partition.Validate(t, c)
 		})
 	}
 }

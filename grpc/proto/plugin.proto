@@ -21,8 +21,8 @@ message CollectRequest {
 //  dest path for jsonl files
   string output_path= 2;
 
-  // the collection to run (with raw config)
-  config_data collection_data = 3;
+  // the partition to collect (with raw config)
+  config_data partition_data = 3;
   // the source to use (with raw config)
   config_data source_data = 4;
 
