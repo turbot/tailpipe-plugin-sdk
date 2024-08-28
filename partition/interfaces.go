@@ -28,7 +28,7 @@ type Partition interface {
 	// GetConfigSchema returns an empty instance of the config struct used by the collection
 	GetConfigSchema() parse.Config
 	// GetSourceOptions returns any options which should be passed to the given source type
-	GetSourceOptions() []row_source.RowSourceOption
+	GetSourceOptions(sourceType string) []row_source.RowSourceOption
 
 	// Collect is called to start collecting data,
 	// Collect will send enriched rows which satisfy the tailpipe row requirements

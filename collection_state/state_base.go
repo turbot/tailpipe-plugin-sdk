@@ -11,3 +11,7 @@ type CollectionStateBase struct {
 func (b *CollectionStateBase) GetMut() *sync.RWMutex {
 	return &b.Mut
 }
+
+func (b *CollectionStateBase) IsEmpty() bool {
+	return true
+}

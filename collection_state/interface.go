@@ -4,4 +4,5 @@ import "sync"
 
 type CollectionState interface {
 	GetMut() *sync.RWMutex
+	IsEmpty() bool
 }

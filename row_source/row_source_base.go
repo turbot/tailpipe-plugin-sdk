@@ -99,6 +99,9 @@ func (b *RowSourceBase[T]) GetCollectionStateJSON() (json.RawMessage, error) {
 	mut := b.CollectionState.GetMut()
 	mut.RLock()
 	defer mut.RUnlock()
+	if b.CollectionState.IsEmpty() {
+		return nil, nil
+	}
 	return json.Marshal(b.CollectionState)
 }
 

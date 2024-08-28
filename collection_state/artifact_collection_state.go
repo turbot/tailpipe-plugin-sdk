@@ -137,6 +137,10 @@ func (s *ArtifactCollectionState) Upsert(metadata *types.ArtifactInfo) {
 	}
 }
 
+func (s *ArtifactCollectionState) IsEmpty() bool {
+	return s.StartTime.IsZero()
+}
+
 // the 'granularity' means what it the shortest period we can determine that an artifact comes from based on its filename
 // e.g., if the filename contains {year}/{month}/{day}/{hour}/{minute}, the granularity is 1 minute
 // if the filename contains {year}/{month}/{day}/{hour}, the granularity is 1 hour

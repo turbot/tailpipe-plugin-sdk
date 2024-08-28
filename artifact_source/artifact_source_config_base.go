@@ -2,6 +2,7 @@ package artifact_source
 
 import (
 	"github.com/hashicorp/hcl/v2"
+	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 )
 
@@ -24,27 +25,24 @@ type ArtifactSourceConfigBase struct {
 	JsonPath *string `hcl:"json_path,optional"`
 }
 
-func (b ArtifactSourceConfigBase) Validate() error {
+func (b *ArtifactSourceConfigBase) Validate() error {
 	// TODO #config #valiate
 	return nil
 }
 
-func (b ArtifactSourceConfigBase) Merge(cfg ArtifactSourceConfigBase) ArtifactSourceConfigBase {
-	return b
-}
-
-func (b ArtifactSourceConfigBase) GetFileLayout() *string {
+func (b *ArtifactSourceConfigBase) GetFileLayout() *string {
 	return b.FileLayout
 }
 
-func (b ArtifactSourceConfigBase) GetJsonPath() *string {
+func (b *ArtifactSourceConfigBase) GetJsonPath() *string {
 	return b.JsonPath
 }
 
 func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactConfig) {
-	if other == nil {
+	if helpers.IsNil(other) {
 		return
 	}
+
 	if other.GetFileLayout() != nil && b.FileLayout == nil {
 		b.FileLayout = other.GetFileLayout()
 	}

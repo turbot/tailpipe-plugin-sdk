@@ -65,7 +65,7 @@ func (b *PartitionBase[T]) Init(ctx context.Context, partitionConfigData *parse.
 		}
 	}
 	// initialise the source
-	sourceOpts := b.impl.GetSourceOptions()
+	sourceOpts := b.impl.GetSourceOptions(sourceConfigData.Type)
 	// if collectionStateJSON is non-empty, add an option to set it
 	if len(collectionStateJSON) > 0 {
 		sourceOpts = append(sourceOpts, row_source.WithCollectionStateJSON(collectionStateJSON))
@@ -97,7 +97,7 @@ func (b *PartitionBase[T]) RegisterImpl(impl Partition) {
 
 // GetSourceOptions give the collection a chance to specify options for the source
 // default implementation returning nothing
-func (*PartitionBase[T]) GetSourceOptions() []row_source.RowSourceOption {
+func (*PartitionBase[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
 	return nil
 }
 

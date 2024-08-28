@@ -28,3 +28,7 @@ func (c *AwsCloudwatchState) Upsert(name string, time int64) {
 	}
 	c.Timestamps[name] = time
 }
+
+func (b *AwsCloudwatchState) IsEmpty() bool {
+	return len(b.Timestamps) == 0
+}
