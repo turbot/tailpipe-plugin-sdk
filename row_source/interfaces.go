@@ -38,10 +38,8 @@ type RowSource interface {
 	GetConfigSchema() parse.Config
 
 	// SetCollectionStateFunc sets the function used to create the collection state data
-	SetCollectionStateFunc(func(...collection_state.CollectStateOption) collection_state.CollectionState)
-	// TODO needed??
-	// SetCollectionStateOpts sets the options to use when creating the collection state data
-	SetCollectionStateOpts(opts ...collection_state.CollectStateOption)
+	SetCollectionStateFunc(func() collection_state.CollectionState)
+
 	// 	GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
 	GetCollectionStateJSON() (json.RawMessage, error)
 	// SetCollectionStateJSON unmarshalls the collection state data JSON into the target object

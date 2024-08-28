@@ -39,12 +39,9 @@ type ArtifactCollectionState struct {
 	granularity time.Duration
 }
 
-func NewArtifactCollectionState(opts ...CollectStateOption) CollectionState {
+func NewArtifactCollectionState() CollectionState {
 	// NOTE: no need to create maps here - they are created when needed
 	res := &ArtifactCollectionState{}
-	for _, opt := range opts {
-		opt(res)
-	}
 	return res
 }
 

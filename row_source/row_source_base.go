@@ -27,8 +27,7 @@ type RowSourceBase[T parse.Config] struct {
 	// the collection state data for this source
 	CollectionState collection_state.CollectionState
 	// a function to create empty collection state data
-	newCollectionStateFunc func(...collection_state.CollectStateOption) collection_state.CollectionState
-	collectionStateOpts    []collection_state.CollectStateOption
+	newCollectionStateFunc func() collection_state.CollectionState
 }
 
 // RegisterImpl is called by the plugin implementation to register the partition implementation
@@ -67,7 +66,7 @@ func (b *RowSourceBase[T]) Init(ctx context.Context, configData *parse.Data, opt
 	// TODO #design is it acceptable to have no collection state? we should put nil checks round access to it
 	if b.CollectionState == nil && b.newCollectionStateFunc != nil {
 		slog.Info("Creating empty collection state")
-		b.CollectionState = b.newCollectionStateFunc(b.collectionStateOpts...)
+		b.CollectionState = b.newCollectionStateFunc()
 	}
 
 	return nil
@@ -88,12 +87,8 @@ func (b *RowSourceBase[T]) OnRow(ctx context.Context, row *types.RowData, collec
 	return b.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, collectionState, events.WithEnrichmentFields(row.Metadata)))
 }
 
-func (b *RowSourceBase[T]) SetCollectionStateFunc(f func(...collection_state.CollectStateOption) collection_state.CollectionState) {
+func (b *RowSourceBase[T]) SetCollectionStateFunc(f func() collection_state.CollectionState) {
 	b.newCollectionStateFunc = f
-}
-
-func (b *RowSourceBase[T]) SetCollectionStateOpts(opts ...collection_state.CollectStateOption) {
-	b.collectionStateOpts = opts
 }
 
 // GetCollectionStateJSON marshals the collection state data into JSON

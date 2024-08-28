@@ -12,7 +12,7 @@ import (
 type RowSourceOption func(source RowSource) error
 
 // WithCollectionState is a RowSourceOption that sets the collection state creation function for the source
-func WithCollectionState(f func(...collection_state.CollectStateOption) collection_state.CollectionState) RowSourceOption {
+func WithCollectionState(f func() collection_state.CollectionState) RowSourceOption {
 	return func(source RowSource) error {
 		source.SetCollectionStateFunc(f)
 		return nil
