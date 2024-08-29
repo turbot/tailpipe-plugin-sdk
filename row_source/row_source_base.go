@@ -30,7 +30,7 @@ type RowSourceBase[T parse.Config] struct {
 	newCollectionStateFunc func() collection_state.CollectionState
 }
 
-// RegisterImpl is called by the plugin implementation to register the partition implementation
+// RegisterImpl is called by the plugin implementation to register the table implementation
 // this is required so that the RowSourceBase can call the RowSource's methods
 func (b *RowSourceBase[T]) RegisterImpl(impl RowSource) {
 	b.Impl = impl
@@ -77,7 +77,7 @@ func (b *RowSourceBase[T]) Close() error {
 	return nil
 }
 
-// OnRow raise an [events.Row] event, which is handled by the partition.
+// OnRow raise an [events.Row] event, which is handled by the table.
 // It is called by the row source when it has a row to send
 func (b *RowSourceBase[T]) OnRow(ctx context.Context, row *types.RowData, collectionState json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)

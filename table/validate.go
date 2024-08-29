@@ -1,11 +1,11 @@
-package partition
+package table
 
 import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func Validate(t *testing.T, ctor func() Partition) {
+func Validate(t *testing.T, ctor func() Table) {
 	c := ctor()
 
 	// identifier
@@ -22,7 +22,7 @@ func Validate(t *testing.T, ctor func() Partition) {
 	})
 }
 
-func TestIdentifier(t *testing.T, c Partition) {
+func TestIdentifier(t *testing.T, c Table) {
 	id := c.Identifier()
 	assert.NotEmpty(t, id)
 
@@ -35,12 +35,12 @@ func TestIdentifier(t *testing.T, c Partition) {
 	assert.Regexp(t, "^[a-z]+(_[a-z0-9]+)*$", id)
 }
 
-func TestGetRowSchema(t *testing.T, c Partition) {
+func TestGetRowSchema(t *testing.T, c Table) {
 	rowSchema := c.GetRowSchema()
 	assert.NotNil(t, rowSchema)
 }
 
-func TestGetConfigSchema(t *testing.T, c Partition) {
+func TestGetConfigSchema(t *testing.T, c Table) {
 	configSchema := c.GetConfigSchema()
 	assert.NotNil(t, configSchema)
 }

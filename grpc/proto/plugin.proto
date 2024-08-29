@@ -22,7 +22,7 @@ message CollectRequest {
   string output_path= 2;
 
   // the partition to collect (with raw config)
-  config_data partition_data = 3;
+  config_data table_data = 3;
   // the source to use (with raw config)
   config_data source_data = 4;
 

@@ -1,4 +1,4 @@
-package partition
+package table
 
 import (
 	"context"
@@ -20,16 +20,16 @@ import (
 // how ofted to send status events
 const statusUpdateInterval = 250 * time.Millisecond
 
-// PartitionBase provides a base implementation of the [partition.Partition] interface
-// it should be embedded in all Partition implementations
-type PartitionBase[T parse.Config] struct {
+// TableBase provides a base implementation of the [table.Table] interface
+// it should be embedded in all Table implementations
+type TableBase[T parse.Config] struct {
 	observable.ObservableBase
 
 	// the row Source
 	Source row_source.RowSource
 
 	// store a reference to the derived collection type so we can call its methods
-	impl Partition
+	impl Table
 
 	// the collection config
 	Config T
@@ -46,18 +46,18 @@ type PartitionBase[T parse.Config] struct {
 	enrichTiming types.Timing
 }
 
-// Init implements partition.Partition
-func (b *PartitionBase[T]) Init(ctx context.Context, partitionConfigData *parse.Data, collectionStateJSON json.RawMessage, sourceConfigData *parse.Data) error {
-	if len(partitionConfigData.Hcl) > 0 {
+// Init implements table.Table
+func (b *TableBase[T]) Init(ctx context.Context, tableConfigData *parse.Data, collectionStateJSON json.RawMessage, sourceConfigData *parse.Data) error {
+	if len(tableConfigData.Hcl) > 0 {
 		// parse the config
 		var emptyConfig = b.impl.GetConfigSchema().(T)
-		c, err := parse.ParseConfig[T](partitionConfigData, emptyConfig)
+		c, err := parse.ParseConfig[T](tableConfigData, emptyConfig)
 		if err != nil {
 			return fmt.Errorf("error parsing config: %w", err)
 		}
 		b.Config = c
 
-		slog.Info("Partition RowSourceBase: config parsed", "config", c)
+		slog.Info("Table RowSourceBase: config parsed", "config", c)
 
 		// validate config
 		if err := c.Validate(); err != nil {
@@ -74,7 +74,7 @@ func (b *PartitionBase[T]) Init(ctx context.Context, partitionConfigData *parse.
 }
 
 // initialise the row source
-func (b *PartitionBase[T]) initSource(ctx context.Context, configData *parse.Data, sourceOpts ...row_source.RowSourceOption) error {
+func (b *TableBase[T]) initSource(ctx context.Context, configData *parse.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// TODO verify we support this source type https://github.com/turbot/tailpipe-plugin-sdk/issues/16
 
 	// now ask plugin to create and initialise the source for us
@@ -90,19 +90,19 @@ func (b *PartitionBase[T]) initSource(ctx context.Context, configData *parse.Dat
 
 // RegisterImpl is called by the plugin implementation to register the collection implementation
 // it also resisters the supported sources for this collection
-// this is required so that the PartitionBase can call the collection's methods
-func (b *PartitionBase[T]) RegisterImpl(impl Partition) {
+// this is required so that the TableBase can call the collection's methods
+func (b *TableBase[T]) RegisterImpl(impl Table) {
 	b.impl = impl
 }
 
 // GetSourceOptions give the collection a chance to specify options for the source
 // default implementation returning nothing
-func (*PartitionBase[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
+func (*TableBase[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
 	return nil
 }
 
 // Collect executes the collection process. Tell our source to start collection
-func (b *PartitionBase[T]) Collect(ctx context.Context, req *proto.CollectRequest) (json.RawMessage, error) {
+func (b *TableBase[T]) Collect(ctx context.Context, req *proto.CollectRequest) (json.RawMessage, error) {
 	slog.Info("Start collection")
 
 	// create empty status event
@@ -127,7 +127,7 @@ func (b *PartitionBase[T]) Collect(ctx context.Context, req *proto.CollectReques
 
 	// notify observers of final status
 	if err := b.NotifyObservers(ctx, b.status); err != nil {
-		slog.Error("Partition RowSourceBase: error notifying observers of status", "error", err)
+		slog.Error("Table RowSourceBase: error notifying observers of status", "error", err)
 	}
 
 	// now ask the source for its updated collection state data
@@ -135,8 +135,8 @@ func (b *PartitionBase[T]) Collect(ctx context.Context, req *proto.CollectReques
 }
 
 // Notify implements observable.Observer
-// it handles all events which partitionFuncs may receive (these will all come from the source)
-func (b *PartitionBase[T]) Notify(ctx context.Context, event events.Event) error {
+// it handles all events which tableFuncs may receive (these will all come from the source)
+func (b *TableBase[T]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	b.updateStatus(ctx, event)
 
@@ -151,14 +151,14 @@ func (b *PartitionBase[T]) Notify(ctx context.Context, event events.Event) error
 	}
 }
 
-func (b *PartitionBase[T]) GetTiming() types.TimingCollection {
+func (b *TableBase[T]) GetTiming() types.TimingCollection {
 	return append(b.Source.GetTiming(), b.enrichTiming)
 }
 
 // updateStatus updates the status counters with the latest event
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
-func (b *PartitionBase[T]) updateStatus(ctx context.Context, e events.Event) {
+func (b *TableBase[T]) updateStatus(ctx context.Context, e events.Event) {
 	b.statusLock.Lock()
 	defer b.statusLock.Unlock()
 
@@ -168,7 +168,7 @@ func (b *PartitionBase[T]) updateStatus(ctx context.Context, e events.Event) {
 	if time.Since(b.lastStatusEventTime) > statusUpdateInterval {
 		// notify observers
 		if err := b.NotifyObservers(ctx, b.status); err != nil {
-			slog.Error("Partition RowSourceBase: error notifying observers of status", "error", err)
+			slog.Error("Table RowSourceBase: error notifying observers of status", "error", err)
 		}
 		// update lastStatusEventTime
 		b.lastStatusEventTime = time.Now()
@@ -176,7 +176,7 @@ func (b *PartitionBase[T]) updateStatus(ctx context.Context, e events.Event) {
 }
 
 // handleRowEvent is invoked when a Row event is received - enrich the row and publish it
-func (b *PartitionBase[T]) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (b *TableBase[T]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	b.rowWg.Add(1)
 	defer b.rowWg.Done()
 
@@ -200,8 +200,8 @@ func (b *PartitionBase[T]) handleRowEvent(ctx context.Context, e *events.Row) er
 	return b.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, row, e.CollectionState))
 }
 
-func (b *PartitionBase[T]) handeErrorEvent(e *events.Error) error {
-	slog.Error("Partition RowSourceBase: error event received", "error", e.Err)
+func (b *TableBase[T]) handeErrorEvent(e *events.Error) error {
+	slog.Error("Table RowSourceBase: error event received", "error", e.Err)
 	b.NotifyObservers(context.Background(), e)
 	return nil
 }

@@ -1,4 +1,4 @@
-package partition
+package table
 
 import (
 	"context"
@@ -12,15 +12,15 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// Partition is the interface that represents a single schema/'table' provided by a plugin.
-// A plugin may support multiple partitions
-type Partition interface {
-	// Observable must be implemented by partitionFuncs (it is implemented by partition.PartitionBase)
+// Table is the interface that represents a single schema/'table' provided by a plugin.
+// A plugin may support multiple tables
+type Table interface {
+	// Observable must be implemented by tableFuncs (it is implemented by table.TableBase)
 	observable.Observable
 
 	// Init is called when the collection created
 	// it is responsible for parsing the config and creating the configured Source
-	Init(ctx context.Context, partitionConfigData *parse.Data, collectionStateJSON json.RawMessage, sourceConfigData *parse.Data) error
+	Init(ctx context.Context, tableConfigData *parse.Data, collectionStateJSON json.RawMessage, sourceConfigData *parse.Data) error
 	// Identifier must return the collection name
 	Identifier() string
 	// GetRowSchema returns an empty instance of the row struct returned by the collection

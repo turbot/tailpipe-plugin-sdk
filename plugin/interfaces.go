@@ -14,7 +14,7 @@ type TailpipePlugin interface {
 	// this must be implemented by the plugin implementation
 	Identifier() string
 
-	// GetSchema returns the duck DB schema for all partitions
+	// GetSchema returns the duck DB schema for all tables
 	// this must be implemented by the plugin implementation
 	GetSchema() schema.SchemaMap
 
