@@ -7,20 +7,20 @@ import (
 
 type Chunk struct {
 	Base
-	ExecutionId string
-	ChunkNumber int
-	PagingData  json.RawMessage
+	ExecutionId     string
+	ChunkNumber     int
+	CollectionState json.RawMessage
 }
 
-func NewChunkEvent(executionId string, chunkNumber int, pagingData json.RawMessage) *Chunk {
+func NewChunkEvent(executionId string, chunkNumber int, collectionState json.RawMessage) *Chunk {
 	return &Chunk{
-		ExecutionId: executionId,
-		ChunkNumber: chunkNumber,
-		PagingData:  pagingData,
+		ExecutionId:     executionId,
+		ChunkNumber:     chunkNumber,
+		CollectionState: collectionState,
 	}
 }
 
 // ToProto converts the event to a proto.Event
 func (r *Chunk) ToProto() *proto.Event {
-	return proto.NewChunkWrittenEvent(r.ExecutionId, r.ChunkNumber, r.PagingData)
+	return proto.NewChunkWrittenEvent(r.ExecutionId, r.ChunkNumber, r.CollectionState)
 }

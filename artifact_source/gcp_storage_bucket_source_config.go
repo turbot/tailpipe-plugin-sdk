@@ -4,10 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+
+	"github.com/hashicorp/hcl/v2"
 )
 
 // GcpStorageBucketSourceConfig is the configuration for [GcpStorageBucketSource]
 type GcpStorageBucketSourceConfig struct {
+	ArtifactSourceConfigBase
+	// required to allow partial decoding
+	Remain hcl.Body `hcl:",remain" json:"-"`
+
 	Bucket     string   `hcl:"bucket"`
 	Prefix     string   `hcl:"prefix"`
 	Extensions []string `hcl:"extensions"`

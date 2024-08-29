@@ -4,17 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"log"
-	"log/slog"
-	"sync"
-
-	"github.com/turbot/tailpipe-plugin-sdk/collection"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/partition"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"log"
+	"log/slog"
+	"sync"
 )
 
 // how may rows to write in each JSONL file
@@ -82,7 +81,7 @@ func (b *PluginBase) Shutdown(context.Context) error {
 // GetSchema implements TailpipePlugin
 func (b *PluginBase) GetSchema() schema.SchemaMap {
 	// ask the collection factory
-	return collection.Factory.GetSchema()
+	return partition.Factory.GetSchema()
 }
 
 // Base returns the base instance - used for validation testing
@@ -90,7 +89,7 @@ func (b *PluginBase) Base() *PluginBase {
 	return b
 }
 
-func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, pagingData json.RawMessage, timing types.TimingCollection, err error) error {
+func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, collectionState json.RawMessage, timing types.TimingCollection, err error) error {
 	// get row count and the rows in the buffers
 	b.rowBufferLock.Lock()
 	rowCount := b.rowCountMap[executionId]
@@ -101,7 +100,7 @@ func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, paging
 
 	// tell our write to write any remaining rows
 	if len(rowsToWrite) > 0 {
-		if err := b.writeChunk(ctx, rowCount, rowsToWrite, pagingData); err != nil {
+		if err := b.writeChunk(ctx, rowCount, rowsToWrite, collectionState); err != nil {
 			slog.Error("failed to write final chunk", "error", err)
 			return fmt.Errorf("failed to write final chunk: %w", err)
 		}
@@ -120,7 +119,7 @@ func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, paging
 func (b *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) error {
 	// ask the factory to create the collection
 	// - this will configure the requested source
-	col, err := collection.Factory.GetCollection(ctx, req)
+	col, err := partition.Factory.GetPartition(ctx, req)
 	if err != nil {
 		return err
 	}
@@ -138,10 +137,10 @@ func (b *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) e
 	}
 
 	// tell the collection to start collecting - this is a blocking call
-	pagingData, err := col.Collect(ctx, req)
+	collectionState, err := col.Collect(ctx, req)
 
 	timing := col.GetTiming()
 
 	// signal we have completed - pass error if there was one
-	return b.OnCompleted(ctx, req.ExecutionId, pagingData, timing, err)
+	return b.OnCompleted(ctx, req.ExecutionId, collectionState, timing, err)
 }

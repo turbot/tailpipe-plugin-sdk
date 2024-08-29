@@ -13,10 +13,11 @@ import (
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -43,18 +44,21 @@ const ArtifactSourceMaxConcurrency = 16
 //     extract individual data rows from the artifact
 //
 // The lifetime of the ArtifactSourceBase is expected to be the duration of a single collection operation
-type ArtifactSourceBase[T hcl.Config] struct {
+type ArtifactSourceBase[T ArtifactConfig] struct {
 	row_source.RowSourceBase[T]
 	// do we expect the a row to be a line of data
 	RowPerLine bool
 	Loader     artifact_loader.Loader
-	Mappers    []artifact_mapper.Mapper
+
+	Mappers []artifact_mapper.Mapper
 
 	// TODO #config should this be in base - means the risk that a derived struct will not set it https://github.com/turbot/tailpipe-plugin-sdk/issues/3
 	TmpDir string
 
-	// shadow the row_source.RowSourceBase Impl property
+	// shadow the row_source.RowSourceBase Impl property, but using ArtifactSource interface
 	Impl ArtifactSource
+
+	defaultConfig *ArtifactSourceConfigBase
 	// map of loaders created, keyed by identifier
 	// this is populated lazily if we infer the loader from the file type
 	loaders    map[string]artifact_loader.Loader
@@ -74,14 +78,30 @@ type ArtifactSourceBase[T hcl.Config] struct {
 	timingLock      sync.Mutex
 }
 
-func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+func (b *ArtifactSourceBase[T]) SetRowPerLine(rowPerLine bool) {
+	b.RowPerLine = rowPerLine
+}
+
+func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
+	slog.Info("Initializing ArtifactSourceBase")
+
+	// set the collection state func to the default for artifacts ((this may be overriden by the derived type by passing an option
+	b.SetCollectionStateFunc(collection_state.NewArtifactCollectionState)
+
 	// call base to apply options and parse config
 	if err := b.RowSourceBase.Init(ctx, configData, opts...); err != nil {
 		slog.Warn("Initializing artifact_row_source.RowSourceBase failed", "error", err)
 		return err
 	}
-	slog.Info("Initialized artifact_row_source.RowSourceBase", "config", b.Config)
 
+	slog.Info("Initialized artifact_row_source.RowSourceBase", "config", b.Config)
+	slog.Info("Default to default config", "defaultConfig", b.defaultConfig)
+
+	// apply default config (this handles null default)
+	b.Config.DefaultTo(b.defaultConfig)
+
+	// store impl as an ArtifactSource
+	// todo #validation check that the impl is an ArtifactSource
 	b.Impl = b.RowSourceBase.Impl.(ArtifactSource)
 
 	// setup rate limiter
@@ -92,12 +112,27 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *hcl.Data, 
 
 	// create loader map
 	b.loaders = make(map[string]artifact_loader.Loader)
+
+	// initialise the collection state
+	return b.initCollectionState()
+
+}
+
+func (b *ArtifactSourceBase[T]) initCollectionState() error {
+	slog.Info("ArtifactSourceBase initCollectionState", "FileLayout", b.Config.GetFileLayout())
+
+	// if the collection state is the default (ArtifactCollectionState), initialise it
+	if collectionState, ok := b.CollectionState.(*collection_state.ArtifactCollectionState); ok {
+		collectionState.Init(b.Config.GetFileLayout())
+	}
 	return nil
 }
 
 // Collect tells our ArtifactSourceBase to start discovering artifacts
 // Implements [plugin.RowSource]
 func (b *ArtifactSourceBase[T]) Collect(ctx context.Context) error {
+	slog.Info("ArtifactSourceBase Collect")
+	defer slog.Info("ArtifactSourceBase Collect complete")
 
 	// record discovery start time
 	b.DiscoveryTiming.TryStart(constants.TimingDiscover)
@@ -127,8 +162,8 @@ func (b *ArtifactSourceBase[T]) AddMappers(mappers ...artifact_mapper.Mapper) {
 	b.Mappers = append(b.Mappers, mappers...)
 }
 
-func (b *ArtifactSourceBase[T]) SetRowPerLine(rowPerLine bool) {
-	b.RowPerLine = rowPerLine
+func (b *ArtifactSourceBase[T]) SetDefaultConfig(config *ArtifactSourceConfigBase) {
+	b.defaultConfig = config
 }
 
 func (b *ArtifactSourceBase[T]) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {
@@ -197,17 +232,17 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 	// set the extract start time if not already set
 	b.ExtractTiming.TryStart(constants.TimingExtract)
 
-	// serialise the paging data so that we capture it at the time of the download of this artifact
-	pagingData, err := b.getPagingDataJSON()
+	// serialise the collection state data so that we capture it at the time of the download of this artifact
+	collectionState, err := b.GetCollectionStateJSON()
 	if err != nil {
-		return fmt.Errorf("error serialising paging data: %w", err)
+		return fmt.Errorf("error serialising collection state data: %w", err)
 	}
 
 	// extract asynchronously
 	go func() {
 		extractStart := time.Now()
 		// TODO #error make sure errors handles and bubble back
-		err := b.extractArtifact(ctx, info, pagingData)
+		err := b.extractArtifact(ctx, info, collectionState)
 
 		// update extract active duration
 		activeDuration := time.Since(extractStart)
@@ -227,7 +262,7 @@ func (b *ArtifactSourceBase[T]) OnArtifactDownloaded(ctx context.Context, info *
 	}()
 
 	// notify observers of download
-	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, pagingData)); err != nil {
+	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, collectionState)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil
@@ -240,7 +275,7 @@ func (b *ArtifactSourceBase[T]) GetTiming() types.TimingCollection {
 // convert a downloaded artifact to a set of raw rows, with optional metadata
 // invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
-func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types.ArtifactInfo, pagingData json.RawMessage) error {
+func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types.ArtifactInfo, collectionState json.RawMessage) error {
 	slog.Debug("RowSourceBase extractArtifact", "artifact", info.Name)
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
@@ -266,7 +301,7 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 		if err != nil {
 			return fmt.Errorf("error mapping artifact: %w", err)
 		}
-		// raise row events, sending paging data
+		// raise row events, sending collection state data
 		var notifyErrors []error
 		for _, row := range rows {
 			count++
@@ -274,7 +309,7 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 			if row.Metadata == nil {
 				row.Metadata = info.EnrichmentFields
 			}
-			if err := b.OnRow(ctx, row, pagingData); err != nil {
+			if err := b.OnRow(ctx, row, collectionState); err != nil {
 				notifyErrors = append(notifyErrors, err)
 			}
 		}
@@ -290,19 +325,6 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 
 	slog.Debug("RowSourceBase extractArtifact complete", "artifact", info.Name, "rows", count)
 	return nil
-}
-
-// marshal the paging data to JSON (within a lock)
-func (b *ArtifactSourceBase[T]) getPagingDataJSON() (json.RawMessage, error) {
-	if b.PagingData == nil {
-		return nil, nil
-	}
-	// NOTE: lock the paging data to ensure it is not modified while we are serialising it
-	mut := b.PagingData.GetMut()
-	mut.RLock()
-	defer mut.RUnlock()
-
-	return json.Marshal(b.PagingData)
 }
 
 // mapArtifacts applies any configured mappers to the artifact data
@@ -396,4 +418,22 @@ func (b *ArtifactSourceBase[T]) resolveLoader(info *types.ArtifactInfo) (artifac
 	b.loaders[key] = l
 
 	return l, nil
+}
+
+// functions which must be implemented by structs embedding ArtifactSourceBase
+
+func (b *ArtifactSourceBase[T]) Identifier() string {
+	panic("Identifier must be implemented by the ArtifactSource implementation")
+}
+
+func (b *ArtifactSourceBase[T]) GetConfigSchema() parse.Config {
+	panic("GetConfigSchema must be implemented by the ArtifactSource implementation")
+}
+
+func (b *ArtifactSourceBase[T]) DiscoverArtifacts(ctx context.Context) error {
+	panic("DiscoverArtifacts must be implemented by the ArtifactSource implementation")
+}
+
+func (b *ArtifactSourceBase[T]) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
+	panic("DownloadArtifact must be implemented by the ArtifactSource implementation")
 }

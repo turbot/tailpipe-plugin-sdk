@@ -14,15 +14,18 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
+	typehelpers "github.com/turbot/go-kit/types"
+	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/hcl"
-	"github.com/turbot/tailpipe-plugin-sdk/paging"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 const (
 	AwsS3BucketSourceIdentifier = "aws_s3_bucket"
+	defaultBucketRegion         = "us-east-1"
 )
 
 func init() {
@@ -42,7 +45,9 @@ func NewAwsS3BucketSource() row_source.RowSource {
 	return &AwsS3BucketSource{}
 }
 
-func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data, opts ...row_source.RowSourceOption) error {
+func (s *AwsS3BucketSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
+	slog.Info("Initializing AwsS3BucketSource")
+
 	// call base to parse config and apply options
 	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
@@ -51,9 +56,9 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data, opts
 	s.Extensions = types.NewExtensionLookup(s.Config.Extensions)
 	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("s3-%s", s.Config.Bucket))
 
-	defaultBucketRegion := "us-east-1"
 	if s.Config.Region == nil {
-		s.Config.Region = &defaultBucketRegion
+		slog.Info("No region set, using default", "region", defaultBucketRegion)
+		s.Config.Region = utils.ToStringPointer(defaultBucketRegion)
 	}
 
 	// initialize client
@@ -62,9 +67,6 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *hcl.Data, opts
 		return err
 	}
 	s.client = client
-
-	// now we have config, create the paging data
-	s.PagingData = paging.NewS3Bucket(s.Config.Bucket)
 
 	slog.Info("Initialized AwsS3BucketSource", "bucket", s.Config.Bucket, "prefix", s.Config.Prefix, "extensions", s.Extensions)
 
@@ -75,12 +77,8 @@ func (s *AwsS3BucketSource) Identifier() string {
 	return AwsS3BucketSourceIdentifier
 }
 
-func (s *AwsS3BucketSource) GetConfigSchema() hcl.Config {
+func (s *AwsS3BucketSource) GetConfigSchema() parse.Config {
 	return &AwsS3BucketSourceConfig{}
-}
-
-func (s *AwsS3BucketSource) GetPagingDataSchema() paging.Data {
-	return &paging.S3Bucket{}
 }
 
 func (s *AwsS3BucketSource) Close() error {
@@ -110,7 +108,12 @@ func (s *AwsS3BucketSource) ValidateConfig() error {
 }
 
 func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
-	pagingData := s.PagingData.(*paging.S3Bucket)
+	// cast the collection state to the correct type
+	collectionState := s.CollectionState.(*collection_state.ArtifactCollectionState)
+	// verify this is initialized (i.e. the regex has been created)
+	if collectionState == nil || !collectionState.Initialized() {
+		return errors.New("collection state not initialized")
+	}
 
 	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
 		Bucket:     &s.Config.Bucket,
@@ -126,13 +129,6 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 		for _, object := range output.Contents {
 			path := *object.Key
 
-			// check if we've seen this object before and skip if we have
-			if pagingEntry := pagingData.Get(path); pagingEntry != nil {
-				if !object.LastModified.After(pagingEntry.LastModified) {
-					continue
-				}
-			}
-
 			// check the extension
 			if s.Extensions.IsValid(path) {
 				// populate enrichment fields the the source is aware of
@@ -143,7 +139,19 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 					TpSourceLocation: &path,
 				}
 
-				info := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
+				info := types.NewArtifactInfo(path, types.WithEnrichmentFields(sourceEnrichmentFields))
+
+				// extract properties based on the filename
+				extractedProperties, err := collectionState.ParseFilename(path)
+				if err != nil {
+					//	TODO #error #paging what??? download anyway???
+					continue
+				}
+				info.SetPathProperties(extractedProperties)
+				if !collectionState.ShouldCollect(info) {
+					continue
+				}
+
 				// notify observers of the discovered artifact
 				if err := s.OnArtifactDiscovered(ctx, info); err != nil {
 					// TODO #error should we continue or fail?
@@ -157,7 +165,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 }
 
 func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
-	pagingData := s.PagingData.(*paging.S3Bucket)
+	collectionState := s.CollectionState.(*collection_state.ArtifactCollectionState)
 
 	// Get the object from S3
 	getObjectOutput, err := s.client.GetObject(ctx, &s3.GetObjectInput{
@@ -192,19 +200,20 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.Ar
 	// notify observers of the discovered artifact
 	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name, EnrichmentFields: info.EnrichmentFields}
 
-	pagingData.Upsert(info.Name, *getObjectOutput.LastModified, *getObjectOutput.ContentLength)
+	// update the collection state
+	collectionState.Upsert(info)
 	return s.OnArtifactDownloaded(ctx, downloadInfo)
 }
 
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {
 	var opts []func(*config.LoadOptions) error
 	// add credentials if provided
-	// TODO handle all credential types https://github.com/turbot/tailpipe-plugin-sdk/issues/8
+	// TODO #config handle all credential types https://github.com/turbot/tailpipe-plugin-sdk/issues/8
 	if s.Config.AccessKey != "" && s.Config.SecretKey != "" {
 		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.Config.AccessKey, s.Config.SecretKey, s.Config.SessionToken)))
 	}
 
-	opts = append(opts, config.WithRegion(*s.Config.Region))
+	opts = append(opts, config.WithRegion(typehelpers.SafeString(s.Config.Region)))
 
 	cfg, err := config.LoadDefaultConfig(ctx, opts...)
 	if err != nil {

@@ -1,4 +1,4 @@
-package collection
+package partition
 
 //type CollectionSchema struct {
 //	// The name of the collection
@@ -7,4 +7,4 @@ package collection
 //	func
 //}
 
-//type CollectionCtor func[C, D[](C config)D Collection
+//type CollectionCtor func[C, D[](C config)D Partition

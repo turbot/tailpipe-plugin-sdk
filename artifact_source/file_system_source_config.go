@@ -1,6 +1,12 @@
 package artifact_source
 
+import "github.com/hashicorp/hcl/v2"
+
 type FileSystemSourceConfig struct {
+	ArtifactSourceConfigBase
+	// required to allow partial decoding
+	Remain hcl.Body `hcl:",remain" json:"-"`
+
 	Paths      []string `hcl:"paths"`
 	Extensions []string `hcl:"extensions"`
 }

@@ -1,0 +1,65 @@
+package parse
+
+import (
+	"fmt"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/hashicorp/hcl/v2/gohcl"
+	"github.com/hashicorp/hcl/v2/hclsyntax"
+	"github.com/turbot/go-kit/helpers"
+	"github.com/turbot/pipe-fittings/error_helpers"
+	pf_parse "github.com/turbot/pipe-fittings/parse"
+	"github.com/zclconf/go-cty/cty"
+	"github.com/zclconf/go-cty/cty/function"
+)
+
+// ParseConfig parses the HCL config and returns the struct
+// Config is an interface that all configuration structs must implement
+func ParseConfig[T Config](configData *Data, target T) (T, error) {
+	// Parse the config
+	file, diags := hclsyntax.ParseConfig(configData.Hcl, configData.Range.Filename, configData.Range.Start)
+	if diags.HasErrors() {
+		return target, fmt.Errorf("failed to parse config: %s", diags)
+	}
+
+	// Create empty eval context
+	evalCtx := &hcl.EvalContext{
+		Variables: make(map[string]cty.Value),
+		Functions: make(map[string]function.Function),
+	}
+
+	decodeDiags := decodeHclBodyWithNestedStructs(file.Body, evalCtx, target)
+	// Decode the body into the target struct
+	//decodeDiags := gohcl.DecodeBody(file.Body, evalCtx, target)
+	diags = append(diags, decodeDiags...)
+	if diags.HasErrors() {
+		return target, error_helpers.HclDiagsToError("Failed to decode config", diags)
+	}
+
+	// Return the struct by value
+	return target, nil
+}
+
+// decodeHclBodyWithNestedStructs decodes the hcl body into the target resource, also decoding into any nested structs
+func decodeHclBodyWithNestedStructs(body hcl.Body, evalCtx *hcl.EvalContext, resource any) (diags hcl.Diagnostics) {
+	defer func() {
+		if r := recover(); r != nil {
+			diags = append(diags, &hcl.Diagnostic{
+				Severity: hcl.DiagError,
+				Summary:  "unexpected error in decodeHclBodyWithNestedStructs",
+				Detail:   helpers.ToError(r).Error()})
+		}
+	}()
+
+	nestedStructs, moreDiags := pf_parse.GetNestedStructValsRecursive(resource)
+	diags = append(diags, moreDiags...)
+
+	moreDiags = gohcl.DecodeBody(body, evalCtx, resource)
+	diags = append(diags, moreDiags...)
+
+	for _, nestedStruct := range nestedStructs {
+		moreDiags := gohcl.DecodeBody(body, evalCtx, nestedStruct)
+		diags = append(diags, moreDiags...)
+	}
+
+	return diags
+}

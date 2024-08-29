@@ -15,13 +15,13 @@ func NewStartedEvent(executionId string) *Event {
 	}
 }
 
-func NewChunkWrittenEvent(executionId string, chunkNumber int, pagingData json.RawMessage) *Event {
+func NewChunkWrittenEvent(executionId string, chunkNumber int, collectionState json.RawMessage) *Event {
 	return &Event{
 		Event: &Event_ChunkWrittenEvent{
 			ChunkWrittenEvent: &EventChunkWritten{
-				ExecutionId: executionId,
-				ChunkNumber: int32(chunkNumber),
-				PagingData:  pagingData,
+				ExecutionId:     executionId,
+				ChunkNumber:     int32(chunkNumber),
+				CollectionState: collectionState,
 			},
 		},
 	}

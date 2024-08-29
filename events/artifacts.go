@@ -20,16 +20,16 @@ func NewArtifactDiscoveredEvent(executionId string, info *types.ArtifactInfo) *A
 
 type ArtifactDownloaded struct {
 	Base
-	ExecutionId string
-	Info        *types.ArtifactInfo
-	PagingData  json.RawMessage
+	ExecutionId     string
+	Info            *types.ArtifactInfo
+	CollectionState json.RawMessage
 }
 
-func NewArtifactDownloadedEvent(executionId string, info *types.ArtifactInfo, paging json.RawMessage) *ArtifactDownloaded {
+func NewArtifactDownloadedEvent(executionId string, info *types.ArtifactInfo, collectionState json.RawMessage) *ArtifactDownloaded {
 	return &ArtifactDownloaded{
-		ExecutionId: executionId,
-		Info:        info,
-		PagingData:  paging,
+		ExecutionId:     executionId,
+		Info:            info,
+		CollectionState: collectionState,
 	}
 }
 

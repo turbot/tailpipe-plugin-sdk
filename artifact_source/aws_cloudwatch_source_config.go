@@ -2,11 +2,16 @@ package artifact_source
 
 import (
 	"fmt"
+	"github.com/hashicorp/hcl/v2"
 	"time"
 )
 
 // AwsCloudWatchSourceConfig is the configuration for an [AwsCloudWatchSource]
 type AwsCloudWatchSourceConfig struct {
+	ArtifactSourceConfigBase
+	// required to allow partial decoding
+	Remain hcl.Body `hcl:",remain" json:"-"`
+
 	// TODO #config connection based credentials mechanism https://github.com/turbot/tailpipe-plugin-sdk/issues/8
 	AccessKey    string `hcl:"access_key"`
 	SecretKey    string `hcl:"secret_key"`
@@ -45,5 +50,5 @@ func (a *AwsCloudWatchSourceConfig) Validate() error {
 		return fmt.Errorf("start_time must be before end_time")
 	}
 
-	return nil
+	return a.ArtifactSourceConfigBase.Validate()
 }
