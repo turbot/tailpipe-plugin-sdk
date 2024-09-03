@@ -47,11 +47,20 @@ func NewAwsS3BucketSource() row_source.RowSource {
 
 func (s *AwsS3BucketSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing AwsS3BucketSource")
+	// TODO #hack should be able to use opts normally
+	// uses a specific collection state for AWS S3 Buckets
+	o := []row_source.RowSourceOption{
+		row_source.WithCollectionState(collection_state.NewAwsS3CollectionState),
+	}
+	o = append(o, opts...)
 
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceBase.Init(ctx, configData, o...); err != nil {
 		return err
 	}
+
+	// TODO #hack #init manually call init on collection state as (b *ArtifactSourceBase[T]) initCollectionState() doesn't call it
+	_ = s.CollectionState.(*collection_state.AwsS3CollectionState).Init(s.Config.FileLayout)
 
 	s.Extensions = types.NewExtensionLookup(s.Config.Extensions)
 	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("s3-%s", s.Config.Bucket))
@@ -59,6 +68,10 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *parse.Data, op
 	if s.Config.Region == nil {
 		slog.Info("No region set, using default", "region", defaultBucketRegion)
 		s.Config.Region = utils.ToStringPointer(defaultBucketRegion)
+	}
+
+	if s.Config.LexicographicalOrder {
+		s.CollectionState.(*collection_state.AwsS3CollectionState).UseStartAfterKey = true
 	}
 
 	// initialize client
@@ -109,16 +122,21 @@ func (s *AwsS3BucketSource) ValidateConfig() error {
 
 func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 	// cast the collection state to the correct type
-	collectionState := s.CollectionState.(*collection_state.ArtifactCollectionState)
+	collectionState := s.CollectionState.(*collection_state.AwsS3CollectionState)
 	// verify this is initialized (i.e. the regex has been created)
 	if collectionState == nil || !collectionState.Initialized() {
 		return errors.New("collection state not initialized")
 	}
 
+	startAfterKey := s.Config.StartAfterKey
+	if collectionState.UseStartAfterKey {
+		startAfterKey = collectionState.StartAfterKey
+	}
+
 	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
 		Bucket:     &s.Config.Bucket,
 		Prefix:     &s.Config.Prefix,
-		StartAfter: s.Config.StartAfterKey,
+		StartAfter: startAfterKey,
 	})
 
 	for paginator.HasMorePages() {
@@ -165,7 +183,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 }
 
 func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
-	collectionState := s.CollectionState.(*collection_state.ArtifactCollectionState)
+	collectionState := s.CollectionState.(*collection_state.AwsS3CollectionState)
 
 	// Get the object from S3
 	getObjectOutput, err := s.client.GetObject(ctx, &s3.GetObjectInput{
