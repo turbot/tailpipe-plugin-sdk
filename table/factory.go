@@ -63,17 +63,17 @@ func (f *TableFactory) GetTable(ctx context.Context, req *proto.CollectRequest) 
 	}
 
 	// create the table
-	col := ctor()
+	table := ctor()
 
 	//  register the table implementation with the base struct (_before_ calling Init)
 	// create an interface type to use - we do not want to expose this function in the Table interface
 	type baseTable interface{ RegisterImpl(Table) }
 
-	base, ok := col.(baseTable)
+	base, ok := table.(baseTable)
 	if !ok {
 		return nil, fmt.Errorf("table implementation must embed table.TableBase")
 	}
-	base.RegisterImpl(col)
+	base.RegisterImpl(table)
 
 	// prepare the data needed for Init
 
@@ -81,12 +81,12 @@ func (f *TableFactory) GetTable(ctx context.Context, req *proto.CollectRequest) 
 	tableConfigData := parse.DataFromProto(req.TableData)
 	sourceConfigData := parse.DataFromProto(req.SourceData)
 
-	err := col.Init(ctx, tableConfigData, req.CollectionState, sourceConfigData)
+	err := table.Init(ctx, tableConfigData, req.CollectionState, sourceConfigData)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise table: %w", err)
 	}
 
-	return col, nil
+	return table, nil
 }
 
 func (f *TableFactory) GetTables() map[string]func() Table {

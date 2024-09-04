@@ -117,29 +117,28 @@ func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, collec
 }
 
 func (b *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) error {
-	// ask the factory to create the collection
+	// ask the factory to create the table
 	// - this will configure the requested source
-	col, err := table.Factory.GetTable(ctx, req)
+	table, err := table.Factory.GetTable(ctx, req)
 	if err != nil {
 		return err
 	}
 
 	// add ourselves as an observer
-	if err := col.AddObserver(b); err != nil {
+	if err := table.AddObserver(b); err != nil {
 		// TODO #error handle error
 		slog.Error("add observer error", "error", err)
 	}
 
-	// signal we have started
 	// signal we have started
 	if err := b.OnStarted(ctx, req.ExecutionId); err != nil {
 		return fmt.Errorf("error signalling started: %w", err)
 	}
 
 	// tell the collection to start collecting - this is a blocking call
-	collectionState, err := col.Collect(ctx, req)
+	collectionState, err := table.Collect(ctx, req)
 
-	timing := col.GetTiming()
+	timing := table.GetTiming()
 
 	// signal we have completed - pass error if there was one
 	return b.OnCompleted(ctx, req.ExecutionId, collectionState, timing, err)

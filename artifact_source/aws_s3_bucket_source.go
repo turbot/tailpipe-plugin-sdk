@@ -156,6 +156,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 					continue
 				}
 				info.SetPathProperties(extractedProperties)
+
 				if !collectionState.ShouldCollect(info) {
 					continue
 				}
