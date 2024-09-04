@@ -13,5 +13,5 @@ func (b *CollectionStateBase) GetMut() *sync.RWMutex {
 }
 
 func (b *CollectionStateBase) IsEmpty() bool {
-	return true
+	panic("IsEmpty() must be implemented by type embedding CollectionStateBase")
 }
