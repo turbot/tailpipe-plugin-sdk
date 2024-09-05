@@ -13,6 +13,7 @@ import (
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
@@ -44,7 +45,7 @@ const ArtifactSourceMaxConcurrency = 16
 //     extract individual data rows from the artifact
 //
 // The lifetime of the ArtifactSourceBase is expected to be the duration of a single collection operation
-type ArtifactSourceBase[T ArtifactConfig] struct {
+type ArtifactSourceBase[T artifact_source_config.ArtifactSourceConfig] struct {
 	row_source.RowSourceBase[T]
 	// do we expect the a row to be a line of data
 	RowPerLine bool
@@ -58,7 +59,7 @@ type ArtifactSourceBase[T ArtifactConfig] struct {
 	// shadow the row_source.RowSourceBase Impl property, but using ArtifactSource interface
 	Impl ArtifactSource
 
-	defaultConfig *ArtifactSourceConfigBase
+	defaultConfig *artifact_source_config.ArtifactSourceConfigBase
 	// map of loaders created, keyed by identifier
 	// this is populated lazily if we infer the loader from the file type
 	loaders    map[string]artifact_loader.Loader
@@ -120,22 +121,7 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *parse.Data
 	b.loaders = make(map[string]artifact_loader.Loader)
 
 	// initialise the collection state
-	return b.initCollectionState()
-
-}
-
-func (b *ArtifactSourceBase[T]) initCollectionState() error {
-	type artifactCollectionState interface {
-		Init(fileLayout *string) error
-	}
-	// if the collection state is the default (ArtifactCollectionState), or has an init function with the same signature
-	// (for example, because it embeds ArtifactCollectionState, as AwsS3CollectionState does), initialise it
-	if a, ok := b.CollectionState.(artifactCollectionState); ok {
-		slog.Info("ArtifactSourceBase initCollectionState", "FileLayout", b.Config.GetFileLayout())
-		return a.Init(b.Config.GetFileLayout())
-	}
-
-	return nil
+	return b.CollectionState.Init(b.Config)
 }
 
 // Collect tells our ArtifactSourceBase to start discovering artifacts
@@ -172,7 +158,7 @@ func (b *ArtifactSourceBase[T]) AddMappers(mappers ...artifact_mapper.Mapper) {
 	b.Mappers = append(b.Mappers, mappers...)
 }
 
-func (b *ArtifactSourceBase[T]) SetDefaultConfig(config *ArtifactSourceConfigBase) {
+func (b *ArtifactSourceBase[T]) SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase) {
 	b.defaultConfig = config
 }
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"log/slog"
 	"os"
 	"path"
@@ -16,10 +15,12 @@ import (
 	cloudwatch_types "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -40,7 +41,7 @@ func init() {
 // AwsCloudWatchSource is a [ArtifactSource] implementation that reads logs from AWS CloudWatch
 // and writes them to a temp JSON file
 type AwsCloudWatchSource struct {
-	ArtifactSourceBase[*AwsCloudWatchSourceConfig]
+	ArtifactSourceBase[*artifact_source_config.AwsCloudWatchSourceConfig]
 
 	client  *cloudwatchlogs.Client
 	limiter *rate_limiter.APILimiter
@@ -82,7 +83,7 @@ func (s *AwsCloudWatchSource) Identifier() string {
 }
 
 func (s *AwsCloudWatchSource) GetConfigSchema() parse.Config {
-	return &AwsCloudWatchSourceConfig{}
+	return &artifact_source_config.AwsCloudWatchSourceConfig{}
 }
 
 // Close deletes the temp directory and all files

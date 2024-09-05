@@ -2,8 +2,10 @@ package artifact_source
 
 import (
 	"context"
+
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -20,5 +22,5 @@ type ArtifactSource interface {
 	AddMappers(mappers ...artifact_mapper.Mapper)
 	SetLoader(loader artifact_loader.Loader)
 	SetRowPerLine(b bool)
-	SetDefaultConfig(config *ArtifactSourceConfigBase)
+	SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase)
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
@@ -35,7 +36,7 @@ func init() {
 
 // AwsS3BucketSource is a [ArtifactSource] implementation that reads artifacts from an S3 bucket
 type AwsS3BucketSource struct {
-	ArtifactSourceBase[*AwsS3BucketSourceConfig]
+	ArtifactSourceBase[*artifact_source_config.AwsS3BucketSourceConfig]
 
 	Extensions types.ExtensionLookup
 	client     *s3.Client
@@ -56,9 +57,6 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *parse.Data, op
 		return err
 	}
 
-	// TODO #hack #init manually call init on collection state as (b *ArtifactSourceBase[T]) initCollectionState() doesn't call it
-	_ = s.CollectionState.(*collection_state.AwsS3CollectionState).Init(s.Config.FileLayout)
-
 	s.Extensions = types.NewExtensionLookup(s.Config.Extensions)
 	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("s3-%s", s.Config.Bucket))
 
@@ -66,11 +64,6 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *parse.Data, op
 		slog.Info("No region set, using default", "region", defaultBucketRegion)
 		s.Config.Region = utils.ToStringPointer(defaultBucketRegion)
 	}
-
-	if s.Config.LexicographicalOrder {
-		s.CollectionState.(*collection_state.AwsS3CollectionState).UseStartAfterKey = true
-	}
-
 	// initialize client
 	client, err := s.getClient(ctx)
 	if err != nil {
@@ -88,7 +81,7 @@ func (s *AwsS3BucketSource) Identifier() string {
 }
 
 func (s *AwsS3BucketSource) GetConfigSchema() parse.Config {
-	return &AwsS3BucketSourceConfig{}
+	return &artifact_source_config.AwsS3BucketSourceConfig{}
 }
 
 func (s *AwsS3BucketSource) Close() error {

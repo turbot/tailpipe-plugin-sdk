@@ -11,6 +11,7 @@ import (
 	"path"
 
 	"github.com/mitchellh/go-homedir"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -31,9 +32,9 @@ func init() {
 
 // GcpStorageBucketSource is a [ArtifactSource] implementation that reads artifacts from a GCP Storage bucket
 type GcpStorageBucketSource struct {
-	ArtifactSourceBase[*GcpStorageBucketSourceConfig]
+	ArtifactSourceBase[*artifact_source_config.GcpStorageBucketSourceConfig]
 
-	Config     GcpStorageBucketSourceConfig
+	Config     artifact_source_config.GcpStorageBucketSourceConfig
 	Extensions types.ExtensionLookup
 	client     *storage.Client
 }
@@ -66,7 +67,7 @@ func (s *GcpStorageBucketSource) Identifier() string {
 }
 
 func (s *GcpStorageBucketSource) GetConfigSchema() parse.Config {
-	return &GcpStorageBucketSourceConfig{}
+	return &artifact_source_config.GcpStorageBucketSourceConfig{}
 }
 
 func (s *GcpStorageBucketSource) Close() error {

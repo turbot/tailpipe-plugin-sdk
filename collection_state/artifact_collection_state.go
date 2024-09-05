@@ -2,12 +2,14 @@ package collection_state
 
 import (
 	"fmt"
-	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
 	"regexp"
 	"time"
+
+	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // ArtifactCollectionState is the interface for the collection state of an S3 bucket
@@ -22,7 +24,7 @@ func newArtifactMetadata(metadata *types.ArtifactInfo) *ArtifactMetadata {
 	return &ArtifactMetadata{Timestamp: metadata.Timestamp}
 }
 
-type ArtifactCollectionState struct {
+type ArtifactCollectionState[T artifact_source_config.ArtifactSourceConfig] struct {
 	CollectionStateBase
 	// the time rage of the data in the bucket
 	StartTime time.Time `json:"start_time,omitempty"`
@@ -39,13 +41,13 @@ type ArtifactCollectionState struct {
 	granularity time.Duration
 }
 
-func NewArtifactCollectionState() CollectionState {
+func NewArtifactCollectionState[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
 	// NOTE: no need to create maps here - they are created when needed
-	res := &ArtifactCollectionState{}
-	return res
+	return &ArtifactCollectionState[T]{}
 }
 
-func (s *ArtifactCollectionState) Init(fileLayout *string) error {
+func (s *ArtifactCollectionState[T]) Init(config T) error {
+	fileLayout := config.GetFileLayout()
 	slog.Info(fmt.Sprintf("Initializing ArtifactCollectionState %p", s), "fileLayout", fileLayout)
 	// if we do not have a file layout, we have nothing to do
 	if fileLayout == nil {
@@ -67,7 +69,7 @@ func (s *ArtifactCollectionState) Init(fileLayout *string) error {
 }
 
 // ShouldCollect returns whether the object should be collected
-func (s *ArtifactCollectionState) ShouldCollect(m *types.ArtifactInfo) bool {
+func (s *ArtifactCollectionState[T]) ShouldCollect(m *types.ArtifactInfo) bool {
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we must collect everything
 	if s.granularity == 0 {
@@ -103,7 +105,7 @@ func (s *ArtifactCollectionState) ShouldCollect(m *types.ArtifactInfo) bool {
 
 // Upsert adds new/updates an existing object with its current metadata
 // Note: the object name is the full path to the object
-func (s *ArtifactCollectionState) Upsert(metadata *types.ArtifactInfo) {
+func (s *ArtifactCollectionState[T]) Upsert(metadata *types.ArtifactInfo) {
 	s.Mut.Lock()
 	defer s.Mut.Unlock()
 
@@ -137,7 +139,7 @@ func (s *ArtifactCollectionState) Upsert(metadata *types.ArtifactInfo) {
 	}
 }
 
-func (s *ArtifactCollectionState) IsEmpty() bool {
+func (s *ArtifactCollectionState[T]) IsEmpty() bool {
 	return s.StartTime.IsZero()
 }
 
@@ -145,7 +147,7 @@ func (s *ArtifactCollectionState) IsEmpty() bool {
 // e.g., if the filename contains {year}/{month}/{day}/{hour}/{minute}, the granularity is 1 minute
 // if the filename contains {year}/{month}/{day}/{hour}, the granularity is 1 hour
 // NOTE: we traverse the time properties from largest to smallest
-func (s *ArtifactCollectionState) getGranularityFromRegex() {
+func (s *ArtifactCollectionState[T]) getGranularityFromRegex() {
 	// get the named capture groups from the regex
 	captureGroups := s.re.SubexpNames()
 	propertyLookup := utils.SliceToLookup(captureGroups)
@@ -180,7 +182,7 @@ func (s *ArtifactCollectionState) getGranularityFromRegex() {
 }
 
 // ArtifactCollectionStateOption is a function that sets an option on the ArtifactCollectionState
-func (s *ArtifactCollectionState) validateGranularity(a *types.ArtifactInfo) interface{} {
+func (s *ArtifactCollectionState[T]) validateGranularity(a *types.ArtifactInfo) interface{} {
 	if s.granularity == 0 {
 		// no granularity set, so we are collecting everything
 		return nil
@@ -221,7 +223,7 @@ func (s *ArtifactCollectionState) validateGranularity(a *types.ArtifactInfo) int
 
 }
 
-func (s *ArtifactCollectionState) ParseFilename(fileName string) (_ map[string]string, err error) {
+func (s *ArtifactCollectionState[T]) ParseFilename(fileName string) (_ map[string]string, err error) {
 	result := make(map[string]string)
 	// Match the filename against the re
 	match := s.re.FindStringSubmatch(fileName)
@@ -237,7 +239,7 @@ func (s *ArtifactCollectionState) ParseFilename(fileName string) (_ map[string]s
 	return result, nil
 }
 
-func (s *ArtifactCollectionState) inMap(m *types.ArtifactInfo, objectMap map[string]*ArtifactMetadata) bool {
+func (s *ArtifactCollectionState[T]) inMap(m *types.ArtifactInfo, objectMap map[string]*ArtifactMetadata) bool {
 	s.Mut.RLock()
 	defer s.Mut.RUnlock()
 
@@ -245,6 +247,6 @@ func (s *ArtifactCollectionState) inMap(m *types.ArtifactInfo, objectMap map[str
 	return ok
 }
 
-func (s *ArtifactCollectionState) Initialized() bool {
+func (s *ArtifactCollectionState[T]) Initialized() bool {
 	return s.re != nil
 }

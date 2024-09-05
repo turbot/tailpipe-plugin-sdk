@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -23,7 +24,7 @@ func init() {
 }
 
 type FileSystemSource struct {
-	ArtifactSourceBase[*FileSystemSourceConfig]
+	ArtifactSourceBase[*artifact_source_config.FileSystemSourceConfig]
 	Paths      []string
 	Extensions types.ExtensionLookup
 }
@@ -49,7 +50,7 @@ func (s *FileSystemSource) Identifier() string {
 }
 
 func (s *FileSystemSource) GetConfigSchema() parse.Config {
-	return &FileSystemSourceConfig{}
+	return &artifact_source_config.FileSystemSourceConfig{}
 }
 
 func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {

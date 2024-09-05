@@ -1,17 +1,25 @@
 package collection_state
 
-import "github.com/turbot/tailpipe-plugin-sdk/types"
+import (
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
+)
 
 // AwsS3CollectionState contains the collection state data for an AWS S3 Bucket artifact source
 type AwsS3CollectionState struct {
-	ArtifactCollectionState
+	ArtifactCollectionState[*artifact_source_config.AwsS3BucketSourceConfig]
 
 	StartAfterKey    *string `json:"start_after_key,omitempty"`
 	UseStartAfterKey bool    `json:"use_start_after_key"`
 }
 
-func NewAwsS3CollectionState() CollectionState {
+func NewAwsS3CollectionState() CollectionState[*artifact_source_config.AwsS3BucketSourceConfig] {
 	return &AwsS3CollectionState{}
+}
+
+func (s *AwsS3CollectionState) Init(config *artifact_source_config.AwsS3BucketSourceConfig) error {
+	config.LexicographicalOrder = s.UseStartAfterKey
+	return nil
 }
 
 // IsEmpty returns true if the collection state is empty

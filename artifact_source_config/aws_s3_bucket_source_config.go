@@ -1,4 +1,4 @@
-package artifact_source
+package artifact_source_config
 
 import "github.com/hashicorp/hcl/v2"
 

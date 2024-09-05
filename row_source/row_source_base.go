@@ -25,9 +25,9 @@ type RowSourceBase[T parse.Config] struct {
 	Impl RowSource
 
 	// the collection state data for this source
-	CollectionState collection_state.CollectionState
+	CollectionState collection_state.CollectionState[T]
 	// a function to create empty collection state data
-	NewCollectionStateFunc func() collection_state.CollectionState
+	NewCollectionStateFunc func() collection_state.CollectionState[T]
 }
 
 // RegisterImpl is called by the plugin implementation to register the table implementation
