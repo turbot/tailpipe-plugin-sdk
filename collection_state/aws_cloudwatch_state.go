@@ -11,7 +11,7 @@ type AwsCloudwatchState struct {
 	Timestamps map[string]int64 `json:"timestamps"`
 }
 
-func NewAwsCloudwatch() *AwsCloudwatchState {
+func NewAwsCloudwatchCollectionState() CollectionState[*artifact_source_config.AwsCloudWatchSourceConfig] {
 	return &AwsCloudwatchState{
 		Timestamps: make(map[string]int64),
 	}

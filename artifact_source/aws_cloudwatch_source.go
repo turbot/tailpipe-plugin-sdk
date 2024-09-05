@@ -52,6 +52,10 @@ func NewAwsCloudWatchSource() row_source.RowSource {
 }
 
 func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
+
+	// set the collection state func to the cloudwatch specific collection state
+	s.NewCollectionStateFunc = collection_state.NewAwsCloudwatchCollectionState
+
 	// call base to parse config and apply options
 	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err

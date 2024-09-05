@@ -18,7 +18,7 @@ func NewAwsS3CollectionState() CollectionState[*artifact_source_config.AwsS3Buck
 }
 
 func (s *AwsS3CollectionState) Init(config *artifact_source_config.AwsS3BucketSourceConfig) error {
-	config.LexicographicalOrder = s.UseStartAfterKey
+	s.UseStartAfterKey = config.LexicographicalOrder
 	return nil
 }
 
