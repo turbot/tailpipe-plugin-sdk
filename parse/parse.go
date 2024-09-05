@@ -10,6 +10,7 @@ import (
 	pf_parse "github.com/turbot/pipe-fittings/parse"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
+	"log/slog"
 )
 
 // ParseConfig parses the HCL config and returns the struct
@@ -18,6 +19,7 @@ func ParseConfig[T Config](configData *Data, target T) (T, error) {
 	// Parse the config
 	file, diags := hclsyntax.ParseConfig(configData.Hcl, configData.Range.Filename, configData.Range.Start)
 	if diags.HasErrors() {
+		slog.Warn("failed to parse config", "hcl", configData.Hcl)
 		return target, fmt.Errorf("failed to parse config: %s", diags)
 	}
 

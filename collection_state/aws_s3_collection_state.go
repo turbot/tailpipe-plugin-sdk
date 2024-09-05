@@ -19,7 +19,8 @@ func NewAwsS3CollectionState() CollectionState[*artifact_source_config.AwsS3Buck
 
 func (s *AwsS3CollectionState) Init(config *artifact_source_config.AwsS3BucketSourceConfig) error {
 	s.UseStartAfterKey = config.LexicographicalOrder
-	return nil
+	// call base init
+	return s.ArtifactCollectionState.Init(config)
 }
 
 // IsEmpty returns true if the collection state is empty
