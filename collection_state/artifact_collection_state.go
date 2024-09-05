@@ -80,7 +80,7 @@ func (s *ArtifactCollectionState[T]) ShouldCollect(m *types.ArtifactInfo) bool {
 	// validate that this artifact name contains the required fields for the current granularity
 	if err := s.validateGranularity(m); err != nil {
 		// TODO #error should this be an error instead
-		// we cannot accuratley determine the time for this artifact - collect it anyway
+		// we cannot accurately determine the time for this artifact - collect it anyway
 		return true
 	}
 

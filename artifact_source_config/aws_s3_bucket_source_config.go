@@ -8,12 +8,11 @@ type AwsS3BucketSourceConfig struct {
 	// required to allow partial decoding
 	Remain hcl.Body `hcl:",remain" json:"-"`
 
-	Bucket     string   `hcl:"bucket"`
-	Prefix     string   `hcl:"prefix"`
-	Extensions []string `hcl:"extensions"`
-	Region     *string  `hcl:"region"`
-	// TODO #config change to period, then calculate the time/key
-	StartAfterKey *string `hcl:"start_after_key"`
+	Bucket        string   `hcl:"bucket"`
+	Prefix        string   `hcl:"prefix"`
+	Extensions    []string `hcl:"extensions"`
+	Region        *string  `hcl:"region"`
+	StartAfterKey *string  `hcl:"start_after_key"`
 
 	// TODO #config use Connection for credentials https://github.com/turbot/tailpipe-plugin-sdk/issues/8
 	AccessKey    string `hcl:"access_key"`

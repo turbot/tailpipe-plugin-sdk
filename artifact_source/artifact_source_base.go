@@ -24,7 +24,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// TODO #config #debug set to one for simplicity for now https://github.com/turbot/tailpipe-plugin-sdk/issues/4
+// TODO #config configure https://github.com/turbot/tailpipe-plugin-sdk/issues/4
 const ArtifactSourceMaxConcurrency = 16
 
 // ArtifactSourceBase is a [row_source.RowSource] that extracts rows from an 'artifact'
