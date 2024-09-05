@@ -1,18 +1,9 @@
-package artifact_source
+package artifact_source_config
 
 import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/turbot/go-kit/helpers"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 )
-
-type ArtifactConfig interface {
-	parse.Config
-
-	GetFileLayout() *string
-	GetJsonPath() *string
-	DefaultTo(ArtifactConfig)
-}
 
 type ArtifactSourceConfigBase struct {
 	// required to allow partial decoding
@@ -38,7 +29,7 @@ func (b *ArtifactSourceConfigBase) GetJsonPath() *string {
 	return b.JsonPath
 }
 
-func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactConfig) {
+func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactSourceConfig) {
 	if helpers.IsNil(other) {
 		return
 	}

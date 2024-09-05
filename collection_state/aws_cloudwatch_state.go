@@ -1,5 +1,7 @@
 package collection_state
 
+import "github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
+
 // AwsCloudwatchState contains collection state data for the AwsCloudwatchState artifact source
 // This contains the latest timestamp fetched for each log stream in a SINGLE log group
 type AwsCloudwatchState struct {
@@ -9,26 +11,30 @@ type AwsCloudwatchState struct {
 	Timestamps map[string]int64 `json:"timestamps"`
 }
 
-func NewAwsCloudwatch() *AwsCloudwatchState {
+func NewAwsCloudwatchCollectionState() CollectionState[*artifact_source_config.AwsCloudWatchSourceConfig] {
 	return &AwsCloudwatchState{
 		Timestamps: make(map[string]int64),
 	}
 }
 
-// Upsert adds new/updates an existing logstream  with its current timestamp
-func (c *AwsCloudwatchState) Upsert(name string, time int64) {
-	c.Mut.Lock()
-	defer c.Mut.Unlock()
+func (s *AwsCloudwatchState) Init(*artifact_source_config.AwsCloudWatchSourceConfig) error {
+	return nil
+}
 
-	if c.Timestamps == nil {
-		c.Timestamps = make(map[string]int64)
+// Upsert adds new/updates an existing logstream  with its current timestamp
+func (s *AwsCloudwatchState) Upsert(name string, time int64) {
+	s.Mut.Lock()
+	defer s.Mut.Unlock()
+
+	if s.Timestamps == nil {
+		s.Timestamps = make(map[string]int64)
 	}
 	if time == 0 {
 		return
 	}
-	c.Timestamps[name] = time
+	s.Timestamps[name] = time
 }
 
-func (b *AwsCloudwatchState) IsEmpty() bool {
-	return len(b.Timestamps) == 0
+func (s *AwsCloudwatchState) IsEmpty() bool {
+	return len(s.Timestamps) == 0
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
@@ -35,7 +36,7 @@ func init() {
 
 // AwsS3BucketSource is a [ArtifactSource] implementation that reads artifacts from an S3 bucket
 type AwsS3BucketSource struct {
-	ArtifactSourceBase[*AwsS3BucketSourceConfig]
+	ArtifactSourceBase[*artifact_source_config.AwsS3BucketSourceConfig]
 
 	Extensions types.ExtensionLookup
 	client     *s3.Client
@@ -47,6 +48,9 @@ func NewAwsS3BucketSource() row_source.RowSource {
 
 func (s *AwsS3BucketSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing AwsS3BucketSource")
+
+	// set the collection state func to the S3 specific collection state
+	s.NewCollectionStateFunc = collection_state.NewAwsS3CollectionState
 
 	// call base to parse config and apply options
 	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
@@ -60,7 +64,6 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *parse.Data, op
 		slog.Info("No region set, using default", "region", defaultBucketRegion)
 		s.Config.Region = utils.ToStringPointer(defaultBucketRegion)
 	}
-
 	// initialize client
 	client, err := s.getClient(ctx)
 	if err != nil {
@@ -78,7 +81,7 @@ func (s *AwsS3BucketSource) Identifier() string {
 }
 
 func (s *AwsS3BucketSource) GetConfigSchema() parse.Config {
-	return &AwsS3BucketSourceConfig{}
+	return &artifact_source_config.AwsS3BucketSourceConfig{}
 }
 
 func (s *AwsS3BucketSource) Close() error {
@@ -109,16 +112,21 @@ func (s *AwsS3BucketSource) ValidateConfig() error {
 
 func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 	// cast the collection state to the correct type
-	collectionState := s.CollectionState.(*collection_state.ArtifactCollectionState)
+	collectionState := s.CollectionState.(*collection_state.AwsS3CollectionState)
 	// verify this is initialized (i.e. the regex has been created)
 	if collectionState == nil || !collectionState.Initialized() {
 		return errors.New("collection state not initialized")
 	}
 
+	startAfterKey := s.Config.StartAfterKey
+	if collectionState.UseStartAfterKey {
+		startAfterKey = collectionState.StartAfterKey
+	}
+
 	paginator := s3.NewListObjectsV2Paginator(s.client, &s3.ListObjectsV2Input{
 		Bucket:     &s.Config.Bucket,
 		Prefix:     &s.Config.Prefix,
-		StartAfter: s.Config.StartAfterKey,
+		StartAfter: startAfterKey,
 	})
 
 	for paginator.HasMorePages() {
@@ -165,7 +173,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 }
 
 func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
-	collectionState := s.CollectionState.(*collection_state.ArtifactCollectionState)
+	collectionState := s.CollectionState.(*collection_state.AwsS3CollectionState)
 
 	// Get the object from S3
 	getObjectOutput, err := s.client.GetObject(ctx, &s3.GetObjectInput{

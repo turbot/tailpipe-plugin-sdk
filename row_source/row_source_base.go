@@ -25,9 +25,9 @@ type RowSourceBase[T parse.Config] struct {
 	Impl RowSource
 
 	// the collection state data for this source
-	CollectionState collection_state.CollectionState
+	CollectionState collection_state.CollectionState[T]
 	// a function to create empty collection state data
-	newCollectionStateFunc func() collection_state.CollectionState
+	NewCollectionStateFunc func() collection_state.CollectionState[T]
 }
 
 // RegisterImpl is called by the plugin implementation to register the table implementation
@@ -62,11 +62,11 @@ func (b *RowSourceBase[T]) Init(ctx context.Context, configData *parse.Data, opt
 		b.Config = c
 	}
 
-	// if no collection state has been set already (by calling SetCollectionStateJSON) create empty collection state
+	// if no collection state has been se t already (by calling SetCollectionStateJSON) create empty collection state
 	// TODO #design is it acceptable to have no collection state? we should put nil checks round access to it
-	if b.CollectionState == nil && b.newCollectionStateFunc != nil {
+	if b.CollectionState == nil && b.NewCollectionStateFunc != nil {
 		slog.Info("Creating empty collection state")
-		b.CollectionState = b.newCollectionStateFunc()
+		b.CollectionState = b.NewCollectionStateFunc()
 	}
 
 	return nil
@@ -85,10 +85,6 @@ func (b *RowSourceBase[T]) OnRow(ctx context.Context, row *types.RowData, collec
 		return err
 	}
 	return b.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, collectionState, events.WithEnrichmentFields(row.Metadata)))
-}
-
-func (b *RowSourceBase[T]) SetCollectionStateFunc(f func() collection_state.CollectionState) {
-	b.newCollectionStateFunc = f
 }
 
 // GetCollectionStateJSON marshals the collection state data into JSON
@@ -112,11 +108,11 @@ func (b *RowSourceBase[T]) SetCollectionStateJSON(collectionStateJSON json.RawMe
 	if len(collectionStateJSON) == 0 {
 		return nil
 	}
-	if b.newCollectionStateFunc == nil {
+	if b.NewCollectionStateFunc == nil {
 		return fmt.Errorf("RowSource implementation must pass CollectionState function to its base to create an empty collection state data struct")
 	}
 
-	target := b.newCollectionStateFunc()
+	target := b.NewCollectionStateFunc()
 	if err := json.Unmarshal(collectionStateJSON, target); err != nil {
 		return err
 	}

@@ -3,11 +3,12 @@ package artifact_source
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 )
 
 // WithDefaultArtifactSourceConfig sets the default config, e.g. file layout, IF it has not been set from config
-func WithDefaultArtifactSourceConfig(config *ArtifactSourceConfigBase) row_source.RowSourceOption {
+func WithDefaultArtifactSourceConfig(config *artifact_source_config.ArtifactSourceConfigBase) row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
 		if a, ok := r.(ArtifactSource); ok {
 			a.SetDefaultConfig(config)

@@ -1,8 +1,12 @@
 package collection_state
 
-import "sync"
+import (
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"sync"
+)
 
-type CollectionState interface {
+type CollectionState[T parse.Config] interface {
 	GetMut() *sync.RWMutex
 	IsEmpty() bool
+	Init(config T) error
 }

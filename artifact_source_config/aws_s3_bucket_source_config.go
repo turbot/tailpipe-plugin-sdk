@@ -1,4 +1,4 @@
-package artifact_source
+package artifact_source_config
 
 import "github.com/hashicorp/hcl/v2"
 
@@ -19,6 +19,9 @@ type AwsS3BucketSourceConfig struct {
 	AccessKey    string `hcl:"access_key"`
 	SecretKey    string `hcl:"secret_key"`
 	SessionToken string `hcl:"session_token,optional"`
+
+	// TODO #config better naming
+	LexicographicalOrder bool `hcl:"lexicographical_order,optional"`
 }
 
 func (c AwsS3BucketSourceConfig) Validate() error {
