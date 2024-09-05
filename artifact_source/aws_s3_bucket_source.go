@@ -47,15 +47,12 @@ func NewAwsS3BucketSource() row_source.RowSource {
 
 func (s *AwsS3BucketSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing AwsS3BucketSource")
-	// TODO #hack should be able to use opts normally
-	// uses a specific collection state for AWS S3 Buckets
-	o := []row_source.RowSourceOption{
-		row_source.WithCollectionState(collection_state.NewAwsS3CollectionState),
-	}
-	o = append(o, opts...)
+
+	// set the collection state func to the S3 specific collection state
+	s.NewCollectionStateFunc = collection_state.NewAwsS3CollectionState
 
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceBase.Init(ctx, configData, o...); err != nil {
+	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
 

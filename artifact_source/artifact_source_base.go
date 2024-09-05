@@ -85,8 +85,11 @@ func (b *ArtifactSourceBase[T]) SetRowPerLine(rowPerLine bool) {
 func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing ArtifactSourceBase")
 
-	// set the collection state func to the default for artifacts ((this may be overriden by the derived type by passing an option
-	b.SetCollectionStateFunc(collection_state.NewArtifactCollectionState)
+	// if no collection state func has been set by a derived struct,
+	// set it to the default for artifacts
+	if b.NewCollectionStateFunc == nil {
+		b.NewCollectionStateFunc = collection_state.NewArtifactCollectionState
+	}
 
 	// call base to apply options and parse config
 	if err := b.RowSourceBase.Init(ctx, configData, opts...); err != nil {
@@ -100,9 +103,12 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *parse.Data
 	// apply default config (this handles null default)
 	b.Config.DefaultTo(b.defaultConfig)
 
-	// store impl as an ArtifactSource
-	// todo #validation check that the impl is an ArtifactSource
-	b.Impl = b.RowSourceBase.Impl.(ArtifactSource)
+	// store RowSourceBase.Impl as an ArtifactSource
+	impl, ok := b.RowSourceBase.Impl.(ArtifactSource)
+	if !ok {
+		return errors.New("ArtifactSourceBase.Impl must implement ArtifactSource")
+	}
+	b.Impl = impl
 
 	// setup rate limiter
 	b.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
@@ -119,12 +125,16 @@ func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *parse.Data
 }
 
 func (b *ArtifactSourceBase[T]) initCollectionState() error {
-	slog.Info("ArtifactSourceBase initCollectionState", "FileLayout", b.Config.GetFileLayout())
-
-	// if the collection state is the default (ArtifactCollectionState), initialise it
-	if collectionState, ok := b.CollectionState.(*collection_state.ArtifactCollectionState); ok {
-		collectionState.Init(b.Config.GetFileLayout())
+	type artifactCollectionState interface {
+		Init(fileLayout *string) error
 	}
+	// if the collection state is the default (ArtifactCollectionState), or has an init function with the same signature
+	// (for example, because it embeds ArtifactCollectionState, as AwsS3CollectionState does), initialise it
+	if a, ok := b.CollectionState.(artifactCollectionState); ok {
+		slog.Info("ArtifactSourceBase initCollectionState", "FileLayout", b.Config.GetFileLayout())
+		return a.Init(b.Config.GetFileLayout())
+	}
+
 	return nil
 }
 

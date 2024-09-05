@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -36,9 +35,6 @@ type RowSource interface {
 
 	// GetConfigSchema returns an empty instance of the config struct used by the source
 	GetConfigSchema() parse.Config
-
-	// SetCollectionStateFunc sets the function used to create the collection state data
-	SetCollectionStateFunc(func() collection_state.CollectionState)
 
 	// 	GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
 	GetCollectionStateJSON() (json.RawMessage, error)
