@@ -18,7 +18,7 @@ type CommonFields struct {
 	// Hive fields
 	TpPartition string `json:"tp_partition"`
 	TpIndex     string `json:"tp_index"`
-	TpDate      int32  `json:"tp_date"`
+	TpDate      string `json:"tp_date"`
 
 	// Searchable
 	TpAkas      []string `json:"tp_akas,omitempty"`
