@@ -18,9 +18,7 @@ type CommonFields struct {
 	// Hive fields
 	TpPartition string `json:"tp_partition"`
 	TpIndex     string `json:"tp_index"`
-	TpYear      int32  `json:"tp_year"`
-	TpMonth     int32  `json:"tp_month"`
-	TpDay       int32  `json:"tp_day"`
+	TpDate      int32  `json:"tp_date"`
 
 	// Searchable
 	TpAkas      []string `json:"tp_akas,omitempty"`
@@ -47,9 +45,7 @@ func (c *CommonFields) Clone() *CommonFields {
 		TpDestinationIP:   c.TpDestinationIP,
 		TpPartition:       c.TpPartition,
 		TpIndex:           c.TpIndex,
-		TpYear:            c.TpYear,
-		TpMonth:           c.TpMonth,
-		TpDay:             c.TpDay,
+		TpDate:            c.TpDate,
 		TpAkas:            append([]string(nil), c.TpAkas...),
 		TpIps:             append([]string(nil), c.TpIps...),
 		TpTags:            append([]string(nil), c.TpTags...),
