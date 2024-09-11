@@ -351,3 +351,58 @@ func TestGenericCollectionState_GetEarliestStartTime(t *testing.T) {
 		})
 	}
 }
+
+func TestGenericCollectionState_mergeRanges(t *testing.T) {
+	type testCase[T parse.Config] struct {
+		name          string
+		s             *GenericCollectionState[T]
+		want          []*CollectionStateRange
+		expectedCount int
+	}
+	tests := []testCase[parse.Config]{
+		{
+			name:          "GenericCollectionState mergeRanges Returns Empty When No Ranges Exist",
+			s:             &GenericCollectionState[parse.Config]{},
+			want:          []*CollectionStateRange(nil),
+			expectedCount: 0,
+		},
+		{
+			name:          "GenericCollectionState mergeRanges Returns Unchanged Ranges When MergeRange Not Set",
+			s:             singleRangeState(),
+			want:          []*CollectionStateRange{singleRangeState().Ranges[0]},
+			expectedCount: 1,
+		},
+		{
+			name: "GenericCollectionState mergeRanges Returns Merged Ranges When MergeRange Set",
+			s:    multiRangeState(),
+			want: []*CollectionStateRange{
+				{
+					StartTime:        start2023,
+					EndTime:          endFeb2024,
+					StartIdentifiers: map[string]any{"1": struct{}{}},
+					EndIdentifiers:   map[string]any{"1300": struct{}{}},
+				},
+			},
+			expectedCount: 1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			switch len(tt.s.Ranges) {
+			case 0:
+				tt.s.mergeRange = nil
+				tt.s.currentRange = nil
+			case 1:
+				tt.s.mergeRange = nil
+				tt.s.currentRange = tt.s.Ranges[0]
+			default:
+				tt.s.mergeRange = tt.s.getEarliestRange()
+				tt.s.currentRange = tt.s.getLatestRange()
+			}
+
+			out := tt.s.mergeRanges()
+			assert.Equalf(t, tt.want, out, "mergeRanges()")
+			assert.Equalf(t, tt.expectedCount, len(out), "len(Ranges)")
+		})
+	}
+}

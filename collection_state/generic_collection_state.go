@@ -68,13 +68,8 @@ func (s *GenericCollectionState[T]) StartCollection() {
 
 // EndCollection should be called only in the event of successful completion of a collection
 func (s *GenericCollectionState[T]) EndCollection() {
-	// short-circuit if we have no mergeRange
-	if s.mergeRange == nil {
-		return
-	}
-	// TODO: #collectionState if we have a mergeRange, we need to merge it with currentRange (compaction of ranges)
-	// TODO: #collectionState if we do compaction/merge here - how to handle writing the state?
-
+	// merge ranges
+	s.Ranges = s.mergeRanges()
 }
 
 func (s *GenericCollectionState[T]) IsEmpty() bool {
@@ -197,6 +192,34 @@ func (s *GenericCollectionState[T]) GetEarliestStartTime() *time.Time {
 	}
 
 	return &s.getEarliestRange().StartTime
+}
+
+func (s *GenericCollectionState[T]) mergeRanges() []*CollectionStateRange {
+	// short-circuit if we have no mergeRange
+	if s.mergeRange == nil {
+		return s.Ranges
+	}
+
+	// short-circuit if we obtained no new items to currentRange
+	if s.currentRange.StartTime.IsZero() || s.currentRange.EndTime.IsZero() {
+		return s.Ranges
+	}
+
+	// build ranges excluding currentRange and mergeRange
+	var existingOtherRanges []*CollectionStateRange
+	for _, r := range s.Ranges {
+		if r != s.currentRange && r != s.mergeRange {
+			existingOtherRanges = append(existingOtherRanges, r)
+		}
+	}
+
+	mergedRange := NewCollectionStateRange()
+	mergedRange.StartTime = s.mergeRange.StartTime
+	mergedRange.EndTime = s.currentRange.EndTime
+	mergedRange.StartIdentifiers = s.mergeRange.StartIdentifiers
+	mergedRange.EndIdentifiers = s.currentRange.EndIdentifiers
+
+	return append(existingOtherRanges, mergedRange)
 }
 
 // TODO: #collectionState - do we need GetLatestStartTime / GetEarliestEndTime?
