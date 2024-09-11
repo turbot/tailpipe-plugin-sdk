@@ -13,11 +13,19 @@ type CollectionStateRange struct {
 	EndIdentifiers   map[string]any `json:"end_identifiers,omitempty"`
 }
 
+func NewCollectionStateRange() *CollectionStateRange {
+	return &CollectionStateRange{
+		StartIdentifiers: make(map[string]any),
+		EndIdentifiers:   make(map[string]any),
+	}
+}
+
 type GenericCollectionState[T parse.Config] struct {
 	CollectionStateBase
-	Ranges          []*CollectionStateRange `json:"ranges"`
-	HasContinuation bool                    `json:"has_continuation"`
-	IsChronological bool                    `json:"is_chronological"`
+	Ranges            []*CollectionStateRange `json:"ranges"`
+	HasContinuation   bool                    `json:"has_continuation"`
+	ContinuationToken *string                 `json:"continuation_token,omitempty"`
+	IsChronological   bool                    `json:"is_chronological"`
 
 	currentRange *CollectionStateRange
 	mergeRange   *CollectionStateRange
@@ -56,8 +64,6 @@ func (s *GenericCollectionState[T]) StartCollection() {
 		// chronological without continuation, currentRange should be the earliest range
 		s.currentRange = s.getEarliestRange()
 	}
-
-	return
 }
 
 // EndCollection should be called only in the event of successful completion of a collection
@@ -66,8 +72,9 @@ func (s *GenericCollectionState[T]) EndCollection() {
 	if s.mergeRange == nil {
 		return
 	}
-	// if we have a mergeRange, merge currentRange and mergeRange
-	panic("Not Implemented")
+	// TODO: #collectionState if we have a mergeRange, we need to merge it with currentRange (compaction of ranges)
+	// TODO: #collectionState if we do compaction/merge here - how to handle writing the state?
+
 }
 
 func (s *GenericCollectionState[T]) IsEmpty() bool {
@@ -132,10 +139,7 @@ func (s *GenericCollectionState[T]) Upsert(ts time.Time, key string, meta any) {
 }
 
 func (s *GenericCollectionState[T]) addNewRange() *CollectionStateRange {
-	r := &CollectionStateRange{
-		StartIdentifiers: make(map[string]any),
-		EndIdentifiers:   make(map[string]any),
-	}
+	r := NewCollectionStateRange()
 	s.Ranges = append(s.Ranges, r)
 
 	return r
