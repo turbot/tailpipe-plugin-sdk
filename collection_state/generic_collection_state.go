@@ -182,3 +182,21 @@ func (s *GenericCollectionState[T]) getLatestRange() *CollectionStateRange {
 
 	return latestRange
 }
+
+func (s *GenericCollectionState[T]) GetLatestEndTime() *time.Time {
+	if len(s.Ranges) == 0 {
+		return nil
+	}
+
+	return &s.getLatestRange().EndTime
+}
+
+func (s *GenericCollectionState[T]) GetEarliestStartTime() *time.Time {
+	if len(s.Ranges) == 0 {
+		return nil
+	}
+
+	return &s.getEarliestRange().StartTime
+}
+
+// TODO: #collectionState - do we need GetLatestStartTime / GetEarliestEndTime?

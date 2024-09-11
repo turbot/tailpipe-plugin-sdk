@@ -275,18 +275,79 @@ func TestGenericCollectionState_StartCollection(t *testing.T) {
 func TestGenericCollectionState_EndCollection(t *testing.T) {
 	type testCase[T parse.Config] struct {
 		name string
-		s    GenericCollectionState[T]
+		s    *GenericCollectionState[T]
 	}
 	tests := []testCase[parse.Config]{
 		{
 			name: "GenericCollectionState EndCollection Returns Successfully When MergeRange Is Nil",
-			s:    GenericCollectionState[parse.Config]{},
+			s:    &GenericCollectionState[parse.Config]{},
 		},
 		// TODO: #test add test for ensuring currentRange is merged with mergeRange
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.s.EndCollection()
+		})
+	}
+}
+
+func TestGenericCollectionState_GetLatestEndTime(t *testing.T) {
+	type testCase[T parse.Config] struct {
+		name string
+		s    *GenericCollectionState[T]
+		want *time.Time
+	}
+	tests := []testCase[parse.Config]{
+		{
+			name: "GenericCollectionState GetLatestEndTime Returns Nil When No Ranges Exist",
+			s:    &GenericCollectionState[parse.Config]{},
+			want: nil,
+		},
+		{
+			name: "GenericCollectionState GetLatestEndTime Returns Latest EndTime When Single Range Exists",
+			s:    singleRangeState(),
+			want: &end2023,
+		},
+		{
+			name: "GenericCollectionState GetLatestEndTime Returns Latest EndTime When Multiple Ranges Exist",
+			s:    multiRangeState(),
+			want: &endFeb2024,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, tt.s.GetLatestEndTime(), "GetLatestEndTime()")
+		})
+	}
+}
+
+func TestGenericCollectionState_GetEarliestStartTime(t *testing.T) {
+	type testCase[T parse.Config] struct {
+		name string
+		s    *GenericCollectionState[T]
+		want *time.Time
+	}
+	tests := []testCase[parse.Config]{
+		{
+			name: "GenericCollectionState GetEarliestStartTime Returns Nil When No Ranges Exist",
+			s:    &GenericCollectionState[parse.Config]{},
+			want: nil,
+		},
+		{
+			name: "GenericCollectionState GetEarliestStartTime Returns Earliest StartTime When Single Range Exists",
+			s:    singleRangeState(),
+			want: &start2023,
+		},
+		{
+			name: "GenericCollectionState GetEarliestStartTime Returns Earliest StartTime When Multiple Ranges Exist",
+			s:    multiRangeState(),
+			want: &start2023,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equalf(t, tt.want, tt.s.GetEarliestStartTime(), "GetEarliestStartTime()")
 		})
 	}
 }
