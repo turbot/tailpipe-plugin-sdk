@@ -6,44 +6,50 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 )
 
-type CollectionStateRange struct {
+type CollectionStateTimeRange struct {
 	StartTime        time.Time      `json:"start_time,omitempty"`
 	EndTime          time.Time      `json:"end_time,omitempty"`
 	StartIdentifiers map[string]any `json:"start_identifiers,omitempty"`
 	EndIdentifiers   map[string]any `json:"end_identifiers,omitempty"`
 }
 
-func NewCollectionStateRange() *CollectionStateRange {
-	return &CollectionStateRange{
+func NewCollectionStateTimeRange() *CollectionStateTimeRange {
+	return &CollectionStateTimeRange{
 		StartIdentifiers: make(map[string]any),
 		EndIdentifiers:   make(map[string]any),
 	}
 }
 
-type GenericCollectionState[T parse.Config] struct {
+// TimeRangeCollectionState is a collection state that tracks time ranges of collected data from contiguous and non-contiguous sources.
+// - Ranges are defined by a start time and an end time. Each range has start and end identifiers to track boundary results.
+// - HasContinuation is a boolean that indicates whether the collection has a continuation token or can be continued from DateTime information in Ranges.
+// - ContinuationToken is a string that can be used to continue the collection from the last known state.
+// - IsChronological is a boolean that indicates whether the collection is chronological or reverse-chronological.
+type TimeRangeCollectionState[T parse.Config] struct {
 	CollectionStateBase
-	Ranges            []*CollectionStateRange `json:"ranges"`
-	HasContinuation   bool                    `json:"has_continuation"`
-	ContinuationToken *string                 `json:"continuation_token,omitempty"`
-	IsChronological   bool                    `json:"is_chronological"`
+	Ranges            []*CollectionStateTimeRange `json:"ranges"`
+	HasContinuation   bool                        `json:"has_continuation"`
+	ContinuationToken *string                     `json:"continuation_token,omitempty"`
+	// TODO: #collectionState - should this be an enum rather than a bool?
+	IsChronological bool `json:"is_chronological"`
 
-	currentRange *CollectionStateRange
-	mergeRange   *CollectionStateRange
-
-	// TODO: #collectionState - determine if we need granularity
-	granularity time.Duration
+	currentRange *CollectionStateTimeRange
+	mergeRange   *CollectionStateTimeRange
 }
 
-func NewGenericCollectionState[T parse.Config]() CollectionState[T] {
-	return &GenericCollectionState[T]{}
+func NewTimeRangeCollectionState[T parse.Config]() CollectionState[T] {
+	return &TimeRangeCollectionState[T]{}
 }
 
-func (s *GenericCollectionState[T]) Init(config T) error {
+// Init initializes the collection state with the provided configuration
+func (s *TimeRangeCollectionState[T]) Init(config T) error {
 	// TODO: Init
 	return nil
 }
 
-func (s *GenericCollectionState[T]) StartCollection() {
+// StartCollection should be called at the beginning of a collection.
+// It sets a currentRange for the collection and optionally a mergeRange based on existing ranges and configuration.
+func (s *TimeRangeCollectionState[T]) StartCollection() {
 	// short-circuit: if we have no ranges, create a new range for currentRange
 	if len(s.Ranges) == 0 {
 		s.currentRange = s.addNewRange()
@@ -67,16 +73,18 @@ func (s *GenericCollectionState[T]) StartCollection() {
 }
 
 // EndCollection should be called only in the event of successful completion of a collection
-func (s *GenericCollectionState[T]) EndCollection() {
+func (s *TimeRangeCollectionState[T]) EndCollection() {
 	// merge ranges
 	s.Ranges = s.mergeRanges()
 }
 
-func (s *GenericCollectionState[T]) IsEmpty() bool {
+// IsEmpty returns true if there are no ranges in the collection state
+func (s *TimeRangeCollectionState[T]) IsEmpty() bool {
 	return len(s.Ranges) == 0
 }
 
-func (s *GenericCollectionState[T]) ShouldCollectRow(ts time.Time, key string) bool {
+// ShouldCollectRow returns true if the row should be collected based on the time and provided key identifier
+func (s *TimeRangeCollectionState[T]) ShouldCollectRow(ts time.Time, key string) bool {
 	for _, r := range s.Ranges {
 		// inside an existing range, not a boundary
 		if ts.After(r.StartTime) && ts.Before(r.EndTime) {
@@ -107,7 +115,8 @@ func (s *GenericCollectionState[T]) ShouldCollectRow(ts time.Time, key string) b
 	return true
 }
 
-func (s *GenericCollectionState[T]) Upsert(ts time.Time, key string, meta any) {
+// Upsert sets or updates the current time range based on the timestamp and key identifier
+func (s *TimeRangeCollectionState[T]) Upsert(ts time.Time, key string, meta any) {
 	if meta == nil {
 		meta = struct{}{}
 	}
@@ -133,14 +142,14 @@ func (s *GenericCollectionState[T]) Upsert(ts time.Time, key string, meta any) {
 	}
 }
 
-func (s *GenericCollectionState[T]) addNewRange() *CollectionStateRange {
-	r := NewCollectionStateRange()
+func (s *TimeRangeCollectionState[T]) addNewRange() *CollectionStateTimeRange {
+	r := NewCollectionStateTimeRange()
 	s.Ranges = append(s.Ranges, r)
 
 	return r
 }
 
-func (s *GenericCollectionState[T]) getEarliestRange() *CollectionStateRange {
+func (s *TimeRangeCollectionState[T]) getEarliestRange() *CollectionStateTimeRange {
 	if len(s.Ranges) == 0 {
 		return nil
 	}
@@ -159,7 +168,7 @@ func (s *GenericCollectionState[T]) getEarliestRange() *CollectionStateRange {
 	return earliestRange
 }
 
-func (s *GenericCollectionState[T]) getLatestRange() *CollectionStateRange {
+func (s *TimeRangeCollectionState[T]) getLatestRange() *CollectionStateTimeRange {
 	if len(s.Ranges) == 0 {
 		return nil
 	}
@@ -178,7 +187,8 @@ func (s *GenericCollectionState[T]) getLatestRange() *CollectionStateRange {
 	return latestRange
 }
 
-func (s *GenericCollectionState[T]) GetLatestEndTime() *time.Time {
+// GetLatestEndTime returns the end time of the latest range in the collection state
+func (s *TimeRangeCollectionState[T]) GetLatestEndTime() *time.Time {
 	if len(s.Ranges) == 0 {
 		return nil
 	}
@@ -186,7 +196,8 @@ func (s *GenericCollectionState[T]) GetLatestEndTime() *time.Time {
 	return &s.getLatestRange().EndTime
 }
 
-func (s *GenericCollectionState[T]) GetEarliestStartTime() *time.Time {
+// GetEarliestStartTime returns the start time of the earliest range in the collection state
+func (s *TimeRangeCollectionState[T]) GetEarliestStartTime() *time.Time {
 	if len(s.Ranges) == 0 {
 		return nil
 	}
@@ -194,7 +205,7 @@ func (s *GenericCollectionState[T]) GetEarliestStartTime() *time.Time {
 	return &s.getEarliestRange().StartTime
 }
 
-func (s *GenericCollectionState[T]) mergeRanges() []*CollectionStateRange {
+func (s *TimeRangeCollectionState[T]) mergeRanges() []*CollectionStateTimeRange {
 	// short-circuit if we have no mergeRange
 	if s.mergeRange == nil {
 		return s.Ranges
@@ -206,14 +217,14 @@ func (s *GenericCollectionState[T]) mergeRanges() []*CollectionStateRange {
 	}
 
 	// build ranges excluding currentRange and mergeRange
-	var existingOtherRanges []*CollectionStateRange
+	var existingOtherRanges []*CollectionStateTimeRange
 	for _, r := range s.Ranges {
 		if r != s.currentRange && r != s.mergeRange {
 			existingOtherRanges = append(existingOtherRanges, r)
 		}
 	}
 
-	mergedRange := NewCollectionStateRange()
+	mergedRange := NewCollectionStateTimeRange()
 	mergedRange.StartTime = s.mergeRange.StartTime
 	mergedRange.EndTime = s.currentRange.EndTime
 	mergedRange.StartIdentifiers = s.mergeRange.StartIdentifiers
