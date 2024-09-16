@@ -43,7 +43,6 @@ func (r *RowSchema) ToProto() *proto.Schema {
 	return res
 }
 
-
 func RowSchemaFromProto(p *proto.Schema) *RowSchema {
 	var res = &RowSchema{
 		Columns: make([]*ColumnSchema, 0, len(p.Columns)),
