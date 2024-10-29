@@ -37,7 +37,7 @@ type TailpipePlugin interface {
 	Shutdown(context.Context) error
 
 	// Base returns the base instance - used for validation testing
-	Base() *PluginBase
+	Base() *Plugin
 }
 
 type ChunkWriter interface {

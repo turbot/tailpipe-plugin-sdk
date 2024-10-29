@@ -5,13 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
+
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
-	"log/slog"
 )
 
 // Notify implements observable.Observer
-func (b *PluginBase) Notify(ctx context.Context, event events.Event) error {
+func (b *Plugin) Notify(ctx context.Context, event events.Event) error {
 	switch e := event.(type) {
 	case *events.Row:
 		return b.handleRowEvent(ctx, e)
@@ -24,12 +25,12 @@ func (b *PluginBase) Notify(ctx context.Context, event events.Event) error {
 
 // OnStarted is called by the plugin when it starts processing a collection request
 // any observers are notified
-func (b *PluginBase) OnStarted(ctx context.Context, executionId string) error {
+func (b *Plugin) OnStarted(ctx context.Context, executionId string) error {
 	return b.NotifyObservers(ctx, events.NewStartedEvent(executionId))
 }
 
 // OnChunk is called by the plugin when it has written a chunk of enriched rows to a [JSONL/CSV] file
-func (b *PluginBase) OnChunk(ctx context.Context, chunkNumber int, paging json.RawMessage) error {
+func (b *Plugin) OnChunk(ctx context.Context, chunkNumber int, paging json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -42,7 +43,7 @@ func (b *PluginBase) OnChunk(ctx context.Context, chunkNumber int, paging json.R
 
 // handleRowEvent is called by the plugin for every row which it produces
 // the row is buffered and written to a JSONL file when the buffer is full
-func (b *PluginBase) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (b *Plugin) handleRowEvent(ctx context.Context, e *events.Row) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -80,7 +81,7 @@ func (b *PluginBase) handleRowEvent(ctx context.Context, e *events.Row) error {
 	return nil
 }
 
-func (b *PluginBase) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
+func (b *Plugin) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
 	// determine chunk number from rowCountMap
 	chunkNumber := int(rowCount / JSONLChunkSize)
 	// check for final partial chunk
