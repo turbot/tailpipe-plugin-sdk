@@ -20,8 +20,8 @@ import (
 // TODO configure? https://github.com/turbot/tailpipe-plugin-sdk/issues/18
 const JSONLChunkSize = 1000
 
-// PluginBase should be embedded in all [TailpipePlugin] implementations
-type PluginBase struct {
+// Plugin should be created via NewPlugin method.
+type Plugin struct {
 	observable.ObservableBase
 
 	// row buffer keyed by execution id
@@ -34,15 +34,22 @@ type PluginBase struct {
 	rowCountMap map[string]int
 
 	writer ChunkWriter
+
+	identifier string
 }
 
-func (b *PluginBase) Identifier() string {
+// NewPlugin creates a new plugin instance with the given identifier.
+func NewPlugin(identifier string) *Plugin {
+	return &Plugin{identifier: identifier}
+}
 
-	panic("identifier must be implemented by the plugin")
+// Identifier returns the plugin name
+func (b *Plugin) Identifier() string {
+	return b.identifier
 }
 
 // Init implements [plugin.TailpipePlugin]
-func (b *PluginBase) Init(context.Context) error {
+func (b *Plugin) Init(context.Context) error {
 	// if the plugin overrides this function it must call the base implementation
 	b.rowBufferMap = make(map[string][]any)
 	b.rowCountMap = make(map[string]int)
@@ -50,11 +57,11 @@ func (b *PluginBase) Init(context.Context) error {
 }
 
 // initialized returns true if the plugin has been initialized
-func (b *PluginBase) initialized() bool {
+func (b *Plugin) initialized() bool {
 	return b.rowBufferMap != nil
 }
 
-func (b *PluginBase) Collect(ctx context.Context, req *proto.CollectRequest) error {
+func (b *Plugin) Collect(ctx context.Context, req *proto.CollectRequest) error {
 	log.Println("[INFO] Collect")
 
 	// create writer
@@ -74,22 +81,22 @@ func (b *PluginBase) Collect(ctx context.Context, req *proto.CollectRequest) err
 }
 
 // Shutdown is called by Serve when the plugin exits
-func (b *PluginBase) Shutdown(context.Context) error {
+func (b *Plugin) Shutdown(context.Context) error {
 	return nil
 }
 
 // GetSchema implements TailpipePlugin
-func (b *PluginBase) GetSchema() schema.SchemaMap {
+func (b *Plugin) GetSchema() schema.SchemaMap {
 	// ask the collection factory
 	return table.Factory.GetSchema()
 }
 
 // Base returns the base instance - used for validation testing
-func (b *PluginBase) Base() *PluginBase {
+func (b *Plugin) Base() *Plugin {
 	return b
 }
 
-func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, collectionState json.RawMessage, timing types.TimingCollection, err error) error {
+func (b *Plugin) OnCompleted(ctx context.Context, executionId string, collectionState json.RawMessage, timing types.TimingCollection, err error) error {
 	// get row count and the rows in the buffers
 	b.rowBufferLock.Lock()
 	rowCount := b.rowCountMap[executionId]
@@ -116,7 +123,7 @@ func (b *PluginBase) OnCompleted(ctx context.Context, executionId string, collec
 	return b.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, timing, err))
 }
 
-func (b *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) error {
+func (b *Plugin) doCollect(ctx context.Context, req *proto.CollectRequest) error {
 	// ask the factory to create the table
 	// - this will configure the requested source
 	table, err := table.Factory.GetTable(ctx, req)
