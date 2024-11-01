@@ -46,7 +46,7 @@ func NewAwsS3BucketSource() row_source.RowSource {
 	return &AwsS3BucketSource{}
 }
 
-func (s *AwsS3BucketSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
+func (s *AwsS3BucketSource) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing AwsS3BucketSource")
 
 	// set the collection state func to the S3 specific collection state

@@ -43,7 +43,7 @@ func NewGcpStorageBucketSource() row_source.RowSource {
 	return &GcpStorageBucketSource{}
 }
 
-func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
+func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
 	// call base to parse config and apply options
 	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
 		return err

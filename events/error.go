@@ -16,5 +16,13 @@ func NewErrorEvent(executionId string, err error) *Error {
 }
 
 func (c *Error) ToProto() *proto.Event {
-	return proto.NewErrorEvent(c.ExecutionId, c.Err)
+	return &proto.Event{
+		Event: &proto.Event_ErrorEvent{
+			ErrorEvent: &proto.EventError{
+				ExecutionId: c.ExecutionId,
+				Error:       c.Err.Error(),
+			},
+		},
+	}
+
 }

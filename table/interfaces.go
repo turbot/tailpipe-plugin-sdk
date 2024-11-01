@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -20,7 +19,7 @@ type Table interface {
 
 	// Init is called when the collection created
 	// it is responsible for parsing the config and creating the configured Source
-	Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, tableConfigData *parse.Data, sourceConfigData *parse.Data, connectionData *parse.Data, collectionStateJSON json.RawMessage) error
+	Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, req *types.CollectRequest) error
 	// Identifier must return the collection name
 	Identifier() string
 	// GetRowSchema returns an empty instance of the row struct returned by the collection
@@ -32,7 +31,7 @@ type Table interface {
 
 	// Collect is called to start collecting data,
 	// Collect will send enriched rows which satisfy the tailpipe row requirements
-	Collect(context.Context, *proto.CollectRequest) (json.RawMessage, error)
+	Collect(context.Context, *types.CollectRequest) (json.RawMessage, error)
 	// EnrichRow is called for each raw row of data, it must enrich the row and return it
 	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)
 	// GetTiming returns the timing for the collection

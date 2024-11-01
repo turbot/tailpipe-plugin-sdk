@@ -50,7 +50,7 @@ func NewAwsCloudWatchSource() row_source.RowSource {
 	return &AwsCloudWatchSource{}
 }
 
-func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
+func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
 
 	// set the collection state func to the cloudwatch specific collection state
 	s.NewCollectionStateFunc = collection_state.NewAwsCloudwatchCollectionState

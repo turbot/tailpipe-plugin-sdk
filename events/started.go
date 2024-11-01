@@ -14,5 +14,11 @@ func NewStartedEvent(executionId string) *Started {
 }
 
 func (s *Started) ToProto() *proto.Event {
-	return proto.NewStartedEvent(s.ExecutionId)
+	return &proto.Event{
+		Event: &proto.Event_StartedEvent{
+			StartedEvent: &proto.EventStarted{
+				ExecutionId: s.ExecutionId,
+			},
+		},
+	}
 }

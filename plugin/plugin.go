@@ -77,7 +77,9 @@ func (p *PluginBase) Collect(ctx context.Context, req *proto.CollectRequest) err
 		// create context containing execution id
 		ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
 
-		err := p.doCollect(ctx, req)
+		// map req to our internal type
+		collectRequest := types.CollectRequestFromProto(req)
+		err := p.doCollect(ctx, collectRequest)
 		if err != nil {
 			slog.Error("doCollect failed", "error", err)
 			_ = p.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
@@ -136,7 +138,7 @@ func (p *PluginBase) OnCompleted(ctx context.Context, executionId string, collec
 	return p.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, timing, err))
 }
 
-func (p *PluginBase) doCollect(ctx context.Context, req *proto.CollectRequest) error {
+func (p *PluginBase) doCollect(ctx context.Context, req *types.CollectRequest) error {
 	// ask the factory to create the table
 	// - this will configure the requested source
 	t, err := table.Factory.GetTable(ctx, req, p)

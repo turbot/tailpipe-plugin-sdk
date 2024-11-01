@@ -23,7 +23,7 @@ type RowSource interface {
 
 	// Init is called when the row source is created
 	// it is responsible for parsing the source config and configuring the source
-	Init(context.Context, *parse.Data, ...RowSourceOption) error
+	Init(context.Context, *types.ConfigData, ...RowSourceOption) error
 
 	// Identifier must return the source name
 	Identifier() string

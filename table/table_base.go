@@ -12,7 +12,6 @@ import (
 
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -56,29 +55,29 @@ type TableBase[T, V parse.Config] struct {
 }
 
 // Init implements table.Table
-func (b *TableBase[T, V]) Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, tableConfigData *parse.Data, sourceConfigData *parse.Data, connectionData *parse.Data, collectionStateJSON json.RawMessage) error {
-	if err := b.initialiseConfig(tableConfigData); err != nil {
+func (b *TableBase[T, V]) Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, req *types.CollectRequest) error {
+	if err := b.initialiseConfig(req.TableData); err != nil {
 		return err
 	}
-	if err := b.initialiseConnection(connectionSchemaProvider, connectionData); err != nil {
+	if err := b.initialiseConnection(connectionSchemaProvider, req.ConnectionData); err != nil {
 		return err
 	}
 
 	// initialise the source
-	sourceOpts := b.impl.GetSourceOptions(sourceConfigData.Type)
+	sourceOpts := b.impl.GetSourceOptions(req.SourceData.Type)
 	// if collectionStateJSON is non-empty, add an option to set it
-	if len(collectionStateJSON) > 0 {
-		sourceOpts = append(sourceOpts, row_source.WithCollectionStateJSON(collectionStateJSON))
+	if len(req.CollectionState) > 0 {
+		sourceOpts = append(sourceOpts, row_source.WithCollectionStateJSON(req.CollectionState))
 	}
 
-	if err := b.initSource(ctx, sourceConfigData, sourceOpts...); err != nil {
+	if err := b.initSource(ctx, req.SourceData, sourceOpts...); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (b *TableBase[T, V]) initialiseConfig(tableConfigData *parse.Data) error {
+func (b *TableBase[T, V]) initialiseConfig(tableConfigData *types.ConfigData) error {
 	if len(tableConfigData.Hcl) > 0 {
 		// parse the config
 		var emptyConfig = b.impl.GetConfigSchema().(T)
@@ -98,7 +97,7 @@ func (b *TableBase[T, V]) initialiseConfig(tableConfigData *parse.Data) error {
 	return nil
 }
 
-func (b *TableBase[T, V]) initialiseConnection(connectionSchemaProvider ConnectionSchemaProvider, connectionData *parse.Data) error {
+func (b *TableBase[T, V]) initialiseConnection(connectionSchemaProvider ConnectionSchemaProvider, connectionData *types.ConfigData) error {
 	if len(connectionData.Hcl) > 0 {
 		// parse the config
 		var emptyConfig, ok = connectionSchemaProvider.GetConnectionSchema().(V)
@@ -122,7 +121,7 @@ func (b *TableBase[T, V]) initialiseConnection(connectionSchemaProvider Connecti
 }
 
 // initialise the row source
-func (b *TableBase[T, V]) initSource(ctx context.Context, configData *parse.Data, sourceOpts ...row_source.RowSourceOption) error {
+func (b *TableBase[T, V]) initSource(ctx context.Context, configData *types.ConfigData, sourceOpts ...row_source.RowSourceOption) error {
 	// TODO verify we support this source type https://github.com/turbot/tailpipe-plugin-sdk/issues/16
 
 	// now ask plugin to create and initialise the source for us
@@ -150,7 +149,7 @@ func (*TableBase[T, V]) GetSourceOptions(sourceType string) []row_source.RowSour
 }
 
 // Collect executes the collection process. Tell our source to start collection
-func (b *TableBase[T, V]) Collect(ctx context.Context, req *proto.CollectRequest) (json.RawMessage, error) {
+func (b *TableBase[T, V]) Collect(ctx context.Context, req *types.CollectRequest) (json.RawMessage, error) {
 	slog.Info("Start collection")
 
 	// create empty status event

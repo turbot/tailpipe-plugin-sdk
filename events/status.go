@@ -21,7 +21,18 @@ func NewStatusEvent(executionId string) *Status {
 }
 
 func (r *Status) ToProto() *proto.Event {
-	return proto.NewStatusEvent(r.ArtifactsDiscovered, r.ArtifactsDownloaded, r.ArtifactsExtracted, r.RowsEnriched, r.Errors)
+	return &proto.Event{
+		Event: &proto.Event_StatusEvent{
+			StatusEvent: &proto.EventStatus{
+				ArtifactsDiscovered: int64(r.ArtifactsDiscovered),
+				ArtifactsDownloaded: int64(r.ArtifactsDownloaded),
+				ArtifactsExtracted:  int64(r.ArtifactsExtracted),
+				RowsEnriched:        int64(r.RowsEnriched),
+				Errors:              int32(r.Errors),
+			},
+		},
+	}
+
 }
 
 func (r *Status) Update(event Event) {

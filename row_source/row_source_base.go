@@ -38,7 +38,7 @@ func (b *RowSourceBase[T]) RegisterImpl(impl RowSource) {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (b *RowSourceBase[T]) Init(ctx context.Context, configData *parse.Data, opts ...RowSourceOption) error {
+func (b *RowSourceBase[T]) Init(ctx context.Context, configData *types.ConfigData, opts ...RowSourceOption) error {
 	slog.Info(fmt.Sprintf("Initializing RowSourceBase %p, impl %p", b, b.Impl))
 
 	// apply options to the Impl (as options will be dependent on the outer type)

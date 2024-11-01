@@ -80,7 +80,7 @@ func (b *ArtifactSourceBase[T]) SetRowPerLine(rowPerLine bool) {
 	b.RowPerLine = rowPerLine
 }
 
-func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
+func (b *ArtifactSourceBase[T]) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing ArtifactSourceBase")
 
 	// if no collection state func has been set by a derived struct,
