@@ -10,7 +10,7 @@ const (
 	AWSCloudwatchMapperIdentifier = "aws_cloudwatch_mapper"
 )
 
-// CloudwatchMapper is an [plugin.Mappers] implementation
+// CloudwatchMapper is an [plugin.Mapper] implementation
 // that receives JSON data and returns AWSCloudTrail records
 type CloudwatchMapper struct {
 }

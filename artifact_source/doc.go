@@ -10,7 +10,7 @@
 // An RowSourceBase is composed of:
 // - an [artifact.ArtifactSource] which discovers and downloads artifacts to a temp local file, and handles incremental/restartable downloads
 // - an [artifact.Loader] which loads the arifact data from the local file, performing any necessary decompression/decryption etc.
-// - optionally, one or more [artifact.Mappers]s which perform processing/conversion/extraction logic required to
+// - optionally, one or more [artifact.Mapper]s which perform processing/conversion/extraction logic required to
 //
 // Sources provided by the SDK:
 // - [FileSystemSource]
