@@ -39,7 +39,7 @@ type TableBase[T parse.Config] struct {
 	// this is incremented each time we receive a row event and decremented when we have processed it
 	rowWg sync.WaitGroup
 
-	Mapper artifact_mapper.Mapper
+	Mappers []artifact_mapper.Mapper
 
 	// we only send status events periodically, to avoid flooding the event stream
 	// store a status event and we will update it each time we receive artifact or row events
@@ -238,25 +238,28 @@ func (b *TableBase[T]) mapRow(ctx context.Context, rawRow any) ([]any, error) {
 	var dataList = []any{rawRow}
 
 	// iff there is no mappers, just return the data as is
-	if b.Mapper == nil {
+	if len(b.Mappers) == 0 {
 		return dataList, nil
 	}
 
 	var errList []error
 
 	// invoke each mapper in turn
-	var mappedDataList []any
-	for _, d := range dataList {
-		mappedData, err := b.Mapper.Map(ctx, d)
-		if err != nil {
-			// TODO #error should we give up immediately
-			errList = append(errList, err)
-		} else {
-			mappedDataList = append(mappedDataList, mappedData...)
+	for _, m := range b.Mappers {
+		var mappedDataList []any
+		for _, d := range dataList {
+			mappedData, err := m.Map(ctx, d)
+			if err != nil {
+				// TODO #error should we give up immediately
+				errList = append(errList, err)
+			} else {
+				mappedDataList = append(mappedDataList, mappedData...)
+			}
 		}
+
+		// update artifactData list
+		dataList = mappedDataList
 	}
-	// update artifactData list
-	dataList = mappedDataList
 
 	if len(errList) > 0 {
 		return nil, fmt.Errorf("error mapping artifact rows: %w", errors.Join(errList...))
