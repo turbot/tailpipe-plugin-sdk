@@ -1,6 +1,8 @@
 module github.com/turbot/tailpipe-plugin-sdk
 
-go 1.23
+go 1.23.1
+
+toolchain go1.23.2
 
 replace github.com/turbot/pipe-fittings => ../pipe-fittings
 

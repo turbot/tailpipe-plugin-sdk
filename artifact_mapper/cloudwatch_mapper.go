@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/helpers"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 const (
@@ -27,16 +25,16 @@ func (c *CloudwatchMapper) Identifier() string {
 }
 
 // Map unmarshalls JSON into an AWSCloudTrailBatch object and extracts AWSCloudTrail records from it
-func (c *CloudwatchMapper) Map(_ context.Context, a *types.RowData) ([]*types.RowData, error) {
+func (c *CloudwatchMapper) Map(_ context.Context, a any) ([]any, error) {
 	// when using the row per line on artifact source (i.e. lambda logs in CloudWatch), the data is a string
-	if _, isString := a.Data.(string); isString {
-		a.Data = []byte(a.Data.(string))
+	if _, isString := a.(string); isString {
+		a = []byte(a.(string))
 	}
 	// TODO #mapper make this more resilient to input type https://github.com/turbot/tailpipe-plugin-sdk/issues/2
 	// the expected input type is a JSON string deserializable to a map with keys "IngestionTime", "Timestamp" and "Message"
-	jsonBytes, ok := a.Data.([]byte)
+	jsonBytes, ok := a.([]byte)
 	if !ok {
-		return nil, fmt.Errorf("expected string, got %T", a.Data)
+		return nil, fmt.Errorf("expected string, got %T", a)
 	}
 
 	var cloudwatchEntry map[string]any
@@ -49,11 +47,10 @@ func (c *CloudwatchMapper) Map(_ context.Context, a *types.RowData) ([]*types.Ro
 		return nil, fmt.Errorf("expected key 'Message' in cloudwatch log entry")
 	}
 	row := msg.(string)
-	metadata := a.Metadata.Clone()
-	metadata.TpIngestTimestamp = helpers.UnixMillis(cloudwatchEntry["IngestionTime"].(float64))
-	metadata.TpTimestamp = helpers.UnixMillis(cloudwatchEntry["Timestamp"].(float64))
 
-	d := types.NewData(row, types.WithMetadata(metadata))
+	// TODO fix this
+	//metadata.TpIngestTimestamp = helpers.UnixMillis(cloudwatchEntry["IngestionTime"].(float64))
+	//metadata.TpTimestamp = helpers.UnixMillis(cloudwatchEntry["Timestamp"].(float64))
 
-	return []*types.RowData{d}, nil
+	return []any{row}, nil
 }

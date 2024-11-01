@@ -2,7 +2,6 @@ package artifact_source
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 )
@@ -12,17 +11,6 @@ func WithDefaultArtifactSourceConfig(config *artifact_source_config.ArtifactSour
 	return func(r row_source.RowSource) error {
 		if a, ok := r.(ArtifactSource); ok {
 			a.SetDefaultConfig(config)
-		}
-		return nil
-	}
-}
-
-// WithArtifactMapper is used when creating an ArtifactSourceBase
-// It adds a mapper to the row source
-func WithArtifactMapper(mappers ...artifact_mapper.Mapper) row_source.RowSourceOption {
-	return func(r row_source.RowSource) error {
-		if a, ok := r.(ArtifactSource); ok {
-			a.AddMappers(mappers...)
 		}
 		return nil
 	}

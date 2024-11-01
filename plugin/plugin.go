@@ -71,9 +71,10 @@ func (b *Plugin) Collect(ctx context.Context, req *proto.CollectRequest) error {
 		// create context containing execution id
 		ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
 
-		if err := b.doCollect(ctx, req); err != nil {
+		err := b.doCollect(ctx, req)
+		if err != nil {
 			slog.Error("doCollect failed", "error", err)
-			b.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
+			_ = b.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
 		}
 	}()
 

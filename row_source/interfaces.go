@@ -38,6 +38,7 @@ type RowSource interface {
 
 	// 	GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
 	GetCollectionStateJSON() (json.RawMessage, error)
+
 	// SetCollectionStateJSON unmarshalls the collection state data JSON into the target object
 	SetCollectionStateJSON(stateJSON json.RawMessage) error
 

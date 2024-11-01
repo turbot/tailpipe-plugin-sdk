@@ -3,7 +3,9 @@ package table
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
 	"log/slog"
 	"sync"
 	"time"
@@ -37,6 +39,8 @@ type TableBase[T parse.Config] struct {
 	// this is incremented each time we receive a row event and decremented when we have processed it
 	rowWg sync.WaitGroup
 
+	Mapper artifact_mapper.Mapper
+
 	// we only send status events periodically, to avoid flooding the event stream
 	// store a status event and we will update it each time we receive artifact or row events
 	status              *events.Status
@@ -64,13 +68,19 @@ func (b *TableBase[T]) Init(ctx context.Context, tableConfigData *parse.Data, co
 			return fmt.Errorf("invalid config: %w", err)
 		}
 	}
+
 	// initialise the source
 	sourceOpts := b.impl.GetSourceOptions(sourceConfigData.Type)
 	// if collectionStateJSON is non-empty, add an option to set it
 	if len(collectionStateJSON) > 0 {
 		sourceOpts = append(sourceOpts, row_source.WithCollectionStateJSON(collectionStateJSON))
 	}
-	return b.initSource(ctx, sourceConfigData, sourceOpts...)
+	err := b.initSource(ctx, sourceConfigData, sourceOpts...)
+	if err != nil {
+		return err
+	}
+	//b.SetMapper()
+	return nil
 }
 
 // initialise the row source
@@ -175,33 +185,82 @@ func (b *TableBase[T]) updateStatus(ctx context.Context, e events.Event) {
 	}
 }
 
-// handleRowEvent is invoked when a Row event is received - enrich the row and publish it
+// handleRowEvent is invoked when a Row event is received - map, enrich and publish the row
 func (b *TableBase[T]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	b.rowWg.Add(1)
 	defer b.rowWg.Done()
 
+	// when all rows, a null row will be sent - DO NOT try to enrich this!
+	row := e.Row
+	if row == nil {
+		// notify of nil row
+		return b.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, row, e.CollectionState))
+	}
+
+	// put data into an array as that is what mappers expect
+	rows, err := b.mapRow(ctx, row)
+	if err != nil {
+		return fmt.Errorf("error mapping artifact: %w", err)
+	}
+
 	// set the enrich time if not already set
 	b.enrichTiming.TryStart(constants.TimingEnrich)
 
-	// when all rows, a null row will be sent - DO NOT try to enrich this!
-	row := e.Row
-	if row != nil {
-		var err error
-		enrichStart := time.Now()
-		row, err = b.impl.EnrichRow(e.Row, e.EnrichmentFields)
+	enrichStart := time.Now()
+	for _, mappedRow := range rows {
+		// enrich the row
+		enrichedRow, err := b.impl.EnrichRow(mappedRow, e.EnrichmentFields)
 		if err != nil {
 			return err
 		}
 
-		// update the enrich active duration
-		b.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
-	}
+		if err := b.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, enrichedRow, e.CollectionState)); err != nil {
+			return err
+		}
 
-	return b.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, row, e.CollectionState))
+	}
+	// update the enrich active duration
+	b.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
+
+	return nil
+
 }
 
 func (b *TableBase[T]) handeErrorEvent(e *events.Error) error {
 	slog.Error("Table RowSourceBase: error event received", "error", e.Err)
 	b.NotifyObservers(context.Background(), e)
 	return nil
+}
+
+// mapROw applies any configured mappers to the artifact data
+func (b *TableBase[T]) mapRow(ctx context.Context, rawRow any) ([]any, error) {
+	// mappers may return multiple rows so wrap data in a list
+	var dataList = []any{rawRow}
+
+	// iff there is no mappers, just return the data as is
+	if b.Mapper == nil {
+		return dataList, nil
+	}
+
+	var errList []error
+
+	// invoke each mapper in turn
+	var mappedDataList []any
+	for _, d := range dataList {
+		mappedData, err := b.Mapper.Map(ctx, d)
+		if err != nil {
+			// TODO #error should we give up immediately
+			errList = append(errList, err)
+		} else {
+			mappedDataList = append(mappedDataList, mappedData...)
+		}
+	}
+	// update artifactData list
+	dataList = mappedDataList
+
+	if len(errList) > 0 {
+		return nil, fmt.Errorf("error mapping artifact rows: %w", errors.Join(errList...))
+	}
+
+	return dataList, nil
 }

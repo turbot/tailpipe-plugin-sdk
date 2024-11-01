@@ -12,7 +12,6 @@ import (
 
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
@@ -50,8 +49,6 @@ type ArtifactSourceBase[T artifact_source_config.ArtifactSourceConfig] struct {
 	// do we expect the a row to be a line of data
 	RowPerLine bool
 	Loader     artifact_loader.Loader
-
-	Mappers []artifact_mapper.Mapper
 
 	// TODO #config should this be in base - means the risk that a derived struct will not set it https://github.com/turbot/tailpipe-plugin-sdk/issues/3
 	TmpDir string
@@ -152,10 +149,6 @@ func (b *ArtifactSourceBase[T]) Collect(ctx context.Context) error {
 
 func (b *ArtifactSourceBase[T]) SetLoader(loader artifact_loader.Loader) {
 	b.Loader = loader
-}
-
-func (b *ArtifactSourceBase[T]) AddMappers(mappers ...artifact_mapper.Mapper) {
-	b.Mappers = append(b.Mappers, mappers...)
 }
 
 func (b *ArtifactSourceBase[T]) SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase) {
@@ -291,24 +284,18 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 	count := 0
 
 	// range over the data channel and apply mappers
-	for artifactData := range artifactChan {
-		// pout data into an array as that is what mappers expect
-		rows, err := b.mapArtifacts(ctx, artifactData)
-		if err != nil {
-			return fmt.Errorf("error mapping artifact: %w", err)
-		}
+	for rawRow := range artifactChan {
 		// raise row events, sending collection state data
 		var notifyErrors []error
-		for _, row := range rows {
-			count++
-			// NOTE: if no metadata has been set on the row, use any metadata from the artifact
-			if row.Metadata == nil {
-				row.Metadata = info.EnrichmentFields
-			}
-			if err := b.OnRow(ctx, row, collectionState); err != nil {
-				notifyErrors = append(notifyErrors, err)
-			}
+		count++
+		// NOTE: if no metadata has been set on the row, use any metadata from the artifact
+		if rawRow.Metadata == nil {
+			rawRow.Metadata = info.EnrichmentFields
 		}
+		if err := b.OnRow(ctx, rawRow, collectionState); err != nil {
+			notifyErrors = append(notifyErrors, err)
+		}
+
 		if len(notifyErrors) > 0 {
 			return fmt.Errorf("error notifying %d %s of row event: %w", len(notifyErrors), utils.Pluralize("observer", len(notifyErrors)), errors.Join(notifyErrors...))
 		}
@@ -321,40 +308,6 @@ func (b *ArtifactSourceBase[T]) extractArtifact(ctx context.Context, info *types
 
 	slog.Debug("RowSourceBase extractArtifact complete", "artifact", info.Name, "rows", count)
 	return nil
-}
-
-// mapArtifacts applies any configured mappers to the artifact data
-func (b *ArtifactSourceBase[T]) mapArtifacts(ctx context.Context, artifactData *types.RowData) ([]*types.RowData, error) {
-	// mappers may return multiple rows so wrap data in a list
-	var dataList = []*types.RowData{artifactData}
-
-	// iff there are no mappers, just return the data as is
-	if len(b.Mappers) == 0 {
-		return []*types.RowData{artifactData}, nil
-	}
-	var errList []error
-
-	// invoke each mapper in turn
-	for _, m := range b.Mappers {
-		var mappedDataList []*types.RowData
-		for _, d := range dataList {
-			mappedData, err := m.Map(ctx, d)
-			if err != nil {
-				// TODO #error should we give up immediately
-				errList = append(errList, err)
-			} else {
-				mappedDataList = append(mappedDataList, mappedData...)
-			}
-		}
-		// update artifactData list
-		dataList = mappedDataList
-	}
-
-	if len(errList) > 0 {
-		return nil, fmt.Errorf("error mapping artifact rows: %w", errors.Join(errList...))
-	}
-
-	return dataList, nil
 }
 
 // resolveLoader resolves the loader to use for the artifact
