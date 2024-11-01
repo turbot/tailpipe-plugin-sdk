@@ -47,7 +47,7 @@ Examples:
     - `GetConfigSchema`
     - `EnrichRow` 
   - Define a row struct row the collection will return - this defines the schema of the collection and should embed `enrichment.CommonFields` 
-  - Define a config struct with HCL tags for the collection config
+  - Define a config struct with HCL tags for the table config
   - [TODO] Define/register which sources the collection supports
   - Register the collection with the plugin by calling `RegisterCollection` on the plugin struct within the plugin constructor. 
 #### 1.2.3 [optional] Define custom Sources 

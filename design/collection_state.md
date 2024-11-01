@@ -9,7 +9,7 @@ data being stored, which may depend on the Collection type, and also may be conf
 
 By default, all ArtifactRowSources will use `ArtifactCollectionState`, which uses a regex to extract timing information 
 from the filename of the artifact. It is the responsible of the collection to pass the correct regex to the RowSource 
-- either from the source/collection config, or providing a default appreopriate to the colleciton type.
+- either from the source/table config, or providing a default appreopriate to the colleciton type.
 
 There is already a mechanism for the colleciton to specify options to pass to the RowSource - add WithCollectStateOptions
 to the RowSource options.

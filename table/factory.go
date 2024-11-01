@@ -54,7 +54,7 @@ func (f *TableFactory) GetSchema() schema.SchemaMap {
 	return f.schemaMap
 }
 
-func (f *TableFactory) GetTable(ctx context.Context, req *proto.CollectRequest) (Table, error) {
+func (f *TableFactory) GetTable(ctx context.Context, req *proto.CollectRequest, connectionSchemaProvider ConnectionSchemaProvider) (Table, error) {
 	// get the registered constructor for the table
 	ctor, ok := f.tableFuncs[req.TableData.Type]
 	if !ok {
@@ -80,8 +80,9 @@ func (f *TableFactory) GetTable(ctx context.Context, req *proto.CollectRequest) 
 	// convert req into tableConfigData and sourceConfigData
 	tableConfigData := parse.DataFromProto(req.TableData)
 	sourceConfigData := parse.DataFromProto(req.SourceData)
+	connectionData := parse.DataFromProto(req.ConnectionData)
 
-	err := table.Init(ctx, tableConfigData, req.CollectionState, sourceConfigData)
+	err := table.Init(ctx, connectionSchemaProvider, tableConfigData, sourceConfigData, connectionData, req.CollectionState)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise table: %w", err)
 	}

@@ -24,7 +24,8 @@ const statusUpdateInterval = 250 * time.Millisecond
 
 // TableBase provides a base implementation of the [table.Table] interface
 // it should be embedded in all Table implementations
-type TableBase[T parse.Config] struct {
+// T is the table config type anv V is the connection config type
+type TableBase[T, V parse.Config] struct {
 	observable.ObservableBase
 
 	// the row Source
@@ -33,13 +34,17 @@ type TableBase[T parse.Config] struct {
 	// store a reference to the derived collection type so we can call its methods
 	impl Table
 
-	// the collection config
+	// the table config
 	Config T
+	// the connection config
+	Connection V
+
+	// row mappers
+	Mappers []artifact_mapper.Mapper
+
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
 	rowWg sync.WaitGroup
-
-	Mappers []artifact_mapper.Mapper
 
 	// we only send status events periodically, to avoid flooding the event stream
 	// store a status event and we will update it each time we receive artifact or row events
@@ -51,7 +56,29 @@ type TableBase[T parse.Config] struct {
 }
 
 // Init implements table.Table
-func (b *TableBase[T]) Init(ctx context.Context, tableConfigData *parse.Data, collectionStateJSON json.RawMessage, sourceConfigData *parse.Data) error {
+func (b *TableBase[T, V]) Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, tableConfigData *parse.Data, sourceConfigData *parse.Data, connectionData *parse.Data, collectionStateJSON json.RawMessage) error {
+	if err := b.initialiseConfig(tableConfigData); err != nil {
+		return err
+	}
+	if err := b.initialiseConnection(connectionSchemaProvider, connectionData); err != nil {
+		return err
+	}
+
+	// initialise the source
+	sourceOpts := b.impl.GetSourceOptions(sourceConfigData.Type)
+	// if collectionStateJSON is non-empty, add an option to set it
+	if len(collectionStateJSON) > 0 {
+		sourceOpts = append(sourceOpts, row_source.WithCollectionStateJSON(collectionStateJSON))
+	}
+
+	if err := b.initSource(ctx, sourceConfigData, sourceOpts...); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (b *TableBase[T, V]) initialiseConfig(tableConfigData *parse.Data) error {
 	if len(tableConfigData.Hcl) > 0 {
 		// parse the config
 		var emptyConfig = b.impl.GetConfigSchema().(T)
@@ -68,23 +95,34 @@ func (b *TableBase[T]) Init(ctx context.Context, tableConfigData *parse.Data, co
 			return fmt.Errorf("invalid config: %w", err)
 		}
 	}
+	return nil
+}
 
-	// initialise the source
-	sourceOpts := b.impl.GetSourceOptions(sourceConfigData.Type)
-	// if collectionStateJSON is non-empty, add an option to set it
-	if len(collectionStateJSON) > 0 {
-		sourceOpts = append(sourceOpts, row_source.WithCollectionStateJSON(collectionStateJSON))
+func (b *TableBase[T, V]) initialiseConnection(connectionSchemaProvider ConnectionSchemaProvider, connectionData *parse.Data) error {
+	if len(connectionData.Hcl) > 0 {
+		// parse the config
+		var emptyConfig, ok = connectionSchemaProvider.GetConnectionSchema().(V)
+		if !ok {
+			return fmt.Errorf("connection schema provider does not return the correct type")
+		}
+		c, err := parse.ParseConfig[V](connectionData, emptyConfig)
+		if err != nil {
+			return fmt.Errorf("error parsing connection: %w", err)
+		}
+		b.Connection = c
+
+		slog.Info("Table RowSourceBase: } parsed", "}", c)
+
+		// validate config
+		if err := c.Validate(); err != nil {
+			return fmt.Errorf("invalid }: %w", err)
+		}
 	}
-	err := b.initSource(ctx, sourceConfigData, sourceOpts...)
-	if err != nil {
-		return err
-	}
-	//b.SetMapper()
 	return nil
 }
 
 // initialise the row source
-func (b *TableBase[T]) initSource(ctx context.Context, configData *parse.Data, sourceOpts ...row_source.RowSourceOption) error {
+func (b *TableBase[T, V]) initSource(ctx context.Context, configData *parse.Data, sourceOpts ...row_source.RowSourceOption) error {
 	// TODO verify we support this source type https://github.com/turbot/tailpipe-plugin-sdk/issues/16
 
 	// now ask plugin to create and initialise the source for us
@@ -101,18 +139,18 @@ func (b *TableBase[T]) initSource(ctx context.Context, configData *parse.Data, s
 // RegisterImpl is called by the plugin implementation to register the collection implementation
 // it also resisters the supported sources for this collection
 // this is required so that the TableBase can call the collection's methods
-func (b *TableBase[T]) RegisterImpl(impl Table) {
+func (b *TableBase[T, V]) RegisterImpl(impl Table) {
 	b.impl = impl
 }
 
 // GetSourceOptions give the collection a chance to specify options for the source
 // default implementation returning nothing
-func (*TableBase[T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
+func (*TableBase[T, V]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
 	return nil
 }
 
 // Collect executes the collection process. Tell our source to start collection
-func (b *TableBase[T]) Collect(ctx context.Context, req *proto.CollectRequest) (json.RawMessage, error) {
+func (b *TableBase[T, V]) Collect(ctx context.Context, req *proto.CollectRequest) (json.RawMessage, error) {
 	slog.Info("Start collection")
 
 	// create empty status event
@@ -146,7 +184,7 @@ func (b *TableBase[T]) Collect(ctx context.Context, req *proto.CollectRequest) (
 
 // Notify implements observable.Observer
 // it handles all events which tableFuncs may receive (these will all come from the source)
-func (b *TableBase[T]) Notify(ctx context.Context, event events.Event) error {
+func (b *TableBase[T, V]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	b.updateStatus(ctx, event)
 
@@ -161,14 +199,14 @@ func (b *TableBase[T]) Notify(ctx context.Context, event events.Event) error {
 	}
 }
 
-func (b *TableBase[T]) GetTiming() types.TimingCollection {
+func (b *TableBase[T, V]) GetTiming() types.TimingCollection {
 	return append(b.Source.GetTiming(), b.enrichTiming)
 }
 
 // updateStatus updates the status counters with the latest event
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
-func (b *TableBase[T]) updateStatus(ctx context.Context, e events.Event) {
+func (b *TableBase[T, V]) updateStatus(ctx context.Context, e events.Event) {
 	b.statusLock.Lock()
 	defer b.statusLock.Unlock()
 
@@ -186,7 +224,7 @@ func (b *TableBase[T]) updateStatus(ctx context.Context, e events.Event) {
 }
 
 // handleRowEvent is invoked when a Row event is received - map, enrich and publish the row
-func (b *TableBase[T]) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (b *TableBase[T, V]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	b.rowWg.Add(1)
 	defer b.rowWg.Done()
 
@@ -226,14 +264,14 @@ func (b *TableBase[T]) handleRowEvent(ctx context.Context, e *events.Row) error 
 
 }
 
-func (b *TableBase[T]) handeErrorEvent(e *events.Error) error {
+func (b *TableBase[T, V]) handeErrorEvent(e *events.Error) error {
 	slog.Error("Table RowSourceBase: error event received", "error", e.Err)
 	b.NotifyObservers(context.Background(), e)
 	return nil
 }
 
 // mapROw applies any configured mappers to the artifact data
-func (b *TableBase[T]) mapRow(ctx context.Context, rawRow any) ([]any, error) {
+func (b *TableBase[T, V]) mapRow(ctx context.Context, rawRow any) ([]any, error) {
 	// mappers may return multiple rows so wrap data in a list
 	var dataList = []any{rawRow}
 

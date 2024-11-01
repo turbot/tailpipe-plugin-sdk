@@ -20,7 +20,7 @@ type Table interface {
 
 	// Init is called when the collection created
 	// it is responsible for parsing the config and creating the configured Source
-	Init(ctx context.Context, tableConfigData *parse.Data, collectionStateJSON json.RawMessage, sourceConfigData *parse.Data) error
+	Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, tableConfigData *parse.Data, sourceConfigData *parse.Data, connectionData *parse.Data, collectionStateJSON json.RawMessage) error
 	// Identifier must return the collection name
 	Identifier() string
 	// GetRowSchema returns an empty instance of the row struct returned by the collection
@@ -37,4 +37,9 @@ type Table interface {
 	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)
 	// GetTiming returns the timing for the collection
 	GetTiming() types.TimingCollection
+}
+
+// ConnectionSchemaProvider is an interface that is implemented by th eplugin which provides the config schema
+type ConnectionSchemaProvider interface {
+	GetConnectionSchema() parse.Config
 }
