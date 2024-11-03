@@ -26,17 +26,20 @@ func (c *DelimitedLineMapper[T]) Identifier() string {
 	return "delimited_line_logger"
 }
 
-func (c *DelimitedLineMapper[T]) Map(ctx context.Context, a *types.RowData) ([]*types.RowData, error) {
+func (c *DelimitedLineMapper[T]) Map(ctx context.Context, a any) ([]T, error) {
 	var out []*types.RowData
 	var parsed *gonx.Entry
 	var err error
+	rowData, ok := a.(*types.RowData)
+	if !ok {
+		return nil, fmt.Errorf("expected *types.RowData, got %T", a)
+	}
 
 	// validate input type is string
-	input, ok := a.Data.(string)
+	input, ok := a.(string)
 	if !ok {
-		return nil, fmt.Errorf("expected string, got %T", a.Data)
+		return nil, fmt.Errorf("expected string, got %T", rowData.Data)
 	}
-	inputMetadata := a.Metadata
 
 	for _, parser := range c.parsers {
 		parsed, err = parser.ParseString(input)
@@ -53,7 +56,5 @@ func (c *DelimitedLineMapper[T]) Map(ctx context.Context, a *types.RowData) ([]*
 		return nil, fmt.Errorf("error initialising row from map: %w", err)
 	}
 
-	out = append(out, types.NewData(row, types.WithMetadata(inputMetadata)))
-
-	return out, nil
+	return []T{row}, nil
 }
