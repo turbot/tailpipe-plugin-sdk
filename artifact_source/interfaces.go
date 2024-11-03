@@ -10,7 +10,7 @@ import (
 )
 
 // ArtifactSource is an interface providing methods for discovering and downloading artifacts to the local file system
-// an [row_source.RowSourceBase] must be configured to have a ArtifactSource implementation.
+// an [row_source.RowSourceImpl] must be configured to have a ArtifactSource implementation.
 // Sources provided by the SDK: [FileSystemSource], [AwsS3BucketSource], [AwsCloudWatchSource]
 type ArtifactSource interface {
 	row_source.RowSource

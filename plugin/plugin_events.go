@@ -12,7 +12,7 @@ import (
 )
 
 // Notify implements observable.Observer
-func (p *PluginBase) Notify(ctx context.Context, event events.Event) error {
+func (p *PluginImpl) Notify(ctx context.Context, event events.Event) error {
 	switch e := event.(type) {
 	case *events.Row:
 		return p.handleRowEvent(ctx, e)
@@ -25,12 +25,12 @@ func (p *PluginBase) Notify(ctx context.Context, event events.Event) error {
 
 // OnStarted is called by the plugin when it starts processing a collection request
 // any observers are notified
-func (p *PluginBase) OnStarted(ctx context.Context, executionId string) error {
+func (p *PluginImpl) OnStarted(ctx context.Context, executionId string) error {
 	return p.NotifyObservers(ctx, events.NewStartedEvent(executionId))
 }
 
 // OnChunk is called by the plugin when it has written a chunk of enriched rows to a [JSONL/CSV] file
-func (p *PluginBase) OnChunk(ctx context.Context, chunkNumber int, paging json.RawMessage) error {
+func (p *PluginImpl) OnChunk(ctx context.Context, chunkNumber int, paging json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -43,7 +43,7 @@ func (p *PluginBase) OnChunk(ctx context.Context, chunkNumber int, paging json.R
 
 // handleRowEvent is called by the plugin for every row which it produces
 // the row is buffered and written to a JSONL file when the buffer is full
-func (p *PluginBase) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (p *PluginImpl) handleRowEvent(ctx context.Context, e *events.Row) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -52,11 +52,11 @@ func (p *PluginBase) handleRowEvent(ctx context.Context, e *events.Row) error {
 	if p.rowBufferMap == nil {
 		// this must mean the plugin has overridden the Init function and not called the base
 		// this should be prevented by the validation test
-		return errors.New("RowSourceBase.Init must be called from the plugin Init function")
+		return errors.New("RowSourceImpl.Init must be called from the plugin Init function")
 	}
 	row := e.Row
 	if row == nil {
-		return fmt.Errorf("plugin.RowSourceBase.handleRowEvent: row is nil")
+		return fmt.Errorf("plugin.RowSourceImpl.handleRowEvent: row is nil")
 	}
 
 	// add row to row buffer
@@ -81,7 +81,7 @@ func (p *PluginBase) handleRowEvent(ctx context.Context, e *events.Row) error {
 	return nil
 }
 
-func (p *PluginBase) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
+func (p *PluginImpl) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
 	// determine chunk number from rowCountMap
 	chunkNumber := int(rowCount / JSONLChunkSize)
 	// check for final partial chunk

@@ -70,7 +70,7 @@ func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest, 
 
 	base, ok := table.(baseTable)
 	if !ok {
-		return nil, fmt.Errorf("table implementation must embed table.TableBase")
+		return nil, fmt.Errorf("table implementation must embed table.TableImpl")
 	}
 	base.RegisterImpl(table)
 

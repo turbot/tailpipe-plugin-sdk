@@ -36,7 +36,7 @@ func init() {
 
 // AwsS3BucketSource is a [ArtifactSource] implementation that reads artifacts from an S3 bucket
 type AwsS3BucketSource struct {
-	ArtifactSourceBase[*artifact_source_config.AwsS3BucketSourceConfig]
+	ArtifactSourceImpl[*artifact_source_config.AwsS3BucketSourceConfig]
 
 	Extensions types.ExtensionLookup
 	client     *s3.Client
@@ -53,7 +53,7 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData *types.ConfigDa
 	s.NewCollectionStateFunc = collection_state.NewAwsS3CollectionState
 
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
 

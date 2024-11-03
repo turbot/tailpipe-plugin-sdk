@@ -40,7 +40,7 @@ func init() {
 // AwsCloudWatchSource is a [ArtifactSource] implementation that reads logs from AWS CloudWatch
 // and writes them to a temp JSON file
 type AwsCloudWatchSource struct {
-	ArtifactSourceBase[*artifact_source_config.AwsCloudWatchSourceConfig]
+	ArtifactSourceImpl[*artifact_source_config.AwsCloudWatchSourceConfig]
 
 	client  *cloudwatchlogs.Client
 	limiter *rate_limiter.APILimiter
@@ -56,7 +56,7 @@ func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *types.Config
 	s.NewCollectionStateFunc = collection_state.NewAwsCloudwatchCollectionState
 
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
 
@@ -244,6 +244,7 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 		return nil
 	}
 
+	// TODO call cloudwatch mapper (renamed) to extract rows
 	// notify observers of the discovered artifact
 	downloadInfo := types.NewArtifactInfo(localFilePath)
 

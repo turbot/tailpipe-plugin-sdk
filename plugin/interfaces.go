@@ -19,25 +19,25 @@ type TailpipePlugin interface {
 	GetSchema() schema.SchemaMap
 
 	// AddObserver adda an observer to the plugin to receive status events
-	// this is implemented by plugin.PluginBase and should not be overridden
+	// this is implemented by plugin.PluginImpl and should not be overridden
 	AddObserver(observable.Observer) error
 
 	// Collect is called to start a collection run
-	// this is implemented by plugin.PluginBase and should not be overridden
+	// this is implemented by plugin.PluginImpl and should not be overridden
 	Collect(context.Context, *proto.CollectRequest) error
 
 	// Other interface functions
 
-	// Init is implemented by plugin.PluginBase.
+	// Init is implemented by plugin.PluginImpl.
 	// If overridden by the plugin it MUST call the base version
 	Init(context.Context) error
 
-	// Shutdown is implemented by plugin.PluginBase (empty implementation)
+	// Shutdown is implemented by plugin.PluginImpl (empty implementation)
 	// it may be overridden by the plugin
 	Shutdown(context.Context) error
 
-	// Base returns the base instance - used for validation testing
-	Base() *PluginBase
+	// Impl returns the common plugin implementation - used for validation testing
+	Impl() *PluginImpl
 }
 
 type ChunkWriter interface {

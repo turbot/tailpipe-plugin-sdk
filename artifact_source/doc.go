@@ -1,5 +1,5 @@
 // Package artifact_row_source provides types and functions for loading and processing rows using an
-// [row_source.RowSourceBase].
+// [row_source.RowSourceImpl].
 //
 // Artifacts are defined as some entity which contains a collection of rows, which must be extracted/processed in
 // some way to produce 'raw' rows which can be streamed to a collection. Examples of artifacts include:
@@ -7,7 +7,7 @@
 // - a cloudwatch log group
 // - a json file on local file system
 //
-// An RowSourceBase is composed of:
+// An RowSourceImpl is composed of:
 // - an [artifact.ArtifactSource] which discovers and downloads artifacts to a temp local file, and handles incremental/restartable downloads
 // - an [artifact.Loader] which loads the arifact data from the local file, performing any necessary decompression/decryption etc.
 // - optionally, one or more [artifact.Mapper]s which perform processing/conversion/extraction logic required to
@@ -28,10 +28,10 @@
 //
 // ##### Artifact extraction flow
 //
-// - The source discovers artifacts and raises an ArtifactDiscovered event, which is handled by the parent RowSourceBase.
-// - The RowSourceBase initiates the download of the artifact by calling the source's `Download` method. RowSourceBase is responsible for managing rate limiting/parallelization
-// - The source downloads the artifact and raises an ArtifactDownloaded event, which is handled by the parent RowSourceBase.
-// - The RowSourceBase tells the loader to load the artifact, passing an `ArtifactInfo` containing the local file path.
+// - The source discovers artifacts and raises an ArtifactDiscovered event, which is handled by the parent RowSourceImpl.
+// - The RowSourceImpl initiates the download of the artifact by calling the source's `Download` method. RowSourceImpl is responsible for managing rate limiting/parallelization
+// - The source downloads the artifact and raises an ArtifactDownloaded event, which is handled by the parent RowSourceImpl.
+// - The RowSourceImpl tells the loader to load the artifact, passing an `ArtifactInfo` containing the local file path.
 // - The loader loads the artifact and performs and processing it needs to and returns the result
 // - If any mappers are configured, they are called in turn, passing the result along
 // - The final result is published in a `Row` event.

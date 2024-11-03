@@ -32,7 +32,7 @@ func init() {
 
 // GcpStorageBucketSource is a [ArtifactSource] implementation that reads artifacts from a GCP Storage bucket
 type GcpStorageBucketSource struct {
-	ArtifactSourceBase[*artifact_source_config.GcpStorageBucketSourceConfig]
+	ArtifactSourceImpl[*artifact_source_config.GcpStorageBucketSourceConfig]
 
 	Config     artifact_source_config.GcpStorageBucketSourceConfig
 	Extensions types.ExtensionLookup
@@ -45,7 +45,7 @@ func NewGcpStorageBucketSource() row_source.RowSource {
 
 func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
 

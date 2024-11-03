@@ -21,22 +21,24 @@ import (
 // how ofted to send status events
 const statusUpdateInterval = 250 * time.Millisecond
 
-// TableBase provides a base implementation of the [table.Table] interface
+// TableImpl provides a base implementation of the [table.Table] interface
 // it should be embedded in all Table implementations
-// T is the table config type anv V is the connection config type
-type TableBase[T, V parse.Config] struct {
-	observable.ObservableBase
+// R is the type of the row struct
+// S is the type table config struct
+// T is the type of the connection
+type TableImpl[R any, S, T parse.Config] struct {
+	observable.ObservableImpl
 
 	// the row Source
 	Source row_source.RowSource
 
-	// store a reference to the derived collection type so we can call its methods
-	impl Table
+	// store a reference to the actual table (via the generic Enricher interface) so we can call its methods
+	table Enricher[R]
 
 	// the table config
-	Config T
+	Config S
 	// the connection config
-	Connection V
+	Connection T
 
 	// row mappers
 	Mappers []artifact_mapper.Mapper
@@ -55,16 +57,17 @@ type TableBase[T, V parse.Config] struct {
 }
 
 // Init implements table.Table
-func (b *TableBase[T, V]) Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, req *types.CollectRequest) error {
+func (b *TableImpl[R, S, T]) Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, req *types.CollectRequest) error {
 	if err := b.initialiseConfig(req.TableData); err != nil {
 		return err
 	}
+
 	if err := b.initialiseConnection(connectionSchemaProvider, req.ConnectionData); err != nil {
 		return err
 	}
 
 	// initialise the source
-	sourceOpts := b.impl.GetSourceOptions(req.SourceData.Type)
+	sourceOpts := b.table.GetSourceOptions(req.SourceData.Type)
 	// if collectionStateJSON is non-empty, add an option to set it
 	if len(req.CollectionState) > 0 {
 		sourceOpts = append(sourceOpts, row_source.WithCollectionStateJSON(req.CollectionState))
@@ -77,17 +80,17 @@ func (b *TableBase[T, V]) Init(ctx context.Context, connectionSchemaProvider Con
 	return nil
 }
 
-func (b *TableBase[T, V]) initialiseConfig(tableConfigData *types.ConfigData) error {
+func (b *TableImpl[R, S, T]) initialiseConfig(tableConfigData *types.ConfigData) error {
 	if len(tableConfigData.Hcl) > 0 {
 		// parse the config
-		var emptyConfig = b.impl.GetConfigSchema().(T)
-		c, err := parse.ParseConfig[T](tableConfigData, emptyConfig)
+		var emptyConfig = b.table.GetConfigSchema().(S)
+		c, err := parse.ParseConfig[S](tableConfigData, emptyConfig)
 		if err != nil {
 			return fmt.Errorf("error parsing config: %w", err)
 		}
 		b.Config = c
 
-		slog.Info("Table RowSourceBase: config parsed", "config", c)
+		slog.Info("Table RowSourceImpl: config parsed", "config", c)
 
 		// validate config
 		if err := c.Validate(); err != nil {
@@ -97,20 +100,20 @@ func (b *TableBase[T, V]) initialiseConfig(tableConfigData *types.ConfigData) er
 	return nil
 }
 
-func (b *TableBase[T, V]) initialiseConnection(connectionSchemaProvider ConnectionSchemaProvider, connectionData *types.ConfigData) error {
+func (b *TableImpl[R, S, T]) initialiseConnection(connectionSchemaProvider ConnectionSchemaProvider, connectionData *types.ConfigData) error {
 	if len(connectionData.Hcl) > 0 {
 		// parse the config
-		var emptyConfig, ok = connectionSchemaProvider.GetConnectionSchema().(V)
+		var emptyConfig, ok = connectionSchemaProvider.GetConnectionSchema().(T)
 		if !ok {
 			return fmt.Errorf("connection schema provider does not return the correct type")
 		}
-		c, err := parse.ParseConfig[V](connectionData, emptyConfig)
+		c, err := parse.ParseConfig[T](connectionData, emptyConfig)
 		if err != nil {
 			return fmt.Errorf("error parsing connection: %w", err)
 		}
 		b.Connection = c
 
-		slog.Info("Table RowSourceBase: } parsed", "}", c)
+		slog.Info("Table RowSourceImpl: } parsed", "}", c)
 
 		// validate config
 		if err := c.Validate(); err != nil {
@@ -121,7 +124,7 @@ func (b *TableBase[T, V]) initialiseConnection(connectionSchemaProvider Connecti
 }
 
 // initialise the row source
-func (b *TableBase[T, V]) initSource(ctx context.Context, configData *types.ConfigData, sourceOpts ...row_source.RowSourceOption) error {
+func (b *TableImpl[R, S, T]) initSource(ctx context.Context, configData *types.ConfigData, sourceOpts ...row_source.RowSourceOption) error {
 	// TODO verify we support this source type https://github.com/turbot/tailpipe-plugin-sdk/issues/16
 
 	// now ask plugin to create and initialise the source for us
@@ -137,19 +140,20 @@ func (b *TableBase[T, V]) initSource(ctx context.Context, configData *types.Conf
 
 // RegisterImpl is called by the plugin implementation to register the collection implementation
 // it also resisters the supported sources for this collection
-// this is required so that the TableBase can call the collection's methods
-func (b *TableBase[T, V]) RegisterImpl(impl Table) {
-	b.impl = impl
+// this is required so that the TableImpl can call the collection's methods
+func (b *TableImpl[R, S, T]) RegisterImpl(impl Table) {
+	// we expect the table to be a Enricher
+	b.table = impl.(Enricher[R])
 }
 
 // GetSourceOptions give the collection a chance to specify options for the source
 // default implementation returning nothing
-func (*TableBase[T, V]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
+func (*TableImpl[R, S, T]) GetSourceOptions(sourceType string) []row_source.RowSourceOption {
 	return nil
 }
 
 // Collect executes the collection process. Tell our source to start collection
-func (b *TableBase[T, V]) Collect(ctx context.Context, req *types.CollectRequest) (json.RawMessage, error) {
+func (b *TableImpl[R, S, T]) Collect(ctx context.Context, req *types.CollectRequest) (json.RawMessage, error) {
 	slog.Info("Start collection")
 
 	// create empty status event
@@ -174,7 +178,7 @@ func (b *TableBase[T, V]) Collect(ctx context.Context, req *types.CollectRequest
 
 	// notify observers of final status
 	if err := b.NotifyObservers(ctx, b.status); err != nil {
-		slog.Error("Table RowSourceBase: error notifying observers of status", "error", err)
+		slog.Error("Table RowSourceImpl: error notifying observers of status", "error", err)
 	}
 
 	// now ask the source for its updated collection state data
@@ -183,7 +187,7 @@ func (b *TableBase[T, V]) Collect(ctx context.Context, req *types.CollectRequest
 
 // Notify implements observable.Observer
 // it handles all events which tableFuncs may receive (these will all come from the source)
-func (b *TableBase[T, V]) Notify(ctx context.Context, event events.Event) error {
+func (b *TableImpl[R, S, T]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	b.updateStatus(ctx, event)
 
@@ -198,14 +202,14 @@ func (b *TableBase[T, V]) Notify(ctx context.Context, event events.Event) error 
 	}
 }
 
-func (b *TableBase[T, V]) GetTiming() types.TimingCollection {
+func (b *TableImpl[R, S, T]) GetTiming() types.TimingCollection {
 	return append(b.Source.GetTiming(), b.enrichTiming)
 }
 
 // updateStatus updates the status counters with the latest event
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
-func (b *TableBase[T, V]) updateStatus(ctx context.Context, e events.Event) {
+func (b *TableImpl[R, S, T]) updateStatus(ctx context.Context, e events.Event) {
 	b.statusLock.Lock()
 	defer b.statusLock.Unlock()
 
@@ -215,7 +219,7 @@ func (b *TableBase[T, V]) updateStatus(ctx context.Context, e events.Event) {
 	if time.Since(b.lastStatusEventTime) > statusUpdateInterval {
 		// notify observers
 		if err := b.NotifyObservers(ctx, b.status); err != nil {
-			slog.Error("Table RowSourceBase: error notifying observers of status", "error", err)
+			slog.Error("Table RowSourceImpl: error notifying observers of status", "error", err)
 		}
 		// update lastStatusEventTime
 		b.lastStatusEventTime = time.Now()
@@ -223,7 +227,7 @@ func (b *TableBase[T, V]) updateStatus(ctx context.Context, e events.Event) {
 }
 
 // handleRowEvent is invoked when a Row event is received - map, enrich and publish the row
-func (b *TableBase[T, V]) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (b *TableImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	b.rowWg.Add(1)
 	defer b.rowWg.Done()
 
@@ -245,8 +249,14 @@ func (b *TableBase[T, V]) handleRowEvent(ctx context.Context, e *events.Row) err
 
 	enrichStart := time.Now()
 	for _, mappedRow := range rows {
+		// convert row to the correct type - if it is the wrong type this is a programming error
+		record, ok := mappedRow.(R)
+		if !ok {
+			return fmt.Errorf("mapper returned invalid row type: %T, expected %T", row, record)
+		}
+
 		// enrich the row
-		enrichedRow, err := b.impl.EnrichRow(mappedRow, e.EnrichmentFields)
+		enrichedRow, err := b.table.EnrichRow(record, e.EnrichmentFields)
 		if err != nil {
 			return err
 		}
@@ -260,17 +270,16 @@ func (b *TableBase[T, V]) handleRowEvent(ctx context.Context, e *events.Row) err
 	b.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
 
 	return nil
-
 }
 
-func (b *TableBase[T, V]) handeErrorEvent(e *events.Error) error {
-	slog.Error("Table RowSourceBase: error event received", "error", e.Err)
+func (b *TableImpl[R, S, T]) handeErrorEvent(e *events.Error) error {
+	slog.Error("Table RowSourceImpl: error event received", "error", e.Err)
 	b.NotifyObservers(context.Background(), e)
 	return nil
 }
 
 // mapROw applies any configured mappers to the artifact data
-func (b *TableBase[T, V]) mapRow(ctx context.Context, rawRow any) ([]any, error) {
+func (b *TableImpl[R, S, T]) mapRow(ctx context.Context, rawRow any) ([]any, error) {
 	// mappers may return multiple rows so wrap data in a list
 	var dataList = []any{rawRow}
 

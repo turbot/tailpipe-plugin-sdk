@@ -14,7 +14,7 @@ import (
 // Table is the interface that represents a single schema/'table' provided by a plugin.
 // A plugin may support multiple tables
 type Table interface {
-	// Observable must be implemented by tableFuncs (it is implemented by table.TableBase)
+	// Observable must be implemented by tableFuncs (it is implemented by table.TableImpl)
 	observable.Observable
 
 	// Init is called when the collection created
@@ -32,8 +32,6 @@ type Table interface {
 	// Collect is called to start collecting data,
 	// Collect will send enriched rows which satisfy the tailpipe row requirements
 	Collect(context.Context, *types.CollectRequest) (json.RawMessage, error)
-	// EnrichRow is called for each raw row of data, it must enrich the row and return it
-	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)
 	// GetTiming returns the timing for the collection
 	GetTiming() types.TimingCollection
 }
@@ -41,4 +39,12 @@ type Table interface {
 // ConnectionSchemaProvider is an interface that is implemented by th eplugin which provides the config schema
 type ConnectionSchemaProvider interface {
 	GetConnectionSchema() parse.Config
+}
+
+// Enricher is a generic interface implemented by tables
+// separate from Table interface to avoid Table needing to be generic
+// (which breaks the table factory implementation)
+type Enricher[T any] interface {
+	Table
+	EnrichRow(row T, sourceEnrichmentFields *enrichment.CommonFields) (T, error)
 }

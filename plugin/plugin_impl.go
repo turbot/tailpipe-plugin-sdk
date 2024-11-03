@@ -22,9 +22,9 @@ import (
 // TODO configure? https://github.com/turbot/tailpipe-plugin-sdk/issues/18
 const JSONLChunkSize = 1000
 
-// PluginBase should be created via NewPluginBase method.
-type PluginBase struct {
-	observable.ObservableBase
+// PluginImpl should be created via NewPluginImpl method.
+type PluginImpl struct {
+	observable.ObservableImpl
 
 	// row buffer keyed by execution id
 	// each row buffer is used to write a JSONL file
@@ -41,21 +41,21 @@ type PluginBase struct {
 	connectionFunc func() parse.Config
 }
 
-// NewPluginBase creates a new plugin instance with the given identifier.
-func NewPluginBase(identifier string, connectionFunc func() parse.Config) PluginBase {
-	return PluginBase{
+// NewPluginImpl creates a new PluginImpl instance with the given identifier.
+func NewPluginImpl(identifier string, connectionFunc func() parse.Config) PluginImpl {
+	return PluginImpl{
 		identifier:     identifier,
 		connectionFunc: connectionFunc,
 	}
 }
 
 // Identifier returns the plugin name
-func (p *PluginBase) Identifier() string {
+func (p *PluginImpl) Identifier() string {
 	return p.identifier
 }
 
 // Init implements [plugin.TailpipePlugin]
-func (p *PluginBase) Init(context.Context) error {
+func (p *PluginImpl) Init(context.Context) error {
 	// if the plugin overrides this function it must call the base implementation
 	p.rowBufferMap = make(map[string][]any)
 	p.rowCountMap = make(map[string]int)
@@ -63,11 +63,11 @@ func (p *PluginBase) Init(context.Context) error {
 }
 
 // initialized returns true if the plugin has been initialized
-func (p *PluginBase) initialized() bool {
+func (p *PluginImpl) initialized() bool {
 	return p.rowBufferMap != nil
 }
 
-func (p *PluginBase) Collect(ctx context.Context, req *proto.CollectRequest) error {
+func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) error {
 	log.Println("[INFO] Collect")
 
 	// create writer
@@ -90,28 +90,28 @@ func (p *PluginBase) Collect(ctx context.Context, req *proto.CollectRequest) err
 }
 
 // Shutdown is called by Serve when the plugin exits
-func (p *PluginBase) Shutdown(context.Context) error {
+func (p *PluginImpl) Shutdown(context.Context) error {
 	return nil
 }
 
 // GetSchema implements TailpipePlugin
-func (p *PluginBase) GetSchema() schema.SchemaMap {
+func (p *PluginImpl) GetSchema() schema.SchemaMap {
 	// ask the collection factory
 	return table.Factory.GetSchema()
 }
 
 // GetConnectionSchema implements table.ConnectionSchemaProvider
-func (p *PluginBase) GetConnectionSchema() parse.Config {
+func (p *PluginImpl) GetConnectionSchema() parse.Config {
 	// instantiate the connection config
 	return p.connectionFunc()
 }
 
 // Base returns the base instance - used for validation testing
-func (p *PluginBase) Base() *PluginBase {
+func (p *PluginImpl) Impl() *PluginImpl {
 	return p
 }
 
-func (p *PluginBase) OnCompleted(ctx context.Context, executionId string, collectionState json.RawMessage, timing types.TimingCollection, err error) error {
+func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, collectionState json.RawMessage, timing types.TimingCollection, err error) error {
 	// get row count and the rows in the buffers
 	p.rowBufferLock.Lock()
 	rowCount := p.rowCountMap[executionId]
@@ -138,7 +138,7 @@ func (p *PluginBase) OnCompleted(ctx context.Context, executionId string, collec
 	return p.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, timing, err))
 }
 
-func (p *PluginBase) doCollect(ctx context.Context, req *types.CollectRequest) error {
+func (p *PluginImpl) doCollect(ctx context.Context, req *types.CollectRequest) error {
 	// ask the factory to create the table
 	// - this will configure the requested source
 	t, err := table.Factory.GetTable(ctx, req, p)

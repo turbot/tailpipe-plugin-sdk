@@ -16,7 +16,7 @@ func WithDefaultArtifactSourceConfig(config *artifact_source_config.ArtifactSour
 	}
 }
 
-// WithArtifactLoader is used when creating an ArtifactSourceBase
+// WithArtifactLoader is used when creating an ArtifactSourceImpl
 // It sets the a loader to the row source
 func WithArtifactLoader(loader artifact_loader.Loader) row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
@@ -27,7 +27,7 @@ func WithArtifactLoader(loader artifact_loader.Loader) row_source.RowSourceOptio
 	}
 }
 
-// WithRowPerLine is used when creating an ArtifactSourceBase
+// WithRowPerLine is used when creating an ArtifactSourceImpl
 // it specifies that the row source should treat each line as a separate row
 func WithRowPerLine() row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
