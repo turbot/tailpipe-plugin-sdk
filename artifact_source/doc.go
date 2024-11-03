@@ -23,7 +23,7 @@
 // - [FileSystemLoader]
 // - [FileSystemRowLoader]
 //
-// Mappers provided by the SDK
+// Mapper provided by the SDK
 // - [artifact.CloudwatchMapper](https:// github.com/turbot/tailpipe-plugin-sdk/blob/development/artifact/aws_cloudwatch_mapper.go)
 //
 // ##### Artifact extraction flow

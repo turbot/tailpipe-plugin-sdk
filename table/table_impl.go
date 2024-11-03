@@ -41,7 +41,7 @@ type TableImpl[R any, S, T parse.Config] struct {
 	Connection T
 
 	// row mappers
-	Mappers []artifact_mapper.Mapper
+	Mapper artifact_mapper.Mapper[R]
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
@@ -249,14 +249,9 @@ func (b *TableImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) 
 
 	enrichStart := time.Now()
 	for _, mappedRow := range rows {
-		// convert row to the correct type - if it is the wrong type this is a programming error
-		record, ok := mappedRow.(R)
-		if !ok {
-			return fmt.Errorf("mapper returned invalid row type: %T, expected %T", row, record)
-		}
 
 		// enrich the row
-		enrichedRow, err := b.table.EnrichRow(record, e.EnrichmentFields)
+		enrichedRow, err := b.table.EnrichRow(mappedRow, e.EnrichmentFields)
 		if err != nil {
 			return err
 		}
@@ -279,37 +274,36 @@ func (b *TableImpl[R, S, T]) handeErrorEvent(e *events.Error) error {
 }
 
 // mapROw applies any configured mappers to the artifact data
-func (b *TableImpl[R, S, T]) mapRow(ctx context.Context, rawRow any) ([]any, error) {
+func (b *TableImpl[R, S, T]) mapRow(ctx context.Context, rawRow any) ([]R, error) {
+	// if there is no mappers, just return the data as is
+	if b.Mapper == nil {
+		row, ok := rawRow.(R)
+		if !ok {
+			return nil, fmt.Errorf("no mapper defined so expected source output to be %T, got %T", row, rawRow)
+		}
+		return []R{row}, nil
+	}
+
 	// mappers may return multiple rows so wrap data in a list
 	var dataList = []any{rawRow}
-
-	// iff there is no mappers, just return the data as is
-	if len(b.Mappers) == 0 {
-		return dataList, nil
-	}
 
 	var errList []error
 
 	// invoke each mapper in turn
-	for _, m := range b.Mappers {
-		var mappedDataList []any
-		for _, d := range dataList {
-			mappedData, err := m.Map(ctx, d)
-			if err != nil {
-				// TODO #error should we give up immediately
-				errList = append(errList, err)
-			} else {
-				mappedDataList = append(mappedDataList, mappedData...)
-			}
+	var mappedDataList []R
+	for _, d := range dataList {
+		mappedData, err := b.Mapper.Map(ctx, d)
+		if err != nil {
+			// TODO #error should we give up immediately
+			return nil, fmt.Errorf("error mapping artifact row: %w", err)
+		} else {
+			mappedDataList = append(mappedDataList, mappedData...)
 		}
-
-		// update artifactData list
-		dataList = mappedDataList
 	}
 
 	if len(errList) > 0 {
 		return nil, fmt.Errorf("error mapping artifact rows: %w", errors.Join(errList...))
 	}
 
-	return dataList, nil
+	return mappedDataList, nil
 }
