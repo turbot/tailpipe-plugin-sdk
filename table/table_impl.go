@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
+	"github.com/turbot/tailpipe-plugin-sdk/mapper"
 	"log/slog"
 	"sync"
 	"time"
@@ -25,7 +25,7 @@ const statusUpdateInterval = 250 * time.Millisecond
 // it should be embedded in all Table implementations
 // R is the type of the row struct
 // S is the type table config struct
-// T is the type of the connection
+// R is the type of the connection
 type TableImpl[R any, S, T parse.Config] struct {
 	observable.ObservableImpl
 
@@ -41,7 +41,7 @@ type TableImpl[R any, S, T parse.Config] struct {
 	Connection T
 
 	// row mappers
-	Mapper artifact_mapper.Mapper[R]
+	Mapper mapper.Mapper[R]
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
@@ -279,7 +279,7 @@ func (b *TableImpl[R, S, T]) mapRow(ctx context.Context, rawRow any) ([]R, error
 	if b.Mapper == nil {
 		row, ok := rawRow.(R)
 		if !ok {
-			return nil, fmt.Errorf("no mapper defined so expected source output to be %T, got %T", row, rawRow)
+			return nil, fmt.Errorf("no mapper defined so expected source output to be %R, got %R", row, rawRow)
 		}
 		return []R{row}, nil
 	}

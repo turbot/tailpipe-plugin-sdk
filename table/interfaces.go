@@ -36,15 +36,31 @@ type Table interface {
 	GetTiming() types.TimingCollection
 }
 
-// ConnectionSchemaProvider is an interface that is implemented by th eplugin which provides the config schema
+// ConnectionSchemaProvider is an interface providing a method to return the config schema
+// implemented by the plugin
 type ConnectionSchemaProvider interface {
 	GetConnectionSchema() parse.Config
 }
 
-// Enricher is a generic interface implemented by tables
-// separate from Table interface to avoid Table needing to be generic
+// Mapper is a generic interface which provides a method for mapping raw source data into row structs
+// R is the type of the row struct which the mapper outputs
+type Mapper[R any] interface {
+	Identifier() string
+	// Map converts artifact data to a different format and either return it as rows,
+	// or pass it on to the next mapper in the chain
+	Map(context.Context, any) ([]R, error)
+}
+
+// Enricher is a generic interface providing a function to enrich row structs by adding tp fields
+// Implemented by tables.
+// This is defined separate from Table interface to avoid Table needing to be generic
 // (which breaks the table factory implementation)
-type Enricher[T any] interface {
+// R is the type
+type Enricher[R any] interface {
 	Table
-	EnrichRow(row T, sourceEnrichmentFields *enrichment.CommonFields) (T, error)
+	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
+}
+
+type MapInitialisedModel interface {
+	InitialiseFromMap(m map[string]string) error
 }

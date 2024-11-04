@@ -220,8 +220,8 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 			if ts > maxTime {
 				maxTime = *event.Timestamp
 			}
-			// write the event to the file
-			if err := enc.Encode(event); err != nil {
+			// write the message field to the file
+			if err := enc.Encode(event.Message); err != nil {
 				return fmt.Errorf("failed to write event to file, %w", err)
 			}
 		}
@@ -244,7 +244,6 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 		return nil
 	}
 
-	// TODO call cloudwatch mapper (renamed) to extract rows
 	// notify observers of the discovered artifact
 	downloadInfo := types.NewArtifactInfo(localFilePath)
 
