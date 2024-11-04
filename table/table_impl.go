@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/mapper"
 	"log/slog"
 	"sync"
 	"time"
@@ -41,7 +40,7 @@ type TableImpl[R any, S, T parse.Config] struct {
 	Connection T
 
 	// row mappers
-	Mapper mapper.Mapper[R]
+	Mapper Mapper[R]
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it

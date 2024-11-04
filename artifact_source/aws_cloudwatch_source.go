@@ -60,10 +60,6 @@ func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *types.Config
 		return err
 	}
 
-	// TODO KAI make sure tables add NewCloudwatchMapper if needed
-	// NOTE: add the cloudwatch mapper to ensure rows are in correct format
-	//s.AddMappers(artifact_mapper.NewCloudwatchMapper())
-
 	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("cloudwatch-%s", s.Config.LogGroupName))
 
 	// initialize client

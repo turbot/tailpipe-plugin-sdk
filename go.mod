@@ -27,6 +27,7 @@ require (
 	google.golang.org/api v0.189.0
 	google.golang.org/grpc v1.66.0
 	google.golang.org/protobuf v1.34.2
+	github.com/satyrius/gonx v1.4.0
 )
 
 require (
