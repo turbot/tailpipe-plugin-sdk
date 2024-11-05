@@ -16,6 +16,9 @@ type ConfigData struct {
 }
 
 func DataFromProto(data *proto.ConfigData) *ConfigData {
+	if data == nil {
+		return nil
+	}
 	return &ConfigData{
 		Type:  data.Type,
 		Hcl:   data.Hcl,
