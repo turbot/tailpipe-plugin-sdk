@@ -9,18 +9,17 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 )
 
-// RowSourceBase provides a base implementation of the Observable interface
+// ObservableImpl provides a base implementation of the Observable interface
 // it should be embedded in all tailpipe plugin, collection and source implementations
-// (via collection.RowSourceBase, source.RowSourceBase and plugin.RowSourceBase)
-
-type ObservableBase struct {
+// (via collection.RowSourceImpl, source.RowSourceImpl and plugin.RowSourceImpl)
+type ObservableImpl struct {
 	observerLock sync.RWMutex
 	// Observers is a list of all Observers that are currently connected
 	// for now these are just the GRPC stream corresponding to the AddObserver call
 	Observers []Observer
 }
 
-func (p *ObservableBase) AddObserver(o Observer) error {
+func (p *ObservableImpl) AddObserver(o Observer) error {
 	log.Println("[INFO] AddObserver")
 	// add to list of Observers
 	p.observerLock.Lock()
@@ -30,7 +29,7 @@ func (p *ObservableBase) AddObserver(o Observer) error {
 	return nil
 }
 
-func (p *ObservableBase) NotifyObservers(ctx context.Context, e events.Event) error {
+func (p *ObservableImpl) NotifyObservers(ctx context.Context, e events.Event) error {
 	p.observerLock.RLock()
 	defer p.observerLock.RUnlock()
 	var notifyErrors []error

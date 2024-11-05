@@ -24,7 +24,7 @@ func init() {
 }
 
 type FileSystemSource struct {
-	ArtifactSourceBase[*artifact_source_config.FileSystemSourceConfig]
+	ArtifactSourceImpl[*artifact_source_config.FileSystemSourceConfig]
 	Paths      []string
 	Extensions types.ExtensionLookup
 }
@@ -33,9 +33,9 @@ func NewFileSystemSource() row_source.RowSource {
 	return &FileSystemSource{}
 }
 
-func (s *FileSystemSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
+func (s *FileSystemSource) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
 

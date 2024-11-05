@@ -37,7 +37,7 @@ func TestInit(t *testing.T, p TailpipePlugin) {
 	assert.Nil(t, err)
 
 	// ensure base is initialized
-	assert.True(t, p.Base().initialized())
+	assert.True(t, p.Impl().initialized())
 }
 
 func TestIdentifier(t *testing.T, p TailpipePlugin) {

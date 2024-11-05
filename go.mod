@@ -1,6 +1,8 @@
 module github.com/turbot/tailpipe-plugin-sdk
 
-go 1.23
+go 1.23.1
+
+toolchain go1.23.2
 
 replace github.com/turbot/pipe-fittings => ../pipe-fittings
 
@@ -15,6 +17,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.20.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/mitchellh/go-homedir v1.1.0
+	github.com/satyrius/gonx v1.4.0
 	github.com/stretchr/testify v1.9.0
 	github.com/turbot/go-kit v0.10.0-rc.0
 	github.com/turbot/pipe-fittings v1.4.1
@@ -25,6 +28,7 @@ require (
 	google.golang.org/api v0.189.0
 	google.golang.org/grpc v1.66.0
 	google.golang.org/protobuf v1.34.2
+	github.com/satyrius/gonx v1.4.0
 )
 
 require (
@@ -129,13 +133,13 @@ require (
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
-	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/rs/xid v1.5.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/shiena/ansicolor v0.0.0-20230509054315-a9deabde6e02 // indirect
 	github.com/shirou/gopsutil v3.21.11+incompatible // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
+	github.com/smartystreets/goconvey v1.8.1 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
 	github.com/spf13/afero v1.11.0 // indirect
 	github.com/spf13/cast v1.6.0 // indirect

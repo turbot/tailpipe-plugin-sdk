@@ -18,12 +18,12 @@ import (
 // - Webhook source
 // Sources may be configured with data transfo
 type RowSource interface {
-	// Observable must be implemented by row sourceFuncs (it is implemented by row_source.RowSourceBase)
+	// Observable must be implemented by row sourceFuncs (it is implemented by row_source.RowSourceImpl)
 	observable.Observable
 
 	// Init is called when the row source is created
 	// it is responsible for parsing the source config and configuring the source
-	Init(context.Context, *parse.Data, ...RowSourceOption) error
+	Init(context.Context, *types.ConfigData, ...RowSourceOption) error
 
 	// Identifier must return the source name
 	Identifier() string
@@ -38,6 +38,7 @@ type RowSource interface {
 
 	// 	GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
 	GetCollectionStateJSON() (json.RawMessage, error)
+
 	// SetCollectionStateJSON unmarshalls the collection state data JSON into the target object
 	SetCollectionStateJSON(stateJSON json.RawMessage) error
 

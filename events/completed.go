@@ -25,5 +25,23 @@ func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, timi
 }
 
 func (c *Completed) ToProto() *proto.Event {
-	return proto.NewCompleteEvent(c.ExecutionId, c.RowCount, c.ChunksWritten, c.Timing, c.Err)
+	errString := ""
+	if c.Err != nil {
+		errString = c.Err.Error()
+	}
+
+	// convert timing map to proto
+	protoTimingCollection := TimingCollectionToProto(c.Timing)
+
+	return &proto.Event{
+		Event: &proto.Event_CompleteEvent{
+			CompleteEvent: &proto.EventComplete{
+				ExecutionId: c.ExecutionId,
+				RowCount:    int64(c.RowCount),
+				ChunkCount:  int32(c.ChunksWritten),
+				Error:       errString,
+				Timing:      protoTimingCollection,
+			},
+		},
+	}
 }

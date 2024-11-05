@@ -14,7 +14,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	cloudwatch_types "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
 	typehelpers "github.com/turbot/go-kit/types"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
@@ -41,7 +40,7 @@ func init() {
 // AwsCloudWatchSource is a [ArtifactSource] implementation that reads logs from AWS CloudWatch
 // and writes them to a temp JSON file
 type AwsCloudWatchSource struct {
-	ArtifactSourceBase[*artifact_source_config.AwsCloudWatchSourceConfig]
+	ArtifactSourceImpl[*artifact_source_config.AwsCloudWatchSourceConfig]
 
 	client  *cloudwatchlogs.Client
 	limiter *rate_limiter.APILimiter
@@ -51,17 +50,15 @@ func NewAwsCloudWatchSource() row_source.RowSource {
 	return &AwsCloudWatchSource{}
 }
 
-func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *parse.Data, opts ...row_source.RowSourceOption) error {
+func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
 
 	// set the collection state func to the cloudwatch specific collection state
 	s.NewCollectionStateFunc = collection_state.NewAwsCloudwatchCollectionState
 
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceBase.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
 		return err
 	}
-	// NOTE: add the cloudwatch mapper to ensure rows are in correct format
-	s.AddMappers(artifact_mapper.NewCloudwatchMapper())
 
 	s.TmpDir = path.Join(BaseTmpDir, fmt.Sprintf("cloudwatch-%s", s.Config.LogGroupName))
 
@@ -219,8 +216,8 @@ func (s *AwsCloudWatchSource) DownloadArtifact(ctx context.Context, info *types.
 			if ts > maxTime {
 				maxTime = *event.Timestamp
 			}
-			// write the event to the file
-			if err := enc.Encode(event); err != nil {
+			// write the message field to the file
+			if err := enc.Encode(event.Message); err != nil {
 				return fmt.Errorf("failed to write event to file, %w", err)
 			}
 		}

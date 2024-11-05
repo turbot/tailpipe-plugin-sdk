@@ -25,10 +25,13 @@ message CollectRequest {
   config_data table_data = 3;
   // the source to use (with raw config)
   config_data source_data = 4;
+  // the raw hcl of the connection
+  config_data connection_data = 5;
+
 
   // this is json encoded data that represents the state of the collection, i.e. what data has been collected
   // this is used to resume a collection
-  bytes collection_state = 7;
+  bytes collection_state = 6;
 }
 
 message config_data {

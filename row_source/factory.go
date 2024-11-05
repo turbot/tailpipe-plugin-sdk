@@ -3,8 +3,7 @@ package row_source
 import (
 	"context"
 	"fmt"
-
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // Factory is a global newFactory instance
@@ -35,7 +34,7 @@ func (b *RowSourceFactory) RegisterRowSources(sourceFunc ...func() RowSource) {
 // GetRowSource attempts to instantiate a row source, using the provided row source data
 // It will fail if the requested source type is not registered
 // Implements [plugin.SourceFactory]
-func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *parse.Data, sourceOpts ...RowSourceOption) (RowSource, error) {
+func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *types.ConfigData, sourceOpts ...RowSourceOption) (RowSource, error) {
 	// look for a constructor for the source
 	ctor, ok := b.sourceFuncs[sourceConfigData.Type]
 	if !ok {
@@ -49,7 +48,7 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *p
 	type baseSource interface{ RegisterImpl(rowSource RowSource) }
 	base, ok := source.(baseSource)
 	if !ok {
-		return nil, fmt.Errorf("source implementation must embed row_source.RowSourceBase")
+		return nil, fmt.Errorf("source implementation must embed row_source.RowSourceImpl")
 	}
 	base.RegisterImpl(source)
 

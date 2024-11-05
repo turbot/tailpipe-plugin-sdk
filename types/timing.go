@@ -13,7 +13,8 @@ type Timing struct {
 	ActiveDuration time.Duration
 
 	Threads int
-	mut     sync.Mutex
+	// TODO avoid copying
+	mut sync.Mutex
 }
 
 // TryStart checks if start time has not been set and if so, set now

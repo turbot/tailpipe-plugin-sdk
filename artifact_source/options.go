@@ -2,7 +2,6 @@ package artifact_source
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_mapper"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 )
@@ -17,18 +16,7 @@ func WithDefaultArtifactSourceConfig(config *artifact_source_config.ArtifactSour
 	}
 }
 
-// WithArtifactMapper is used when creating an ArtifactSourceBase
-// It adds a mapper to the row source
-func WithArtifactMapper(mappers ...artifact_mapper.Mapper) row_source.RowSourceOption {
-	return func(r row_source.RowSource) error {
-		if a, ok := r.(ArtifactSource); ok {
-			a.AddMappers(mappers...)
-		}
-		return nil
-	}
-}
-
-// WithArtifactLoader is used when creating an ArtifactSourceBase
+// WithArtifactLoader is used when creating an ArtifactSourceImpl
 // It sets the a loader to the row source
 func WithArtifactLoader(loader artifact_loader.Loader) row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
@@ -39,7 +27,7 @@ func WithArtifactLoader(loader artifact_loader.Loader) row_source.RowSourceOptio
 	}
 }
 
-// WithRowPerLine is used when creating an ArtifactSourceBase
+// WithRowPerLine is used when creating an ArtifactSourceImpl
 // it specifies that the row source should treat each line as a separate row
 func WithRowPerLine() row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {

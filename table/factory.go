@@ -5,9 +5,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // Factory is a global TableFactory instance
@@ -54,7 +53,7 @@ func (f *TableFactory) GetSchema() schema.SchemaMap {
 	return f.schemaMap
 }
 
-func (f *TableFactory) GetTable(ctx context.Context, req *proto.CollectRequest) (Table, error) {
+func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest, connectionSchemaProvider ConnectionSchemaProvider) (Table, error) {
 	// get the registered constructor for the table
 	ctor, ok := f.tableFuncs[req.TableData.Type]
 	if !ok {
@@ -71,17 +70,11 @@ func (f *TableFactory) GetTable(ctx context.Context, req *proto.CollectRequest) 
 
 	base, ok := table.(baseTable)
 	if !ok {
-		return nil, fmt.Errorf("table implementation must embed table.TableBase")
+		return nil, fmt.Errorf("table implementation must embed table.TableImpl")
 	}
 	base.RegisterImpl(table)
 
-	// prepare the data needed for Init
-
-	// convert req into tableConfigData and sourceConfigData
-	tableConfigData := parse.DataFromProto(req.TableData)
-	sourceConfigData := parse.DataFromProto(req.SourceData)
-
-	err := table.Init(ctx, tableConfigData, req.CollectionState, sourceConfigData)
+	err := table.Init(ctx, connectionSchemaProvider, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise table: %w", err)
 	}

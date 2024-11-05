@@ -22,5 +22,13 @@ func NewChunkEvent(executionId string, chunkNumber int, collectionState json.Raw
 
 // ToProto converts the event to a proto.Event
 func (r *Chunk) ToProto() *proto.Event {
-	return proto.NewChunkWrittenEvent(r.ExecutionId, r.ChunkNumber, r.CollectionState)
+	return &proto.Event{
+		Event: &proto.Event_ChunkWrittenEvent{
+			ChunkWrittenEvent: &proto.EventChunkWritten{
+				ExecutionId:     r.ExecutionId,
+				ChunkNumber:     int32(r.ChunkNumber),
+				CollectionState: r.CollectionState,
+			},
+		},
+	}
 }
