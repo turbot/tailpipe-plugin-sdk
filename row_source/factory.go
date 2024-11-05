@@ -45,12 +45,12 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *t
 
 	//  register the rowsource implementation with the base struct (_before_ calling Init)
 	// create an interface type to use - we do not want to expose this function in the RowSource interface
-	type baseSource interface{ RegisterImpl(rowSource RowSource) }
+	type baseSource interface{ RegisterSource(rowSource RowSource) }
 	base, ok := source.(baseSource)
 	if !ok {
 		return nil, fmt.Errorf("source implementation must embed row_source.RowSourceImpl")
 	}
-	base.RegisterImpl(source)
+	base.RegisterSource(source)
 
 	// initialise the source, passing ourselves as source_factory
 	if err := source.Init(ctx, sourceConfigData, sourceOpts...); err != nil {
