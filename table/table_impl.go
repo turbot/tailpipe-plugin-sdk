@@ -100,7 +100,7 @@ func (b *TableImpl[R, S, T]) initialiseConfig(tableConfigData *types.ConfigData)
 }
 
 func (b *TableImpl[R, S, T]) initialiseConnection(connectionSchemaProvider ConnectionSchemaProvider, connectionData *types.ConfigData) error {
-	if len(connectionData.Hcl) > 0 {
+	if connectionData != nil && len(connectionData.Hcl) > 0 {
 		// parse the config
 		var emptyConfig, ok = connectionSchemaProvider.GetConnectionSchema().(T)
 		if !ok {
@@ -278,7 +278,7 @@ func (b *TableImpl[R, S, T]) mapRow(ctx context.Context, rawRow any) ([]R, error
 	if b.Mapper == nil {
 		row, ok := rawRow.(R)
 		if !ok {
-			return nil, fmt.Errorf("no mapper defined so expected source output to be %R, got %R", row, rawRow)
+			return nil, fmt.Errorf("no mapper defined so expected source output to be %T, got %T", row, rawRow)
 		}
 		return []R{row}, nil
 	}
