@@ -35,6 +35,11 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
 }
 
 func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
+	// if the type is a pointer, get the element type
+	if t.Kind() == reflect.Ptr {
+		t = t.Elem()
+	}
+
 	// check for circular deps
 	if _, ok := b.typeMap[t]; ok {
 		return nil, fmt.Errorf("circular reference detected")
