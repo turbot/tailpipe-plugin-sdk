@@ -27,7 +27,6 @@ func (c *DelimitedLineMapper[T]) Identifier() string {
 }
 
 func (c *DelimitedLineMapper[T]) Map(ctx context.Context, a any) ([]T, error) {
-	var out []*types.RowData
 	var parsed *gonx.Entry
 	var err error
 	rowData, ok := a.(*types.RowData)
@@ -40,7 +39,6 @@ func (c *DelimitedLineMapper[T]) Map(ctx context.Context, a any) ([]T, error) {
 	if !ok {
 		return nil, fmt.Errorf("expected string, got %T", rowData.Data)
 	}
-	inputMetadata := a.Metadata
 
 	for _, parser := range c.parsers {
 		parsed, err = parser.ParseString(input)
