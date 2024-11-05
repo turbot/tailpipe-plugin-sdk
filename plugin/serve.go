@@ -8,6 +8,8 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"os"
+	"time"
 )
 
 // ServeOpts are the configurations to serve a plugin.
@@ -28,6 +30,12 @@ const (
 //	It is called from the main function of the plugin.
 //	ServeOpts.PluginFunc must be populated with the plugin constructor function
 func Serve(opts *ServeOpts) error {
+	if _, isSet := os.LookupEnv("TAILPIPE_DEBUG"); isSet {
+		slog.Info("Starting plugin - waiting")
+		time.Sleep(10 * time.Second)
+		slog.Info("Starting plugin")
+	}
+
 	defer func() {
 		if r := recover(); r != nil {
 			msg := fmt.Sprintf("%s%s", PluginStartupFailureMessage, helpers.ToError(r).Error())
