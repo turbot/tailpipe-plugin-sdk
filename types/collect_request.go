@@ -1,6 +1,7 @@
 package types
 
 import (
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
@@ -22,15 +23,17 @@ type CollectRequest struct {
 }
 
 func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
+	if pr.PartitionData == nil {
+		return nil, fmt.Errorf("partition data is required")
+	}
 	partitionData, err := config_data.DataFromProto[*config_data.PartitionConfigData](pr.PartitionData)
 	if err != nil {
 		return nil, err
 	}
-	sourceData, err := config_data.DataFromProto[*config_data.SourceConfigData](pr.SourceData)
-	if err != nil {
-		return nil, err
+	if pr.SourceData == nil {
+		return nil, fmt.Errorf("source data is required")
 	}
-	connectionData, err := config_data.DataFromProto[*config_data.ConnectionConfigData](pr.ConnectionData)
+	sourceData, err := config_data.DataFromProto[*config_data.SourceConfigData](pr.SourceData)
 	if err != nil {
 		return nil, err
 	}
@@ -40,8 +43,14 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		OutputPath:      pr.OutputPath,
 		PartitionData:   partitionData,
 		SourceData:      sourceData,
-		ConnectionData:  connectionData,
 		CollectionState: pr.CollectionState,
+	}
+	if pr.ConnectionData != nil {
+		connectionData, err := config_data.DataFromProto[*config_data.ConnectionConfigData](pr.ConnectionData)
+		if err != nil {
+			return nil, err
+		}
+		req.ConnectionData = connectionData
 	}
 	return req, nil
 }

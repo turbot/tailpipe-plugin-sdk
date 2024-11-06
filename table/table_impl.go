@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -105,7 +106,7 @@ func (b *TableImpl[R, S, T]) initialiseConfig(tableConfigData config_data.Config
 }
 
 func (b *TableImpl[R, S, T]) initialiseConnection(connectionSchemaProvider ConnectionSchemaProvider, connectionData config_data.ConfigData) error {
-	if connectionData != nil && len(connectionData.GetHcl()) > 0 {
+	if !helpers.IsNil(connectionData) && len(connectionData.GetHcl()) > 0 {
 		// parse the config
 		var emptyConfig, ok = connectionSchemaProvider.GetConnectionSchema().(T)
 		if !ok {
