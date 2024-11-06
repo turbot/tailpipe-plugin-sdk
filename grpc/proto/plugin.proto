@@ -18,25 +18,25 @@ message AddObserverRequest{}
 message CollectRequest {
   // unique identifier for collection execution this will be used as base for the filename fo the resultiung JSONL files
   string execution_id = 1;
-//  dest path for jsonl files
+  //  dest path for jsonl files
   string output_path= 2;
-
   // the partition to collect (with raw config)
-  config_data table_data = 3;
+  ConfigData partition_data = 3;
   // the source to use (with raw config)
-  config_data source_data = 4;
+  ConfigData source_data = 4;
   // the raw hcl of the connection
-  config_data connection_data = 5;
-
+  ConfigData connection_data = 5;
 
   // this is json encoded data that represents the state of the collection, i.e. what data has been collected
   // this is used to resume a collection
   bytes collection_state = 6;
+
+
 }
 
-message config_data {
-  // what the type of the config target
-  string type = 1;
+message ConfigData {
+  // the name of the config target
+  string target = 1;
   // raw hcl for collection specific config
   bytes hcl = 2;
   Range range = 3;

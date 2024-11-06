@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -53,11 +54,15 @@ type TableImpl[R any, S, T parse.Config] struct {
 	statusLock          sync.RWMutex
 
 	enrichTiming types.Timing
+	req          *types.CollectRequest
 }
 
 // Init implements table.Table
 func (b *TableImpl[R, S, T]) Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, req *types.CollectRequest) error {
-	if err := b.initialiseConfig(req.TableData); err != nil {
+	// TACTICAL until we have a collector - save req
+	b.req = req
+
+	if err := b.initialiseConfig(req.PartitionData); err != nil {
 		return err
 	}
 
@@ -79,8 +84,8 @@ func (b *TableImpl[R, S, T]) Init(ctx context.Context, connectionSchemaProvider 
 	return nil
 }
 
-func (b *TableImpl[R, S, T]) initialiseConfig(tableConfigData *types.ConfigData) error {
-	if len(tableConfigData.Hcl) > 0 {
+func (b *TableImpl[R, S, T]) initialiseConfig(tableConfigData config_data.ConfigData) error {
+	if len(tableConfigData.GetHcl()) > 0 {
 		// parse the config
 		var emptyConfig = b.table.GetConfigSchema().(S)
 		c, err := parse.ParseConfig[S](tableConfigData, emptyConfig)
@@ -99,8 +104,8 @@ func (b *TableImpl[R, S, T]) initialiseConfig(tableConfigData *types.ConfigData)
 	return nil
 }
 
-func (b *TableImpl[R, S, T]) initialiseConnection(connectionSchemaProvider ConnectionSchemaProvider, connectionData *types.ConfigData) error {
-	if connectionData != nil && len(connectionData.Hcl) > 0 {
+func (b *TableImpl[R, S, T]) initialiseConnection(connectionSchemaProvider ConnectionSchemaProvider, connectionData config_data.ConfigData) error {
+	if connectionData != nil && len(connectionData.GetHcl()) > 0 {
 		// parse the config
 		var emptyConfig, ok = connectionSchemaProvider.GetConnectionSchema().(T)
 		if !ok {
@@ -123,7 +128,7 @@ func (b *TableImpl[R, S, T]) initialiseConnection(connectionSchemaProvider Conne
 }
 
 // initialise the row source
-func (b *TableImpl[R, S, T]) initSource(ctx context.Context, configData *types.ConfigData, sourceOpts ...row_source.RowSourceOption) error {
+func (b *TableImpl[R, S, T]) initSource(ctx context.Context, configData *config_data.SourceConfigData, sourceOpts ...row_source.RowSourceOption) error {
 	// TODO verify we support this source type https://github.com/turbot/tailpipe-plugin-sdk/issues/16
 
 	// now ask plugin to create and initialise the source for us
@@ -247,10 +252,15 @@ func (b *TableImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) 
 	b.enrichTiming.TryStart(constants.TimingEnrich)
 
 	enrichStart := time.Now()
+
+	// add partition to the enrichment fields
+	enrichmentFields := e.EnrichmentFields
+	enrichmentFields.TpPartition = b.req.PartitionData.Partition
+
 	for _, mappedRow := range rows {
 
 		// enrich the row
-		enrichedRow, err := b.table.EnrichRow(mappedRow, e.EnrichmentFields)
+		enrichedRow, err := b.table.EnrichRow(mappedRow, enrichmentFields)
 		if err != nil {
 			return err
 		}

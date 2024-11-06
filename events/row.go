@@ -24,12 +24,14 @@ func WithEnrichmentFields(enrichmentFields *enrichment.CommonFields) RowEventOpt
 }
 func NewRowEvent(executionId string, row any, paging json.RawMessage, opts ...RowEventOption) *Row {
 	r := &Row{
-		ExecutionId:     executionId,
-		Row:             row,
-		CollectionState: paging,
+		ExecutionId:      executionId,
+		Row:              row,
+		CollectionState:  paging,
+		EnrichmentFields: &enrichment.CommonFields{},
 	}
 	for _, opt := range opts {
 		opt(r)
 	}
+
 	return r
 }

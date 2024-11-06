@@ -12,6 +12,7 @@ import (
 
 	"github.com/mitchellh/go-homedir"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
+	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -43,7 +44,7 @@ func NewGcpStorageBucketSource() row_source.RowSource {
 	return &GcpStorageBucketSource{}
 }
 
-func (s *GcpStorageBucketSource) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
+func (s *GcpStorageBucketSource) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
 	// call base to parse config and apply options
 	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
 		return err

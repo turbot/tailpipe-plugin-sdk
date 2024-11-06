@@ -14,6 +14,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
+	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -81,7 +82,7 @@ func (b *ArtifactSourceImpl[T]) SetRowPerLine(rowPerLine bool) {
 	b.RowPerLine = rowPerLine
 }
 
-func (b *ArtifactSourceImpl[T]) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
+func (b *ArtifactSourceImpl[T]) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing ArtifactSourceImpl")
 
 	// if no collection state func has been set by a derived struct,

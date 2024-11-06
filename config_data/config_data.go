@@ -1,0 +1,66 @@
+package config_data
+
+import (
+	"fmt"
+	"github.com/hashicorp/hcl/v2"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"strings"
+)
+
+// ConfigData is a struct used to contain the config data used to configure a Collection or Source
+// it contains the type of cource/collection, as well as the raw HCL config which the newly
+// instantiated object must parse into the appropriate type
+type ConfigData interface {
+	GetHcl() []byte
+	GetRange() hcl.Range
+}
+
+type ConfigDataImpl struct {
+	Hcl   []byte
+	Range hcl.Range
+}
+
+// GetHcl returns the HCL config data
+func (c *ConfigDataImpl) GetHcl() []byte {
+	return c.Hcl
+}
+
+// GetRange returns the HCL range of the config data
+func (c *ConfigDataImpl) GetRange() hcl.Range {
+	return c.Range
+}
+
+func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
+	/* the target field is the name ofd the target - this will be either:
+	- a source: source.<source_type>
+	- a partition: partition.<table>.<partition_name>
+	- a connection: connection.<connection_name>
+	*/
+
+	var empty T
+	parts := strings.Split(data.Target, ".")
+	switch any(empty).(type) {
+	case *SourceConfigData:
+		// TODO assert len
+		if parts[0] != "source" {
+			return empty, fmt.Errorf("invalid source config target %s: expected a source", data.Target)
+		}
+		d := NewSourceConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1])
+		return ConfigData(d).(T), nil
+
+	case *PartitionConfigData:
+		if parts[0] != "partition" {
+			return empty, fmt.Errorf("invalid source config target %s: expected a partition", data.Target)
+		}
+		d := NewPartitionConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1], parts[2])
+		return ConfigData(d).(T), nil
+	case *ConnectionConfigData:
+		if parts[0] != "connection" {
+			return empty, fmt.Errorf("invalid source config target %s: expected a connection", data.Target)
+		}
+		d := NewConnectionConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1])
+		return ConfigData(d).(T), nil
+	default:
+		return empty, fmt.Errorf("invalid config type %T", empty)
+	}
+}

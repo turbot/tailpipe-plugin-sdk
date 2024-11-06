@@ -7,6 +7,7 @@ import (
 	"log/slog"
 
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
+	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -38,7 +39,7 @@ func (b *RowSourceImpl[T]) RegisterSource(source RowSource) {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (b *RowSourceImpl[T]) Init(ctx context.Context, configData *types.ConfigData, opts ...RowSourceOption) error {
+func (b *RowSourceImpl[T]) Init(ctx context.Context, configData config_data.ConfigData, opts ...RowSourceOption) error {
 	slog.Info(fmt.Sprintf("Initializing RowSourceImpl %p, impl %p", b, b.Source))
 
 	// apply options to the Source (as options will be dependent on the outer type)
@@ -49,7 +50,7 @@ func (b *RowSourceImpl[T]) Init(ctx context.Context, configData *types.ConfigDat
 	}
 
 	// parse the config
-	if len(configData.Hcl) > 0 {
+	if len(configData.GetHcl()) > 0 {
 		var emptyConfig T = b.Source.GetConfigSchema().(T)
 		c, err := parse.ParseConfig[T](configData, emptyConfig)
 		if err != nil {

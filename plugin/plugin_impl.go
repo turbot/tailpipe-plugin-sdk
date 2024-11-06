@@ -78,8 +78,13 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) err
 		ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
 
 		// map req to our internal type
-		collectRequest := types.CollectRequestFromProto(req)
-		err := p.doCollect(ctx, collectRequest)
+		collectRequest, err := types.CollectRequestFromProto(req)
+		if err != nil {
+			slog.Error("CollectRequestFromProto failed", "error", err)
+			_ = p.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
+			return
+		}
+		err = p.doCollect(ctx, collectRequest)
 		if err != nil {
 			slog.Error("doCollect failed", "error", err)
 			_ = p.OnCompleted(ctx, req.ExecutionId, nil, nil, err)

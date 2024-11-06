@@ -18,6 +18,7 @@ import (
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
+	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -46,7 +47,7 @@ func NewAwsS3BucketSource() row_source.RowSource {
 	return &AwsS3BucketSource{}
 }
 
-func (s *AwsS3BucketSource) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
+func (s *AwsS3BucketSource) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing AwsS3BucketSource")
 
 	// set the collection state func to the S3 specific collection state

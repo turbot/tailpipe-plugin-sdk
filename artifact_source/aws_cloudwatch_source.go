@@ -16,6 +16,7 @@ import (
 	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
+	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
@@ -50,7 +51,7 @@ func NewAwsCloudWatchSource() row_source.RowSource {
 	return &AwsCloudWatchSource{}
 }
 
-func (s *AwsCloudWatchSource) Init(ctx context.Context, configData *types.ConfigData, opts ...row_source.RowSourceOption) error {
+func (s *AwsCloudWatchSource) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
 
 	// set the collection state func to the cloudwatch specific collection state
 	s.NewCollectionStateFunc = collection_state.NewAwsCloudwatchCollectionState

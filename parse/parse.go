@@ -8,7 +8,7 @@ import (
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/error_helpers"
 	pf_parse "github.com/turbot/pipe-fittings/parse"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"log/slog"
@@ -16,11 +16,13 @@ import (
 
 // ParseConfig parses the HCL config and returns the struct
 // Config is an interface that all configuration structs must implement
-func ParseConfig[T Config](configData *types.ConfigData, target T) (T, error) {
+func ParseConfig[T Config](configData config_data.ConfigData, target T) (T, error) {
 	// Parse the config
-	file, diags := hclsyntax.ParseConfig(configData.Hcl, configData.Range.Filename, configData.Range.Start)
+	declRange := configData.GetRange()
+	hclBytes := configData.GetHcl()
+	file, diags := hclsyntax.ParseConfig(hclBytes, declRange.Filename, declRange.Start)
 	if diags.HasErrors() {
-		slog.Warn("failed to parse config", "hcl", configData.Hcl)
+		slog.Warn("failed to parse config", "hcl", hclBytes)
 		return target, fmt.Errorf("failed to parse config: %s", diags)
 	}
 

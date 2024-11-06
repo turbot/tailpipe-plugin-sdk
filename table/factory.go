@@ -55,10 +55,10 @@ func (f *TableFactory) GetSchema() schema.SchemaMap {
 
 func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest, connectionSchemaProvider ConnectionSchemaProvider) (Table, error) {
 	// get the registered constructor for the table
-	ctor, ok := f.tableFuncs[req.TableData.Type]
+	ctor, ok := f.tableFuncs[req.PartitionData.Table]
 	if !ok {
 		// this type is not registered
-		return nil, fmt.Errorf("table not found: %s", req.TableData.Type)
+		return nil, fmt.Errorf("table not found: %s", req.PartitionData.Table)
 	}
 
 	// create the table
