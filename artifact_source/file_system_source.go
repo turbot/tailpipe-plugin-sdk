@@ -19,11 +19,6 @@ const (
 	FileSystemSourceIdentifier = "file_system"
 )
 
-func init() {
-	// register source
-	row_source.Factory.RegisterRowSources(NewFileSystemSource)
-}
-
 type FileSystemSource struct {
 	ArtifactSourceImpl[*artifact_source_config.FileSystemSourceConfig]
 	Paths      []string

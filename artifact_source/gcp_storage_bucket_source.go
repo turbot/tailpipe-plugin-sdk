@@ -26,11 +26,6 @@ const (
 	GcpStorageBucketSourceIdentifier = "gcp_storage_bucket"
 )
 
-func init() {
-	// register source
-	row_source.Factory.RegisterRowSources(NewGcpStorageBucketSource)
-}
-
 // GcpStorageBucketSource is a [ArtifactSource] implementation that reads artifacts from a GCP Storage bucket
 type GcpStorageBucketSource struct {
 	ArtifactSourceImpl[*artifact_source_config.GcpStorageBucketSourceConfig]

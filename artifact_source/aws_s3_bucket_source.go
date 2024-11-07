@@ -30,11 +30,6 @@ const (
 	defaultBucketRegion         = "us-east-1"
 )
 
-func init() {
-	// register source
-	row_source.Factory.RegisterRowSources(NewAwsS3BucketSource)
-}
-
 // AwsS3BucketSource is a [ArtifactSource] implementation that reads artifacts from an S3 bucket
 type AwsS3BucketSource struct {
 	ArtifactSourceImpl[*artifact_source_config.AwsS3BucketSourceConfig]

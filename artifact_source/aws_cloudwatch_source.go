@@ -33,11 +33,6 @@ const (
 // TODO #config TMP https://github.com/turbot/tailpipe-plugin-sdk/issues/3
 const BaseTmpDir = "/tmp/tailpipe"
 
-func init() {
-	// register source
-	row_source.Factory.RegisterRowSources(NewAwsCloudWatchSource)
-}
-
 // AwsCloudWatchSource is a [ArtifactSource] implementation that reads logs from AWS CloudWatch
 // and writes them to a temp JSON file
 type AwsCloudWatchSource struct {
