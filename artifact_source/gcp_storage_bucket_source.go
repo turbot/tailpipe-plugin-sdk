@@ -30,7 +30,6 @@ const (
 type GcpStorageBucketSource struct {
 	ArtifactSourceImpl[*artifact_source_config.GcpStorageBucketSourceConfig]
 
-	Config     artifact_source_config.GcpStorageBucketSourceConfig
 	Extensions types.ExtensionLookup
 	client     *storage.Client
 }
