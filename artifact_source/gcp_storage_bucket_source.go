@@ -88,6 +88,7 @@ func (s *GcpStorageBucketSource) DiscoverArtifacts(ctx context.Context) error {
 			sourceEnrichmentFields := &enrichment.CommonFields{
 				TpSourceLocation: &objPath,
 				TpSourceName:     s.Config.Bucket, // TODO: verify with Kai this is correct place to populate source name
+				TpSourceType:     s.Identifier(),
 			}
 
 			info := &types.ArtifactInfo{Name: objPath, OriginalName: objPath, EnrichmentFields: sourceEnrichmentFields}
@@ -126,7 +127,7 @@ func (s *GcpStorageBucketSource) DownloadArtifact(ctx context.Context, info *typ
 		return fmt.Errorf("failed to write data to file, %w", err)
 	}
 
-	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name}
+	downloadInfo := &types.ArtifactInfo{Name: localFilePath, OriginalName: info.Name, EnrichmentFields: info.EnrichmentFields}
 
 	// TODO: #delta create collection state data https://github.com/turbot/tailpipe-plugin-sdk/issues/13
 	return s.OnArtifactDownloaded(ctx, downloadInfo)
