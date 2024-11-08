@@ -80,7 +80,7 @@ var validDuckDBTypes = map[string]struct{}{
 	"INTERVAL":  {},
 	"DECIMAL":   {},
 	"UUID":      {},
-	"JSON	":     {},
+	"JSON":      {},
 }
 
 func (t *ParquetTag) validate() (*ParquetTag, error) {
