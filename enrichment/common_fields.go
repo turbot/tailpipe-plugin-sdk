@@ -1,19 +1,21 @@
 package enrichment
 
-import "github.com/turbot/tailpipe-plugin-sdk/helpers"
+import (
+	"time"
+)
 
 // CommonFields represents the common fields with JSON tags
 type CommonFields struct {
-	TpID              string             `json:"tp_id"`
-	TpSourceType      string             `json:"tp_source_type"`
-	TpSourceName      string             `json:"tp_source_name"`
-	TpSourceLocation  *string            `json:"tp_source_location"`
-	TpIngestTimestamp helpers.UnixMillis `json:"tp_ingest_timestamp"`
+	TpID              string    `json:"tp_id"`
+	TpSourceType      string    `json:"tp_source_type"`
+	TpSourceName      string    `json:"tp_source_name"`
+	TpSourceLocation  *string   `json:"tp_source_location"`
+	TpIngestTimestamp time.Time `json:"tp_ingest_timestamp"`
 
 	// Standardized
-	TpTimestamp     helpers.UnixMillis `json:"tp_timestamp"`
-	TpSourceIP      *string            `json:"tp_source_ip"`
-	TpDestinationIP *string            `json:"tp_destination_ip"`
+	TpTimestamp     time.Time `json:"tp_timestamp"`
+	TpSourceIP      *string   `json:"tp_source_ip"`
+	TpDestinationIP *string   `json:"tp_destination_ip"`
 
 	// Hive fields
 	TpPartition string `json:"tp_partition"`
