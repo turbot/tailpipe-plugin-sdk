@@ -19,5 +19,6 @@ type ArtifactSource interface {
 
 	SetLoader(loader artifact_loader.Loader)
 	SetRowPerLine(b bool)
+	SetSkipHeaderRow(b bool)
 	SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase)
 }

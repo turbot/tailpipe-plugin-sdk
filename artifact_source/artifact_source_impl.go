@@ -50,7 +50,9 @@ type ArtifactSourceImpl[T artifact_source_config.ArtifactSourceConfig] struct {
 
 	// do we expect the a row to be a line of data
 	RowPerLine bool
-	Loader     artifact_loader.Loader
+	// do we want to skip the first row (i.e. for a csv file)
+	SkipHeaderRow bool
+	Loader        artifact_loader.Loader
 
 	// TODO #config should this be in base - means the risk that a derived struct will not set it https://github.com/turbot/tailpipe-plugin-sdk/issues/3
 	TmpDir string
@@ -80,6 +82,10 @@ type ArtifactSourceImpl[T artifact_source_config.ArtifactSourceConfig] struct {
 
 func (b *ArtifactSourceImpl[T]) SetRowPerLine(rowPerLine bool) {
 	b.RowPerLine = rowPerLine
+}
+
+func (b *ArtifactSourceImpl[T]) SetSkipHeaderRow(skipHeaderRow bool) {
+	b.SkipHeaderRow = skipHeaderRow
 }
 
 func (b *ArtifactSourceImpl[T]) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
@@ -287,6 +293,11 @@ func (b *ArtifactSourceImpl[T]) extractArtifact(ctx context.Context, info *types
 
 	// range over the data channel and apply mappers
 	for rawRow := range artifactChan {
+		// if we're skipping the header row, skip the first row
+		if b.SkipHeaderRow && count == 0 {
+			count++
+			continue
+		}
 		// raise row events, sending collection state data
 		var notifyErrors []error
 		count++
@@ -306,6 +317,11 @@ func (b *ArtifactSourceImpl[T]) extractArtifact(ctx context.Context, info *types
 	// notify observers of download
 	if err := b.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
 		return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
+	}
+
+	// if we skipped the header row, decrement the count to ensure logged row count is accurate
+	if b.SkipHeaderRow {
+		count--
 	}
 
 	slog.Debug("RowSourceImpl extractArtifact complete", "artifact", info.Name, "rows", count)

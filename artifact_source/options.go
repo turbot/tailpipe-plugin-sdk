@@ -37,3 +37,14 @@ func WithRowPerLine() row_source.RowSourceOption {
 		return nil
 	}
 }
+
+// WithSkipHeaderRow is used when creating an ArtifactSourceImpl
+// it specifies that the row source should skip the first row (header row).
+func WithSkipHeaderRow() row_source.RowSourceOption {
+	return func(r row_source.RowSource) error {
+		if a, ok := r.(ArtifactSource); ok {
+			a.SetSkipHeaderRow(true)
+		}
+		return nil
+	}
+}
