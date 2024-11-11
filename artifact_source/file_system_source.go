@@ -65,6 +65,7 @@ func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
 				// populate enrichment fields the the source is aware of
 				// - in this case the source location
 				sourceEnrichmentFields := &enrichment.CommonFields{
+					TpSourceType:     FileSystemSourceIdentifier,
 					TpSourceLocation: &path,
 				}
 

@@ -3,8 +3,8 @@ package table
 import (
 	"context"
 	"fmt"
+
 	"github.com/satyrius/gonx"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type DelimitedLineMapper[T MapInitialisedModel] struct {
@@ -29,15 +29,11 @@ func (c *DelimitedLineMapper[T]) Identifier() string {
 func (c *DelimitedLineMapper[T]) Map(ctx context.Context, a any) ([]T, error) {
 	var parsed *gonx.Entry
 	var err error
-	rowData, ok := a.(*types.RowData)
-	if !ok {
-		return nil, fmt.Errorf("expected *types.RowData, got %T", a)
-	}
 
 	// validate input type is string
 	input, ok := a.(string)
 	if !ok {
-		return nil, fmt.Errorf("expected string, got %T", rowData.Data)
+		return nil, fmt.Errorf("expected string, got %T", a)
 	}
 
 	for _, parser := range c.parsers {
