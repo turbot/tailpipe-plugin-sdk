@@ -59,6 +59,7 @@ type ColumnSchema struct {
 	// DuckDB type for the column
 	Type string
 	// for struct and struct[]
+	// TODO #schema what about map
 	StructFields []*ColumnSchema
 }
 type ColumnType struct {

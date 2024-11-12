@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/iancoleman/strcase"
-	"golang.org/x/exp/maps"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 const maxNesting = 5
@@ -58,14 +58,18 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 
 	// reflect over parquet tags to build schema
 	// build into map to avoid column name collisions (last column wins)
-	var res = map[string]*ColumnSchema{}
 
-	// If rowStruct is a pointer, get the element type
-	if t.Kind() == reflect.Ptr {
-		t = t.Elem()
+	// keep track of field order so schema columns reflects struct field order
+	// (necessary as we use a map to avoid duplicate column names)
+	idx := 0
+	type schemaWithOrder struct {
+		schema *ColumnSchema
+		order  int
 	}
+	var res = map[string]schemaWithOrder{}
 
 	var errorList []error
+
 	// Iterate over the struct fields
 	for i := 0; i < t.NumField(); i++ {
 		field := t.Field(i)
@@ -84,7 +88,6 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 		var c *ColumnSchema
 		// look for a parquet tag - this may override the name and/or type
 		if tag := field.Tag.Get("parquet"); tag != "" {
-
 			p, err = ParseParquetTag(tag)
 			if err != nil {
 				errorList = append(errorList, err)
@@ -124,10 +127,12 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 		// if the field is an anonymous struct, MERGE the child fields into the parent
 		if field.Anonymous && c.Type == "STRUCT" {
 			for _, child := range c.StructFields {
-				res[child.ColumnName] = child
+				res[child.ColumnName] = schemaWithOrder{child, idx}
+				idx++
 			}
 		} else {
-			res[c.ColumnName] = c
+			res[c.ColumnName] = schemaWithOrder{c, idx}
+			idx++
 		}
 	}
 
@@ -137,7 +142,11 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 
 	// now convert the map into a schema
 	schema := &RowSchema{
-		Columns: maps.Values(res),
+		Columns: make([]*ColumnSchema, len(res)),
+	}
+	// construct the column array, respecting the order property
+	for _, v := range res {
+		schema.Columns[v.order] = v.schema
 	}
 	return schema, nil
 
@@ -174,7 +183,11 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 	case reflect.Float64:
 		c.Type = "DOUBLE"
 	case reflect.String:
-		c.Type = "VARCHAR"
+		if t == reflect.TypeOf(types.JSONString("")) {
+			c.Type = "JSON"
+		} else {
+			c.Type = "VARCHAR"
+		}
 	case reflect.Slice, reflect.Array:
 		if t.Elem().Kind() == reflect.Uint8 {
 			c.Type = "BLOB"

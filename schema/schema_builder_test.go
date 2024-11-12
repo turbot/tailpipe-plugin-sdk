@@ -4,6 +4,8 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type SimpleStructNoTags struct {
@@ -21,6 +23,7 @@ type SimpleStructNoTags struct {
 	Uint64Field      uint64
 	ByteSliceField   []byte
 	StringSliceField []string
+	JSONStringField  types.JSONString
 }
 
 type ComplexStructNoTags struct {
@@ -78,6 +81,12 @@ type RecursiveStruct6 struct {
 	S string
 }
 
+type SimpleStructWithTags struct {
+	StringFieldNameOverridden  string `parquet:"name=renamed_string_field"`
+	IntegerFieldTypeOverridden int    `parquet:"type=INTEGER"`
+	Int16FieldBothOverridden   int16  `parquet:"name=renamed_int_16_field,type=INTEGER"`
+}
+
 func TestSchemaFromStruct(t *testing.T) {
 	type args struct {
 		s any
@@ -111,6 +120,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "UBIGINT"},
 					{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "BLOB"},
 					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "VARCHAR[]"},
+					{SourceName: "JSONStringField", ColumnName: "json_string_field", Type: "JSON"},
 				},
 			},
 			wantErr: false,
@@ -242,6 +252,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "UBIGINT"},
 					{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "BLOB"},
 					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "VARCHAR[]"},
+					{SourceName: "JSONStringField", ColumnName: "json_string_field", Type: "JSON"},
 					{SourceName: "TopLevelStringField", ColumnName: "top_level_string_field", Type: "VARCHAR"},
 				},
 			},
@@ -271,6 +282,20 @@ func TestSchemaFromStruct(t *testing.T) {
 			},
 
 			wantErr: true,
+		},
+		{
+			name: "simple with tags",
+			args: args{
+				s: SimpleStructWithTags{},
+			},
+			want: &RowSchema{
+				Columns: []*ColumnSchema{
+					{SourceName: "StringFieldNameOverridden", ColumnName: "renamed_string_field", Type: "VARCHAR"},
+					{SourceName: "IntegerFieldTypeOverridden", ColumnName: "integer_field_type_overridden", Type: "INTEGER"},
+					{SourceName: "Int16FieldBothOverridden", ColumnName: "renamed_int_16_field", Type: "INTEGER"},
+				},
+			},
+			wantErr: false,
 		},
 	}
 	for _, tt := range tests {

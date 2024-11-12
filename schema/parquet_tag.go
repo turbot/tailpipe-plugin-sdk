@@ -84,7 +84,8 @@ var validDuckDBTypes = map[string]struct{}{
 }
 
 func (t *ParquetTag) validate() (*ParquetTag, error) {
-	// validate name is duckdb compliant?
+	// TODO #validation validate name is duckdb compliant?
+
 	if t.Type != "" {
 		// Convert type to upper case for case-insensitive comparison
 		normalizedType := strings.ToUpper(t.Type)
