@@ -18,7 +18,7 @@ type CommonFields struct {
 	// Hive fields
 	TpPartition string    `json:"tp_partition"`
 	TpIndex     string    `json:"tp_index"`
-	TpDate      time.Time `json:"tp_date" parquet:"DATE"`
+	TpDate      time.Time `json:"tp_date" parquet:"type=DATE"`
 
 	// Optional fields
 
