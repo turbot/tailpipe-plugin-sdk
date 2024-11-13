@@ -14,9 +14,9 @@ type CommonFields struct {
 	TpTimestamp       time.Time `json:"tp_timestamp"`
 
 	// Hive fields
-	TpPartition string `json:"tp_partition"`
-	TpIndex     string `json:"tp_index"`
-	TpDate      string `json:"tp_date"`
+	TpPartition string    `json:"tp_partition"`
+	TpIndex     string    `json:"tp_index"`
+	TpDate      time.Time `json:"tp_date" parquet:"DATE"`
 
 	// Optional fields
 
