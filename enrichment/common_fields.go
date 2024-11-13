@@ -63,6 +63,7 @@ func (c CommonFields) Clone() *CommonFields {
 // CommonFields.Validate() should be called first
 func (c CommonFields) Validate() error {
 	var missingFields []string
+	var invalidFields []string
 	// ensure required fields are set
 	if c.TpID == "" {
 		missingFields = append(missingFields, "TpID")
@@ -82,11 +83,29 @@ func (c CommonFields) Validate() error {
 	if c.TpIndex == "" {
 		missingFields = append(missingFields, "TpIndex")
 	}
-	if c.TpDate == "" {
+	if c.TpDate.IsZero() {
 		missingFields = append(missingFields, "TpDate")
 	}
+	// verify that the date is a date and not a datetime
+	if !c.TpDate.Equal(c.TpDate.Truncate(24 * time.Hour)) {
+		invalidFields = append(invalidFields, "TpDate")
+	}
+	var missingFieldsStr, invalidFieldsStr string
 	if len(missingFields) > 0 {
-		return fmt.Errorf("missing required fields: %s", strings.Join(missingFields, ", "))
+		missingFieldsStr = fmt.Sprintf("missing required fields: %s", strings.Join(missingFields, ", "))
+	}
+	if len(invalidFields) > 0 {
+		invalidFieldsStr = fmt.Sprintf("invalid fields: %s", strings.Join(invalidFields, ", "))
+	}
+	// Concatenate the messages without extra spaces
+	errorMsg := missingFieldsStr
+	if missingFieldsStr != "" && invalidFieldsStr != "" {
+		errorMsg += " "
+	}
+	errorMsg += invalidFieldsStr
+
+	if errorMsg != "" {
+		return fmt.Errorf("%s", errorMsg)
 	}
 	return nil
 }
