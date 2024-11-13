@@ -35,7 +35,7 @@ func ParseParquetTag(tag string) (*ParquetTag, error) {
 		// split on '='
 		kv := strings.Split(part, "=")
 		if len(kv) != 2 {
-			return nil, fmt.Errorf("invalid parquet tag: %s - 'name' and 'type' must be set ", tag)
+			return nil, fmt.Errorf("invalid parquet tag: %s - one of 'name' and 'type' must be set ", tag)
 		}
 
 		// trim spaces in key and value
