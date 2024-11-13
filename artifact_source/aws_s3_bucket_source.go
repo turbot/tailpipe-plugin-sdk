@@ -25,6 +25,11 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// register the source from the package init function
+func init() {
+	row_source.Factory.RegisterRowSource(NewAwsS3BucketSource)
+}
+
 const (
 	AwsS3BucketSourceIdentifier = "aws_s3_bucket"
 	defaultBucketRegion         = "us-east-1"
@@ -139,7 +144,7 @@ func (s *AwsS3BucketSource) DiscoverArtifacts(ctx context.Context) error {
 				// - in this case the source location
 				sourceEnrichmentFields := &enrichment.CommonFields{
 					TpSourceType:     "aws_s3_bucket",
-					TpSourceName:     s.Config.Bucket,
+					TpSourceName:     &s.Config.Bucket,
 					TpSourceLocation: &path,
 				}
 

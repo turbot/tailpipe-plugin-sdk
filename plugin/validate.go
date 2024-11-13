@@ -57,6 +57,7 @@ func TestGetSchema(t *testing.T, p TailpipePlugin) {
 	configSchema := p.GetSchema()
 	assert.NotNil(t, configSchema)
 }
+
 func TestTables(t *testing.T, p TailpipePlugin) {
 	tables := table.Factory.GetTables()
 

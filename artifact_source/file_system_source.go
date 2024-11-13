@@ -15,6 +15,11 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// register the source from the package init function
+func init() {
+	row_source.Factory.RegisterRowSource(NewFileSystemSource)
+}
+
 const (
 	FileSystemSourceIdentifier = "file_system"
 )

@@ -111,7 +111,7 @@ func (p *PluginImpl) GetConnectionSchema() parse.Config {
 	return p.connectionFunc()
 }
 
-// Base returns the base instance - used for validation testing
+// Impl returns the base instance - used for validation testing
 func (p *PluginImpl) Impl() *PluginImpl {
 	return p
 }

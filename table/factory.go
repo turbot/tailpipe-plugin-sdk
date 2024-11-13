@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -12,27 +11,51 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
+// RegisterTable registers a table constructor with the factory
+// this is called from the package init function of the table implementation
+func RegisterTable[R types.RowStruct](ctor func() Enricher[R]) {
+	tableFunc := func() Table {
+		return ctor()
+	}
+	Factory.registerTable(tableFunc)
+}
+
 type TableFactory struct {
+	tableFuncs []func() Table
 	// maps of constructors for  the various registered types
-	tableFuncs map[string]func() Table
+	tableFuncMap map[string]func() Table
 	// map of table schemas
 	schemaMap schema.SchemaMap
 }
 
 func newTableFactory() TableFactory {
 	return TableFactory{
-		tableFuncs: make(map[string]func() Table),
-		schemaMap:  make(schema.SchemaMap),
+		tableFuncMap: make(map[string]func() Table),
+		schemaMap:    make(schema.SchemaMap),
 	}
 }
 
-func (f *TableFactory) RegisterTables(tableFuncs ...func() Table) error {
+// registerTable just store the constructor in an array
+// This will be called before the Init function is called
+// Init creates instances of each table - these ar eused to get the table identifier
+// (for the map key) and the schema
+// we defer this until TableFactory.Init as registerTable is called from
+// package init functions which cannot return an error
+func (f *TableFactory) registerTable(ctor func() Table) {
+	f.tableFuncs = append(f.tableFuncs, ctor)
+
+}
+
+// Init builds the map of table constructors and schemas
+func (f *TableFactory) Init() error {
 	errs := make([]error, 0)
-	for _, ctor := range tableFuncs {
+
+	for _, ctor := range f.tableFuncs {
 		// create an instance of the table to get the identifier
 		c := ctor()
+		// verify that the table implements the Table interface
 		// register the table
-		f.tableFuncs[c.Identifier()] = ctor
+		f.tableFuncMap[c.Identifier()] = ctor
 
 		// get the schema for the table row type
 		rowStruct := c.GetRowSchema()
@@ -55,7 +78,7 @@ func (f *TableFactory) GetSchema() schema.SchemaMap {
 
 func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest, connectionSchemaProvider ConnectionSchemaProvider) (Table, error) {
 	// get the registered constructor for the table
-	ctor, ok := f.tableFuncs[req.PartitionData.Table]
+	ctor, ok := f.tableFuncMap[req.PartitionData.Table]
 	if !ok {
 		// this type is not registered
 		return nil, fmt.Errorf("table not found: %s", req.PartitionData.Table)
@@ -65,16 +88,17 @@ func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest, 
 	table := ctor()
 
 	//  register the table implementation with the base struct (_before_ calling Init)
-	// create an interface type to use - we do not want to expose this function in the Table interface
-	type baseTable interface{ RegisterImpl(Table) }
 
 	base, ok := table.(baseTable)
 	if !ok {
 		return nil, fmt.Errorf("table implementation must embed table.TableImpl")
 	}
-	base.RegisterImpl(table)
+	err := base.RegisterImpl(table)
+	if err != nil {
+		return nil, fmt.Errorf("failed to register table implementation: %w", err)
+	}
 
-	err := table.Init(ctx, connectionSchemaProvider, req)
+	err = table.Init(ctx, connectionSchemaProvider, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise table: %w", err)
 	}
@@ -83,5 +107,5 @@ func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest, 
 }
 
 func (f *TableFactory) GetTables() map[string]func() Table {
-	return f.tableFuncs
+	return f.tableFuncMap
 }

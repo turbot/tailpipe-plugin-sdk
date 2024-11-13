@@ -14,7 +14,7 @@ import (
 // Table is the interface that represents a single schema/'table' provided by a plugin.
 // A plugin may support multiple tables
 type Table interface {
-	// Observable must be implemented by tableFuncs (it is implemented by table.TableImpl)
+	// Observable must be implemented by tableFuncMap (it is implemented by table.TableImpl)
 	observable.Observable
 
 	// Init is called when the collection created
@@ -23,7 +23,7 @@ type Table interface {
 	// Identifier must return the collection name
 	Identifier() string
 	// GetRowSchema returns an empty instance of the row struct returned by the collection
-	GetRowSchema() any
+	GetRowSchema() types.RowStruct
 	// GetConfigSchema returns an empty instance of the config struct used by the collection
 	GetConfigSchema() parse.Config
 	// GetSourceOptions returns any options which should be passed to the given source type
@@ -44,7 +44,7 @@ type ConnectionSchemaProvider interface {
 
 // Mapper is a generic interface which provides a method for mapping raw source data into row structs
 // R is the type of the row struct which the mapper outputs
-type Mapper[R any] interface {
+type Mapper[R types.RowStruct] interface {
 	Identifier() string
 	// Map converts artifact data to a different format and either return it as rows,
 	// or pass it on to the next mapper in the chain
@@ -55,10 +55,16 @@ type Mapper[R any] interface {
 // Implemented by tables.
 // This is defined separate from Table interface to avoid Table needing to be generic
 // (which breaks the table factory implementation)
-// R is the type
-type Enricher[R any] interface {
+// R is the row struct type
+type Enricher[R types.RowStruct] interface {
+	// Table interface is embedded - an Enricher is implicitly a Table
 	Table
 	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
+}
+
+// baseTable is an interface which is implemented by the base struct of a table
+type baseTable interface {
+	RegisterImpl(Table) error
 }
 
 type MapInitialisedModel interface {
