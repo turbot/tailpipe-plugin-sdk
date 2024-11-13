@@ -102,26 +102,22 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 		if p.Name == "" {
 			p.Name = strcase.ToSnake(field.Name)
 		}
+		var structFields []*ColumnSchema
 		// if the tag does not specify a type, infer from the field type
-		if p.Type != "" {
-			// type explicitly set in the tag (struct not supported)
-			c = &ColumnSchema{
-				SourceName: field.Name,
-				ColumnName: p.Name,
-				Type:       p.Type,
-			}
-		} else {
+		if p.Type == "" {
 			columnType, err := b.getColumnSchemaType(field.Type)
 			if err != nil {
 				errorList = append(errorList, fmt.Errorf("failed to get schema for field %s: %w", field.Name, err))
 				continue
 			}
-			c = &ColumnSchema{
-				SourceName:   sourceName,
-				ColumnName:   p.Name,
-				Type:         columnType.Type,
-				StructFields: columnType.ChildFields,
-			}
+			p.Type = columnType.Type
+			structFields = columnType.ChildFields
+		}
+		c = &ColumnSchema{
+			SourceName:   sourceName,
+			ColumnName:   p.Name,
+			Type:         p.Type,
+			StructFields: structFields,
 		}
 
 		// if the field is an anonymous struct, MERGE the child fields into the parent
