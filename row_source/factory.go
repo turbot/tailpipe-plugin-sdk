@@ -19,16 +19,13 @@ func newRowSourceFactoryFactory() RowSourceFactory {
 	}
 }
 
-// RegisterRowSources registers RowSource implementations
-// is should be called by a plugin implementation to register the sourceFuncs it provides
-// it is also called by the base implementation to register the sourceFuncs the SDK provides
-func (b *RowSourceFactory) RegisterRowSources(sourceFunc ...func() RowSource) {
-	for _, ctor := range sourceFunc {
-		// create an instance of the source to get the identifier
-		c := ctor()
-		// register the source
-		b.sourceFuncs[c.Identifier()] = ctor
-	}
+// RegisterRowSource registers RowSource implementations
+// is should be called by the package init function of row source implementations
+func (b *RowSourceFactory) RegisterRowSource(ctor func() RowSource) {
+	// create an instance of the source to get the identifier
+	c := ctor()
+	// register the source
+	b.sourceFuncs[c.Identifier()] = ctor
 }
 
 // GetRowSource attempts to instantiate a row source, using the provided row source data

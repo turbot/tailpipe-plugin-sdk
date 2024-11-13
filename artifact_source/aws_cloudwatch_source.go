@@ -24,6 +24,11 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// register the source from the package init function
+func init() {
+	row_source.Factory.RegisterRowSource(NewAwsCloudWatchSource)
+}
+
 //TODO #delta is timestamp reliable - do logs always come in order? is it should we/are we using ingestion time? https://github.com/turbot/tailpipe-plugin-sdk/issues/5
 
 const (
@@ -127,7 +132,7 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
 			// TODO #enrich check these https://github.com/turbot/tailpipe-plugin-sdk/issues/7
 			sourceEnrichmentFields := &enrichment.CommonFields{
 				TpSourceType: "cloudwatch",
-				TpSourceName: streamName,
+				TpSourceName: &streamName,
 			}
 
 			// TODO #error handle rate limiting errors

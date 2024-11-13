@@ -22,6 +22,11 @@ import (
 	"google.golang.org/api/option"
 )
 
+// register the source from the package init function
+func init() {
+	row_source.Factory.RegisterRowSource(NewGcpStorageBucketSource)
+}
+
 const (
 	GcpStorageBucketSourceIdentifier = "gcp_storage_bucket"
 )
@@ -87,7 +92,7 @@ func (s *GcpStorageBucketSource) DiscoverArtifacts(ctx context.Context) error {
 		if s.Extensions.IsValid(objPath) {
 			sourceEnrichmentFields := &enrichment.CommonFields{
 				TpSourceLocation: &objPath,
-				TpSourceName:     s.Config.Bucket, // TODO: verify with Kai this is correct place to populate source name
+				TpSourceName:     &s.Config.Bucket, // TODO: verify with Kai this is correct place to populate source name
 				TpSourceType:     s.Identifier(),
 			}
 

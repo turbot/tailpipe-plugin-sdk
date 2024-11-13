@@ -27,7 +27,7 @@ const statusUpdateInterval = 250 * time.Millisecond
 // R is the type of the row struct
 // S is the type table config struct
 // R is the type of the connection
-type TableImpl[R any, S, T parse.Config] struct {
+type TableImpl[R types.RowStruct, S, T parse.Config] struct {
 	observable.ObservableImpl
 
 	// the row Source
@@ -146,9 +146,15 @@ func (b *TableImpl[R, S, T]) initSource(ctx context.Context, configData *config_
 // RegisterImpl is called by the plugin implementation to register the collection implementation
 // it also resisters the supported sources for this collection
 // this is required so that the TableImpl can call the collection's methods
-func (b *TableImpl[R, S, T]) RegisterImpl(impl Table) {
+func (b *TableImpl[R, S, T]) RegisterImpl(impl Table) error {
 	// we expect the table to be a Enricher
-	b.table = impl.(Enricher[R])
+	enricher, ok := impl.(Enricher[R])
+	if !ok {
+		// this is unexpected as we have already validated this when registering the table
+		return fmt.Errorf("table %s does not implement Enricher", impl.Identifier())
+	}
+	b.table = enricher
+	return nil
 }
 
 // GetSourceOptions give the collection a chance to specify options for the source
@@ -191,7 +197,7 @@ func (b *TableImpl[R, S, T]) Collect(ctx context.Context, req *types.CollectRequ
 }
 
 // Notify implements observable.Observer
-// it handles all events which tableFuncs may receive (these will all come from the source)
+// it handles all events which tableFuncMap may receive (these will all come from the source)
 func (b *TableImpl[R, S, T]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	b.updateStatus(ctx, event)
@@ -265,7 +271,12 @@ func (b *TableImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) 
 		if err != nil {
 			return err
 		}
+		// validate the row
+		if err := enrichedRow.Validate(); err != nil {
+			return err
+		}
 
+		// notify observers of enriched row
 		if err := b.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, enrichedRow, e.CollectionState)); err != nil {
 			return err
 		}
