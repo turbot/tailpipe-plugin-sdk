@@ -59,7 +59,11 @@ func (p *PluginImpl) Init(context.Context) error {
 	// if the plugin overrides this function it must call the base implementation
 	p.rowBufferMap = make(map[string][]any)
 	p.rowCountMap = make(map[string]int)
-	return nil
+
+	//initialise the table factory
+	// this converts the array of table constructors to a map of table constructors
+	// and populates the table schemas
+	return table.Factory.Init()
 }
 
 // initialized returns true if the plugin has been initialized

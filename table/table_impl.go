@@ -273,6 +273,7 @@ func (b *TableImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) 
 		}
 		// validate the row
 		if err := enrichedRow.Validate(); err != nil {
+			// TODO #errors we need to include the raw row information in the error
 			return err
 		}
 

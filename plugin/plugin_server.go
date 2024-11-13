@@ -3,14 +3,15 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/logging"
-	"log/slog"
-	"os"
 )
 
 // PluginServer is a wrapper for the actual plugin
