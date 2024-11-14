@@ -24,6 +24,7 @@ type RowSourceImpl[T parse.Config] struct {
 	observable.ObservableImpl
 	Config T
 	// store a reference to the derived RowSource type so we can call its methods
+	// this will be set by the source factory
 	Source RowSource
 
 	// the collection state data for this source
