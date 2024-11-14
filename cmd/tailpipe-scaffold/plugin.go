@@ -2,38 +2,40 @@ package main
 
 import (
 	"fmt"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/turbot/pipe-fittings/cmdconfig"
 	"os"
 	"path/filepath"
 	"text/template"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-var pluginCmd = &cobra.Command{
-	Use:   "plugin",
-	Short: "Generates a plugin folder and a plugin.go file",
-	Run: func(cmd *cobra.Command, args []string) {
-		name := viper.GetString("name")
-		location := viper.GetString("location")
+func pluginCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use: "plugin [flags]",
+		Run: runPluginCmd,
+	}
 
-		fmt.Println(name, location)
+	cwd, _ := os.Getwd()
+	cmdconfig.OnCmd(cmd).
+		AddStringFlag("location", cwd, "Specify the location to create a plugin folder").
+		AddStringFlag("name", "", "Specify the plugin name")
 
-		if name == "" || location == "" {
-			fmt.Println("Both 'name' and 'location' must be specified.")
-			return
-		}
-
-		generatePluginFiles(name, location)
-	},
+	return cmd
 }
 
-func init() {
-	// Using Viper to bind flags
-	pluginCmd.Flags().String("name", "", "Name of the plugin to scaffold")
-	pluginCmd.Flags().String("location", "", "Location where files should be generated")
-	viper.BindPFlag("name", pluginCmd.Flags().Lookup("name"))
-	viper.BindPFlag("location", pluginCmd.Flags().Lookup("location"))
+func runPluginCmd(cmd *cobra.Command, args []string) {
+	name := viper.GetString("name")
+	location := viper.GetString("location")
+
+	fmt.Println(name, location)
+
+	if name == "" || location == "" {
+		fmt.Println("Both 'name' and 'location' must be specified.")
+		return
+	}
+
+	generatePluginFiles(name, location)
 }
 
 // generatePluginFiles creates a folder named after the plugin and generates a plugin.go file.

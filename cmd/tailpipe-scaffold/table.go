@@ -2,41 +2,41 @@ package main
 
 import (
 	"fmt"
-	"html/template"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/turbot/pipe-fittings/cmdconfig"
 	"os"
 	"path/filepath"
 	"strings"
+	"text/template"
 	"unicode"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-var tableCmd = &cobra.Command{
-	Use:   "table",
-	Short: "Generates tailpipe plugin/table files",
-	Run: func(cmd *cobra.Command, args []string) {
-		name := viper.GetString("name")
-		location := viper.GetString("location")
-		sourceNeeded := viper.GetBool("source-needed")
+func tableCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use: "table [flags]",
+		Run: runTableCmd,
+	}
 
-		if name == "" || location == "" {
-			fmt.Println("Both 'name' and 'location' must be specified.")
-			return
-		}
+	cwd, _ := os.Getwd()
+	cmdconfig.OnCmd(cmd).
+		AddStringFlag("location", cwd, "Specify the location to create a table folder").
+		AddStringFlag("name", "", "Specify the table name")
 
-		generateTableFiles(name, location, sourceNeeded)
-	},
+	return cmd
 }
 
-func init() {
-	// Using Viper to bind flags
-	tableCmd.Flags().String("name", "", "Name of the table to scaffold")
-	tableCmd.Flags().String("location", "", "Location where files should be generated")
-	tableCmd.Flags().Bool("source-needed", false, "Flag indicating whether sources files should be created (default: false)")
-	viper.BindPFlag("name", tableCmd.Flags().Lookup("name"))
-	viper.BindPFlag("location", tableCmd.Flags().Lookup("location"))
-	viper.BindPFlag("source-needed", tableCmd.Flags().Lookup("source-needed"))
+func runTableCmd(cmd *cobra.Command, args []string) {
+	name := viper.GetString("name")
+	location := viper.GetString("location")
+	sourceNeeded := viper.GetBool("source-needed")
+
+	if name == "" || location == "" {
+		fmt.Println("Both 'name' and 'location' must be specified.")
+		return
+	}
+
+	generateTableFiles(name, location, sourceNeeded)
 }
 
 // generateTableFiles creates directories and files with content based on the table name, location, and source-needed flag.
