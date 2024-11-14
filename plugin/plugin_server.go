@@ -3,14 +3,16 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/logging"
-	"log/slog"
-	"os"
+	"github.com/turbot/tailpipe-plugin-sdk/table"
 )
 
 // PluginServer is a wrapper for the actual plugin
@@ -55,6 +57,12 @@ func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer)
 }
 
 func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) error {
+	// before collection, initialise the table factory
+	// this converts trhe array of table constructors to a map of table constructors
+	// and populates the table schemas
+	if err := table.Factory.Init(); err != nil {
+		return err
+	}
 	return s.impl.Collect(ctx, req)
 }
 
