@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/turbot/pipe-fittings/utils"
 	"log"
 	"log/slog"
 	"sync"
@@ -42,7 +43,13 @@ type PluginImpl struct {
 }
 
 // NewPluginImpl creates a new PluginImpl instance with the given identifier.
-func NewPluginImpl(identifier string, connectionFunc func() parse.Config) PluginImpl {
+func NewPluginImpl[T parse.Config](identifier string) PluginImpl {
+	// build a connection function that returns an instance of the connection config
+	// using generic instantiation
+	connectionFunc := func() parse.Config {
+		return utils.InstanceOf[T]()
+	}
+
 	return PluginImpl{
 		identifier:     identifier,
 		connectionFunc: connectionFunc,

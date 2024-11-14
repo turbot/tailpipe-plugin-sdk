@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/turbot/pipe-fittings/utils"
 	"log/slog"
 
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
@@ -71,6 +72,11 @@ func (b *RowSourceImpl[T]) Init(ctx context.Context, configData config_data.Conf
 	}
 
 	return nil
+}
+
+// GetConfigSchema returns an empty instance of the config struct used by the source
+func (b *RowSourceImpl[T]) GetConfigSchema() parse.Config {
+	return utils.InstanceOf[T]()
 }
 
 // Close is a default implementation of the [plugin.RowSource] Close interface function

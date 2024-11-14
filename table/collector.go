@@ -5,16 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
-	"github.com/turbot/tailpipe-plugin-sdk/factory"
-	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -41,6 +40,8 @@ type RowCollector[R types.RowStruct] struct {
 
 // Collect executes the collection process. Tell our source to start collection
 func (c *RowCollector[R]) Collect(ctx context.Context, req *types.CollectRequest) (json.RawMessage, error) {
+	c.req = req
+
 	slog.Info("Table RowSourceImpl: Collect", "table", c.table.Identifier())
 	if err := c.initSource(ctx, req.SourceData); err != nil {
 		return nil, err
@@ -87,7 +88,7 @@ func (c *RowCollector[R]) initSource(ctx context.Context, configData *config_dat
 	}
 	// ask factory to create and initialise the source for us
 	// NOTE: we pass the original
-	source, err := factory.Source.GetRowSource(ctx, configData, sourceMetadata.Options...)
+	source, err := row_source.Factory.GetRowSource(ctx, configData, sourceMetadata.Options...)
 	if err != nil {
 		return err
 	}
@@ -271,11 +272,7 @@ func (c *RowCollector[R]) getSourceMetadata(requestedSource string) (*SourceMeta
 		// so the table supports artifact sources
 
 		// is this source type an artifact source?
-		isArtifactSource, err := factory.Source.IsArtifactSource(sourceType)
-		if err != nil {
-			return nil, err
-		}
-		if isArtifactSource {
+		if row_source.Factory.IsArtifactSource(sourceType) {
 			// so requested type is an artifact source and the table supports artifact sources
 			return sourceMetadata, nil
 		}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -14,7 +15,7 @@ var Factory = newTableFactory()
 
 // RegisterTable registers a table constructor with the factory
 // this is called from the package init function of the table implementation
-func RegisterTable[T TableCore]() {
+func RegisterTable[R types.RowStruct, T Table[R]]() {
 	tableFunc := func() TableCore {
 		return utils.InstanceOf[T]()
 	}
@@ -48,15 +49,22 @@ func (f *TableFactory) registerTable(ctor func() TableCore) {
 }
 
 // Init builds the map of table constructors and schemas
-func (f *TableFactory) Init() error {
+func (f *TableFactory) Init() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = helpers.ToError(r)
+		}
+	}()
+
 	errs := make([]error, 0)
 
 	for _, ctor := range f.tableFuncs {
 		// create an instance of the table to get the identifier
 		c := ctor()
-		// verify that the table implements the Table interface
+
 		// register the table
-		f.tableFuncMap[c.Identifier()] = ctor
+		tableName := c.Identifier()
+		f.tableFuncMap[tableName] = ctor
 
 		// get the schema for the table row type
 		rowStruct := c.GetRowSchema()
@@ -65,7 +73,7 @@ func (f *TableFactory) Init() error {
 			errs = append(errs, err)
 		}
 		// merge in the common schema
-		f.schemaMap[c.Identifier()] = s
+		f.schemaMap[tableName] = s
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)

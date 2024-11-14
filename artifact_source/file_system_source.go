@@ -3,7 +3,6 @@ package artifact_source
 import (
 	"context"
 	"errors"
-	"github.com/turbot/tailpipe-plugin-sdk/factory"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -11,14 +10,13 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // register the source from the package init function
 func init() {
-	factory.Source.RegisterRowSource(NewFileSystemSource)
+	row_source.RegisterRowSource[*FileSystemSource]()
 }
 
 const (
@@ -29,10 +27,6 @@ type FileSystemSource struct {
 	ArtifactSourceImpl[*artifact_source_config.FileSystemSourceConfig]
 	Paths      []string
 	Extensions types.ExtensionLookup
-}
-
-func NewFileSystemSource() row_source.RowSource {
-	return &FileSystemSource{}
 }
 
 func (s *FileSystemSource) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
@@ -49,10 +43,6 @@ func (s *FileSystemSource) Init(ctx context.Context, configData config_data.Conf
 
 func (s *FileSystemSource) Identifier() string {
 	return FileSystemSourceIdentifier
-}
-
-func (s *FileSystemSource) GetConfigSchema() parse.Config {
-	return &artifact_source_config.FileSystemSourceConfig{}
 }
 
 func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
