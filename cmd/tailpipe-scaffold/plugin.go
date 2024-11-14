@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
-	"github.com/turbot/pipe-fittings/cmdconfig"
 	"os"
 	"path/filepath"
 	"text/template"
+
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/turbot/pipe-fittings/cmdconfig"
 )
 
 func pluginCmd() *cobra.Command {
@@ -27,8 +28,6 @@ func pluginCmd() *cobra.Command {
 func runPluginCmd(cmd *cobra.Command, args []string) {
 	name := viper.GetString("name")
 	location := viper.GetString("location")
-
-	fmt.Println(name, location)
 
 	if name == "" || location == "" {
 		fmt.Println("Both 'name' and 'location' must be specified.")
@@ -55,14 +54,30 @@ func generatePluginFiles(name, location string) {
 	// Template for the plugin.go file
 	const pluginTemplate = `package {{ .PackageName }}
 
-import "fmt"
+import (
+	"github.com/turbot/go-kit/helpers"
+	"github.com/turbot/tailpipe-plugin-{{ .PackageName }}/config"
+	"github.com/turbot/tailpipe-plugin-sdk/plugin"
+	// reference the table package to ensure that the tables are registered by the init functions
+	_ "github.com/turbot/tailpipe-plugin-{{ .PackageName }}/tables"
+)
 
-// {{ .PackageName }}Plugin is a sample plugin struct.
-type {{ .PackageName }}Plugin struct{}
+type Plugin struct {
+	plugin.PluginImpl
+}
 
-// Initialize initializes the plugin.
-func (p *{{ .PackageName }}Plugin) Initialize() {
-	fmt.Println("Initializing {{ .PackageName }} plugin")
+func NewPlugin() (_ plugin.TailpipePlugin, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = helpers.ToError(r)
+		}
+	}()
+
+	p := &Plugin{
+		PluginImpl: plugin.NewPluginImpl("{{ .PackageName }}", config.New{{ .PackageName | toPascalcase }}Connection),
+	}
+
+	return p, nil
 }
 `
 
@@ -75,7 +90,10 @@ func (p *{{ .PackageName }}Plugin) Initialize() {
 	defer file.Close()
 
 	// Create and execute the template
-	tmpl, err := template.New("plugin").Parse(pluginTemplate)
+	tmpl, err := template.New("plugin").
+		Funcs(template.FuncMap{
+			"toPascalcase": toPascalCase,
+		}).Parse(pluginTemplate)
 	if err != nil {
 		fmt.Printf("Error creating template: %v\n", err)
 		return
