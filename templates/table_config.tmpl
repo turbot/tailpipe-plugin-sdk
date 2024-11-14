@@ -1,0 +1,7 @@
+package tables
+
+type {{ .Name | toPascalCase }}TableConfig struct{}
+
+func (c *{{ .Name | toPascalCase }}TableConfig) Validate() error {
+	return nil
+}

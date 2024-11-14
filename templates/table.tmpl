@@ -1,0 +1,44 @@
+package tables
+
+import (
+	"github.com/turbot/tailpipe-plugin-sdk/table"
+)
+
+// register the table from the package init function
+func init() {
+	table.RegisterTable[*{{ .Name | toPascalCase }}Table]()
+}
+
+type {{ .Name | toPascalCase }}Table struct {
+	table.TableImpl[*rows.{{ .Name | toPascalCase }}, *{{ .Name | toPascalCase }}TableConfig, *config.{{ extractConnectionName }}]
+}
+
+func (t *{{ .Name | toPascalCase }}Table) SupportedSource() []table.SourceMetadata[*rows.{{ .Name | toPascalCase }}] {
+	return []table.SourceMetadata[*rows.{{ .Name | toPascalCase }}]{
+		{
+			// any artifact source
+			// SourceName: TODO
+			// MapperFunc: TODO (optional)
+			// Options:    TODO (optional)
+		},
+	}
+}
+
+func (t *{{ .Name | toPascalCase }}Table) Identifier() string {
+	return "{{ .Name }}"
+}
+
+func ( *{{ .Name | toPascalCase }}Table) EnrichRow(row *rows.{{ .Name | toPascalCase }}, sourceEnrichmentFields enrichment.CommonFields) (*rows.{{ .Name | toPascalCase }}, error) {
+	// Add source enrichment fields
+	row.CommonFields = sourceEnrichmentFields
+
+	// Required enrichment fields
+	row.TpID = TODO
+	row.TpTimestamp = TODO
+	row.TpIngestTimestamp = time.Now()
+	row.TpDate = row.Timestamp.Truncate(24 * time.Hour)
+	row.TpIndex = TODO
+
+	// TODO other enrichment fields
+	return row, nil
+}
