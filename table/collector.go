@@ -20,6 +20,7 @@ import (
 // how often to send status events
 const statusUpdateInterval = 250 * time.Millisecond
 
+// RowCollector is responsible for coordinating the collection process and reporting status
 type RowCollector[R types.RowStruct] struct {
 	observable.ObservableImpl
 
@@ -213,7 +214,7 @@ func (c *RowCollector[R]) handeErrorEvent(e *events.Error) error {
 	return nil
 }
 
-// mapROw applies any configured mappers to the artifact data
+// mapRow applies any configured mappers to the raw rows
 func (c *RowCollector[R]) mapRow(ctx context.Context, rawRow any) ([]R, error) {
 	// if there is no mappers, just return the data as is
 	if c.mapper == nil {
