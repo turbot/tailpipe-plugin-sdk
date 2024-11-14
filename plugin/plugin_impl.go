@@ -155,8 +155,10 @@ func (p *PluginImpl) doCollect(ctx context.Context, req *types.CollectRequest) e
 		return err
 	}
 
+	// ask the table for a collector (the table must create this with the correct generic type)
+	collector := t.GetCollector()
 	// add ourselves as an observer
-	if err := t.AddObserver(p); err != nil {
+	if err := collector.AddObserver(p); err != nil {
 		// TODO #error handle error
 		slog.Error("add observer error", "error", err)
 	}
@@ -167,9 +169,12 @@ func (p *PluginImpl) doCollect(ctx context.Context, req *types.CollectRequest) e
 	}
 
 	// tell the collection to start collecting - this is a blocking call
-	collectionState, err := t.Collect(ctx, req)
+	collectionState, err := collector.Collect(ctx, req)
+	if err != nil {
+		return err
+	}
 
-	timing := t.GetTiming()
+	timing := collector.GetTiming()
 
 	// signal we have completed - pass error if there was one
 	return p.OnCompleted(ctx, req.ExecutionId, collectionState, timing, err)

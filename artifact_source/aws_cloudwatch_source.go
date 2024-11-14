@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/factory"
 	"log/slog"
 	"os"
 	"path"
@@ -26,7 +27,7 @@ import (
 
 // register the source from the package init function
 func init() {
-	row_source.Factory.RegisterRowSource(NewAwsCloudWatchSource)
+	factory.Source.RegisterRowSource(NewAwsCloudWatchSource)
 }
 
 //TODO #delta is timestamp reliable - do logs always come in order? is it should we/are we using ingestion time? https://github.com/turbot/tailpipe-plugin-sdk/issues/5

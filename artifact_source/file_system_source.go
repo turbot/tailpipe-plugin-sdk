@@ -3,6 +3,7 @@ package artifact_source
 import (
 	"context"
 	"errors"
+	"github.com/turbot/tailpipe-plugin-sdk/factory"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -17,7 +18,7 @@ import (
 
 // register the source from the package init function
 func init() {
-	row_source.Factory.RegisterRowSource(NewFileSystemSource)
+	factory.Source.RegisterRowSource(NewFileSystemSource)
 }
 
 const (

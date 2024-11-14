@@ -7,12 +7,12 @@ import (
 	"github.com/satyrius/gonx"
 )
 
-type DelimitedLineMapper[T MapInitialisedModel] struct {
+type DelimitedLineMapper[T MapInitialisedRow] struct {
 	parsers []*gonx.Parser
 	newRow  func() T
 }
 
-func NewDelimitedLineMapper[T MapInitialisedModel](newRow func() T, formats ...string) *DelimitedLineMapper[T] {
+func NewDelimitedLineMapper[T MapInitialisedRow](newRow func() T, formats ...string) *DelimitedLineMapper[T] {
 	res := &DelimitedLineMapper[T]{
 		newRow: newRow,
 	}

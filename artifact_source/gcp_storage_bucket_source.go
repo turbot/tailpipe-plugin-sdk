@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/factory"
 	"io"
 	"log/slog"
 	"os"
@@ -24,7 +25,7 @@ import (
 
 // register the source from the package init function
 func init() {
-	row_source.Factory.RegisterRowSource(NewGcpStorageBucketSource)
+	factory.Source.RegisterRowSource(NewGcpStorageBucketSource)
 }
 
 const (

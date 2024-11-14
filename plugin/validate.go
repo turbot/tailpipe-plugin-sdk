@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/turbot/tailpipe-plugin-sdk/factory"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"testing"
@@ -72,7 +73,7 @@ func TestTables(t *testing.T, p TailpipePlugin) {
 }
 
 func TestSources(t *testing.T, p TailpipePlugin) {
-	sources := row_source.Factory.GetSources()
+	sources := factory.Source.GetSources()
 
 	for _, s := range sources {
 		t.Run("TestInit", func(t *testing.T) {
