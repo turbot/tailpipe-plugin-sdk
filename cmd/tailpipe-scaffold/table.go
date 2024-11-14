@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/turbot/go-kit/files"
 	"github.com/turbot/pipe-fittings/cmdconfig"
 	"os"
 	"path/filepath"
@@ -57,6 +58,7 @@ func generateTableFiles(name, location string, sourceNeeded bool) {
 		}
 	}
 
+	templateRoot, _ := files.Tildefy("~/.tailpipe/templates")
 	// Define file paths and corresponding templates
 	files := map[string]struct {
 		Path         string
@@ -66,17 +68,17 @@ func generateTableFiles(name, location string, sourceNeeded bool) {
 		"table_config": {
 			Path:         filepath.Join(location, "tables", fmt.Sprintf("%s_table_config.go", name)),
 			PackageName:  "tables",
-			TemplateFile: "templates/table_config.tmpl",
+			TemplateFile: filepath.Join(templateRoot, "table_config.tmpl"),
 		},
 		"table": {
 			Path:         filepath.Join(location, "tables", fmt.Sprintf("%s_table.go", name)),
 			PackageName:  "tables",
-			TemplateFile: "templates/table.tmpl",
+			TemplateFile: filepath.Join(templateRoot, "table.tmpl"),
 		},
 		"row": {
 			Path:         filepath.Join(location, "rows", fmt.Sprintf("%s.go", name)),
 			PackageName:  "rows",
-			TemplateFile: "templates/row.tmpl",
+			TemplateFile: filepath.Join(templateRoot, "row.tmpl"),
 		},
 	}
 
@@ -89,7 +91,7 @@ func generateTableFiles(name, location string, sourceNeeded bool) {
 		}{
 			Path:         filepath.Join(location, "sources", fmt.Sprintf("%s_api_source.go", name)),
 			PackageName:  "sources",
-			TemplateFile: "templates/api_source.tmpl",
+			TemplateFile: filepath.Join(templateRoot, "api_source.tmpl"),
 		}
 		files["api_source_config"] = struct {
 			Path         string
@@ -98,7 +100,7 @@ func generateTableFiles(name, location string, sourceNeeded bool) {
 		}{
 			Path:         filepath.Join(location, "sources", fmt.Sprintf("%s_api_source_config.go", name)),
 			PackageName:  "sources",
-			TemplateFile: "templates/api_source_config.tmpl",
+			TemplateFile: filepath.Join(templateRoot, "api_source_config.tmpl"),
 		}
 	}
 
