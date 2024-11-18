@@ -21,6 +21,10 @@ func (b *ArtifactSourceConfigBase) Validate() error {
 	return nil
 }
 
+func (b *ArtifactSourceConfigBase) Identifier() string {
+	return "artifact_source"
+}
+
 func (b *ArtifactSourceConfigBase) GetFileLayout() *string {
 	return b.FileLayout
 }

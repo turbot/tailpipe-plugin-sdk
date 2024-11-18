@@ -3,9 +3,9 @@ package table
 import (
 	"context"
 	"encoding/json"
+
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -22,7 +22,7 @@ type Table[R types.RowStruct] interface {
 	TableCore
 
 	// SourceMetadata returns the supported sources for the table
-	SupportedSource() []*SourceMetadata[R]
+	SupportedSources() []*SourceMetadata[R]
 	// EnrichRow is called to enrich the row with common (tp_*) fields
 	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
 }
@@ -35,24 +35,12 @@ type TableCore interface {
 
 	// Init is called when the collection created
 	// it is responsible for parsing the config and creating the configured Source
-	Init(ctx context.Context, connectionSchemaProvider ConnectionSchemaProvider, req *types.CollectRequest) error
-	// Identifier must return the collection name
-	Identifier() string
+	Init(ctx context.Context, req *types.CollectRequest) error
 	// GetRowSchema returns an empty instance of the row struct returned by the collection
 	GetRowSchema() types.RowStruct
-	// GetConfigSchema returns an empty instance of the config struct used by the collection
-	GetConfigSchema() parse.Config
-	// Collect is called to start collecting data,
-	// Collect will send enriched rows which satisfy the tailpipe row requirements
-	//Collect(context.Context, *types.CollectRequest) (json.RawMessage, error)
-	// GetTiming returns the timing for the collection
-	//GetTiming() types.TimingCollection
-}
 
-// ConnectionSchemaProvider is an interface providing a method to return the config schema
-// implemented by the plugin
-type ConnectionSchemaProvider interface {
-	GetConnectionSchema() parse.Config
+	// Identifier must return the collection name
+	Identifier() string
 }
 
 // Mapper is a generic interface which provides a method for mapping raw source data into row structs

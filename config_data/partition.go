@@ -13,6 +13,7 @@ func NewPartitionConfigData(hcl []byte, decRange hcl.Range, table string, partit
 		ConfigDataImpl: &ConfigDataImpl{
 			Hcl:   hcl,
 			Range: decRange,
+			Id:    table,
 		},
 		Table:     table,
 		Partition: partition,

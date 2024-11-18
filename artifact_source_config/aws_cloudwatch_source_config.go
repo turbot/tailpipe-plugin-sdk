@@ -27,7 +27,7 @@ type AwsCloudWatchSourceConfig struct {
 	EndTime         time.Time
 }
 
-func (a *AwsCloudWatchSourceConfig) Validate() error {
+func (a AwsCloudWatchSourceConfig) Validate() error {
 	// parse  start  and end time
 	if a.StartTimeString == "" {
 		return fmt.Errorf("start_time is required")
@@ -51,4 +51,8 @@ func (a *AwsCloudWatchSourceConfig) Validate() error {
 	}
 
 	return a.ArtifactSourceConfigBase.Validate()
+}
+
+func (AwsCloudWatchSourceConfig) Identifier() string {
+	return AWSCloudwatchSourceIdentifier
 }

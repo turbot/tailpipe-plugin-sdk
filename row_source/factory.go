@@ -42,7 +42,7 @@ func (b *RowSourceFactory) registerRowSource(ctor func() RowSource) {
 // GetRowSource attempts to instantiate a row source, using the provided row source data
 // It will fail if the requested source type is not registered
 // Implements [plugin.SourceFactory]
-func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *config_data.SourceConfigData, sourceOpts ...RowSourceOption) (RowSource, error) {
+func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData, sourceOpts ...RowSourceOption) (RowSource, error) {
 	// look for a constructor for the source
 	ctor, ok := b.sourceFuncs[sourceConfigData.Type]
 	if !ok {
@@ -63,7 +63,7 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *c
 	base.RegisterSource(source)
 
 	// initialise the source, passing ourselves as source_factory
-	if err := source.Init(ctx, sourceConfigData, sourceOpts...); err != nil {
+	if err := source.Init(ctx, sourceConfigData, connectionData, sourceOpts...); err != nil {
 		return nil, fmt.Errorf("failed to initialise source: %w", err)
 	}
 	return source, nil

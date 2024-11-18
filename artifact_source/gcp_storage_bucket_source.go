@@ -1,7 +1,6 @@
 package artifact_source
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
@@ -10,15 +9,17 @@ import (
 	"os"
 	"path"
 
+	"cloud.google.com/go/storage"
 	"github.com/mitchellh/go-homedir"
+	"google.golang.org/api/impersonate"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"google.golang.org/api/impersonate"
-	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 )
 
 // register the source from the package init function
@@ -26,21 +27,17 @@ func init() {
 	row_source.RegisterRowSource[*GcpStorageBucketSource]()
 }
 
-const (
-	GcpStorageBucketSourceIdentifier = "gcp_storage_bucket"
-)
-
 // GcpStorageBucketSource is a [ArtifactSource] implementation that reads artifacts from a GCP Storage bucket
 type GcpStorageBucketSource struct {
-	ArtifactSourceImpl[*artifact_source_config.GcpStorageBucketSourceConfig]
+	ArtifactSourceImpl[*artifact_source_config.GcpStorageBucketSourceConfig, *GcpConnection]
 
 	Extensions types.ExtensionLookup
 	client     *storage.Client
 }
 
-func (s *GcpStorageBucketSource) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
+func (s *GcpStorageBucketSource) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceImpl.Init(ctx, configData, connectionData, opts...); err != nil {
 		return err
 	}
 
@@ -58,7 +55,7 @@ func (s *GcpStorageBucketSource) Init(ctx context.Context, configData config_dat
 }
 
 func (s *GcpStorageBucketSource) Identifier() string {
-	return GcpStorageBucketSourceIdentifier
+	return artifact_source_config.GcpStorageBucketSourceIdentifier
 }
 
 func (s *GcpStorageBucketSource) Close() error {
@@ -83,8 +80,8 @@ func (s *GcpStorageBucketSource) DiscoverArtifacts(ctx context.Context) error {
 		if s.Extensions.IsValid(objPath) {
 			sourceEnrichmentFields := &enrichment.CommonFields{
 				TpSourceLocation: &objPath,
-				TpSourceName:     &s.Config.Bucket, // TODO: verify with Kai this is correct place to populate source name
-				TpSourceType:     s.Identifier(),
+				TpSourceName:     &s.Config.Bucket,
+				TpSourceType:     GcpStorageBucketSourceIdentifier,
 			}
 
 			info := &types.ArtifactInfo{Name: objPath, OriginalName: objPath, EnrichmentFields: sourceEnrichmentFields}

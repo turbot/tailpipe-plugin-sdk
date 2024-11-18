@@ -13,6 +13,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -21,7 +22,9 @@ import (
 const statusUpdateInterval = 250 * time.Millisecond
 
 // RowCollector is responsible for coordinating the collection process and reporting status
-type RowCollector[R types.RowStruct] struct {
+// R is the type of the row struct
+// S is the type of the connection
+type RowCollector[R types.RowStruct, S parse.Config] struct {
 	observable.ObservableImpl
 
 	table  Table[R]
@@ -40,11 +43,11 @@ type RowCollector[R types.RowStruct] struct {
 }
 
 // Collect executes the collection process. Tell our source to start collection
-func (c *RowCollector[R]) Collect(ctx context.Context, req *types.CollectRequest) (json.RawMessage, error) {
+func (c *RowCollector[R, S]) Collect(ctx context.Context, req *types.CollectRequest) (json.RawMessage, error) {
 	c.req = req
 
 	slog.Info("Table RowSourceImpl: Collect", "table", c.table.Identifier())
-	if err := c.initSource(ctx, req.SourceData); err != nil {
+	if err := c.initSource(ctx, req.SourceData, req.ConnectionData); err != nil {
 		return nil, err
 	}
 	slog.Info("Start collection")
@@ -78,46 +81,9 @@ func (c *RowCollector[R]) Collect(ctx context.Context, req *types.CollectRequest
 	return c.source.GetCollectionStateJSON()
 }
 
-func (c *RowCollector[R]) initSource(ctx context.Context, configData *config_data.SourceConfigData) error {
-	requestedSource := configData.Type
-
-	// get the source metadata for this source type
-	// (this returns an error if the source is not supported by the table)
-	sourceMetadata, err := c.getSourceMetadata(requestedSource)
-	if err != nil {
-		return err
-	}
-	// ask factory to create and initialise the source for us
-	// NOTE: we pass the original
-	source, err := row_source.Factory.GetRowSource(ctx, configData, sourceMetadata.Options...)
-	if err != nil {
-		return err
-	}
-	c.source = source
-
-	// set mapper if source metadata specifies one
-	if mapperFunc := sourceMetadata.MapperFunc; mapperFunc != nil {
-		c.mapper = mapperFunc()
-	}
-
-	// add ourselves as an observer to our Source
-	return c.source.AddObserver(c)
-}
-
-// ask table for it;s supported sources and put into map for ease of lookup
-func (c *RowCollector[R]) getSupportedSources() map[string]*SourceMetadata[R] {
-	supportedSources := c.table.SupportedSource()
-	// convert to a map for easy lookup
-	sourceMap := make(map[string]*SourceMetadata[R])
-	for _, s := range supportedSources {
-		sourceMap[s.SourceName] = s
-	}
-	return sourceMap
-}
-
 // Notify implements observable.Observer
 // it handles all events which tableFuncMap may receive (these will all come from the source)
-func (c *RowCollector[R]) Notify(ctx context.Context, event events.Event) error {
+func (c *RowCollector[R, S]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	c.updateStatus(ctx, event)
 
@@ -132,14 +98,52 @@ func (c *RowCollector[R]) Notify(ctx context.Context, event events.Event) error 
 	}
 }
 
-func (c *RowCollector[R]) GetTiming() types.TimingCollection {
+func (c *RowCollector[R, S]) GetTiming() types.TimingCollection {
 	return append(c.source.GetTiming(), c.enrichTiming)
+}
+
+func (c *RowCollector[R, S]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
+	requestedSource := configData.Type
+
+	// get the source metadata for this source type
+	// (this returns an error if the source is not supported by the table)
+	sourceMetadata, err := c.getSourceMetadata(requestedSource)
+	if err != nil {
+		return err
+	}
+	// ask factory to create and initialise the source for us
+	// NOTE: we pass the original
+	source, err := row_source.Factory.GetRowSource(ctx, configData, connectionData, sourceMetadata.Options...)
+	if err != nil {
+		return err
+	}
+
+	c.source = source
+
+	// set mapper if source metadata specifies one
+	if mapperFunc := sourceMetadata.MapperFunc; mapperFunc != nil {
+		c.mapper = mapperFunc()
+	}
+
+	// add ourselves as an observer to our Source
+	return c.source.AddObserver(c)
+}
+
+// ask table for it;s supported sources and put into map for ease of lookup
+func (c *RowCollector[R, S]) getSupportedSources() map[string]*SourceMetadata[R] {
+	supportedSources := c.table.SupportedSources()
+	// convert to a map for easy lookup
+	sourceMap := make(map[string]*SourceMetadata[R])
+	for _, s := range supportedSources {
+		sourceMap[s.SourceName] = s
+	}
+	return sourceMap
 }
 
 // updateStatus updates the status counters with the latest event
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
-func (c *RowCollector[R]) updateStatus(ctx context.Context, e events.Event) {
+func (c *RowCollector[R, S]) updateStatus(ctx context.Context, e events.Event) {
 	c.statusLock.Lock()
 	defer c.statusLock.Unlock()
 
@@ -157,7 +161,7 @@ func (c *RowCollector[R]) updateStatus(ctx context.Context, e events.Event) {
 }
 
 // handleRowEvent is invoked when a Row event is received - map, enrich and publish the row
-func (c *RowCollector[R]) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (c *RowCollector[R, S]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	c.rowWg.Add(1)
 	defer c.rowWg.Done()
 
@@ -184,7 +188,6 @@ func (c *RowCollector[R]) handleRowEvent(ctx context.Context, e *events.Row) err
 	enrichmentFields.TpPartition = c.req.PartitionData.Partition
 
 	for _, mappedRow := range rows {
-
 		// enrich the row
 		enrichedRow, err := c.table.EnrichRow(mappedRow, enrichmentFields)
 		if err != nil {
@@ -208,14 +211,14 @@ func (c *RowCollector[R]) handleRowEvent(ctx context.Context, e *events.Row) err
 	return nil
 }
 
-func (c *RowCollector[R]) handeErrorEvent(e *events.Error) error {
+func (c *RowCollector[R, S]) handeErrorEvent(e *events.Error) error {
 	slog.Error("Table RowSourceImpl: error event received", "error", e.Err)
 	c.NotifyObservers(context.Background(), e)
 	return nil
 }
 
 // mapRow applies any configured mappers to the raw rows
-func (c *RowCollector[R]) mapRow(ctx context.Context, rawRow any) ([]R, error) {
+func (c *RowCollector[R, S]) mapRow(ctx context.Context, rawRow any) ([]R, error) {
 	// if there is no mappers, just return the data as is
 	if c.mapper == nil {
 		row, ok := rawRow.(R)
@@ -249,7 +252,7 @@ func (c *RowCollector[R]) mapRow(ctx context.Context, rawRow any) ([]R, error) {
 	return mappedDataList, nil
 }
 
-func (c *RowCollector[R]) getSourceMetadata(requestedSource string) (*SourceMetadata[R], error) {
+func (c *RowCollector[R, S]) getSourceMetadata(requestedSource string) (*SourceMetadata[R], error) {
 	// get the supported sources for the table
 	supportedSourceMap := c.getSupportedSources()
 

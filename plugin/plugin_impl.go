@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/turbot/pipe-fittings/utils"
 	"log"
 	"log/slog"
 	"sync"
@@ -13,7 +12,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -38,21 +36,13 @@ type PluginImpl struct {
 
 	writer ChunkWriter
 
-	identifier     string
-	connectionFunc func() parse.Config
+	identifier string
 }
 
 // NewPluginImpl creates a new PluginImpl instance with the given identifier.
-func NewPluginImpl[T parse.Config](identifier string) PluginImpl {
-	// build a connection function that returns an instance of the connection config
-	// using generic instantiation
-	connectionFunc := func() parse.Config {
-		return utils.InstanceOf[T]()
-	}
-
+func NewPluginImpl(identifier string) PluginImpl {
 	return PluginImpl{
-		identifier:     identifier,
-		connectionFunc: connectionFunc,
+		identifier: identifier,
 	}
 }
 
@@ -116,12 +106,6 @@ func (p *PluginImpl) GetSchema() schema.SchemaMap {
 	return table.Factory.GetSchema()
 }
 
-// GetConnectionSchema implements table.ConnectionSchemaProvider
-func (p *PluginImpl) GetConnectionSchema() parse.Config {
-	// instantiate the connection config
-	return p.connectionFunc()
-}
-
 // Impl returns the base instance - used for validation testing
 func (p *PluginImpl) Impl() *PluginImpl {
 	return p
@@ -157,7 +141,7 @@ func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, collec
 func (p *PluginImpl) doCollect(ctx context.Context, req *types.CollectRequest) error {
 	// ask the factory to create the table
 	// - this will configure the requested source
-	t, err := table.Factory.GetTable(ctx, req, p)
+	t, err := table.Factory.GetTable(ctx, req)
 	if err != nil {
 		return err
 	}

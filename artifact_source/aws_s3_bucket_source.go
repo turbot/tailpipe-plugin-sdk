@@ -30,26 +30,25 @@ func init() {
 }
 
 const (
-	AwsS3BucketSourceIdentifier = "aws_s3_bucket"
-	defaultBucketRegion         = "us-east-1"
+	defaultBucketRegion = "us-east-1"
 )
 
 // AwsS3BucketSource is a [ArtifactSource] implementation that reads artifacts from an S3 bucket
 type AwsS3BucketSource struct {
-	ArtifactSourceImpl[*artifact_source_config.AwsS3BucketSourceConfig]
+	ArtifactSourceImpl[*artifact_source_config.AwsS3BucketSourceConfig, *AwsConnection]
 
 	Extensions types.ExtensionLookup
 	client     *s3.Client
 }
 
-func (s *AwsS3BucketSource) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
+func (s *AwsS3BucketSource) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing AwsS3BucketSource")
 
 	// set the collection state func to the S3 specific collection state
 	s.NewCollectionStateFunc = collection_state.NewAwsS3CollectionState
 
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceImpl.Init(ctx, configData, connectionData, opts...); err != nil {
 		return err
 	}
 
@@ -73,7 +72,7 @@ func (s *AwsS3BucketSource) Init(ctx context.Context, configData config_data.Con
 }
 
 func (s *AwsS3BucketSource) Identifier() string {
-	return AwsS3BucketSourceIdentifier
+	return artifact_source_config.AwsS3BucketSourceIdentifier
 }
 
 func (s *AwsS3BucketSource) Close() error {

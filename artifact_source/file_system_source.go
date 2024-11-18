@@ -19,19 +19,15 @@ func init() {
 	row_source.RegisterRowSource[*FileSystemSource]()
 }
 
-const (
-	FileSystemSourceIdentifier = "file_system"
-)
-
 type FileSystemSource struct {
-	ArtifactSourceImpl[*artifact_source_config.FileSystemSourceConfig]
+	ArtifactSourceImpl[*artifact_source_config.FileSystemSourceConfig, *EmptyConnection]
 	Paths      []string
 	Extensions types.ExtensionLookup
 }
 
-func (s *FileSystemSource) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
+func (s *FileSystemSource) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceImpl.Init(ctx, configData, connectionData, opts...); err != nil {
 		return err
 	}
 
@@ -42,7 +38,7 @@ func (s *FileSystemSource) Init(ctx context.Context, configData config_data.Conf
 }
 
 func (s *FileSystemSource) Identifier() string {
-	return FileSystemSourceIdentifier
+	return artifact_source_config.FileSystemSourceIdentifier
 }
 
 func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
@@ -58,16 +54,16 @@ func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
 
 			// check the extension
 			if s.Extensions.IsValid(path) {
-				// populate enrichment fields the the source is aware of
+				// populate enrichment fields the source is aware of
 				// - in this case the source location
 				sourceEnrichmentFields := &enrichment.CommonFields{
-					TpSourceType:     FileSystemSourceIdentifier,
+					TpSourceType:     artifact_source_config.FileSystemSourceIdentifier,
 					TpSourceLocation: &path,
 				}
 
-				info := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
+				artifactInfo := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
 				// notify observers of the discovered artifact
-				return s.OnArtifactDiscovered(ctx, info)
+				return s.OnArtifactDiscovered(ctx, artifactInfo)
 			}
 			return nil
 		})

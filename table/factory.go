@@ -85,7 +85,7 @@ func (f *TableFactory) GetSchema() schema.SchemaMap {
 	return f.schemaMap
 }
 
-func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest, connectionSchemaProvider ConnectionSchemaProvider) (TableCore, error) {
+func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest) (TableCore, error) {
 	// get the registered constructor for the table
 	ctor, ok := f.tableFuncMap[req.PartitionData.Table]
 	if !ok {
@@ -107,7 +107,7 @@ func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest, 
 		return nil, fmt.Errorf("failed to register table implementation: %w", err)
 	}
 
-	err = table.Init(ctx, connectionSchemaProvider, req)
+	err = table.Init(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialise table: %w", err)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -44,8 +45,8 @@ const ArtifactSourceMaxConcurrency = 16
 //     extract individual data rows from the artifact
 //
 // The lifetime of the ArtifactSourceImpl is expected to be the duration of a single collection operation
-type ArtifactSourceImpl[T artifact_source_config.ArtifactSourceConfig] struct {
-	row_source.RowSourceImpl[T]
+type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.Config] struct {
+	row_source.RowSourceImpl[S, T]
 
 	// do we expect the a row to be a line of data
 	RowPerLine bool
@@ -79,15 +80,15 @@ type ArtifactSourceImpl[T artifact_source_config.ArtifactSourceConfig] struct {
 	timingLock      sync.Mutex
 }
 
-func (b *ArtifactSourceImpl[T]) SetRowPerLine(rowPerLine bool) {
+func (b *ArtifactSourceImpl[S, T]) SetRowPerLine(rowPerLine bool) {
 	b.RowPerLine = rowPerLine
 }
 
-func (b *ArtifactSourceImpl[T]) SetSkipHeaderRow(skipHeaderRow bool) {
+func (b *ArtifactSourceImpl[S, T]) SetSkipHeaderRow(skipHeaderRow bool) {
 	b.SkipHeaderRow = skipHeaderRow
 }
 
-func (b *ArtifactSourceImpl[T]) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
+func (b *ArtifactSourceImpl[S, T]) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing ArtifactSourceImpl")
 
 	// if no collection state func has been set by a derived struct,
@@ -97,7 +98,7 @@ func (b *ArtifactSourceImpl[T]) Init(ctx context.Context, configData config_data
 	}
 
 	// call base to apply options and parse config
-	if err := b.RowSourceImpl.Init(ctx, configData, opts...); err != nil {
+	if err := b.RowSourceImpl.Init(ctx, configData, connectionData, opts...); err != nil {
 		slog.Warn("Initializing artifact_row_source.RowSourceImpl failed", "error", err)
 		return err
 	}
@@ -108,10 +109,10 @@ func (b *ArtifactSourceImpl[T]) Init(ctx context.Context, configData config_data
 	// apply default config (this handles null default)
 	b.Config.DefaultTo(b.defaultConfig)
 
-	// store RowSourceImpl.Factory as an ArtifactSource
+	// store RowSourceImpl.Source as an ArtifactSource
 	impl, ok := b.RowSourceImpl.Source.(ArtifactSource)
 	if !ok {
-		return errors.New("ArtifactSourceImpl.Factory must implement ArtifactSource")
+		return errors.New("ArtifactSourceImpl.Source must implement ArtifactSource")
 	}
 	b.Source = impl
 
@@ -130,7 +131,7 @@ func (b *ArtifactSourceImpl[T]) Init(ctx context.Context, configData config_data
 
 // Collect tells our ArtifactSourceImpl to start discovering artifacts
 // Implements [plugin.RowSource]
-func (b *ArtifactSourceImpl[T]) Collect(ctx context.Context) error {
+func (b *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) error {
 	slog.Info("ArtifactSourceImpl Collect")
 	defer slog.Info("ArtifactSourceImpl Collect complete")
 
@@ -154,15 +155,15 @@ func (b *ArtifactSourceImpl[T]) Collect(ctx context.Context) error {
 	return nil
 }
 
-func (b *ArtifactSourceImpl[T]) SetLoader(loader artifact_loader.Loader) {
+func (b *ArtifactSourceImpl[S, T]) SetLoader(loader artifact_loader.Loader) {
 	b.Loader = loader
 }
 
-func (b *ArtifactSourceImpl[T]) SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase) {
+func (b *ArtifactSourceImpl[S, T]) SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase) {
 	b.defaultConfig = config
 }
 
-func (b *ArtifactSourceImpl[T]) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {
+func (b *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -214,7 +215,7 @@ func (b *ArtifactSourceImpl[T]) OnArtifactDiscovered(ctx context.Context, info *
 	return nil
 }
 
-func (b *ArtifactSourceImpl[T]) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo) error {
+func (b *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -264,14 +265,14 @@ func (b *ArtifactSourceImpl[T]) OnArtifactDownloaded(ctx context.Context, info *
 	return nil
 }
 
-func (b *ArtifactSourceImpl[T]) GetTiming() types.TimingCollection {
+func (b *ArtifactSourceImpl[S, T]) GetTiming() types.TimingCollection {
 	return types.TimingCollection{b.DiscoveryTiming, b.DownloadTiming, b.ExtractTiming}
 }
 
 // convert a downloaded artifact to a set of raw rows, with optional metadata
 // invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
-func (b *ArtifactSourceImpl[T]) extractArtifact(ctx context.Context, info *types.ArtifactInfo, collectionState json.RawMessage) error {
+func (b *ArtifactSourceImpl[S, T]) extractArtifact(ctx context.Context, info *types.ArtifactInfo, collectionState json.RawMessage) error {
 	slog.Debug("RowSourceImpl extractArtifact", "artifact", info.Name)
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
@@ -330,7 +331,7 @@ func (b *ArtifactSourceImpl[T]) extractArtifact(ctx context.Context, info *types
 // resolveLoader resolves the loader to use for the artifact
 // - if a loader has been specified, just use that
 // - otherwise create a default loader based on the extension
-func (b *ArtifactSourceImpl[T]) resolveLoader(info *types.ArtifactInfo) (artifact_loader.Loader, error) {
+func (b *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (artifact_loader.Loader, error) {
 	// a loader was specified when creating the row source - use that
 	if b.Loader != nil {
 		return b.Loader, nil
@@ -388,14 +389,14 @@ func (b *ArtifactSourceImpl[T]) resolveLoader(info *types.ArtifactInfo) (artifac
 
 // functions which must be implemented by structs embedding ArtifactSourceImpl
 
-func (b *ArtifactSourceImpl[T]) Identifier() string {
+func (b *ArtifactSourceImpl[S, T]) Identifier() string {
 	panic("Identifier must be implemented by the ArtifactSource implementation")
 }
 
-func (b *ArtifactSourceImpl[T]) DiscoverArtifacts(ctx context.Context) error {
+func (b *ArtifactSourceImpl[S, T]) DiscoverArtifacts(ctx context.Context) error {
 	panic("DiscoverArtifacts must be implemented by the ArtifactSource implementation")
 }
 
-func (b *ArtifactSourceImpl[T]) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
+func (b *ArtifactSourceImpl[S, T]) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 	panic("DownloadArtifact must be implemented by the ArtifactSource implementation")
 }

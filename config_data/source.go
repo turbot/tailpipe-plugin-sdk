@@ -12,6 +12,7 @@ func NewSourceConfigData(hcl []byte, decRange hcl.Range, sourceType string) *Sou
 		ConfigDataImpl: &ConfigDataImpl{
 			Hcl:   hcl,
 			Range: decRange,
+			Id:    sourceType,
 		},
 		Type: sourceType,
 	}

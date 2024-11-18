@@ -16,10 +16,6 @@ func Validate(t *testing.T, ctor func() TableCore) {
 	t.Run("TestGetRowSchema", func(t *testing.T) {
 		TestGetRowSchema(t, c)
 	})
-	// get config schema
-	t.Run("TestGetConfigSchema", func(t *testing.T) {
-		TestGetConfigSchema(t, c)
-	})
 }
 
 func TestIdentifier(t *testing.T, c TableCore) {
@@ -38,9 +34,4 @@ func TestIdentifier(t *testing.T, c TableCore) {
 func TestGetRowSchema(t *testing.T, c TableCore) {
 	rowSchema := c.GetRowSchema()
 	assert.NotNil(t, rowSchema)
-}
-
-func TestGetConfigSchema(t *testing.T, c TableCore) {
-	configSchema := c.GetConfigSchema()
-	assert.NotNil(t, configSchema)
 }

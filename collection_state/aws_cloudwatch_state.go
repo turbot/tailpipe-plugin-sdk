@@ -1,6 +1,8 @@
 package collection_state
 
-import "github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
+import (
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
+)
 
 // AwsCloudwatchState contains collection state data for the AwsCloudwatchState artifact source
 // This contains the latest timestamp fetched for each log stream in a SINGLE log group

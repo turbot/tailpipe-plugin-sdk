@@ -56,6 +56,8 @@ func ParseParquetTag(tag string) (*ParquetTag, error) {
 	return pt.validate()
 }
 
+// TODO K use defs for these, shared with CLI??
+// TODO K func Testall of these(t *testing.T)
 // Define valid DuckDB types using a struct{} map for efficient membership checking
 var validDuckDBTypes = map[string]struct{}{
 	// TODO #schema STRUCT/LIST/ https://github.com/turbot/tailpipe-plugin-sdk/issues/21
@@ -81,6 +83,8 @@ var validDuckDBTypes = map[string]struct{}{
 	"DECIMAL":   {},
 	"UUID":      {},
 	"JSON":      {},
+	// special case for JSON_STRING - this is not a duck db type but is handled differently in the conversion
+	"JSON_STRING": {},
 }
 
 func (t *ParquetTag) validate() (*ParquetTag, error) {

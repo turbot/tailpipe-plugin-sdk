@@ -30,17 +30,13 @@ func init() {
 
 //TODO #delta is timestamp reliable - do logs always come in order? is it should we/are we using ingestion time? https://github.com/turbot/tailpipe-plugin-sdk/issues/5
 
-const (
-	AWSCloudwatchSourceIdentifier = "aws_cloudwatch"
-)
-
 // TODO #config TMP https://github.com/turbot/tailpipe-plugin-sdk/issues/3
 const BaseTmpDir = "/tmp/tailpipe"
 
 // AwsCloudWatchSource is a [ArtifactSource] implementation that reads logs from AWS CloudWatch
 // and writes them to a temp JSON file
 type AwsCloudWatchSource struct {
-	ArtifactSourceImpl[*artifact_source_config.AwsCloudWatchSourceConfig]
+	ArtifactSourceImpl[*artifact_source_config.AwsCloudWatchSourceConfig, *AwsConnection]
 
 	client  *cloudwatchlogs.Client
 	limiter *rate_limiter.APILimiter
@@ -50,13 +46,13 @@ func NewAwsCloudWatchSource() row_source.RowSource {
 	return &AwsCloudWatchSource{}
 }
 
-func (s *AwsCloudWatchSource) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
+func (s *AwsCloudWatchSource) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
 
 	// set the collection state func to the cloudwatch specific collection state
 	s.NewCollectionStateFunc = collection_state.NewAwsCloudwatchCollectionState
 
 	// call base to parse config and apply options
-	if err := s.ArtifactSourceImpl.Init(ctx, configData, opts...); err != nil {
+	if err := s.ArtifactSourceImpl.Init(ctx, configData, connectionData, opts...); err != nil {
 		return err
 	}
 
@@ -80,7 +76,7 @@ func (s *AwsCloudWatchSource) Init(ctx context.Context, configData config_data.C
 }
 
 func (s *AwsCloudWatchSource) Identifier() string {
-	return AWSCloudwatchSourceIdentifier
+	return artifact_source_config.AWSCloudwatchSourceIdentifier
 }
 
 // Close deletes the temp directory and all files

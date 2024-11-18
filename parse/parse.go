@@ -2,12 +2,14 @@ package parse
 
 import (
 	"fmt"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/error_helpers"
 	pf_parse "github.com/turbot/pipe-fittings/parse"
+	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
@@ -16,7 +18,16 @@ import (
 
 // ParseConfig parses the HCL config and returns the struct
 // Config is an interface that all configuration structs must implement
-func ParseConfig[T Config](configData config_data.ConfigData, target T) (T, error) {
+func ParseConfig[T Config](configData config_data.ConfigData) (T, error) {
+	// Create a new instance of the target struct
+	target := utils.InstanceOf[T]()
+	// verify this config is of correct type
+	// this ensures that the ConfigData type (the Identifier) matches the target type (the Identifier of the target)
+	id := target.Identifier()
+	if id != configData.Identifier() {
+		return target, fmt.Errorf("invalid config type %s: expected %s", configData.Identifier(), id)
+	}
+
 	// Parse the config
 	declRange := configData.GetRange()
 	hclBytes := configData.GetHcl()

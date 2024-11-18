@@ -1,6 +1,8 @@
 package artifact_source_config
 
-import "github.com/hashicorp/hcl/v2"
+import (
+	"github.com/hashicorp/hcl/v2"
+)
 
 // AwsS3BucketSourceConfig is the configuration for an [AwsS3BucketSource]
 type AwsS3BucketSourceConfig struct {
@@ -26,4 +28,8 @@ type AwsS3BucketSourceConfig struct {
 func (c AwsS3BucketSourceConfig) Validate() error {
 	//TODO #config validate the config https://github.com/turbot/tailpipe-plugin-sdk/issues/9
 	return nil
+}
+
+func (AwsS3BucketSourceConfig) Identifier() string {
+	return AwsS3BucketSourceIdentifier
 }

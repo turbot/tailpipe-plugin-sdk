@@ -24,7 +24,7 @@ type GcpStorageBucketSourceConfig struct {
 	Impersonate  *string `hcl:"impersonate"`
 }
 
-func (g *GcpStorageBucketSourceConfig) Validate() error {
+func (g GcpStorageBucketSourceConfig) Validate() error {
 	if g.Bucket == "" {
 		return errors.New("bucket is required")
 	}
@@ -43,4 +43,8 @@ func (g *GcpStorageBucketSourceConfig) Validate() error {
 	}
 
 	return nil
+}
+
+func (GcpStorageBucketSourceConfig) Identifier() string {
+	return GcpStorageBucketSourceIdentifier
 }
