@@ -18,7 +18,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -109,10 +108,10 @@ func (b *ArtifactSourceImpl[T]) Init(ctx context.Context, configData config_data
 	// apply default config (this handles null default)
 	b.Config.DefaultTo(b.defaultConfig)
 
-	// store RowSourceImpl.Source as an ArtifactSource
+	// store RowSourceImpl.Factory as an ArtifactSource
 	impl, ok := b.RowSourceImpl.Source.(ArtifactSource)
 	if !ok {
-		return errors.New("ArtifactSourceImpl.Source must implement ArtifactSource")
+		return errors.New("ArtifactSourceImpl.Factory must implement ArtifactSource")
 	}
 	b.Source = impl
 
@@ -391,10 +390,6 @@ func (b *ArtifactSourceImpl[T]) resolveLoader(info *types.ArtifactInfo) (artifac
 
 func (b *ArtifactSourceImpl[T]) Identifier() string {
 	panic("Identifier must be implemented by the ArtifactSource implementation")
-}
-
-func (b *ArtifactSourceImpl[T]) GetConfigSchema() parse.Config {
-	panic("GetConfigSchema must be implemented by the ArtifactSource implementation")
 }
 
 func (b *ArtifactSourceImpl[T]) DiscoverArtifacts(ctx context.Context) error {

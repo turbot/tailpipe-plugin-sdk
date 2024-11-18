@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func Validate(t *testing.T, ctor func() Table) {
+func Validate(t *testing.T, ctor func() TableCore) {
 	c := ctor()
 
 	// identifier
@@ -22,7 +22,7 @@ func Validate(t *testing.T, ctor func() Table) {
 	})
 }
 
-func TestIdentifier(t *testing.T, c Table) {
+func TestIdentifier(t *testing.T, c TableCore) {
 	id := c.Identifier()
 	assert.NotEmpty(t, id)
 
@@ -35,12 +35,12 @@ func TestIdentifier(t *testing.T, c Table) {
 	assert.Regexp(t, "^[a-z]+(_[a-z0-9]+)*$", id)
 }
 
-func TestGetRowSchema(t *testing.T, c Table) {
+func TestGetRowSchema(t *testing.T, c TableCore) {
 	rowSchema := c.GetRowSchema()
 	assert.NotNil(t, rowSchema)
 }
 
-func TestGetConfigSchema(t *testing.T, c Table) {
+func TestGetConfigSchema(t *testing.T, c TableCore) {
 	configSchema := c.GetConfigSchema()
 	assert.NotNil(t, configSchema)
 }

@@ -18,7 +18,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -26,7 +25,7 @@ import (
 
 // register the source from the package init function
 func init() {
-	row_source.Factory.RegisterRowSource(NewAwsCloudWatchSource)
+	row_source.RegisterRowSource[*AwsCloudWatchSource]()
 }
 
 //TODO #delta is timestamp reliable - do logs always come in order? is it should we/are we using ingestion time? https://github.com/turbot/tailpipe-plugin-sdk/issues/5
@@ -82,10 +81,6 @@ func (s *AwsCloudWatchSource) Init(ctx context.Context, configData config_data.C
 
 func (s *AwsCloudWatchSource) Identifier() string {
 	return AWSCloudwatchSourceIdentifier
-}
-
-func (s *AwsCloudWatchSource) GetConfigSchema() parse.Config {
-	return &artifact_source_config.AwsCloudWatchSourceConfig{}
 }
 
 // Close deletes the temp directory and all files
