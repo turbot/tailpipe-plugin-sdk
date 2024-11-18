@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/turbot/pipe-fittings/utils"
 	"log/slog"
 
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
@@ -23,6 +24,7 @@ type RowSourceImpl[T parse.Config] struct {
 	observable.ObservableImpl
 	Config T
 	// store a reference to the derived RowSource type so we can call its methods
+	// this will be set by the source factory
 	Source RowSource
 
 	// the collection state data for this source
@@ -71,6 +73,11 @@ func (b *RowSourceImpl[T]) Init(ctx context.Context, configData config_data.Conf
 	}
 
 	return nil
+}
+
+// GetConfigSchema returns an empty instance of the config struct used by the source
+func (b *RowSourceImpl[T]) GetConfigSchema() parse.Config {
+	return utils.InstanceOf[T]()
 }
 
 // Close is a default implementation of the [plugin.RowSource] Close interface function

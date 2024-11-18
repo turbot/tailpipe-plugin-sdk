@@ -14,7 +14,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"google.golang.org/api/impersonate"
@@ -24,7 +23,7 @@ import (
 
 // register the source from the package init function
 func init() {
-	row_source.Factory.RegisterRowSource(NewGcpStorageBucketSource)
+	row_source.RegisterRowSource[*GcpStorageBucketSource]()
 }
 
 const (
@@ -37,10 +36,6 @@ type GcpStorageBucketSource struct {
 
 	Extensions types.ExtensionLookup
 	client     *storage.Client
-}
-
-func NewGcpStorageBucketSource() row_source.RowSource {
-	return &GcpStorageBucketSource{}
 }
 
 func (s *GcpStorageBucketSource) Init(ctx context.Context, configData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
@@ -64,10 +59,6 @@ func (s *GcpStorageBucketSource) Init(ctx context.Context, configData config_dat
 
 func (s *GcpStorageBucketSource) Identifier() string {
 	return GcpStorageBucketSourceIdentifier
-}
-
-func (s *GcpStorageBucketSource) GetConfigSchema() parse.Config {
-	return &artifact_source_config.GcpStorageBucketSourceConfig{}
 }
 
 func (s *GcpStorageBucketSource) Close() error {
