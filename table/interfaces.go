@@ -22,7 +22,7 @@ type Table[R types.RowStruct] interface {
 	TableCore
 
 	// SourceMetadata returns the supported sources for the table
-	SupportedSource() []*SourceMetadata[R]
+	SupportedSources() []*SourceMetadata[R]
 	// EnrichRow is called to enrich the row with common (tp_*) fields
 	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
 }
@@ -42,11 +42,6 @@ type TableCore interface {
 	GetRowSchema() types.RowStruct
 	// GetConfigSchema returns an empty instance of the config struct used by the collection
 	GetConfigSchema() parse.Config
-	// Collect is called to start collecting data,
-	// Collect will send enriched rows which satisfy the tailpipe row requirements
-	//Collect(context.Context, *types.CollectRequest) (json.RawMessage, error)
-	// GetTiming returns the timing for the collection
-	//GetTiming() types.TimingCollection
 }
 
 // ConnectionSchemaProvider is an interface providing a method to return the config schema

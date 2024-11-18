@@ -36,6 +36,7 @@ func (b *TableImpl[R, S, T]) Init(ctx context.Context, connectionSchemaProvider 
 		return err
 	}
 
+	// TODO K check this can be removes - do we need to add collection state to the source?
 	//// initialise the source
 	//sourceOpts := b.table.GetSourceOptions(req.SourceData.Type)
 	//// if collectionStateJSON is non-empty, add an option to set it

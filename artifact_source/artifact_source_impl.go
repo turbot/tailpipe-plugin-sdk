@@ -108,10 +108,10 @@ func (b *ArtifactSourceImpl[T]) Init(ctx context.Context, configData config_data
 	// apply default config (this handles null default)
 	b.Config.DefaultTo(b.defaultConfig)
 
-	// store RowSourceImpl.Factory as an ArtifactSource
+	// store RowSourceImpl.Source as an ArtifactSource
 	impl, ok := b.RowSourceImpl.Source.(ArtifactSource)
 	if !ok {
-		return errors.New("ArtifactSourceImpl.Factory must implement ArtifactSource")
+		return errors.New("ArtifactSourceImpl.Source must implement ArtifactSource")
 	}
 	b.Source = impl
 

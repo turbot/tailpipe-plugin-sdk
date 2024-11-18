@@ -106,7 +106,7 @@ func (c *RowCollector[R]) initSource(ctx context.Context, configData *config_dat
 
 // ask table for it;s supported sources and put into map for ease of lookup
 func (c *RowCollector[R]) getSupportedSources() map[string]*SourceMetadata[R] {
-	supportedSources := c.table.SupportedSource()
+	supportedSources := c.table.SupportedSources()
 	// convert to a map for easy lookup
 	sourceMap := make(map[string]*SourceMetadata[R])
 	for _, s := range supportedSources {
