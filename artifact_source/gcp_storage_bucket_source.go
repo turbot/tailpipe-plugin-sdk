@@ -83,8 +83,8 @@ func (s *GcpStorageBucketSource) DiscoverArtifacts(ctx context.Context) error {
 		if s.Extensions.IsValid(objPath) {
 			sourceEnrichmentFields := &enrichment.CommonFields{
 				TpSourceLocation: &objPath,
-				TpSourceName:     &s.Config.Bucket, // TODO: verify with Kai this is correct place to populate source name
-				TpSourceType:     s.Identifier(),
+				TpSourceName:     &s.Config.Bucket,
+				TpSourceType:     GcpStorageBucketSourceIdentifier,
 			}
 
 			info := &types.ArtifactInfo{Name: objPath, OriginalName: objPath, EnrichmentFields: sourceEnrichmentFields}
