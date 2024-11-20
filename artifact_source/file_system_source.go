@@ -58,16 +58,16 @@ func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
 
 			// check the extension
 			if s.Extensions.IsValid(path) {
-				// populate enrichment fields the the source is aware of
+				// populate enrichment fields the source is aware of
 				// - in this case the source location
 				sourceEnrichmentFields := &enrichment.CommonFields{
 					TpSourceType:     FileSystemSourceIdentifier,
 					TpSourceLocation: &path,
 				}
 
-				info := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
+				artifactInfo := &types.ArtifactInfo{Name: path, EnrichmentFields: sourceEnrichmentFields}
 				// notify observers of the discovered artifact
-				return s.OnArtifactDiscovered(ctx, info)
+				return s.OnArtifactDiscovered(ctx, artifactInfo)
 			}
 			return nil
 		})

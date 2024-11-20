@@ -1,7 +1,6 @@
 package artifact_source
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"errors"
 	"fmt"
@@ -10,15 +9,17 @@ import (
 	"os"
 	"path"
 
+	"cloud.google.com/go/storage"
 	"github.com/mitchellh/go-homedir"
+	"google.golang.org/api/impersonate"
+	"google.golang.org/api/iterator"
+	"google.golang.org/api/option"
+
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"google.golang.org/api/impersonate"
-	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 )
 
 // register the source from the package init function
