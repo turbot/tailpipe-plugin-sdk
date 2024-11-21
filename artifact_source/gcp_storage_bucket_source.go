@@ -10,10 +10,7 @@ import (
 	"path"
 
 	"cloud.google.com/go/storage"
-	"github.com/mitchellh/go-homedir"
-	"google.golang.org/api/impersonate"
 	"google.golang.org/api/iterator"
-	"google.golang.org/api/option"
 
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
@@ -81,7 +78,7 @@ func (s *GcpStorageBucketSource) DiscoverArtifacts(ctx context.Context) error {
 			sourceEnrichmentFields := &enrichment.CommonFields{
 				TpSourceLocation: &objPath,
 				TpSourceName:     &s.Config.Bucket,
-				TpSourceType:     GcpStorageBucketSourceIdentifier,
+				TpSourceType:     artifact_source_config.GcpStorageBucketSourceIdentifier,
 			}
 
 			info := &types.ArtifactInfo{Name: objPath, OriginalName: objPath, EnrichmentFields: sourceEnrichmentFields}
@@ -127,7 +124,7 @@ func (s *GcpStorageBucketSource) DownloadArtifact(ctx context.Context, info *typ
 }
 
 func (s *GcpStorageBucketSource) getClient(ctx context.Context) (*storage.Client, error) {
-	opts, err := s.setSessionConfig(ctx)
+	opts, err := s.Connection.GetClientOptions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed setting GCP Storage client config: %s", err.Error())
 	}
@@ -138,75 +135,4 @@ func (s *GcpStorageBucketSource) getClient(ctx context.Context) (*storage.Client
 	}
 
 	return client, nil
-}
-
-func (s *GcpStorageBucketSource) setSessionConfig(ctx context.Context) ([]option.ClientOption, error) {
-	var opts []option.ClientOption
-
-	// Credentials
-	if s.Config.Credentials != nil {
-		credentials, err := s.pathOrContents(*s.Config.Credentials)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read credentials file: %s", err.Error())
-		}
-
-		opts = append(opts, option.WithCredentialsJSON([]byte(credentials)))
-	}
-
-	// Quota Project
-	quotaProject := os.Getenv("GOOGLE_CLOUD_QUOTA_PROJECT")
-
-	if s.Config.QuotaProject != nil {
-		quotaProject = *s.Config.QuotaProject
-	}
-
-	if quotaProject != "" {
-		opts = append(opts, option.WithQuotaProject(quotaProject))
-	}
-
-	// Impersonate
-	if s.Config.Impersonate != nil {
-		ts, err := impersonate.CredentialsTokenSource(ctx, impersonate.CredentialsConfig{
-			TargetPrincipal: *s.Config.Impersonate,
-			Scopes:          []string{"https://www.googleapis.com/auth/cloud-platform"},
-		})
-		if err != nil {
-			return opts, err
-		}
-
-		opts = append(opts, option.WithTokenSource(ts))
-	}
-
-	return opts, nil
-}
-
-// TODO: Determine where this actually belongs, maybe a useful util func? https://github.com/turbot/tailpipe-plugin-sdk/issues/14
-func (s *GcpStorageBucketSource) pathOrContents(in string) (string, error) {
-	if len(in) == 0 {
-		return "", nil
-	}
-
-	filePath := in
-
-	if filePath[0] == '~' {
-		var err error
-		filePath, err = homedir.Expand(filePath)
-		if err != nil {
-			return filePath, err
-		}
-	}
-
-	if _, err := os.Stat(filePath); err == nil {
-		contents, err := os.ReadFile(filePath)
-		if err != nil {
-			return string(contents), err
-		}
-		return string(contents), nil
-	}
-
-	if len(filePath) > 1 && (filePath[0] == '/' || filePath[0] == '\\') {
-		return "", fmt.Errorf("%s: no such file or dir", filePath)
-	}
-
-	return in, nil
 }

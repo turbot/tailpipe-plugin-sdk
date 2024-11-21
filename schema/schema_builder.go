@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/iancoleman/strcase"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 const maxNesting = 5
@@ -179,11 +178,7 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 	case reflect.Float64:
 		c.Type = "DOUBLE"
 	case reflect.String:
-		if t == reflect.TypeOf(types.JSONString("")) {
-			c.Type = "JSON"
-		} else {
-			c.Type = "VARCHAR"
-		}
+		c.Type = "VARCHAR"
 	case reflect.Slice, reflect.Array:
 		if t.Elem().Kind() == reflect.Uint8 {
 			c.Type = "BLOB"

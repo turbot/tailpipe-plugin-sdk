@@ -83,8 +83,6 @@ var validDuckDBTypes = map[string]struct{}{
 	"DECIMAL":   {},
 	"UUID":      {},
 	"JSON":      {},
-	// special case for JSON_STRING - this is not a duck db type but is handled differently in the conversion
-	"JSON_STRING": {},
 }
 
 func (t *ParquetTag) validate() (*ParquetTag, error) {

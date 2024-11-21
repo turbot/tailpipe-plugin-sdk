@@ -18,13 +18,9 @@ type GcpStorageBucketSourceConfig struct {
 	Prefix     string   `hcl:"prefix"`
 	Extensions []string `hcl:"extensions"`
 	// TODO: Add additional fields https://github.com/turbot/tailpipe-plugin-sdk/issues/15
-	// Project      *string // TODO: Revisit if we need this, doesn't seem to be settable on https://github.com/turbot/tailpipe-plugin-sdk/issues/15
-	Credentials  *string `hcl:"credentials"`
-	QuotaProject *string `hcl:"quota_project"`
-	Impersonate  *string `hcl:"impersonate"`
 }
 
-func (g GcpStorageBucketSourceConfig) Validate() error {
+func (g *GcpStorageBucketSourceConfig) Validate() error {
 	if g.Bucket == "" {
 		return errors.New("bucket is required")
 	}
@@ -45,6 +41,6 @@ func (g GcpStorageBucketSourceConfig) Validate() error {
 	return nil
 }
 
-func (GcpStorageBucketSourceConfig) Identifier() string {
+func (*GcpStorageBucketSourceConfig) Identifier() string {
 	return GcpStorageBucketSourceIdentifier
 }
