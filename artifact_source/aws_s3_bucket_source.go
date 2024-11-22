@@ -11,10 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
-	typehelpers "github.com/turbot/go-kit/types"
+
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
@@ -206,20 +204,17 @@ func (s *AwsS3BucketSource) DownloadArtifact(ctx context.Context, info *types.Ar
 }
 
 func (s *AwsS3BucketSource) getClient(ctx context.Context) (*s3.Client, error) {
-	var opts []func(*config.LoadOptions) error
-	// add credentials if provided
-	// TODO #config handle all credential types https://github.com/turbot/tailpipe-plugin-sdk/issues/8
-	if s.Config.AccessKey != "" && s.Config.SecretKey != "" {
-		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.Config.AccessKey, s.Config.SecretKey, s.Config.SessionToken)))
-	}
-
-	opts = append(opts, config.WithRegion(typehelpers.SafeString(s.Config.Region)))
-
-	cfg, err := config.LoadDefaultConfig(ctx, opts...)
+	// get the client configuration
+	cfg, err := s.Connection.GetClientConfiguration(ctx, s.Config.Region)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load SDK config, %w", err)
+		return nil, fmt.Errorf("unable to get client configuration, %w", err)
 	}
 
-	client := s3.NewFromConfig(cfg)
-	return client, nil
+	if s.Connection.S3ForcePathStyle != nil {
+		return s3.NewFromConfig(*cfg, func(o *s3.Options) {
+			o.UsePathStyle = *s.Connection.S3ForcePathStyle
+		}), nil
+	}
+
+	return s3.NewFromConfig(*cfg), nil
 }

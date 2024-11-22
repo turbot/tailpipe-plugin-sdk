@@ -16,11 +16,6 @@ type AwsS3BucketSourceConfig struct {
 	Region        *string  `hcl:"region"`
 	StartAfterKey *string  `hcl:"start_after_key"`
 
-	// TODO #config use Connection for credentials https://github.com/turbot/tailpipe-plugin-sdk/issues/8
-	AccessKey    string `hcl:"access_key"`
-	SecretKey    string `hcl:"secret_key"`
-	SessionToken string `hcl:"session_token,optional"`
-
 	// TODO #config better naming
 	LexicographicalOrder bool `hcl:"lexicographical_order,optional"`
 }
