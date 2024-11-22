@@ -2,8 +2,9 @@ package artifact_source_config
 
 import (
 	"fmt"
-	"github.com/hashicorp/hcl/v2"
 	"time"
+
+	"github.com/hashicorp/hcl/v2"
 )
 
 // AwsCloudWatchSourceConfig is the configuration for an [AwsCloudWatchSource]
@@ -12,10 +13,6 @@ type AwsCloudWatchSourceConfig struct {
 	// required to allow partial decoding
 	Remain hcl.Body `hcl:",remain" json:"-"`
 
-	// TODO #config connection based credentials mechanism https://github.com/turbot/tailpipe-plugin-sdk/issues/8
-	AccessKey    string `hcl:"access_key"`
-	SecretKey    string `hcl:"secret_key"`
-	SessionToken string `hcl:"session_token"`
 	// the log group to collect
 	LogGroupName string `hcl:"log_group_name"`
 	// collect log streams with this prefixthe log stream prefix

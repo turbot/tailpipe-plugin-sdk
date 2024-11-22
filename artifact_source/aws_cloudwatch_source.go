@@ -9,10 +9,9 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
-	cloudwatch_types "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+	cloudwatchtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs/types"
+
 	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
@@ -139,7 +138,7 @@ func (s *AwsCloudWatchSource) DiscoverArtifacts(ctx context.Context) error {
 	return nil
 }
 
-func logStreamNameWithinTimeRange(logStream cloudwatch_types.LogStream, startTime, endTime int64) bool {
+func logStreamNameWithinTimeRange(logStream cloudwatchtypes.LogStream, startTime, endTime int64) bool {
 	if logStream.LastIngestionTime == nil || logStream.FirstEventTimestamp == nil {
 		return false
 	}
@@ -256,21 +255,11 @@ func (s *AwsCloudWatchSource) getTimeRange(logStream string, collectionState *co
 }
 
 func (s *AwsCloudWatchSource) getClient(ctx context.Context) (*cloudwatchlogs.Client, error) {
-	var opts []func(*config.LoadOptions) error
-	// TODO handle all credential types https://github.com/turbot/tailpipe-plugin-sdk/issues/8
-	// add credentials if provided
-	if s.Config.AccessKey != "" && s.Config.SecretKey != "" {
-		opts = append(opts, config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider(s.Config.AccessKey, s.Config.SecretKey, s.Config.SessionToken)))
-	}
-	// TODO do we need to specify a region?
-	// add with region
-	opts = append(opts, config.WithRegion("us-east-1"))
-
-	cfg, err := config.LoadDefaultConfig(ctx, opts...)
+	cfg, err := s.Connection.GetClientConfiguration(ctx, nil)
 	if err != nil {
-		return nil, fmt.Errorf("unable to load SDK config, %w", err)
+		return nil, fmt.Errorf("failed to get client configuration, %w", err)
 	}
 
-	client := cloudwatchlogs.NewFromConfig(cfg)
+	client := cloudwatchlogs.NewFromConfig(*cfg)
 	return client, nil
 }
