@@ -55,18 +55,15 @@ func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer)
 	return stream.Context().Err()
 }
 
-func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) error {
-	return s.impl.Collect(ctx, req)
-}
-
-// GetSchema returns the schema for the plugin
-func (s PluginServer) GetSchema() (*proto.GetSchemaResponse, error) {
-	schemaMap := s.impl.GetSchema()
-
-	// convert the schema to proto
-
-	resp := &proto.GetSchemaResponse{
-		Schemas: schemaMap.ToProto(),
+func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*proto.CollectResponse, error) {
+	schema, err := s.impl.Collect(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	// build response
+	var resp = &proto.CollectResponse{
+		ExecutionId: req.ExecutionId,
+		Schema:      schema.ToProto(),
 	}
 	return resp, nil
 }

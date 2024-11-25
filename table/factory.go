@@ -1,12 +1,11 @@
 package table
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -15,25 +14,25 @@ var Factory = newTableFactory()
 
 // RegisterTable registers a table constructor with the factory
 // this is called from the package init function of the table implementation
-func RegisterTable[R types.RowStruct, T Table[R]]() {
-	tableFunc := func() TableCore {
-		return utils.InstanceOf[T]()
+func RegisterTable[R types.RowStruct, S parse.Config, T Table[R, S]]() {
+	tableFunc := func() Collector {
+		return &Partition[R, S, T]{
+			table: utils.InstanceOf[T](),
+		}
 	}
+
 	Factory.registerTable(tableFunc)
 }
 
 type TableFactory struct {
-	tableFuncs []func() TableCore
-	// maps of constructors for  the various registered types
-	tableFuncMap map[string]func() TableCore
-	// map of table schemas
-	schemaMap schema.SchemaMap
+	partitionFuncs []func() Collector
+	// maps of partition constructors, keyed by the name of the registered table types
+	partitionFuncMap map[string]func() Collector
 }
 
 func newTableFactory() TableFactory {
 	return TableFactory{
-		tableFuncMap: make(map[string]func() TableCore),
-		schemaMap:    make(schema.SchemaMap),
+		partitionFuncMap: make(map[string]func() Collector),
 	}
 }
 
@@ -43,8 +42,8 @@ func newTableFactory() TableFactory {
 // (for the map key) and the schema
 // we defer this until TableFactory.Init as registerTable is called from
 // package init functions which cannot return an error
-func (f *TableFactory) registerTable(ctor func() TableCore) {
-	f.tableFuncs = append(f.tableFuncs, ctor)
+func (f *TableFactory) registerTable(ctor func() Collector) {
+	f.partitionFuncs = append(f.partitionFuncs, ctor)
 
 }
 
@@ -58,22 +57,12 @@ func (f *TableFactory) Init() (err error) {
 
 	errs := make([]error, 0)
 
-	for _, ctor := range f.tableFuncs {
+	for _, ctor := range f.partitionFuncs {
 		// create an instance of the table to get the identifier
-		c := ctor()
+		partition := ctor()
 
-		// register the table
-		tableName := c.Identifier()
-		f.tableFuncMap[tableName] = ctor
-
-		// get the schema for the table row type
-		rowStruct := c.GetRowSchema()
-		s, err := schema.SchemaFromStruct(rowStruct)
-		if err != nil {
-			errs = append(errs, err)
-		}
-		// merge in the common schema
-		f.schemaMap[tableName] = s
+		// register the partition func with the table factory
+		f.partitionFuncMap[partition.Identifier()] = ctor
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
@@ -81,40 +70,20 @@ func (f *TableFactory) Init() (err error) {
 	return nil
 }
 
-func (f *TableFactory) GetSchema() schema.SchemaMap {
-	return f.schemaMap
-}
-
-func (f *TableFactory) GetTable(ctx context.Context, req *types.CollectRequest) (TableCore, error) {
-	// get the registered constructor for the table
-	ctor, ok := f.tableFuncMap[req.PartitionData.Table]
+func (f *TableFactory) GetPartition(req *types.CollectRequest) (Collector, error) {
+	// get the registered partition constructor for the table
+	ctor, ok := f.partitionFuncMap[req.PartitionData.Table]
 	if !ok {
 		// this type is not registered
 		return nil, fmt.Errorf("table not found: %s", req.PartitionData.Table)
 	}
 
-	// create the table
-	table := ctor()
+	// create the partition
+	partition := ctor()
 
-	//  register the table implementation with the base struct (_before_ calling Init)
-
-	base, ok := table.(baseTable)
-	if !ok {
-		return nil, fmt.Errorf("table implementation must embed table.TableImpl")
-	}
-	err := base.RegisterImpl(table)
-	if err != nil {
-		return nil, fmt.Errorf("failed to register table implementation: %w", err)
-	}
-
-	err = table.Init(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialise table: %w", err)
-	}
-
-	return table, nil
+	return partition, nil
 }
 
-func (f *TableFactory) GetTables() map[string]func() TableCore {
-	return f.tableFuncMap
+func (f *TableFactory) GetPartitions() map[string]func() Collector {
+	return f.partitionFuncMap
 }

@@ -17,16 +17,14 @@ var Handshake = plugin.HandshakeConfig{
 
 // TailpipePluginServer is the service interface that we're exposing as a plugin.
 type TailpipePluginServer interface {
-	GetSchema() (*proto.GetSchemaResponse, error)
 	AddObserver(proto.TailpipePlugin_AddObserverServer) error
-	Collect(context.Context, *proto.CollectRequest) error
+	Collect(context.Context, *proto.CollectRequest) (*proto.CollectResponse, error)
 }
 
 // TailpipePluginClient is the client interface that we're exposing as a plugin.
 type TailpipePluginClient interface {
-	GetSchema() (*proto.GetSchemaResponse, error)
 	AddObserver() (proto.TailpipePlugin_AddObserverClient, error)
-	Collect(req *proto.CollectRequest) error
+	Collect(req *proto.CollectRequest) (*proto.CollectResponse, error)
 }
 
 // TailpipeGRPCPlugin is the implementation of plugin.GRPCPlugin so we can serve/consume this.

@@ -3,44 +3,35 @@ package table
 import (
 	"context"
 	"encoding/json"
-
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-type Collector interface {
-	observable.Observable
-
-	Collect(context.Context, *types.CollectRequest) (json.RawMessage, error)
-	GetTiming() types.TimingCollection
-}
-
-// Table is a generic interface representing a plugin table
+// Table is a generic interface representing a plugin table definition
 // R is the row struct type
-type Table[R types.RowStruct] interface {
-	TableCore
+type Table[R types.RowStruct, S parse.Config] interface {
+	// Identifier must return the collection name
+	Identifier() string
 
 	// SourceMetadata returns the supported sources for the table
-	SupportedSources() []*SourceMetadata[R]
+	SupportedSources(S) []*SourceMetadata[R]
 	// EnrichRow is called to enrich the row with common (tp_*) fields
 	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
 }
 
-// TableCore is an interface containing all non generic functions of the Table interface
-// we need to split it out so the Factory can use it in its constructor maps (which are not generic)
-type TableCore interface {
-	// GetCollector returns the collector of the correct generic type
-	GetCollector() Collector
+// Collector is an interface which provides a methods for collecting table data from a source
+// This is implemented by the generic Partition struct
+type Collector interface {
+	observable.Observable
 
-	// Init is called when the collection created
-	// it is responsible for parsing the config and creating the configured Source
-	Init(ctx context.Context, req *types.CollectRequest) error
-	// GetRowSchema returns an empty instance of the row struct returned by the collection
-	GetRowSchema() types.RowStruct
-
-	// Identifier must return the collection name
+	GetTiming() types.TimingCollection
+	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
+	GetSchema() (*schema.RowSchema, error)
+	Collect(context.Context) (json.RawMessage, error)
 }
 
 // Mapper is a generic interface which provides a method for mapping raw source data into row structs
@@ -50,11 +41,6 @@ type Mapper[R types.RowStruct] interface {
 	// Map converts artifact data to a different format and either return it as rows,
 	// or pass it on to the next mapper in the chain
 	Map(context.Context, any) ([]R, error)
-}
-
-// baseTable is an interface which is implemented by the TableImpl of a table
-type baseTable interface {
-	RegisterImpl(TableCore) error
 }
 
 type MapInitialisedRow interface {

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"log/slog"
 	"sync"
 	"time"
@@ -19,17 +21,24 @@ import (
 )
 
 // how often to send status events
+
 const statusUpdateInterval = 250 * time.Millisecond
 
-// RowCollector is responsible for coordinating the collection process and reporting status
+// Partition is a generic implementaion of the Collector interface
+// it is responsible for coordinating the collection process and reporting status
 // R is the type of the row struct
-// S is the type of the connection
-type RowCollector[R types.RowStruct, S parse.Config] struct {
+// S is the type of the partition config
+// T is the type of the table
+// U is the type of the connection
+type Partition[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
 	observable.ObservableImpl
 
-	table  Table[R]
+	table  Table[R, S]
 	source row_source.RowSource
 	mapper Mapper[R]
+
+	// the table config
+	Config S
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
@@ -42,18 +51,66 @@ type RowCollector[R types.RowStruct, S parse.Config] struct {
 	req          *types.CollectRequest
 }
 
-// Collect executes the collection process. Tell our source to start collection
-func (c *RowCollector[R, S]) Collect(ctx context.Context, req *types.CollectRequest) (json.RawMessage, error) {
+func (c *Partition[R, S, T]) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
+	// MOVE TO collector
+	if err := c.initialiseConfig(req.PartitionData); err != nil {
+		return err
+	}
+
+	// TODO K check this can be removed - do we need to add collection state to the source?
+	//// initialise the source
+	//sourceOpts := b.table.GetSourceOptions(req.SourceData.Type)
+	//// if collectionStateJSON is non-empty, add an option to set it
+	//if len(req.CollectionState) > 0 {
+	//	sourceOpts = append(sourceOpts, row_source.WithCollectionStateJSON(req.CollectionState))
+	//}
+	//
+	//if err := b.initSource(ctx, req.SourceData, sourceOpts...); err != nil {
+	//	return err
+	//}
 
 	slog.Info("Table RowSourceImpl: Collect", "table", c.table.Identifier())
 	if err := c.initSource(ctx, req.SourceData, req.ConnectionData); err != nil {
-		return nil, err
+		return err
 	}
 	slog.Info("Start collection")
+	return nil
+}
+
+func (c *Partition[R, S, T]) Identifier() string {
+	return c.table.Identifier()
+}
+
+func (c *Partition[R, S, T]) GetSchema() (*schema.RowSchema, error) {
+	// get the schema for the table row type
+	rowStruct := utils.InstanceOf[R]()
+	return schema.SchemaFromStruct(rowStruct)
+}
+
+func (c *Partition[R, S, T]) initialiseConfig(tableConfigData config_data.ConfigData) error {
+	if len(tableConfigData.GetHcl()) > 0 {
+		cfg, err := parse.ParseConfig[S](tableConfigData)
+		if err != nil {
+			return fmt.Errorf("error parsing config: %w", err)
+		}
+		c.Config = cfg
+
+		slog.Info("Table RowSourceImpl: config parsed", "config", c)
+
+		// validate config
+		if err := cfg.Validate(); err != nil {
+			return fmt.Errorf("invalid config: %w", err)
+		}
+	}
+	return nil
+}
+
+// Collect executes the collection process. Tell our source to start collection
+func (c *Partition[R, S, T]) Collect(ctx context.Context) (json.RawMessage, error) {
 
 	// create empty status event#
-	c.status = events.NewStatusEvent(req.ExecutionId)
+	c.status = events.NewStatusEvent(c.req.ExecutionId)
 
 	// tell our source to collect
 	// this is a blocking call, but we will receive and processrow events during the execution
@@ -82,8 +139,8 @@ func (c *RowCollector[R, S]) Collect(ctx context.Context, req *types.CollectRequ
 }
 
 // Notify implements observable.Observer
-// it handles all events which tableFuncMap may receive (these will all come from the source)
-func (c *RowCollector[R, S]) Notify(ctx context.Context, event events.Event) error {
+// it handles all events which partitionFuncMap may receive (these will all come from the source)
+func (c *Partition[R, S, T]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	c.updateStatus(ctx, event)
 
@@ -91,18 +148,19 @@ func (c *RowCollector[R, S]) Notify(ctx context.Context, event events.Event) err
 	case *events.Row:
 		return c.handleRowEvent(ctx, e)
 	case *events.Error:
-		return c.handeErrorEvent(e)
+		slog.Error("Partition: error event received", "error", e.Err)
+		return c.NotifyObservers(context.Background(), e)
 	default:
 		// ignore
 		return nil
 	}
 }
 
-func (c *RowCollector[R, S]) GetTiming() types.TimingCollection {
+func (c *Partition[R, S, T]) GetTiming() types.TimingCollection {
 	return append(c.source.GetTiming(), c.enrichTiming)
 }
 
-func (c *RowCollector[R, S]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
+func (c *Partition[R, S, T]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
 	requestedSource := configData.Type
 
 	// get the source metadata for this source type
@@ -130,8 +188,8 @@ func (c *RowCollector[R, S]) initSource(ctx context.Context, configData *config_
 }
 
 // ask table for it;s supported sources and put into map for ease of lookup
-func (c *RowCollector[R, S]) getSupportedSources() map[string]*SourceMetadata[R] {
-	supportedSources := c.table.SupportedSources()
+func (c *Partition[R, S, T]) getSupportedSources() map[string]*SourceMetadata[R] {
+	supportedSources := c.table.SupportedSources(c.Config)
 	// convert to a map for easy lookup
 	sourceMap := make(map[string]*SourceMetadata[R])
 	for _, s := range supportedSources {
@@ -143,7 +201,7 @@ func (c *RowCollector[R, S]) getSupportedSources() map[string]*SourceMetadata[R]
 // updateStatus updates the status counters with the latest event
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
-func (c *RowCollector[R, S]) updateStatus(ctx context.Context, e events.Event) {
+func (c *Partition[R, S, T]) updateStatus(ctx context.Context, e events.Event) {
 	c.statusLock.Lock()
 	defer c.statusLock.Unlock()
 
@@ -161,7 +219,7 @@ func (c *RowCollector[R, S]) updateStatus(ctx context.Context, e events.Event) {
 }
 
 // handleRowEvent is invoked when a Row event is received - map, enrich and publish the row
-func (c *RowCollector[R, S]) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (c *Partition[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	c.rowWg.Add(1)
 	defer c.rowWg.Done()
 
@@ -211,14 +269,8 @@ func (c *RowCollector[R, S]) handleRowEvent(ctx context.Context, e *events.Row) 
 	return nil
 }
 
-func (c *RowCollector[R, S]) handeErrorEvent(e *events.Error) error {
-	slog.Error("Table RowSourceImpl: error event received", "error", e.Err)
-	c.NotifyObservers(context.Background(), e)
-	return nil
-}
-
 // mapRow applies any configured mappers to the raw rows
-func (c *RowCollector[R, S]) mapRow(ctx context.Context, rawRow any) ([]R, error) {
+func (c *Partition[R, S, T]) mapRow(ctx context.Context, rawRow any) ([]R, error) {
 	// if there is no mappers, just return the data as is
 	if c.mapper == nil {
 		row, ok := rawRow.(R)
@@ -252,7 +304,7 @@ func (c *RowCollector[R, S]) mapRow(ctx context.Context, rawRow any) ([]R, error
 	return mappedDataList, nil
 }
 
-func (c *RowCollector[R, S]) getSourceMetadata(requestedSource string) (*SourceMetadata[R], error) {
+func (c *Partition[R, S, T]) getSourceMetadata(requestedSource string) (*SourceMetadata[R], error) {
 	// get the supported sources for the table
 	supportedSourceMap := c.getSupportedSources()
 

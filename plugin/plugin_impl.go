@@ -68,42 +68,69 @@ func (p *PluginImpl) initialized() bool {
 	return p.rowBufferMap != nil
 }
 
-func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) error {
+func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*schema.RowSchema, error) {
 	log.Println("[INFO] Collect")
 
 	// create writer
 	p.writer = NewJSONLWriter(req.OutputPath)
 
-	go func() {
-		// create context containing execution id
-		ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
+	// map req to our internal type
+	collectRequest, err := types.CollectRequestFromProto(req)
+	if err != nil {
+		slog.Error("CollectRequestFromProto failed", "error", err)
 
-		// map req to our internal type
-		collectRequest, err := types.CollectRequestFromProto(req)
+		return nil, err
+	}
+
+	// ask the factory to create the partition
+	// - this will configure the requested source
+	partition, err := table.Factory.GetPartition(collectRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	// initialise the partition
+	if err := partition.Init(ctx, collectRequest); err != nil {
+		return nil, err
+	}
+
+	// ask the table for the schema
+	tableSchema, err := partition.GetSchema()
+
+	// add ourselves as an observer
+	if err := partition.AddObserver(p); err != nil {
+		slog.Error("add observer error", "error", err)
+		return nil, err
+	}
+
+	// create context containing execution id
+	ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
+
+	// signal we have started
+	if err := p.OnStarted(ctx, req.ExecutionId); err != nil {
+		err := fmt.Errorf("error signalling started: %w", err)
+		_ = p.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
+	}
+
+	go func() {
+		// tell the collection to start collecting - this is a blocking call
+		collectionState, err := partition.Collect(ctx)
 		if err != nil {
-			slog.Error("CollectRequestFromProto failed", "error", err)
-			_ = p.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
-			return
-		}
-		err = p.doCollect(ctx, collectRequest)
-		if err != nil {
-			slog.Error("doCollect failed", "error", err)
 			_ = p.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
 		}
+
+		timing := partition.GetTiming()
+
+		// signal we have completed - pass error if there was one
+		_ = p.OnCompleted(ctx, req.ExecutionId, collectionState, timing, err)
 	}()
 
-	return nil
+	return tableSchema, nil
 }
 
 // Shutdown is called by Serve when the plugin exits
 func (p *PluginImpl) Shutdown(context.Context) error {
 	return nil
-}
-
-// GetSchema implements TailpipePlugin
-func (p *PluginImpl) GetSchema() schema.SchemaMap {
-	// ask the collection factory
-	return table.Factory.GetSchema()
 }
 
 // Impl returns the base instance - used for validation testing
@@ -136,37 +163,4 @@ func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, collec
 	}
 
 	return p.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, timing, err))
-}
-
-func (p *PluginImpl) doCollect(ctx context.Context, req *types.CollectRequest) error {
-	// ask the factory to create the table
-	// - this will configure the requested source
-	t, err := table.Factory.GetTable(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	// ask the table for a collector (the table must create this with the correct generic type)
-	collector := t.GetCollector()
-	// add ourselves as an observer
-	if err := collector.AddObserver(p); err != nil {
-		// TODO #error handle error
-		slog.Error("add observer error", "error", err)
-	}
-
-	// signal we have started
-	if err := p.OnStarted(ctx, req.ExecutionId); err != nil {
-		return fmt.Errorf("error signalling started: %w", err)
-	}
-
-	// tell the collection to start collecting - this is a blocking call
-	collectionState, err := collector.Collect(ctx, req)
-	if err != nil {
-		return err
-	}
-
-	timing := collector.GetTiming()
-
-	// signal we have completed - pass error if there was one
-	return p.OnCompleted(ctx, req.ExecutionId, collectionState, timing, err)
 }

@@ -14,17 +14,13 @@ type TailpipePlugin interface {
 	// this must be implemented by the plugin implementation
 	Identifier() string
 
-	// GetSchema returns the duck DB schema for all tables
-	// this must be implemented by the plugin implementation
-	GetSchema() schema.SchemaMap
-
 	// AddObserver adda an observer to the plugin to receive status events
 	// this is implemented by plugin.PluginImpl and should not be overridden
 	AddObserver(observable.Observer) error
 
 	// Collect is called to start a collection run
 	// this is implemented by plugin.PluginImpl and should not be overridden
-	Collect(context.Context, *proto.CollectRequest) error
+	Collect(context.Context, *proto.CollectRequest) (*schema.RowSchema, error)
 
 	// Other interface functions
 
