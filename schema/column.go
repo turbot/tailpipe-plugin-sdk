@@ -6,8 +6,29 @@ import (
 	"strings"
 )
 
+type SchemaMap map[string]*RowSchema
+
+func (s SchemaMap) ToProto() map[string]*proto.Schema {
+	var res = make(map[string]*proto.Schema, len(s))
+
+	for k, v := range s {
+		res[k] = v.ToProto()
+	}
+	return res
+
+}
+
+func SchemaMapFromProto(p map[string]*proto.Schema) SchemaMap {
+	var res = make(SchemaMap, len(p))
+
+	for k, v := range p {
+		res[k] = RowSchemaFromProto(v)
+	}
+	return res
+}
+
 type RowSchema struct {
-	Columns []*ColumnSchema
+	Columns []*ColumnSchema `json:"columns"`
 }
 
 func (r *RowSchema) ToProto() *proto.Schema {
@@ -33,14 +54,15 @@ func RowSchemaFromProto(p *proto.Schema) *RowSchema {
 }
 
 type ColumnSchema struct {
-	SourceName string
-	ColumnName string
+	SourceName string `json:"-"`
+	ColumnName string `json:"name,omitempty"`
 	// DuckDB type for the column
-	Type string
+	Type string `json:"type"`
 	// for struct and struct[]
 	// TODO #schema what about map
-	StructFields []*ColumnSchema
+	StructFields []*ColumnSchema `json:"struct_fields,omitempty"`
 }
+
 type ColumnType struct {
 	// DuckDB type`
 	Type string

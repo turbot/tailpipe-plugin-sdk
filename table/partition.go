@@ -24,7 +24,7 @@ import (
 
 const statusUpdateInterval = 250 * time.Millisecond
 
-// Partition is a generic implementaion of the Collector interface
+// Partition is a generic implementation of the Collection interface
 // it is responsible for coordinating the collection process and reporting status
 // R is the type of the row struct
 // S is the type of the partition config
@@ -75,6 +75,13 @@ func (c *Partition[R, S, T]) GetSchema() (*schema.RowSchema, error) {
 	// get the schema for the table row type
 	rowStruct := utils.InstanceOf[R]()
 	return schema.SchemaFromStruct(rowStruct)
+}
+
+// IsDynamic returns true if the table is dynamic
+func (c *Partition[R, S, T]) IsDynamic() bool {
+	// Check if R is a *DynamicRow using type assertion
+	_, isDynamic := any(utils.InstanceOf[R]()).(*DynamicRow)
+	return isDynamic
 }
 
 func (c *Partition[R, S, T]) initialiseConfig(tableConfigData config_data.ConfigData) error {

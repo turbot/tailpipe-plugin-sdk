@@ -22,15 +22,16 @@ type Table[R types.RowStruct, S parse.Config] interface {
 	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
 }
 
-// Collector is an interface which provides a methods for collecting table data from a source
+// Collection is an interface which provides a methods for collecting table data from a source
 // This is implemented by the generic Partition struct
-type Collector interface {
+type Collection interface {
 	observable.Observable
 
 	GetTiming() types.TimingCollection
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
 	GetSchema() (*schema.RowSchema, error)
+	IsDynamic() bool
 	Collect(context.Context) (json.RawMessage, error)
 }
 

@@ -73,6 +73,18 @@ func (b *RowSourceFactory) GetSources() map[string]func() RowSource {
 	return b.sourceFuncs
 }
 
+func (b *RowSourceFactory) DescribeSources() SourceMetadataMap {
+	var res = make(SourceMetadataMap)
+	for k, f := range b.sourceFuncs {
+		source := f()
+		res[k] = &SourceMetadata{
+			Name:        source.Identifier(),
+			Description: source.Description(),
+		}
+	}
+	return res
+}
+
 func (b *RowSourceFactory) IsArtifactSource(sourceType string) bool {
 	// instantiate the source
 	if sourceType == constants.ArtifactSourceIdentifier {
@@ -81,7 +93,7 @@ func (b *RowSourceFactory) IsArtifactSource(sourceType string) bool {
 
 	// TODO K hack STRICTLY TEMPORARY
 	// we cannot reference artifact_source here as it would create a circular dependency
-	// for now use a mpa of known types
+	// for now use a map of known types
 	artifactSources := map[string]struct{}{
 		"aws_s3_bucket":      {},
 		"file_system":        {},
@@ -97,5 +109,5 @@ func (b *RowSourceFactory) IsArtifactSource(sourceType string) bool {
 	//}
 	//source := sourceFunc()
 	//_, ok := source.(artifact_source.ArtifactSource)
-	return ok
+	//return ok
 }

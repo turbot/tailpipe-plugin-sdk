@@ -8,6 +8,7 @@ import "google/protobuf/duration.proto";
 option go_package = ".;proto";
 
 service TailpipePlugin {
+  rpc Describe(DescribeRequest) returns (DescribeResponse);
   rpc AddObserver(AddObserverRequest) returns (stream Event);
   rpc Collect(CollectRequest) returns (CollectResponse);
  }
@@ -31,6 +32,16 @@ message CollectRequest {
   bytes collection_state = 6;
 }
 
+
+message DescribeRequest {
+}
+
+message DescribeResponse {
+  // Map of schemas keyed by collection name
+  map<string, Schema> schemas = 1;
+  map<string, SourceMetadata> sources = 2;
+
+}
 
 message CollectResponse {
   string execution_id = 1;
@@ -127,4 +138,9 @@ message Timing{
   google.protobuf.Timestamp start_time = 2;
   google.protobuf.Timestamp end_time = 3;
   google.protobuf.Duration active_duration = 4;
+}
+
+message SourceMetadata{
+  string name = 1;
+  string description = 2;
 }

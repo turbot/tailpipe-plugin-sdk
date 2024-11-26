@@ -6,6 +6,7 @@ import (
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -15,7 +16,7 @@ var Factory = newTableFactory()
 // RegisterTable registers a table constructor with the factory
 // this is called from the package init function of the table implementation
 func RegisterTable[R types.RowStruct, S parse.Config, T Table[R, S]]() {
-	tableFunc := func() Collector {
+	tableFunc := func() Collection {
 		return &Partition[R, S, T]{
 			table: utils.InstanceOf[T](),
 		}
@@ -25,14 +26,17 @@ func RegisterTable[R types.RowStruct, S parse.Config, T Table[R, S]]() {
 }
 
 type TableFactory struct {
-	partitionFuncs []func() Collector
+	partitionFuncs []func() Collection
 	// maps of partition constructors, keyed by the name of the registered table types
-	partitionFuncMap map[string]func() Collector
+	partitionFuncMap map[string]func() Collection
+	// map of table schemas
+	schemaMap schema.SchemaMap
 }
 
 func newTableFactory() TableFactory {
 	return TableFactory{
-		partitionFuncMap: make(map[string]func() Collector),
+		partitionFuncMap: make(map[string]func() Collection),
+		schemaMap:        make(schema.SchemaMap),
 	}
 }
 
@@ -42,7 +46,7 @@ func newTableFactory() TableFactory {
 // (for the map key) and the schema
 // we defer this until TableFactory.Init as registerTable is called from
 // package init functions which cannot return an error
-func (f *TableFactory) registerTable(ctor func() Collector) {
+func (f *TableFactory) registerTable(ctor func() Collection) {
 	f.partitionFuncs = append(f.partitionFuncs, ctor)
 
 }
@@ -63,6 +67,19 @@ func (f *TableFactory) Init() (err error) {
 
 		// register the partition func with the table factory
 		f.partitionFuncMap[partition.Identifier()] = ctor
+
+		// if this is a static table, get the schema
+		if !partition.IsDynamic() {
+			// get the schema for the table row type
+			s, err := partition.GetSchema()
+			if err != nil {
+				errs = append(errs, err)
+				continue
+			}
+			// merge in the common schema
+			f.schemaMap[partition.Identifier()] = s
+		}
+
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
@@ -70,7 +87,7 @@ func (f *TableFactory) Init() (err error) {
 	return nil
 }
 
-func (f *TableFactory) GetPartition(req *types.CollectRequest) (Collector, error) {
+func (f *TableFactory) GetPartition(req *types.CollectRequest) (Collection, error) {
 	// get the registered partition constructor for the table
 	ctor, ok := f.partitionFuncMap[req.PartitionData.Table]
 	if !ok {
@@ -84,6 +101,10 @@ func (f *TableFactory) GetPartition(req *types.CollectRequest) (Collector, error
 	return partition, nil
 }
 
-func (f *TableFactory) GetPartitions() map[string]func() Collector {
+func (f *TableFactory) GetPartitions() map[string]func() Collection {
 	return f.partitionFuncMap
+}
+
+func (f *TableFactory) GetSchema() schema.SchemaMap {
+	return f.schemaMap
 }

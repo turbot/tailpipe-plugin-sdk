@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
+	TailpipePlugin_Describe_FullMethodName    = "/proto.TailpipePlugin/Describe"
 	TailpipePlugin_AddObserver_FullMethodName = "/proto.TailpipePlugin/AddObserver"
 	TailpipePlugin_Collect_FullMethodName     = "/proto.TailpipePlugin/Collect"
 )
@@ -27,6 +28,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type TailpipePluginClient interface {
+	Describe(ctx context.Context, in *DescribeRequest, opts ...grpc.CallOption) (*DescribeResponse, error)
 	AddObserver(ctx context.Context, in *AddObserverRequest, opts ...grpc.CallOption) (TailpipePlugin_AddObserverClient, error)
 	Collect(ctx context.Context, in *CollectRequest, opts ...grpc.CallOption) (*CollectResponse, error)
 }
@@ -37,6 +39,15 @@ type tailpipePluginClient struct {
 
 func NewTailpipePluginClient(cc grpc.ClientConnInterface) TailpipePluginClient {
 	return &tailpipePluginClient{cc}
+}
+
+func (c *tailpipePluginClient) Describe(ctx context.Context, in *DescribeRequest, opts ...grpc.CallOption) (*DescribeResponse, error) {
+	out := new(DescribeResponse)
+	err := c.cc.Invoke(ctx, TailpipePlugin_Describe_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *tailpipePluginClient) AddObserver(ctx context.Context, in *AddObserverRequest, opts ...grpc.CallOption) (TailpipePlugin_AddObserverClient, error) {
@@ -84,6 +95,7 @@ func (c *tailpipePluginClient) Collect(ctx context.Context, in *CollectRequest, 
 // All implementations must embed UnimplementedTailpipePluginServer
 // for forward compatibility
 type TailpipePluginServer interface {
+	Describe(context.Context, *DescribeRequest) (*DescribeResponse, error)
 	AddObserver(*AddObserverRequest, TailpipePlugin_AddObserverServer) error
 	Collect(context.Context, *CollectRequest) (*CollectResponse, error)
 	mustEmbedUnimplementedTailpipePluginServer()
@@ -93,6 +105,9 @@ type TailpipePluginServer interface {
 type UnimplementedTailpipePluginServer struct {
 }
 
+func (UnimplementedTailpipePluginServer) Describe(context.Context, *DescribeRequest) (*DescribeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Describe not implemented")
+}
 func (UnimplementedTailpipePluginServer) AddObserver(*AddObserverRequest, TailpipePlugin_AddObserverServer) error {
 	return status.Errorf(codes.Unimplemented, "method AddObserver not implemented")
 }
@@ -110,6 +125,24 @@ type UnsafeTailpipePluginServer interface {
 
 func RegisterTailpipePluginServer(s grpc.ServiceRegistrar, srv TailpipePluginServer) {
 	s.RegisterService(&TailpipePlugin_ServiceDesc, srv)
+}
+
+func _TailpipePlugin_Describe_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DescribeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TailpipePluginServer).Describe(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TailpipePlugin_Describe_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TailpipePluginServer).Describe(ctx, req.(*DescribeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _TailpipePlugin_AddObserver_Handler(srv interface{}, stream grpc.ServerStream) error {
@@ -158,6 +191,10 @@ var TailpipePlugin_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "proto.TailpipePlugin",
 	HandlerType: (*TailpipePluginServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "Describe",
+			Handler:    _TailpipePlugin_Describe_Handler,
+		},
 		{
 			MethodName: "Collect",
 			Handler:    _TailpipePlugin_Collect_Handler,

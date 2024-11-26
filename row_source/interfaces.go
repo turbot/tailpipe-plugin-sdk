@@ -28,6 +28,9 @@ type RowSource interface {
 	// Identifier must return the source name
 	Identifier() string
 
+	// Description returns a human readable description of the source
+	Description() string
+
 	Close() error
 
 	// Collect is called to start collecting data,

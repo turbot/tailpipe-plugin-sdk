@@ -12,6 +12,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -126,6 +127,14 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 	}()
 
 	return tableSchema, nil
+}
+
+// Describe implements TailpipePlugin
+func (p *PluginImpl) Describe() DescribeResponse {
+	return DescribeResponse{
+		Schemas: table.Factory.GetSchema(),
+		Sources: row_source.Factory.DescribeSources(),
+	}
 }
 
 // Shutdown is called by Serve when the plugin exits

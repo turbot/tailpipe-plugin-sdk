@@ -3,6 +3,7 @@ package shared
 import (
 	"context"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"log"
 )
 
 // TailpipePluginClientWrapper is an implementation of TailpipePlugin that talks over GRPC.
@@ -13,6 +14,10 @@ func (c TailpipePluginClientWrapper) AddObserver() (proto.TailpipePlugin_AddObse
 }
 func (c TailpipePluginClientWrapper) Collect(req *proto.CollectRequest) (*proto.CollectResponse, error) {
 	return c.client.Collect(context.Background(), req)
+}
+
+func (c TailpipePluginClientWrapper) Describe() (*proto.DescribeResponse, error) {
+	return c.client.Describe(context.Background(), &proto.DescribeRequest{})
 }
 
 // TailpipePluginServerWrapper is the gRPC server that TailpipePluginClient talks to.
@@ -34,4 +39,10 @@ func (s TailpipePluginServerWrapper) Collect(_ context.Context, req *proto.Colle
 
 	// create a new context as the collect process will live onm after this call has returned, and this context will be cancelled on return from the call
 	return s.Impl.Collect(context.Background(), req)
+}
+
+func (s TailpipePluginServerWrapper) Describe(_ context.Context, _ *proto.DescribeRequest) (*proto.DescribeResponse, error) {
+	log.Println("[INFO] TailpipePluginServerWrapper AddObserver")
+
+	return s.Impl.Describe()
 }

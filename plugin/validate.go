@@ -19,7 +19,9 @@ func Validate(t *testing.T, ctor func() (TailpipePlugin, error)) {
 	t.Run("TestIdentifier", func(t *testing.T) {
 		TestIdentifier(t, p)
 	})
-
+	t.Run("TestDescribe", func(t *testing.T) {
+		TestDescribe(t, p)
+	})
 	t.Run("TestTables", func(t *testing.T) {
 		TestTables(t, p)
 	})
@@ -27,6 +29,12 @@ func Validate(t *testing.T, ctor func() (TailpipePlugin, error)) {
 		TestSources(t, p)
 	})
 
+}
+
+func TestDescribe(t *testing.T, p TailpipePlugin) {
+	schema := p.Describe()
+	assert.NotNil(t, schema)
+	assert.NotEmpty(t, schema)
 }
 
 func TestInit(t *testing.T, p TailpipePlugin) {
