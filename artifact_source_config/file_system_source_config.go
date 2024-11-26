@@ -8,6 +8,10 @@ import (
 	"github.com/turbot/pipe-fittings/utils"
 )
 
+const (
+	FileSystemSourceIdentifier = "file_system"
+)
+
 type FileSystemSourceConfig struct {
 	ArtifactSourceConfigBase
 	// required to allow partial decoding
