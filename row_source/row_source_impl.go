@@ -168,3 +168,8 @@ func (r *RowSourceImpl[S, T]) GetTiming() types.TimingCollection {
 	// TODO #observability implement default timing for custom row sourceFuncs
 	return types.TimingCollection{}
 }
+
+func (*RowSourceImpl[S, T]) Description() string {
+	// override if you want to provide a description
+	return ""
+}
