@@ -24,6 +24,9 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// TODO #config TMP https://github.com/turbot/tailpipe-plugin-sdk/issues/3
+const BaseTmpDir = "/tmp/tailpipe"
+
 // TODO #config configure https://github.com/turbot/tailpipe-plugin-sdk/issues/4
 const ArtifactSourceMaxConcurrency = 16
 

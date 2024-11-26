@@ -53,28 +53,17 @@ type Partition[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
 
 func (c *Partition[R, S, T]) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
-	// MOVE TO collector
+	// parse partition config
 	if err := c.initialiseConfig(req.PartitionData); err != nil {
 		return err
 	}
-
-	// TODO K check this can be removed - do we need to add collection state to the source?
-	//// initialise the source
-	//sourceOpts := b.table.GetSourceOptions(req.SourceData.Type)
-	//// if collectionStateJSON is non-empty, add an option to set it
-	//if len(req.CollectionState) > 0 {
-	//	sourceOpts = append(sourceOpts, row_source.WithCollectionStateJSON(req.CollectionState))
-	//}
-	//
-	//if err := b.initSource(ctx, req.SourceData, sourceOpts...); err != nil {
-	//	return err
-	//}
 
 	slog.Info("Table RowSourceImpl: Collect", "table", c.table.Identifier())
 	if err := c.initSource(ctx, req.SourceData, req.ConnectionData); err != nil {
 		return err
 	}
 	slog.Info("Start collection")
+
 	return nil
 }
 
@@ -304,7 +293,15 @@ func (c *Partition[R, S, T]) mapRow(ctx context.Context, rawRow any) ([]R, error
 	return mappedDataList, nil
 }
 
-func (c *Partition[R, S, T]) getSourceMetadata(requestedSource string) (*SourceMetadata[R], error) {
+func (c *Partition[R, S, T]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
+	// TODO: K #refactor make this function look/feel better
+	defer func() {
+		if sourceMetadata != nil {
+			if len(c.req.CollectionState) > 0 {
+				sourceMetadata.Options = append(sourceMetadata.Options, row_source.WithCollectionStateJSON(c.req.CollectionState))
+			}
+		}
+	}()
 	// get the supported sources for the table
 	supportedSourceMap := c.getSupportedSources()
 
