@@ -294,9 +294,10 @@ func (c *Partition[R, S, T]) getSourceMetadata(requestedSource string) (sourceMe
 			// check whether the supported sources map has an entry for 'artifact'
 			sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]
 		}
-
-		// if we still don't have a source metadata, return an error
-		return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.table.Identifier())
+		if !ok {
+			// if we still don't have a source metadata, return an error
+			return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.table.Identifier())
+		}
 	}
 
 	// so this source is supported
