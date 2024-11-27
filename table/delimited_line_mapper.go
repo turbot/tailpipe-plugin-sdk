@@ -26,14 +26,15 @@ func (c *DelimitedLineMapper[T]) Identifier() string {
 	return "delimited_line_logger"
 }
 
-func (c *DelimitedLineMapper[T]) Map(ctx context.Context, a any) ([]T, error) {
+func (c *DelimitedLineMapper[T]) Map(ctx context.Context, a any) (T, error) {
 	var parsed *gonx.Entry
 	var err error
+	var empty T
 
 	// validate input type is string
 	input, ok := a.(string)
 	if !ok {
-		return nil, fmt.Errorf("expected string, got %T", a)
+		return empty, fmt.Errorf("expected string, got %T", a)
 	}
 
 	for _, parser := range c.parsers {
@@ -43,13 +44,13 @@ func (c *DelimitedLineMapper[T]) Map(ctx context.Context, a any) ([]T, error) {
 		}
 	}
 	if err != nil {
-		return nil, fmt.Errorf("error parsing log line - all formats failed: %w", err)
+		return empty, fmt.Errorf("error parsing log line - all formats failed: %w", err)
 	}
 
 	row := c.newRow()
 	if err := row.InitialiseFromMap(parsed.Fields()); err != nil {
-		return nil, fmt.Errorf("error initialising row from map: %w", err)
+		return empty, fmt.Errorf("error initialising row from map: %w", err)
 	}
 
-	return []T{row}, nil
+	return row, nil
 }

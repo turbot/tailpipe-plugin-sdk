@@ -39,11 +39,12 @@ type Collection interface {
 // R is the type of the row struct which the mapper outputs
 type Mapper[R types.RowStruct] interface {
 	Identifier() string
-	// Map converts artifact data to a different format and either return it as rows,
-	// or pass it on to the next mapper in the chain
-	Map(context.Context, any) ([]R, error)
+	// Map converts raw rows to the desired format (type 'R')
+	Map(context.Context, any) (R, error)
 }
 
+// MapInitialisedRow is an interface which provides a means to initialise a row struct from a string map
+// this is used in combination with the DelimitedLineMapper
 type MapInitialisedRow interface {
 	InitialiseFromMap(m map[string]string) error
 }

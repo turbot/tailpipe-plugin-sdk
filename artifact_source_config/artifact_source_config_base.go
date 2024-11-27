@@ -11,9 +11,6 @@ type ArtifactSourceConfigBase struct {
 
 	// regex string defining the file name pattern, with named groups to extract properties
 	FileLayout *string `hcl:"file_layout,optional"`
-
-	// the json path to extract the properties from the data
-	JsonPath *string `hcl:"json_path,optional"`
 }
 
 func (b *ArtifactSourceConfigBase) Validate() error {
@@ -29,10 +26,6 @@ func (b *ArtifactSourceConfigBase) GetFileLayout() *string {
 	return b.FileLayout
 }
 
-func (b *ArtifactSourceConfigBase) GetJsonPath() *string {
-	return b.JsonPath
-}
-
 func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactSourceConfig) {
 	if helpers.IsNil(other) {
 		return
@@ -40,8 +33,5 @@ func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactSourceConfig) {
 
 	if other.GetFileLayout() != nil && b.FileLayout == nil {
 		b.FileLayout = other.GetFileLayout()
-	}
-	if other.GetJsonPath() != nil && b.JsonPath == nil {
-		b.JsonPath = other.GetJsonPath()
 	}
 }

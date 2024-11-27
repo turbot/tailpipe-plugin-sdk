@@ -7,6 +7,7 @@ import (
 
 type SourceMetadata[R types.RowStruct] struct {
 	SourceName string
+
 	MapperFunc func() Mapper[R]
 	Options    []row_source.RowSourceOption
 }
