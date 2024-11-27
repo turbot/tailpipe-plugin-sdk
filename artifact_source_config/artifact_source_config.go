@@ -6,6 +6,5 @@ type ArtifactSourceConfig interface {
 	parse.Config
 
 	GetFileLayout() *string
-	GetJsonPath() *string
 	DefaultTo(ArtifactSourceConfig)
 }

@@ -14,11 +14,19 @@ import (
 // Sources provided by the SDK: [FileSystemSource], [AwsS3BucketSource], [AwsCloudWatchSource]
 type ArtifactSource interface {
 	row_source.RowSource
-	DiscoverArtifacts(ctx context.Context) error
-	DownloadArtifact(context.Context, *types.ArtifactInfo) error
 
+	SetExtractor(extractor Extractor)
 	SetLoader(loader artifact_loader.Loader)
 	SetRowPerLine(b bool)
 	SetSkipHeaderRow(b bool)
 	SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase)
+	DiscoverArtifacts(ctx context.Context) error
+	DownloadArtifact(context.Context, *types.ArtifactInfo) error
+}
+
+// Extractor is an interface which provides a method for extracting rows from an artifact
+type Extractor interface {
+	Identifier() string
+	// Extract retrieves one more more rows from the artifact data
+	Extract(context.Context, any) ([]any, error)
 }

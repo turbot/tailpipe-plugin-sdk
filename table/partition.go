@@ -3,7 +3,6 @@ package table
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -220,45 +219,41 @@ func (c *Partition[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) 
 	defer c.rowWg.Done()
 
 	// when all rows, a null row will be sent - DO NOT try to enrich this!
-	row := e.Row
-	if row == nil {
+	if e.Row == nil {
 		// notify of nil row
-		return c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, row, e.CollectionState))
+		return c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, nil, e.CollectionState))
 	}
 
 	// put data into an array as that is what mappers expect
-	rows, err := c.mapRow(ctx, row)
+	mappedRow, err := c.mapRow(ctx, e.Row)
 	if err != nil {
 		return fmt.Errorf("error mapping artifact: %w", err)
 	}
 
 	// set the enrich time if not already set
 	c.enrichTiming.TryStart(constants.TimingEnrich)
-
 	enrichStart := time.Now()
 
 	// add partition to the enrichment fields
 	enrichmentFields := e.EnrichmentFields
 	enrichmentFields.TpPartition = c.req.PartitionData.Partition
 
-	for _, mappedRow := range rows {
-		// enrich the row
-		enrichedRow, err := c.table.EnrichRow(mappedRow, enrichmentFields)
-		if err != nil {
-			return err
-		}
-		// validate the row
-		if err := enrichedRow.Validate(); err != nil {
-			// TODO #errors we need to include the raw row information in the error
-			return err
-		}
-
-		// notify observers of enriched row
-		if err := c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, enrichedRow, e.CollectionState)); err != nil {
-			return err
-		}
-
+	// enrich the row
+	enrichedRow, err := c.table.EnrichRow(mappedRow, enrichmentFields)
+	if err != nil {
+		return err
 	}
+	// validate that the enriched row has required fields
+	if err := enrichedRow.Validate(); err != nil {
+		// TODO #errors we need to include the raw row information in the error
+		return err
+	}
+
+	// notify observers of enriched row
+	if err := c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, enrichedRow, e.CollectionState)); err != nil {
+		return err
+	}
+
 	// update the enrich active duration
 	c.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
 
@@ -266,78 +261,50 @@ func (c *Partition[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) 
 }
 
 // mapRow applies any configured mappers to the raw rows
-func (c *Partition[R, S, T]) mapRow(ctx context.Context, rawRow any) ([]R, error) {
-	// if there is no mappers, just return the data as is
+func (c *Partition[R, S, T]) mapRow(ctx context.Context, rawRow any) (R, error) {
+	var empty R
+	// if there is no mapper, just return the data as is
 	if c.mapper == nil {
+		// if no mapper is defined, we expect the rawRow to be of type R - if not this is an error
 		row, ok := rawRow.(R)
 		if !ok {
-			return nil, fmt.Errorf("no mapper defined so expected source output to be %T, got %T", row, rawRow)
+			// TODO #error this is not raised in UI
+			return empty, fmt.Errorf("no mapper defined so expected source output to be %T, got %T", row, rawRow)
 		}
-		return []R{row}, nil
+		return row, nil
 	}
 
-	// mappers may return multiple rows so wrap data in a list
-	var dataList = []any{rawRow}
-
-	var errList []error
-
-	// invoke each mapper in turn
-	var mappedDataList []R
-	for _, d := range dataList {
-		mappedData, err := c.mapper.Map(ctx, d)
-		if err != nil {
-			// TODO #error should we give up immediately
-			return nil, fmt.Errorf("error mapping artifact row: %w", err)
-		} else {
-			mappedDataList = append(mappedDataList, mappedData...)
-		}
-	}
-
-	if len(errList) > 0 {
-		return nil, fmt.Errorf("error mapping artifact rows: %w", errors.Join(errList...))
-	}
-
-	return mappedDataList, nil
+	return c.mapper.Map(ctx, rawRow)
 }
 
 func (c *Partition[R, S, T]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
-	// TODO: K #refactor make this function look/feel better
-	defer func() {
-		if sourceMetadata != nil {
-			if len(c.req.CollectionState) > 0 {
-				sourceMetadata.Options = append(sourceMetadata.Options, row_source.WithCollectionStateJSON(c.req.CollectionState))
-			}
-		}
-	}()
+
 	// get the supported sources for the table
 	supportedSourceMap := c.getSupportedSources()
 
-	// copy the requested source as we may change it
-	sourceType := requestedSource
+	// validate the requested source type is supported by this table
+	sourceMetadata, ok := supportedSourceMap[requestedSource]
+	if !ok {
+		// the table may specify `artifact` as a supported source, meaning any artifact source is supported
+		// this would cause the above check to fail, as the requestedSource would be the name of a specific artifact source
+		// whereas the map will have an entry keyed by `artifact`
 
-	// validate the source type is supported by this table
-	sourceMetadata, ok := supportedSourceMap[sourceType]
-	if ok {
-		return sourceMetadata, nil
-	}
-
-	// so the requestedSource is not present in the map
-	// the plugin may specify `artifact_source` as a supported source, meaning any artifact source is supported
-	// this would cause the check to fail, as the requestedSource would be the name of a specific artifact source
-	// whereas the map will have an entry keyed by `artifact_source`
-
-	// check if such an entry exists - if it does, check if the requested source is an artifact source
-	sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]
-	if ok {
-		// so the table supports artifact sources
-
-		// is this source type an artifact source?
-		if row_source.Factory.IsArtifactSource(sourceType) {
-			// so requested type is an artifact source and the table supports artifact sources
-			return sourceMetadata, nil
+		// is the requested source an artifact source?
+		if row_source.Factory.IsArtifactSource(requestedSource) {
+			// check whether the supported sources map has an entry for 'artifact'
+			sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]
 		}
-	}
-	// so the table does not support this source type
-	return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.table.Identifier())
 
+		// if we still don't have a source metadata, return an error
+		return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.table.Identifier())
+	}
+
+	// so this source is supported
+
+	// If the request includes collection state, add it to the source options
+	if len(c.req.CollectionState) > 0 {
+		sourceMetadata.Options = append(sourceMetadata.Options, row_source.WithCollectionStateJSON(c.req.CollectionState))
+	}
+
+	return sourceMetadata, nil
 }

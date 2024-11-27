@@ -65,6 +65,9 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 
 	defaultConfig *artifact_source_config.ArtifactSourceConfigBase
 	// map of loaders created, keyed by identifier
+	// an optional extractor which the table may specify
+	extractor Extractor
+
 	// this is populated lazily if we infer the loader from the file type
 	loaders    map[string]artifact_loader.Loader
 	loaderLock sync.RWMutex
@@ -83,90 +86,95 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	timingLock      sync.Mutex
 }
 
-func (b *ArtifactSourceImpl[S, T]) SetRowPerLine(rowPerLine bool) {
-	b.RowPerLine = rowPerLine
-}
-
-func (b *ArtifactSourceImpl[S, T]) SetSkipHeaderRow(skipHeaderRow bool) {
-	b.SkipHeaderRow = skipHeaderRow
-}
-
-func (b *ArtifactSourceImpl[S, T]) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
-	slog.Info("Initializing ArtifactSourceImpl")
+func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
+	slog.Info("Initializing ArtifactSourceImpl", "configData", configData.GetHcl())
 
 	// if no collection state func has been set by a derived struct,
 	// set it to the default for artifacts
-	if b.NewCollectionStateFunc == nil {
-		b.NewCollectionStateFunc = collection_state.NewArtifactCollectionState
+	if a.NewCollectionStateFunc == nil {
+		a.NewCollectionStateFunc = collection_state.NewArtifactCollectionState
 	}
 
 	// call base to apply options and parse config
-	if err := b.RowSourceImpl.Init(ctx, configData, connectionData, opts...); err != nil {
+	if err := a.RowSourceImpl.Init(ctx, configData, connectionData, opts...); err != nil {
 		slog.Warn("Initializing artifact_row_source.RowSourceImpl failed", "error", err)
 		return err
 	}
 
-	slog.Info("Initialized artifact_row_source.RowSourceImpl", "config", b.Config)
-	slog.Info("Default to default config", "defaultConfig", b.defaultConfig)
+	slog.Info("Initialized artifact_row_source.RowSourceImpl", "config", a.Config)
+	slog.Info("Default to default config", "defaultConfig", a.defaultConfig)
 
 	// apply default config (this handles null default)
-	b.Config.DefaultTo(b.defaultConfig)
+	a.Config.DefaultTo(a.defaultConfig)
 
 	// store RowSourceImpl.Source as an ArtifactSource
-	impl, ok := b.RowSourceImpl.Source.(ArtifactSource)
+	impl, ok := a.RowSourceImpl.Source.(ArtifactSource)
 	if !ok {
 		return errors.New("ArtifactSourceImpl.Source must implement ArtifactSource")
 	}
-	b.Source = impl
+	a.Source = impl
 
 	// setup rate limiter
-	b.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
+	a.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
 		Name:           "artifact_load_limiter",
 		MaxConcurrency: ArtifactSourceMaxConcurrency,
 	})
 
 	// create loader map
-	b.loaders = make(map[string]artifact_loader.Loader)
+	a.loaders = make(map[string]artifact_loader.Loader)
 
 	// initialise the collection state
-	return b.CollectionState.Init(b.Config)
+	return a.CollectionState.Init(a.Config)
+}
+
+func (a *ArtifactSourceImpl[S, T]) SetLoader(loader artifact_loader.Loader) {
+	a.Loader = loader
+}
+
+// SetExtractor sets the extractor function for the source
+func (a *ArtifactSourceImpl[S, T]) SetExtractor(extractor Extractor) {
+	a.extractor = extractor
+}
+
+func (a *ArtifactSourceImpl[S, T]) SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase) {
+	a.defaultConfig = config
+}
+
+func (a *ArtifactSourceImpl[S, T]) SetRowPerLine(rowPerLine bool) {
+	a.RowPerLine = rowPerLine
+}
+
+func (a *ArtifactSourceImpl[S, T]) SetSkipHeaderRow(skipHeaderRow bool) {
+	a.SkipHeaderRow = skipHeaderRow
 }
 
 // Collect tells our ArtifactSourceImpl to start discovering artifacts
 // Implements [plugin.RowSource]
-func (b *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) error {
+func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) error {
 	slog.Info("ArtifactSourceImpl Collect")
 	defer slog.Info("ArtifactSourceImpl Collect complete")
 
 	// record discovery start time
-	b.DiscoveryTiming.TryStart(constants.TimingDiscover)
+	a.DiscoveryTiming.TryStart(constants.TimingDiscover)
 
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
-	err := b.Source.DiscoverArtifacts(ctx)
+	err := a.Source.DiscoverArtifacts(ctx)
 	// store discover end time
-	b.DiscoveryTiming.End = time.Now()
+	a.DiscoveryTiming.End = time.Now()
 	if err != nil {
 		return err
 	}
 
 	// now wait for all extractions
-	b.artifactExtractWg.Wait()
+	a.artifactExtractWg.Wait()
 	// set extract end time
-	b.ExtractTiming.End = time.Now()
+	a.ExtractTiming.End = time.Now()
 
 	return nil
 }
 
-func (b *ArtifactSourceImpl[S, T]) SetLoader(loader artifact_loader.Loader) {
-	b.Loader = loader
-}
-
-func (b *ArtifactSourceImpl[S, T]) SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase) {
-	b.defaultConfig = config
-}
-
-func (b *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {
+func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -175,65 +183,65 @@ func (b *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	// start a download
 
 	// increment the extract wait group - this will be decremented when the artifact is extracted (or there is an error)
-	b.artifactExtractWg.Add(1)
+	a.artifactExtractWg.Add(1)
 
 	t := time.Now()
 
 	// rate limit the download
 	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.Name)
-	err = b.artifactDownloadLimiter.Wait(ctx)
+	err = a.artifactDownloadLimiter.Wait(ctx)
 	if err != nil {
 		return fmt.Errorf("error acquiring rate limiter: %w", err)
 	}
 	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.Name)
 
 	// set the download start time if not already set
-	b.DownloadTiming.TryStart(constants.TimingDownload)
+	a.DownloadTiming.TryStart(constants.TimingDownload)
 
 	go func() {
 		defer func() {
-			b.artifactDownloadLimiter.Release()
+			a.artifactDownloadLimiter.Release()
 			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
 		}()
 		downloadStart := time.Now()
 		// cast the source to an ArtifactSource and download the artifact
-		err = b.Source.DownloadArtifact(ctx, info)
+		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
 			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
 			// we failed to download artifact so decrement the wait group
-			b.artifactExtractWg.Done()
-			err := b.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
+			a.artifactExtractWg.Done()
+			err := a.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
 			if err != nil {
 				slog.Error("Error notifying observers of download error", "download error", err, "notify error", err)
 			}
 		}
 		// update the download active duration
-		b.DownloadTiming.UpdateActiveDuration(time.Since(downloadStart))
+		a.DownloadTiming.UpdateActiveDuration(time.Since(downloadStart))
 	}()
 
 	// send discovery event
-	if err = b.NotifyObservers(ctx, events.NewArtifactDiscoveredEvent(executionId, info)); err != nil {
+	if err = a.NotifyObservers(ctx, events.NewArtifactDiscoveredEvent(executionId, info)); err != nil {
 		return fmt.Errorf("error notifying observers of discovered artifact: %w", err)
 	}
 	return nil
 }
 
-func (b *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo) error {
+func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
 
 	// update the download end time
-	b.timingLock.Lock()
-	b.DownloadTiming.End = time.Now()
-	b.timingLock.Unlock()
+	a.timingLock.Lock()
+	a.DownloadTiming.End = time.Now()
+	a.timingLock.Unlock()
 
 	// set the extract start time if not already set
-	b.ExtractTiming.TryStart(constants.TimingExtract)
+	a.ExtractTiming.TryStart(constants.TimingExtract)
 
 	// serialise the collection state data so that we capture it at the time of the download of this artifact
-	collectionState, err := b.GetCollectionStateJSON()
+	collectionState, err := a.GetCollectionStateJSON()
 	if err != nil {
 		return fmt.Errorf("error serialising collection state data: %w", err)
 	}
@@ -242,19 +250,19 @@ func (b *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	go func() {
 		extractStart := time.Now()
 		// TODO #error make sure errors handles and bubble back
-		err := b.extractArtifact(ctx, info, collectionState)
+		err := a.processArtifact(ctx, info, collectionState)
 
 		// update extract active duration
 		activeDuration := time.Since(extractStart)
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name, "duration (ms)", activeDuration.Milliseconds())
-		b.ExtractTiming.UpdateActiveDuration(activeDuration)
+		a.ExtractTiming.UpdateActiveDuration(activeDuration)
 
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name)
 
 		// close wait group whether there is an error or not
-		b.artifactExtractWg.Done()
+		a.artifactExtractWg.Done()
 		if err != nil {
-			err := b.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
+			err := a.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
 			if err != nil {
 				slog.Error("Error notifying observers of extract error", "extract error", err, "notify error", err)
 			}
@@ -262,31 +270,32 @@ func (b *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	}()
 
 	// notify observers of download
-	if err := b.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, collectionState)); err != nil {
+	if err := a.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, collectionState)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil
 }
 
-func (b *ArtifactSourceImpl[S, T]) GetTiming() types.TimingCollection {
-	return types.TimingCollection{b.DiscoveryTiming, b.DownloadTiming, b.ExtractTiming}
+func (a *ArtifactSourceImpl[S, T]) GetTiming() types.TimingCollection {
+	return types.TimingCollection{a.DiscoveryTiming, a.DownloadTiming, a.ExtractTiming}
 }
 
 // convert a downloaded artifact to a set of raw rows, with optional metadata
 // invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
-func (b *ArtifactSourceImpl[S, T]) extractArtifact(ctx context.Context, info *types.ArtifactInfo, collectionState json.RawMessage) error {
-	slog.Debug("RowSourceImpl extractArtifact", "artifact", info.Name)
+func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *types.ArtifactInfo, collectionState json.RawMessage) error {
+	slog.Debug("RowSourceImpl processArtifact", "artifact", info.Name)
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	// load artifact data
 	// resolve the loader - if one has not been specified, create a default for the file tyoe
-	loader, err := b.resolveLoader(info)
+	loader, err := a.resolveLoader(info)
 	if err != nil {
 		return err
 	}
 
 	artifactChan := make(chan *types.RowData)
+	// load the locally downloaded artifact - decompressing if needed
 	err = loader.Load(ctx, info, artifactChan)
 	if err != nil {
 		return fmt.Errorf("error extracting artifact: %w", err)
@@ -294,50 +303,89 @@ func (b *ArtifactSourceImpl[S, T]) extractArtifact(ctx context.Context, info *ty
 
 	count := 0
 
-	// range over the data channel and apply mappers
-	for rawRow := range artifactChan {
-		// if we're skipping the header row, skip the first row
-		if b.SkipHeaderRow && count == 0 {
-			count++
-			continue
-		}
+	// range over the data channel and apply extractor if needed
+	for artifactData := range artifactChan {
 		// raise row events, sending collection state data
 		var notifyErrors []error
-		count++
 		// NOTE: if no metadata has been set on the row, use any metadata from the artifact
-		if rawRow.Metadata == nil {
-			rawRow.Metadata = info.EnrichmentFields
-		}
-		if err := b.OnRow(ctx, rawRow, collectionState); err != nil {
-			notifyErrors = append(notifyErrors, err)
+		if artifactData.Metadata == nil {
+			artifactData.Metadata = info.EnrichmentFields
 		}
 
+		// if an extractor was specified by the table, apply it
+		rawRaws, err := a.extractRowsFromArtifact(ctx, artifactData)
+		if err != nil {
+			return err
+		}
+
+		for _, rawRow := range rawRaws {
+			count++
+
+			// if we're skipping the header row, skip the first row
+			// (note: as we already incremented count we check for 1)
+			if a.SkipHeaderRow && count == 1 {
+				continue
+			}
+
+			if err := a.OnRow(ctx, rawRow, collectionState); err != nil {
+				notifyErrors = append(notifyErrors, err)
+			}
+		}
 		if len(notifyErrors) > 0 {
 			return fmt.Errorf("error notifying %d %s of row event: %w", len(notifyErrors), utils.Pluralize("observer", len(notifyErrors)), errors.Join(notifyErrors...))
 		}
 	}
 
 	// notify observers of download
-	if err := b.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
+	if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
 		return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
 	}
 
 	// if we skipped the header row, decrement the count to ensure logged row count is accurate
-	if b.SkipHeaderRow {
+	if a.SkipHeaderRow {
 		count--
 	}
 
-	slog.Debug("RowSourceImpl extractArtifact complete", "artifact", info.Name, "rows", count)
+	slog.Debug("RowSourceImpl processArtifact complete", "artifact", info.Name, "rows", count)
 	return nil
+}
+
+// if an extractor is specified, apply it to the artifact data to extract rows
+func (a *ArtifactSourceImpl[S, T]) extractRowsFromArtifact(ctx context.Context, artifactData *types.RowData) ([]*types.RowData, error) {
+	t := time.Now()
+	defer func() {
+		slog.Debug("extractRowsFromArtifact", "duration", time.Since(t))
+	}()
+
+	// if no extractor is set, nothing to do
+	if a.extractor == nil {
+		// just return the artifact data as a single row
+		return []*types.RowData{artifactData}, nil
+	}
+
+	var res []*types.RowData
+	rows, err := a.extractor.Extract(ctx, artifactData.Data)
+	if err != nil {
+		return nil, fmt.Errorf("error extracting rows: %w", err)
+	}
+
+	// convert the rows to an array of RowData
+	for _, row := range rows {
+		res = append(res, &types.RowData{
+			Data:     row,
+			Metadata: artifactData.Metadata,
+		})
+	}
+	return res, nil
 }
 
 // resolveLoader resolves the loader to use for the artifact
 // - if a loader has been specified, just use that
 // - otherwise create a default loader based on the extension
-func (b *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (artifact_loader.Loader, error) {
+func (a *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (artifact_loader.Loader, error) {
 	// a loader was specified when creating the row source - use that
-	if b.Loader != nil {
-		return b.Loader, nil
+	if a.Loader != nil {
+		return a.Loader, nil
 	}
 
 	var key string
@@ -345,7 +393,7 @@ func (b *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (arti
 	// figure out which loader to use based on the file extension
 	switch filepath.Ext(info.Name) {
 	case ".gz":
-		if b.RowPerLine {
+		if a.RowPerLine {
 			key = artifact_loader.GzipRowLoaderIdentifier
 			ctor = artifact_loader.NewGzipRowLoader
 		} else {
@@ -353,7 +401,7 @@ func (b *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (arti
 			ctor = artifact_loader.NewGzipLoader
 		}
 	default:
-		if b.RowPerLine {
+		if a.RowPerLine {
 			key = artifact_loader.FileRowLoaderIdentifier
 			ctor = artifact_loader.NewFileRowLoader
 		} else {
@@ -363,9 +411,9 @@ func (b *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (arti
 	}
 
 	// have we already created this loader?
-	b.loaderLock.RLock()
-	l, ok := b.loaders[key]
-	b.loaderLock.RUnlock()
+	a.loaderLock.RLock()
+	l, ok := a.loaders[key]
+	a.loaderLock.RUnlock()
 	if ok {
 		// yes, return it
 		return l, nil
@@ -373,11 +421,11 @@ func (b *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (arti
 
 	// no - create and cache a new one
 	// upgrade the lock
-	b.loaderLock.Lock()
-	defer b.loaderLock.Unlock()
+	a.loaderLock.Lock()
+	defer a.loaderLock.Unlock()
 
 	// check the map again (in case of race condition)
-	if l, ok = b.loaders[key]; ok {
+	if l, ok = a.loaders[key]; ok {
 		return l, nil
 	}
 
@@ -385,21 +433,21 @@ func (b *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (arti
 	l = ctor()
 
 	// store
-	b.loaders[key] = l
+	a.loaders[key] = l
 
 	return l, nil
 }
 
 // functions which must be implemented by structs embedding ArtifactSourceImpl
 
-func (b *ArtifactSourceImpl[S, T]) Identifier() string {
+func (a *ArtifactSourceImpl[S, T]) Identifier() string {
 	panic("Identifier must be implemented by the ArtifactSource implementation")
 }
 
-func (b *ArtifactSourceImpl[S, T]) DiscoverArtifacts(ctx context.Context) error {
+func (a *ArtifactSourceImpl[S, T]) DiscoverArtifacts(ctx context.Context) error {
 	panic("DiscoverArtifacts must be implemented by the ArtifactSource implementation")
 }
 
-func (b *ArtifactSourceImpl[S, T]) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
+func (a *ArtifactSourceImpl[S, T]) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 	panic("DownloadArtifact must be implemented by the ArtifactSource implementation")
 }
