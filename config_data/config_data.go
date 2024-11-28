@@ -14,6 +14,7 @@ type ConfigData interface {
 	GetHcl() []byte
 	GetRange() hcl.Range
 	Identifier() string
+	AsProto() *proto.ConfigData
 	GetConfigType() string
 }
 
@@ -83,5 +84,13 @@ func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 		return ConfigData(d).(T), nil
 	default:
 		return empty, fmt.Errorf("invalid config type %T", empty)
+	}
+}
+
+func (c *ConfigDataImpl) AsProto() *proto.ConfigData {
+	return &proto.ConfigData{
+		Hcl:    c.Hcl,
+		Range:  proto.RangeToProto(c.Range),
+		Target: c.Id,
 	}
 }

@@ -50,6 +50,9 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		return nil, err
 	}
 
+	// NOTE: add the (possibly nil) SourcePluginReattach to the source data
+	sourceData.SetReattach(pr.SourcePluginReattach)
+
 	req := &CollectRequest{
 		TableName:       pr.TableName,
 		PartitionName:   pr.PartitionName,

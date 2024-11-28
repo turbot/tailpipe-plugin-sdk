@@ -20,6 +20,22 @@ func (c TailpipePluginClientWrapper) Describe() (*proto.DescribeResponse, error)
 	return c.client.Describe(context.Background(), &proto.DescribeRequest{})
 }
 
+func (c TailpipePluginClientWrapper) Init(req *proto.InitRequest) (*proto.InitResponse, error) {
+	return c.client.InitSource(context.Background(), req)
+}
+
+func (c TailpipePluginClientWrapper) Close() (*proto.CloseSourceResponse, error) {
+	return c.client.CloseSource(context.Background(), &proto.CloseSourceRequest{})
+}
+
+func (c TailpipePluginClientWrapper) SourceCollect(req *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error) {
+	return c.client.SourceCollect(context.Background(), req)
+}
+
+func (c TailpipePluginClientWrapper) GetSourceTiming() (*proto.GetSourceTimingResponse, error) {
+	return c.client.GetSourceTiming(context.Background(), &proto.GetSourceTimingRequest{})
+}
+
 // TailpipePluginServerWrapper is the gRPC server that TailpipePluginClient talks to.
 type TailpipePluginServerWrapper struct {
 	proto.UnimplementedTailpipePluginServer
