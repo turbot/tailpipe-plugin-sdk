@@ -10,7 +10,7 @@ import (
 	"github.com/iancoleman/strcase"
 )
 
-const maxNesting = 5
+const maxNesting = 10
 
 func SchemaFromStruct(s any) (*RowSchema, error) {
 	return NewSchemaBuilder().SchemaFromStruct(s)
