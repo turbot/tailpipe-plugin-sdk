@@ -77,35 +77,42 @@ func (r *RowSourceImpl[S, T]) Init(ctx context.Context, configData, connectionDa
 }
 
 func (r *RowSourceImpl[S, T]) initialiseConfig(configData config_data.ConfigData) error {
+	// default to empty config
+	c := utils.InstanceOf[S]()
 	// parse the config
 	if len(configData.GetHcl()) > 0 {
-		c, err := parse.ParseConfig[S](configData)
+		var err error
+		c, err = parse.ParseConfig[S](configData)
 		if err != nil {
 			return err
 		}
-		// validate config
-		if err := c.Validate(); err != nil {
-			return fmt.Errorf("invalid config: %w", err)
-		}
-		r.Config = c
 	}
+	// validate config (even if it is empty)
+	if err := c.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+	r.Config = c
 	return nil
 }
 
 func (r *RowSourceImpl[S, T]) initialiseConnection(connectionData config_data.ConfigData) error {
+	// default to empty connection
+	conn := utils.InstanceOf[T]()
+
 	if !helpers.IsNil(connectionData) && len(connectionData.GetHcl()) > 0 {
-		config, err := parse.ParseConfig[T](connectionData)
+		var err error
+		conn, err = parse.ParseConfig[T](connectionData)
 		if err != nil {
 			return fmt.Errorf("error parsing connection: %w", err)
 		}
-		r.Connection = config
 
 		slog.Info("Table RowSourceImpl: } parsed", "}", r)
+	}
+	r.Connection = conn
 
-		// validate config
-		if err := config.Validate(); err != nil {
-			return fmt.Errorf("invalid }: %w", err)
-		}
+	// validate config
+	if err := conn.Validate(); err != nil {
+		return fmt.Errorf("invalid connection: %w", err)
 	}
 	return nil
 }

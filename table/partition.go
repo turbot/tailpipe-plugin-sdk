@@ -84,20 +84,24 @@ func (c *Partition[R, S, T]) IsDynamic() bool {
 }
 
 func (c *Partition[R, S, T]) initialiseConfig(tableConfigData config_data.ConfigData) error {
+	// default to empty config
+	cfg := utils.InstanceOf[S]()
 	if len(tableConfigData.GetHcl()) > 0 {
-		cfg, err := parse.ParseConfig[S](tableConfigData)
+		var err error
+		cfg, err = parse.ParseConfig[S](tableConfigData)
 		if err != nil {
 			return fmt.Errorf("error parsing config: %w", err)
 		}
-		c.Config = cfg
 
 		slog.Info("Table RowSourceImpl: config parsed", "config", c)
-
-		// validate config
-		if err := cfg.Validate(); err != nil {
-			return fmt.Errorf("invalid config: %w", err)
-		}
 	}
+	c.Config = cfg
+
+	// validate config
+	if err := cfg.Validate(); err != nil {
+		return fmt.Errorf("invalid config: %w", err)
+	}
+
 	return nil
 }
 
