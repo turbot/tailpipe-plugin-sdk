@@ -6,6 +6,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -16,10 +17,14 @@ type Table[R types.RowStruct, S parse.Config] interface {
 	// Identifier must return the collection name
 	Identifier() string
 
-	// SourceMetadata returns the supported sources for the table
-	SupportedSources(S) []*SourceMetadata[R]
+	// GetSourceMetadata returns the supported sources for the table
+	GetSourceMetadata(S) []*SourceMetadata[R]
 	// EnrichRow is called to enrich the row with common (tp_*) fields
 	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
+}
+
+type DynamicTable[R types.RowStruct, S parse.Config] interface {
+	GetSchemaAsync(row_source.RowSource, S) (chan *schema.RowSchema, error)
 }
 
 // Collection is an interface which provides a methods for collecting table data from a source
@@ -30,13 +35,14 @@ type Collection interface {
 	GetTiming() types.TimingCollection
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
-	GetSchema() (*schema.RowSchema, error)
+	GetSchemaAsync() (chan *schema.RowSchema, error)
+	GetSource() row_source.RowSource
 	IsDynamic() bool
 	Collect(context.Context) (json.RawMessage, error)
 }
 
 // Mapper is a generic interface which provides a method for mapping raw source data into row structs
-// R is the type of the row struct which the mapper outputs
+// R is the type of the row struct which the mapperFunc outputs
 type Mapper[R types.RowStruct] interface {
 	Identifier() string
 	// Map converts raw rows to the desired format (type 'R')
@@ -44,7 +50,7 @@ type Mapper[R types.RowStruct] interface {
 }
 
 // MapInitialisedRow is an interface which provides a means to initialise a row struct from a string map
-// this is used in combination with the DelimitedLineMapper
+// this is used in combination with the RowPatternMapper
 type MapInitialisedRow interface {
 	InitialiseFromMap(m map[string]string) error
 }

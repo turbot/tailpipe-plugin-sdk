@@ -352,11 +352,6 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 
 // if an extractor is specified, apply it to the artifact data to extract rows
 func (a *ArtifactSourceImpl[S, T]) extractRowsFromArtifact(ctx context.Context, artifactData *types.RowData) ([]*types.RowData, error) {
-	t := time.Now()
-	defer func() {
-		slog.Debug("extractRowsFromArtifact", "duration", time.Since(t))
-	}()
-
 	// if no extractor is set, nothing to do
 	if a.extractor == nil {
 		// just return the artifact data as a single row

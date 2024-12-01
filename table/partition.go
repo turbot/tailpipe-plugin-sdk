@@ -48,6 +48,8 @@ type Partition[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
 	statusLock   sync.RWMutex
 	enrichTiming types.Timing
 	req          *types.CollectRequest
+
+	dynamicSchemaChan chan *schema.RowSchema
 }
 
 func (c *Partition[R, S, T]) Init(ctx context.Context, req *types.CollectRequest) error {
@@ -63,6 +65,7 @@ func (c *Partition[R, S, T]) Init(ctx context.Context, req *types.CollectRequest
 	}
 	slog.Info("Start collection")
 
+	c.dynamicSchemaChan = make(chan *schema.RowSchema, 1)
 	return nil
 }
 
@@ -70,17 +73,35 @@ func (c *Partition[R, S, T]) Identifier() string {
 	return c.table.Identifier()
 }
 
-func (c *Partition[R, S, T]) GetSchema() (*schema.RowSchema, error) {
-	// get the schema for the table row type
-	rowStruct := utils.InstanceOf[R]()
-	return schema.SchemaFromStruct(rowStruct)
+func (c *Partition[R, S, T]) GetSource() row_source.RowSource {
+	return c.source
 }
 
 // IsDynamic returns true if the table is dynamic
 func (c *Partition[R, S, T]) IsDynamic() bool {
-	// Check if R is a *DynamicRow using type assertion
-	_, isDynamic := any(utils.InstanceOf[R]()).(*DynamicRow)
-	return isDynamic
+	_, ok := c.table.(DynamicTable[R, S])
+
+	return ok
+	//// Check if R is a *DynamicRow using type assertion
+	//_, isDynamic := any(utils.InstanceOf[R]()).(*DynamicRow)
+	//return isDynamic
+}
+
+func (c *Partition[R, S, T]) GetSchemaAsync() (chan *schema.RowSchema, error) {
+	if d, ok := c.table.(DynamicTable[R, S]); ok {
+		return d.GetSchemaAsync(c.source, c.Config)
+	}
+
+	// get the schema for the table row type
+	rowStruct := utils.InstanceOf[R]()
+	s, err := schema.SchemaFromStruct(rowStruct)
+
+	if err != nil {
+		return nil, err
+	}
+	var res = make(chan *schema.RowSchema, 1)
+	res <- s
+	return res, nil
 }
 
 func (c *Partition[R, S, T]) initialiseConfig(tableConfigData config_data.ConfigData) error {
@@ -178,17 +199,50 @@ func (c *Partition[R, S, T]) initSource(ctx context.Context, configData *config_
 	c.source = source
 
 	// set mapper if source metadata specifies one
-	if mapperFunc := sourceMetadata.MapperFunc; mapperFunc != nil {
-		c.mapper = mapperFunc()
+	if mapper := sourceMetadata.Mapper; mapper != nil {
+		c.mapper = mapper
 	}
 
 	// add ourselves as an observer to our Source
 	return c.source.AddObserver(c)
 }
 
+func (c *Partition[R, S, T]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
+	// get the supported sources for the table
+	supportedSourceMap := c.getSourceMetadataMap()
+
+	// validate the requested source type is supported by this table
+	sourceMetadata, ok := supportedSourceMap[requestedSource]
+	if !ok {
+		// the table may specify `artifact` as a supported source, meaning any artifact source is supported
+		// this would cause the above check to fail, as the requestedSource would be the name of a specific artifact source
+		// whereas the map will have an entry keyed by `artifact`
+
+		// is the requested source an artifact source?
+		if row_source.Factory.IsArtifactSource(requestedSource) {
+			// check whether the supported sources map has an entry for 'artifact'
+			sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]
+		}
+
+		// if we still don't have a source metadata, return an error
+		if !ok {
+			return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.table.Identifier())
+		}
+	}
+
+	// so this source is supported
+
+	// If the request includes collection state, add it to the source options
+	if len(c.req.CollectionState) > 0 {
+		sourceMetadata.Options = append(sourceMetadata.Options, row_source.WithCollectionStateJSON(c.req.CollectionState))
+	}
+
+	return sourceMetadata, nil
+}
+
 // ask table for it;s supported sources and put into map for ease of lookup
-func (c *Partition[R, S, T]) getSupportedSources() map[string]*SourceMetadata[R] {
-	supportedSources := c.table.SupportedSources(c.Config)
+func (c *Partition[R, S, T]) getSourceMetadataMap() map[string]*SourceMetadata[R] {
+	supportedSources := c.table.GetSourceMetadata(c.Config)
 	// convert to a map for easy lookup
 	sourceMap := make(map[string]*SourceMetadata[R])
 	for _, s := range supportedSources {
@@ -268,50 +322,16 @@ func (c *Partition[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) 
 // mapRow applies any configured mappers to the raw rows
 func (c *Partition[R, S, T]) mapRow(ctx context.Context, rawRow any) (R, error) {
 	var empty R
-	// if there is no mapper, just return the data as is
+	// if there is no mapperFunc, just return the data as is
 	if c.mapper == nil {
-		// if no mapper is defined, we expect the rawRow to be of type R - if not this is an error
+		// if no mapperFunc is defined, we expect the rawRow to be of type R - if not this is an error
 		row, ok := rawRow.(R)
 		if !ok {
 			// TODO #error this is not raised in UI
-			return empty, fmt.Errorf("no mapper defined so expected source output to be %T, got %T", row, rawRow)
+			return empty, fmt.Errorf("no mapperFunc defined so expected source output to be %T, got %T", row, rawRow)
 		}
 		return row, nil
 	}
 
 	return c.mapper.Map(ctx, rawRow)
-}
-
-func (c *Partition[R, S, T]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
-
-	// get the supported sources for the table
-	supportedSourceMap := c.getSupportedSources()
-
-	// validate the requested source type is supported by this table
-	sourceMetadata, ok := supportedSourceMap[requestedSource]
-	if !ok {
-		// the table may specify `artifact` as a supported source, meaning any artifact source is supported
-		// this would cause the above check to fail, as the requestedSource would be the name of a specific artifact source
-		// whereas the map will have an entry keyed by `artifact`
-
-		// is the requested source an artifact source?
-		if row_source.Factory.IsArtifactSource(requestedSource) {
-			// check whether the supported sources map has an entry for 'artifact'
-			sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]
-		}
-
-		// if we still don't have a source metadata, return an error
-		if !ok {
-			return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.table.Identifier())
-		}
-	}
-
-	// so this source is supported
-
-	// If the request includes collection state, add it to the source options
-	if len(c.req.CollectionState) > 0 {
-		sourceMetadata.Options = append(sourceMetadata.Options, row_source.WithCollectionStateJSON(c.req.CollectionState))
-	}
-
-	return sourceMetadata, nil
 }

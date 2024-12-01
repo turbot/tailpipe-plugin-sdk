@@ -95,8 +95,13 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 		return nil, err
 	}
 
-	// ask the table for the schema
-	tableSchema, err := partition.GetSchema()
+	// get the schema
+	// NOTE: must be before we start collecting
+	// TODO make this part of init?
+	schemaChan, err := partition.GetSchemaAsync()
+	if err != nil {
+		return nil, err
+	}
 
 	// add ourselves as an observer
 	if err := partition.AddObserver(p); err != nil {
@@ -125,6 +130,9 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 		// signal we have completed - pass error if there was one
 		_ = p.OnCompleted(ctx, req.ExecutionId, collectionState, timing, err)
 	}()
+
+	// wait for the schema
+	tableSchema := <-schemaChan
 
 	return tableSchema, nil
 }

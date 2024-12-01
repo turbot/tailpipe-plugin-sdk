@@ -1,0 +1,3 @@
+{ "timestamp":"2024-11-28T15:34:33.208935Z", "StructField": {    "NestedStruct": {      "NestedStructStringField": "NestedStructStringVal"    },    "StructStringField": "StructStringVal"  }}
+{ "timestamp":"2024-11-28T15:34:33.208935Z", }
+{ "timestamp":"2024-11-28T15:34:33.208935Z", "StructField": {    }}
