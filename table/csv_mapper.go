@@ -8,13 +8,21 @@ import (
 	"strings"
 )
 
+type CsvHeaderMode string
+
+const (
+	CsvHeaderModeAuto CsvHeaderMode = "auto"
+	CsvHeaderModeOff  CsvHeaderMode = "off"
+	CsvHeaderModeOn   CsvHeaderMode = "on"
+)
+
 type CsvMapper[T MapInitialisedRow] struct {
 	columnsFunc func() []string
 	// lazy load the columns (may  not be available until the first call to map)
 	columns []string
 }
 
-func NewCsvMapper[T MapInitialisedRow](columnsFunc func() []string) *CsvMapper[T] {
+func NewCsvMapper[T MapInitialisedRow](columnsFunc func() []string, header CsvHeaderMode) *CsvMapper[T] {
 	return &CsvMapper[T]{
 		columnsFunc: columnsFunc,
 	}
@@ -28,7 +36,8 @@ func (c *CsvMapper[T]) Map(ctx context.Context, a any) (T, error) {
 	var err error
 	var empty T
 
-	// TODO are we cerain the schema will be available???
+	// TODO K do we need header mode?
+
 	// lazy load the columns
 	if c.columns == nil {
 		c.columns = c.columnsFunc()

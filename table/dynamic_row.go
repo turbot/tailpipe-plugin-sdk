@@ -2,7 +2,6 @@ package table
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type DynamicRow struct {
@@ -11,7 +10,8 @@ type DynamicRow struct {
 	// dynamic columns
 	Columns map[string]any
 
-	Schema *schema.RowSchema
+	// TODO do we need to convert
+	//Schema *schema.RowSchema
 }
 
 func NewDynamicRow() *DynamicRow {
@@ -22,7 +22,8 @@ func NewDynamicRow() *DynamicRow {
 
 // InitialiseFromMap initializes the struct from a map of string values
 func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
-	// TODO if we have a schema apply it to convert the column types
+	// TODO if we have a schema apply it to convert the column types - is this needed
+
 	// for now we just store the values as strings
 	for k, v := range m {
 		l.Columns[k] = v

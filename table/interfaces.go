@@ -23,8 +23,17 @@ type Table[R types.RowStruct, S parse.Config] interface {
 	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
 }
 
+// DynamicTable is a generic interface which provides methods for dynamic tables
 type DynamicTable[R types.RowStruct, S parse.Config] interface {
-	GetSchemaAsync(row_source.RowSource, S) (chan *schema.RowSchema, error)
+	Init(row_source.RowSource, S) error
+	GetSchema() (*schema.RowSchema, error)
+}
+
+// ArtifactDynamicTable is a generic interface which provides methods for dynamic tables which are based on artifacts
+// (e.g. csv, JSON)
+type ArtifactDynamicTable[R types.RowStruct, S parse.DynamicTableConfig] interface {
+	DynamicTable[R, S]
+	DetermineSchemaFromArtifact(string, S) (*schema.RowSchema, error)
 }
 
 // Collection is an interface which provides a methods for collecting table data from a source
@@ -35,10 +44,10 @@ type Collection interface {
 	GetTiming() types.TimingCollection
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
-	GetSchemaAsync() (chan *schema.RowSchema, error)
 	GetSource() row_source.RowSource
 	IsDynamic() bool
 	Collect(context.Context) (json.RawMessage, error)
+	GetSchema() (*schema.RowSchema, error)
 }
 
 // Mapper is a generic interface which provides a method for mapping raw source data into row structs

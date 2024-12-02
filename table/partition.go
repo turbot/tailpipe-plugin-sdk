@@ -48,8 +48,6 @@ type Partition[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
 	statusLock   sync.RWMutex
 	enrichTiming types.Timing
 	req          *types.CollectRequest
-
-	dynamicSchemaChan chan *schema.RowSchema
 }
 
 func (c *Partition[R, S, T]) Init(ctx context.Context, req *types.CollectRequest) error {
@@ -65,7 +63,12 @@ func (c *Partition[R, S, T]) Init(ctx context.Context, req *types.CollectRequest
 	}
 	slog.Info("Start collection")
 
-	c.dynamicSchemaChan = make(chan *schema.RowSchema, 1)
+	// if the table is dynamic, initialise it - it will subscribe to the source
+	// if the table is dynamic, ask it for the schema
+	if d, ok := c.table.(DynamicTable[R, S]); ok {
+		return d.Init(c.source, c.Config)
+	}
+
 	return nil
 }
 
@@ -87,21 +90,14 @@ func (c *Partition[R, S, T]) IsDynamic() bool {
 	//return isDynamic
 }
 
-func (c *Partition[R, S, T]) GetSchemaAsync() (chan *schema.RowSchema, error) {
+func (c *Partition[R, S, T]) GetSchema() (*schema.RowSchema, error) {
+	// if the table is dynamic, ask it for the schema
 	if d, ok := c.table.(DynamicTable[R, S]); ok {
-		return d.GetSchemaAsync(c.source, c.Config)
+		return d.GetSchema()
 	}
 
-	// get the schema for the table row type
-	rowStruct := utils.InstanceOf[R]()
-	s, err := schema.SchemaFromStruct(rowStruct)
-
-	if err != nil {
-		return nil, err
-	}
-	var res = make(chan *schema.RowSchema, 1)
-	res <- s
-	return res, nil
+	// otherwise, return the schema from the row struct
+	return schema.SchemaFromStruct(utils.InstanceOf[R]())
 }
 
 func (c *Partition[R, S, T]) initialiseConfig(tableConfigData config_data.ConfigData) error {
