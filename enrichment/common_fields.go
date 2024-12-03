@@ -16,12 +16,12 @@ type CommonFields struct {
 	TpTimestamp       time.Time `json:"tp_timestamp"`
 
 	// Hive fields
+	TpTable     string    `json:"tp_table"`
 	TpPartition string    `json:"tp_partition"`
 	TpIndex     string    `json:"tp_index"`
 	TpDate      time.Time `json:"tp_date" parquet:"type=DATE"`
 
 	// Optional fields
-
 	TpSourceIP       *string `json:"tp_source_ip"`
 	TpDestinationIP  *string `json:"tp_destination_ip"`
 	TpSourceName     *string `json:"tp_source_name"`
@@ -34,28 +34,6 @@ type CommonFields struct {
 	TpDomains   []string `json:"tp_domains,omitempty"`
 	TpEmails    []string `json:"tp_emails,omitempty"`
 	TpUsernames []string `json:"tp_usernames,omitempty"`
-}
-
-func (c CommonFields) Clone() *CommonFields {
-	return &CommonFields{
-		TpID:              c.TpID,
-		TpSourceType:      c.TpSourceType,
-		TpSourceName:      c.TpSourceName,
-		TpSourceLocation:  c.TpSourceLocation,
-		TpIngestTimestamp: c.TpIngestTimestamp,
-		TpTimestamp:       c.TpTimestamp,
-		TpSourceIP:        c.TpSourceIP,
-		TpDestinationIP:   c.TpDestinationIP,
-		TpPartition:       c.TpPartition,
-		TpIndex:           c.TpIndex,
-		TpDate:            c.TpDate,
-		TpAkas:            append([]string(nil), c.TpAkas...),
-		TpIps:             append([]string(nil), c.TpIps...),
-		TpTags:            append([]string(nil), c.TpTags...),
-		TpDomains:         append([]string(nil), c.TpDomains...),
-		TpEmails:          append([]string(nil), c.TpEmails...),
-		TpUsernames:       append([]string(nil), c.TpUsernames...),
-	}
 }
 
 // Validate implements the Validatable interface and is used to validate that the required fields have been set
@@ -76,6 +54,9 @@ func (c CommonFields) Validate() error {
 	}
 	if c.TpTimestamp.IsZero() {
 		missingFields = append(missingFields, "TpTimestamp")
+	}
+	if c.TpTable == "" {
+		missingFields = append(missingFields, "TpTable")
 	}
 	if c.TpPartition == "" {
 		missingFields = append(missingFields, "TpPartition")

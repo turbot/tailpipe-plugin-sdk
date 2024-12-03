@@ -238,8 +238,9 @@ func (c *Partition[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) 
 	c.enrichTiming.TryStart(constants.TimingEnrich)
 	enrichStart := time.Now()
 
-	// add partition to the enrichment fields
+	// add table and partition to the enrichment fields
 	enrichmentFields := e.EnrichmentFields
+	enrichmentFields.TpTable = c.req.PartitionData.Table
 	enrichmentFields.TpPartition = c.req.PartitionData.Partition
 
 	// enrich the row
