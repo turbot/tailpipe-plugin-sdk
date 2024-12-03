@@ -184,13 +184,12 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 			c.Type = "BLOB"
 			break
 		}
-		// TODO TACTICAL: the parquet conversion cannot handle sturct arrays so treat as JSON
+		// TODO TACTICAL: the parquet conversion cannot handle struct arrays so treat as JSON
 		// https://github.com/turbot/tailpipe-plugin-sdk/issues/55
 		if isStruct(t.Elem()) {
 			c.Type = "JSON"
 			break
 		}
-		fmt.Println("t.Elem().Kind()", t.Elem().Kind())
 		listType, err := b.getColumnSchemaType(t.Elem())
 		if err != nil {
 			return c, err
