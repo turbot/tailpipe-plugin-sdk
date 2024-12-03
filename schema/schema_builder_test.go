@@ -4,8 +4,6 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type SimpleStructNoTags struct {
@@ -23,7 +21,6 @@ type SimpleStructNoTags struct {
 	Uint64Field      uint64
 	ByteSliceField   []byte
 	StringSliceField []string
-	JSONStringField  types.JSONString
 }
 
 type ComplexStructNoTags struct {
@@ -65,7 +62,7 @@ type RecursiveStruct1 struct {
 	R2 *RecursiveStruct2
 }
 type RecursiveStruct2 struct {
-	R3 *RecursiveStruct3
+	R3 *RecursiveStruct1
 }
 type RecursiveStruct3 struct {
 	R4 *RecursiveStruct4
@@ -78,7 +75,19 @@ type RecursiveStruct5 struct {
 	R6 *RecursiveStruct6
 }
 type RecursiveStruct6 struct {
-	S string
+	R6 *RecursiveStruct7
+}
+type RecursiveStruct7 struct {
+	R6 *RecursiveStruct8
+}
+type RecursiveStruct8 struct {
+	R6 *RecursiveStruct9
+}
+type RecursiveStruct9 struct {
+	R6 *RecursiveStruct10
+}
+type RecursiveStruct10 struct {
+	Str string
 }
 
 type SimpleStructWithTags struct {
@@ -87,6 +96,15 @@ type SimpleStructWithTags struct {
 	Int16FieldBothOverridden   int16  `parquet:"name=renamed_int_16_field,type=INTEGER"`
 }
 
+type StructWithDeeplyNestedStructArray struct {
+	StructWithNestedStructArray *StructWithStructArray
+}
+
+type StructWithStructArray struct {
+	StructArrayField []*SimpleStructNoTags
+}
+
+// //
 func TestSchemaFromStruct(t *testing.T) {
 	type args struct {
 		s any
@@ -120,7 +138,6 @@ func TestSchemaFromStruct(t *testing.T) {
 					{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "UBIGINT"},
 					{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "BLOB"},
 					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "VARCHAR[]"},
-					{SourceName: "JSONStringField", ColumnName: "json_string_field", Type: "JSON"},
 				},
 			},
 			wantErr: false,
@@ -153,7 +170,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					{
 						SourceName: "StringToStringMap",
 						ColumnName: "string_to_string_map",
-						Type:       "MAP",
+						Type:       "JSON",
 						StructFields: []*ColumnSchema{
 							{Type: "VARCHAR"},
 							{Type: "VARCHAR"},
@@ -185,7 +202,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					{
 						SourceName: "StringToStructMap",
 						ColumnName: "string_to_struct_map",
-						Type:       "MAP", StructFields: []*ColumnSchema{
+						Type:       "JSON", StructFields: []*ColumnSchema{
 							{Type: "VARCHAR"},
 							{
 								Type: "STRUCT",
@@ -207,7 +224,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					{
 						SourceName: "StringToStructSliceMap",
 						ColumnName: "string_to_struct_slice_map",
-						Type:       "MAP",
+						Type:       "JSON",
 						StructFields: []*ColumnSchema{
 							{Type: "VARCHAR"},
 							{
@@ -252,7 +269,6 @@ func TestSchemaFromStruct(t *testing.T) {
 					{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "UBIGINT"},
 					{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "BLOB"},
 					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "VARCHAR[]"},
-					{SourceName: "JSONStringField", ColumnName: "json_string_field", Type: "JSON"},
 					{SourceName: "TopLevelStringField", ColumnName: "top_level_string_field", Type: "VARCHAR"},
 				},
 			},
@@ -290,9 +306,71 @@ func TestSchemaFromStruct(t *testing.T) {
 			},
 			want: &RowSchema{
 				Columns: []*ColumnSchema{
-					{SourceName: "StringFieldNameOverridden", ColumnName: "renamed_string_field", Type: "VARCHAR"},
-					{SourceName: "IntegerFieldTypeOverridden", ColumnName: "integer_field_type_overridden", Type: "INTEGER"},
-					{SourceName: "Int16FieldBothOverridden", ColumnName: "renamed_int_16_field", Type: "INTEGER"},
+					{SourceName: "StructArrayField", ColumnName: "struct_array_field", Type: "JSON"},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "struct array",
+			args: args{
+				s: StructWithStructArray{},
+			},
+			want: &RowSchema{
+				// TODO we do not currently support struct arrays - treat as JSON https://github.com/turbot/tailpipe-plugin-sdk/issues/55
+				Columns: []*ColumnSchema{
+					{
+						SourceName: "StructArrayField",
+						ColumnName: "struct_array_field",
+						Type:       "JSON",
+					},
+				},
+				//want: &RowSchema{
+				//Columns: []*ColumnSchema{
+				//	{
+				//		SourceName: "StructArrayField",
+				//		ColumnName: "struct_array_field",
+				//		Type:       "STRUCT[]",
+				//		StructFields: []*ColumnSchema{
+				//			{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
+				//			{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
+				//			{SourceName: "Int16Field", ColumnName: "int_16_field", Type: "SMALLINT"},
+				//			{SourceName: "Int32Field", ColumnName: "int_32_field", Type: "INTEGER"},
+				//			{SourceName: "Int64Field", ColumnName: "int_64_field", Type: "BIGINT"},
+				//			{SourceName: "Float32Field", ColumnName: "float_32_field", Type: "FLOAT"},
+				//			{SourceName: "Float64Field", ColumnName: "float_64_field", Type: "DOUBLE"},
+				//			{SourceName: "BooleanField", ColumnName: "boolean_field", Type: "BOOLEAN"},
+				//			{SourceName: "ByteField", ColumnName: "byte_field", Type: "UTINYINT"},
+				//			{SourceName: "Uint16Field", ColumnName: "uint_16_field", Type: "USMALLINT"},
+				//			{SourceName: "Uint32Field", ColumnName: "uint_32_field", Type: "UINTEGER"},
+				//			{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "UBIGINT"},
+				//			{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "BLOB"},
+				//			{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "VARCHAR[]"},
+				//		},
+				//	},
+				//},
+			},
+			wantErr: false,
+		},
+		{
+			// NOTE: SPECIAL CASE
+			// parquet conversion does not (yet) handle deeply nested struct arrays so we treat as JSON
+			name: "deeply nested struct array",
+			args: args{
+				s: StructWithDeeplyNestedStructArray{},
+			},
+			want: &RowSchema{
+				Columns: []*ColumnSchema{
+					{
+						SourceName: "StructWithNestedStructArray",
+						ColumnName: "struct_with_nested_struct_array_field",
+						Type:       "STRUCT",
+						StructFields: []*ColumnSchema{
+							{SourceName: "StructArrayField",
+								ColumnName: "struct_array_field",
+								Type:       "JSON"},
+						},
+					},
 				},
 			},
 			wantErr: false,
@@ -328,6 +406,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					}
 				}
 			}
+
 		})
 	}
 }

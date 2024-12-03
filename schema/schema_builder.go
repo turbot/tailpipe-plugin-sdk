@@ -184,6 +184,13 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 			c.Type = "BLOB"
 			break
 		}
+		// TODO TACTICAL: the parquet conversion cannot handle sturct arrays so treat as JSON
+		// https://github.com/turbot/tailpipe-plugin-sdk/issues/55
+		if isStruct(t.Elem()) {
+			c.Type = "JSON"
+			break
+		}
+		fmt.Println("t.Elem().Kind()", t.Elem().Kind())
 		listType, err := b.getColumnSchemaType(t.Elem())
 		if err != nil {
 			return c, err
@@ -208,22 +215,28 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 		c.Type = "STRUCT"
 		c.ChildFields = schema.Columns
 	case reflect.Map:
-		c.Type = "MAP"
-		// get the key and value types
-		keyType, err := b.getColumnSchemaType(t.Key())
-		if err != nil {
-			return c, err
-		}
-		valueType, err := b.getColumnSchemaType(t.Elem())
-		if err != nil {
-			return c, err
-		}
-		c.ChildFields = []*ColumnSchema{{Type: keyType.Type, StructFields: keyType.ChildFields}, {Type: valueType.Type, StructFields: valueType.ChildFields}}
+		// TODO we do not currently support maps https://github.com/turbot/tailpipe-plugin-sdk/issues/55
+		c.Type = "JSON"
+		//c.Type = "MAP"
+		//// get the key and value types
+		//keyType, err := b.getColumnSchemaType(t.Key())
+		//if err != nil {
+		//	return c, err
+		//}
+		//valueType, err := b.getColumnSchemaType(t.Elem())
+		//if err != nil {
+		//	return c, err
+		//}
+		//c.ChildFields = []*ColumnSchema{{Type: keyType.Type, StructFields: keyType.ChildFields}, {Type: valueType.Type, StructFields: valueType.ChildFields}}
 	default:
 
 		return c, fmt.Errorf("unsupported type %s", t)
 	}
 	return c, nil
+}
+
+func isStruct(elem reflect.Type) bool {
+	return elem.Kind() == reflect.Struct || (elem.Kind() == reflect.Ptr && elem.Elem().Kind() == reflect.Struct)
 }
 
 //func schemaToDuckDBStruct(schema *RowSchema) (string, error) {

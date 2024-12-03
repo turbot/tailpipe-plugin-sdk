@@ -4,18 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
