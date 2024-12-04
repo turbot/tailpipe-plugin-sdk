@@ -105,7 +105,7 @@ package collection_state
 // 	fmt.Println("done")
 // }
 
-// func TestParseFilenameTemplate(t *testing.T) {
+// func TestParseFilename Template(t *testing.T) {
 // 	type args struct {
 // 		template string
 // 		fileName string
