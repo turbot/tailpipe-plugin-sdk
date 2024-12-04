@@ -83,7 +83,7 @@ func (p *PluginImpl) handleRowEvent(ctx context.Context, e *events.Row) error {
 
 func (p *PluginImpl) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
 	// determine chunk number from rowCountMap
-	chunkNumber := int(rowCount / JSONLChunkSize)
+	chunkNumber := rowCount / JSONLChunkSize
 	// check for final partial chunk
 	if rowCount%JSONLChunkSize > 0 {
 		chunkNumber++

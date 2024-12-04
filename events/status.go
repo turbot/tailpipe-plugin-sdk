@@ -28,7 +28,7 @@ func (r *Status) ToProto() *proto.Event {
 				ArtifactsDownloaded: int64(r.ArtifactsDownloaded),
 				ArtifactsExtracted:  int64(r.ArtifactsExtracted),
 				RowsEnriched:        int64(r.RowsEnriched),
-				Errors:              int32(r.Errors),
+				Errors:              int32(r.Errors), //nolint:gosec // TODO look at integer overflow conversion
 			},
 		},
 	}

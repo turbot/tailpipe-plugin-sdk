@@ -97,6 +97,9 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 
 	// ask the table for the schema
 	tableSchema, err := partition.GetSchema()
+	if err != nil {
+		return nil, err
+	}
 
 	// add ourselves as an observer
 	if err := partition.AddObserver(p); err != nil {
@@ -166,7 +169,7 @@ func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, collec
 
 	// notify observers of completion
 	// figure out the number of chunks written, including partial chunks
-	chunksWritten := int(rowCount / JSONLChunkSize)
+	chunksWritten := rowCount / JSONLChunkSize
 	if rowCount%JSONLChunkSize > 0 {
 		chunksWritten++
 	}

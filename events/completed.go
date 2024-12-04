@@ -38,7 +38,7 @@ func (c *Completed) ToProto() *proto.Event {
 			CompleteEvent: &proto.EventComplete{
 				ExecutionId: c.ExecutionId,
 				RowCount:    int64(c.RowCount),
-				ChunkCount:  int32(c.ChunksWritten),
+				ChunkCount:  int32(c.ChunksWritten), //nolint:gosec // TODO look at integer overflow conversion
 				Error:       errString,
 				Timing:      protoTimingCollection,
 			},

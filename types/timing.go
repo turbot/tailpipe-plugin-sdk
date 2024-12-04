@@ -44,13 +44,13 @@ func (m TimingCollection) String() string {
 	sb.WriteString("Timing (may overlap):\n")
 	// get max label length
 	maxLabelLen := 0
-	for _, k := range m {
+	for _, k := range m { //nolint: govet // TODO Timing contains sync.Mutex, find a nice way of handling this
 		if len(k.Operation) > maxLabelLen {
 			maxLabelLen = len(k.Operation)
 		}
 	}
 
-	for _, v := range m {
+	for _, v := range m { //nolint: govet // TODO Timing contains sync.Mutex, find a nice way of handling this
 		if v.Operation == "" {
 			continue
 		}

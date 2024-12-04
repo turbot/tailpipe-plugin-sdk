@@ -156,7 +156,7 @@ func (c *Partition[R, S, T]) Notify(ctx context.Context, event events.Event) err
 }
 
 func (c *Partition[R, S, T]) GetTiming() types.TimingCollection {
-	return append(c.source.GetTiming(), c.enrichTiming)
+	return append(c.source.GetTiming(), c.enrichTiming) //nolint:govet // TODO Timing contains sync.Mutex, find a nice way of handling this
 }
 
 func (c *Partition[R, S, T]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {

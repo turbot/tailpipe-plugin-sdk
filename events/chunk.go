@@ -2,6 +2,7 @@ package events
 
 import (
 	"encoding/json"
+
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -26,7 +27,7 @@ func (r *Chunk) ToProto() *proto.Event {
 		Event: &proto.Event_ChunkWrittenEvent{
 			ChunkWrittenEvent: &proto.EventChunkWritten{
 				ExecutionId:     r.ExecutionId,
-				ChunkNumber:     int32(r.ChunkNumber),
+				ChunkNumber:     int32(r.ChunkNumber), //nolint:gosec // TODO look at integer overflow conversion
 				CollectionState: r.CollectionState,
 			},
 		},

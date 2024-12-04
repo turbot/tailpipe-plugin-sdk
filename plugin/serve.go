@@ -2,14 +2,14 @@ package plugin
 
 import (
 	"fmt"
-	"github.com/turbot/go-kit/helpers"
-	"google.golang.org/grpc"
 	"log/slog"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"time"
+
+	"github.com/turbot/go-kit/helpers"
+	"google.golang.org/grpc"
 )
 
 // ServeOpts are the configurations to serve a plugin.
@@ -40,7 +40,7 @@ func Serve(opts *ServeOpts) error {
 		if r := recover(); r != nil {
 			msg := fmt.Sprintf("%s%s", PluginStartupFailureMessage, helpers.ToError(r).Error())
 			// write to stdout so the plugin manager can extract the error message
-			fmt.Println(msg)
+			fmt.Println(msg) //nolint:forbidigo // print error message to stdout
 		}
 	}()
 
@@ -64,7 +64,7 @@ func setupPprof() {
 			return
 		}
 		slog.Info(fmt.Sprintf("Check http://localhost:%d/debug/pprof/", listener.Addr().(*net.TCPAddr).Port))
-		err = http.Serve(listener, nil)
+		err = http.Serve(listener, nil) //nolint:gosec // TODO Find a way to evade `Use of net/http serve function that has no support for setting timeouts`
 		if err != nil {
 			slog.Error("Error starting pprof", "error", err)
 		}

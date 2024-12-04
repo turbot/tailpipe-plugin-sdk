@@ -27,7 +27,7 @@ func ProtoToDuration(d *durationpb.Duration) time.Duration {
 
 func TimingCollectionToProto(timing types.TimingCollection) []*proto.Timing {
 	var protoTimingCollection = make([]*proto.Timing, len(timing))
-	for i, t := range timing {
+	for i, t := range timing { //nolint: govet // TODO Timing contains sync.Mutex, find a nice way of handling this
 		protoTimingCollection[i] = &proto.Timing{
 			Operation:      t.Operation,
 			StartTime:      TimeToProto(t.Start),

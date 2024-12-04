@@ -277,7 +277,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 }
 
 func (a *ArtifactSourceImpl[S, T]) GetTiming() types.TimingCollection {
-	return types.TimingCollection{a.DiscoveryTiming, a.DownloadTiming, a.ExtractTiming}
+	return types.TimingCollection{a.DiscoveryTiming, a.DownloadTiming, a.ExtractTiming} //nolint: govet // TODO Timing contains sync.Mutex, find a nice way of handling this
 }
 
 // convert a downloaded artifact to a set of raw rows, with optional metadata
@@ -287,6 +287,9 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 	slog.Debug("RowSourceImpl processArtifact", "artifact", info.Name)
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
 	// load artifact data
 	// resolve the loader - if one has not been specified, create a default for the file tyoe
 	loader, err := a.resolveLoader(info)
