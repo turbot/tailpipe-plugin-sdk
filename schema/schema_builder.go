@@ -77,14 +77,8 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 		var p = &ParquetTag{}
 		var err error
 
-		// if there is a JSON tag, use to populate the source name - otherwise ise the property name
-		sourceName := field.Name
-		if jsonTag := field.Tag.Get("json"); jsonTag != "" {
-			split := strings.Split(jsonTag, ",")
-			sourceName = split[0]
-		}
+		c := &ColumnSchema{}
 
-		var c *ColumnSchema
 		// look for a parquet tag - this may override the name and/or type
 		if tag := field.Tag.Get("parquet"); tag != "" {
 			p, err = ParseParquetTag(tag)
@@ -96,27 +90,42 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 			if p.Skip {
 				continue
 			}
+			// set column name from the parquet tag if it is set
+			if p.Name != "" {
+				c.ColumnName = p.Name
+			}
+			// if the tag does not specify a type, infer from the field type
+			if p.Type != "" {
+				c.Type = p.Type
+			}
 		}
-		// if the tag does not specify a name, use the field name
-		if p.Name == "" {
-			p.Name = strcase.ToSnake(field.Name)
-		}
-		var structFields []*ColumnSchema
+
 		// if the tag does not specify a type, infer from the field type
-		if p.Type == "" {
+		if c.Type == "" {
 			columnType, err := b.getColumnSchemaType(field.Type)
 			if err != nil {
 				errorList = append(errorList, fmt.Errorf("failed to get schema for field %s: %w", field.Name, err))
 				continue
 			}
-			p.Type = columnType.Type
-			structFields = columnType.ChildFields
+			c.Type = columnType.Type
+			c.StructFields = columnType.ChildFields
 		}
-		c = &ColumnSchema{
-			SourceName:   sourceName,
-			ColumnName:   p.Name,
-			Type:         p.Type,
-			StructFields: structFields,
+
+		// if there is a JSON tag, use to populate the source name and the column name (if no parquet tag was found)
+		if jsonTag := field.Tag.Get("json"); jsonTag != "" {
+			split := strings.Split(jsonTag, ",")
+			c.SourceName = split[0]
+			if c.ColumnName == "" {
+				c.ColumnName = split[0]
+			}
+		}
+
+		// finally, if the column name is still empty, use the snake case of the field name
+		if c.ColumnName == "" {
+			c.ColumnName = strcase.ToSnake(field.Name)
+		}
+		if c.SourceName == "" {
+			c.SourceName = field.Name
 		}
 
 		// if the field is an anonymous struct, MERGE the child fields into the parent
