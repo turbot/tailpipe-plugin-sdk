@@ -14,6 +14,12 @@ jobs:
     name: Test Linting
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Tailpipe plugin SDK repository
+        uses: actions/checkout@v4
+        with:
+          repository: turbot/tailpipe-plugin-sdk
+          path: tailpipe-plugin-sdk
+          token: ${{ secrets.GH_ACCESS_TOKEN }}
 
       - name: Checkout Pipe Fittings Components repository
         uses: actions/checkout@v4
@@ -21,14 +27,6 @@ jobs:
           repository: turbot/pipe-fittings
           path: pipe-fittings
           ref: tp
-
-      - name: Checkout Tailpipe plugin SDK repository
-        uses: actions/checkout@v4
-        with:
-          repository: turbot/tailpipe-plugin-sdk
-          path: tailpipe-plugin-sdk
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
-          ref: develop
 
       # this is required, check golangci-lint-action docs
       - uses: actions/setup-go@v5
