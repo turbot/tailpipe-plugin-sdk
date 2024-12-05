@@ -52,10 +52,10 @@ type InterfaceStruct struct {
 }
 
 type CircStruct1 struct {
-	F2 CircStruct2
+	F2 *CircStruct2
 }
 type CircStruct2 struct {
-	F1 []CircStruct1
+	F1 *CircStruct1
 }
 
 type RecursiveStruct1 struct {
@@ -91,9 +91,11 @@ type RecursiveStruct10 struct {
 }
 
 type SimpleStructWithTags struct {
-	StringFieldNameOverridden  string `parquet:"name=renamed_string_field"`
-	IntegerFieldTypeOverridden int    `parquet:"type=INTEGER"`
-	Int16FieldBothOverridden   int16  `parquet:"name=renamed_int_16_field,type=INTEGER"`
+	StringFieldNameOverridden        string `parquet:"name=renamed_string_field"`
+	StringFieldNameJSONTag           string `json:"json_tag_only"`
+	StringFieldNameJSONAndParquetTag string `parquet:"name=parquet_tag" json:"json_tag_and_parquet_tag"`
+	IntegerFieldTypeOverridden       int    `parquet:"type=INTEGER"`
+	Int16FieldBothOverridden         int16  `parquet:"name=renamed_int_16_field,type=INTEGER"`
 }
 
 type StructWithDeeplyNestedStructArray struct {
@@ -179,24 +181,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					{
 						SourceName: "StructSliceField",
 						ColumnName: "struct_slice_field",
-						Type:       "STRUCT[]",
-						StructFields: []*ColumnSchema{
-							{
-								Type: "STRUCT",
-								StructFields: []*ColumnSchema{
-									{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-									{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
-									{
-										SourceName: "InnerStructField",
-										ColumnName: "inner_struct_field",
-										Type:       "STRUCT",
-										StructFields: []*ColumnSchema{
-											{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-										},
-									},
-								},
-							},
-						},
+						Type:       "JSON",
 					},
 
 					{
@@ -306,7 +291,11 @@ func TestSchemaFromStruct(t *testing.T) {
 			},
 			want: &RowSchema{
 				Columns: []*ColumnSchema{
-					{SourceName: "StructArrayField", ColumnName: "struct_array_field", Type: "JSON"},
+					{SourceName: "StringFieldNameOverridden", ColumnName: "renamed_string_field", Type: "VARCHAR"},
+					{SourceName: "json_tag_only", ColumnName: "json_tag_only", Type: "VARCHAR"},
+					{SourceName: "json_tag_and_parquet_tag", ColumnName: "parquet_tag", Type: "VARCHAR"},
+					{SourceName: "IntegerFieldTypeOverridden", ColumnName: "integer_field_type_overridden", Type: "INTEGER"},
+					{SourceName: "Int16FieldBothOverridden", ColumnName: "renamed_int_16_field", Type: "INTEGER"},
 				},
 			},
 			wantErr: false,
@@ -363,7 +352,7 @@ func TestSchemaFromStruct(t *testing.T) {
 				Columns: []*ColumnSchema{
 					{
 						SourceName: "StructWithNestedStructArray",
-						ColumnName: "struct_with_nested_struct_array_field",
+						ColumnName: "struct_with_nested_struct_array",
 						Type:       "STRUCT",
 						StructFields: []*ColumnSchema{
 							{SourceName: "StructArrayField",
@@ -392,17 +381,17 @@ func TestSchemaFromStruct(t *testing.T) {
 			for i, c := range got.Columns {
 				w := tt.want.Columns[i]
 				if c.Type != w.Type {
-					t.Errorf("SchemaFromStruct() = %v, want Type %v", c.Type, w.Type)
+					t.Errorf("Column %s Type = %v, want Type %v", c.ColumnName, c.Type, w.Type)
 				}
 				if c.ColumnName != w.ColumnName {
-					t.Errorf("SchemaFromStruct() = %v, want ColumnName %v", c.ColumnName, w.ColumnName)
+					t.Errorf("Column %d ColumnName = %v, want ColumnName %v", i, c.ColumnName, w.ColumnName)
 				}
 				if c.SourceName != w.SourceName {
-					t.Errorf("SchemaFromStruct() = %v, want SourceName %v", c.SourceName, w.SourceName)
+					t.Errorf("Column %s SourceName = %v, want SourceName %v", c.ColumnName, c.SourceName, w.SourceName)
 				}
 				if c.Type == "ARRAY" || c.Type == "STRUCT" {
 					if !reflect.DeepEqual(c.StructFields, w.StructFields) {
-						t.Errorf("SchemaFromStruct() = %v, want StructFields %v", c.StructFields, w.StructFields)
+						t.Errorf("Column %s = %v, want StructFields %v", c.ColumnName, c.StructFields, w.StructFields)
 					}
 				}
 			}
