@@ -6,4 +6,5 @@ const (
 	TimingExtract  = "extract"
 	TimingEnrich   = "enrich"
 	TimingConvert  = "convert"
+	TimingCompact  = "compact"
 )
