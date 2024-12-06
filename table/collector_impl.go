@@ -90,7 +90,7 @@ func (c *CollectorImpl[R, S, T]) GetSchema() (*schema.RowSchema, error) {
 		// if we have not got a schema from the config, create a dynamic schema
 		if s == nil {
 			s = &schema.RowSchema{
-				SchemaMode: schema.SchemaModeDynamic,
+				Mode: schema.SchemaModeDynamic,
 			}
 		}
 		// return s, which MAY BE NIL - this is expected and handled
