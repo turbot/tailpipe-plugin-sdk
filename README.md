@@ -208,7 +208,7 @@ type Collection interface {
 	Collect(context.Context, *proto.CollectRequest) error
 	
 	// EnrichRow is called for each raw row of data, it must enrich the row and return it
-	EnrichRow(row any, sourceEnrichmentFields *enrichment.CommonFields) (any, error)
+	EnrichRow(row any,  sourceEnrichmentFields enrichment.SourceEnrichment) (any, error)
 }
 ```
 
@@ -245,7 +245,7 @@ If the schema of particular fields needs to be customised, a `parquet` tag can b
 For example:
 ```go
 type MyRow struct {
-    enrichment.CommonFields
+    *enrichment.CommonFields
 
     // override type
     Id string `json:"id" parquet:"type=UUID"`

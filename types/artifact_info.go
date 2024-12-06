@@ -12,7 +12,7 @@ type ArtifactInfo struct {
 	Name         string `json:"-"`
 	OriginalName string `json:"-"`
 
-	EnrichmentFields *enrichment.CommonFields `json:"-"`
+	SourceEnrichment *enrichment.SourceEnrichment `json:"-"`
 
 	// collection state properties
 	Index     string    `json:"index,omitempty"`

@@ -96,3 +96,87 @@ func (c CommonFields) GetCommonFields() CommonFields {
 	// just return ourselves
 	return c
 }
+
+func (c CommonFields) InitFromMap(source map[string]string, mappings *CommonFieldsMappings) {
+
+	if val, ok := source[mappings.TpTimestamp]; ok {
+		if t, err := time.Parse(time.RFC3339, val); err == nil {
+			c.TpTimestamp = t
+			c.TpDate = t
+		}
+	}
+
+	if mappings.TpIndex != nil {
+		if val, ok := source[*mappings.TpIndex]; ok {
+			c.TpIndex = val
+		}
+	}
+
+	if mappings.TpSourceIP != nil {
+		if val, ok := source[*mappings.TpSourceIP]; ok {
+			c.TpSourceIP = &val
+		}
+	}
+
+	if mappings.TpDestinationIP != nil {
+		if val, ok := source[*mappings.TpDestinationIP]; ok {
+			c.TpDestinationIP = &val
+		}
+	}
+
+	if mappings.TpSourceName != nil {
+		if val, ok := source[*mappings.TpSourceName]; ok {
+			c.TpSourceName = &val
+		}
+	}
+
+	if mappings.TpSourceLocation != nil {
+		if val, ok := source[*mappings.TpSourceLocation]; ok {
+			c.TpSourceLocation = &val
+		}
+	}
+
+	// TODO K not sure about the arrays
+	if mappings.TpAkas != nil {
+		if val, ok := source[*mappings.TpAkas]; ok {
+			// try to split the strings into an array
+			c.TpAkas = strings.Split(val, ",")
+		}
+	}
+
+	if mappings.TpIps != nil {
+		if val, ok := source[*mappings.TpIps]; ok {
+			// try to split the strings into an array
+			c.TpIps = strings.Split(val, ",")
+		}
+	}
+
+	if mappings.TpTags != nil {
+		if val, ok := source[*mappings.TpTags]; ok {
+			// try to split the strings into an array
+			c.TpTags = strings.Split(val, ",")
+		}
+	}
+
+	if mappings.TpDomains != nil {
+		if val, ok := source[*mappings.TpDomains]; ok {
+			// try to split the strings into an array
+			c.TpDomains = strings.Split(val, ",")
+		}
+	}
+
+	if mappings.TpEmails != nil {
+		if val, ok := source[*mappings.TpEmails]; ok {
+			// try to split the strings into an array
+			c.TpEmails = strings.Split(val, ",")
+		}
+	}
+
+	if mappings.TpUsernames != nil {
+		if val, ok := source[*mappings.TpUsernames]; ok {
+			// try to split the strings into an array
+			c.TpUsernames = strings.Split(val, ",")
+		}
+	}
+
+}

@@ -1181,7 +1181,7 @@ func (x *SourceMetadata) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SourceMetadata.ProtoReflect.Descriptor instead.
+// Deprecated: Use SourceEnrichment.ProtoReflect.Descriptor instead.
 func (*SourceMetadata) Descriptor() ([]byte, []int) {
 	return file_plugin_proto_rawDescGZIP(), []int{17}
 }
@@ -1420,7 +1420,7 @@ var file_plugin_proto_goTypes = []interface{}{
 	(*EventStatus)(nil),           // 14: proto.EventStatus
 	(*EventComplete)(nil),         // 15: proto.EventComplete
 	(*Timing)(nil),                // 16: proto.Timing
-	(*SourceMetadata)(nil),        // 17: proto.SourceMetadata
+	(*SourceMetadata)(nil),        // 17: proto.SourceEnrichment
 	nil,                           // 18: proto.DescribeResponse.SchemasEntry
 	nil,                           // 19: proto.DescribeResponse.SourcesEntry
 	nil,                           // 20: proto.EventComplete.MetadataEntry
@@ -1450,7 +1450,7 @@ var file_plugin_proto_depIdxs = []int32{
 	21, // 19: proto.Timing.end_time:type_name -> google.protobuf.Timestamp
 	22, // 20: proto.Timing.active_duration:type_name -> google.protobuf.Duration
 	5,  // 21: proto.DescribeResponse.SchemasEntry.value:type_name -> proto.Schema
-	17, // 22: proto.DescribeResponse.SourcesEntry.value:type_name -> proto.SourceMetadata
+	17, // 22: proto.DescribeResponse.SourcesEntry.value:type_name -> proto.SourceEnrichment
 	2,  // 23: proto.TailpipePlugin.Describe:input_type -> proto.DescribeRequest
 	0,  // 24: proto.TailpipePlugin.AddObserver:input_type -> proto.AddObserverRequest
 	1,  // 25: proto.TailpipePlugin.Collect:input_type -> proto.CollectRequest

@@ -20,7 +20,7 @@ type Table[R types.RowStruct, S parse.Config] interface {
 	// GetSourceMetadata returns the supported sources for the table
 	GetSourceMetadata(S) []*SourceMetadata[R]
 	// EnrichRow is called to enrich the row with common (tp_*) fields
-	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
+	EnrichRow(R, S, enrichment.SourceEnrichment) (R, error)
 }
 
 // Collector is an interface which provides a methods for collecting table data from a source

@@ -308,8 +308,8 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		// raise row events, sending collection state data
 		var notifyErrors []error
 		// NOTE: if no metadata has been set on the row, use any metadata from the artifact
-		if artifactData.Metadata == nil {
-			artifactData.Metadata = info.EnrichmentFields
+		if artifactData.SourceEnrichment == nil {
+			artifactData.SourceEnrichment = info.SourceEnrichment
 		}
 
 		// if an extractor was specified by the table, apply it
@@ -367,8 +367,8 @@ func (a *ArtifactSourceImpl[S, T]) extractRowsFromArtifact(ctx context.Context, 
 	// convert the rows to an array of RowData
 	for _, row := range rows {
 		res = append(res, &types.RowData{
-			Data:     row,
-			Metadata: artifactData.Metadata,
+			Data:             row,
+			SourceEnrichment: artifactData.SourceEnrichment,
 		})
 	}
 	return res, nil
