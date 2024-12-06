@@ -18,9 +18,9 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// how may rows to write in each JSONL file
-// TODO configure? https://github.com/turbot/tailpipe-plugin-sdk/issues/18
-const JSONLChunkSize = 1000
+// JSONLChunkSizeis the number of  rows to write in each JSONL file
+// - make the same size as duck db uses to infer schema (10000)
+const JSONLChunkSize = 10000
 
 // PluginImpl should be created via NewPluginImpl method.
 type PluginImpl struct {
@@ -83,20 +83,20 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 		return nil, err
 	}
 
-	// ask the factory to create the partition
+	// ask the factory to create the collector
 	// - this will configure the requested source
-	partition, err := table.Factory.GetPartition(collectRequest)
+	collector, err := table.Factory.GetCollector(collectRequest)
 	if err != nil {
 		return nil, err
 	}
 
-	// initialise the partition
-	if err := partition.Init(ctx, collectRequest); err != nil {
+	// initialise the collector
+	if err := collector.Init(ctx, collectRequest); err != nil {
 		return nil, err
 	}
 
 	// add ourselves as an observer
-	if err := partition.AddObserver(p); err != nil {
+	if err := collector.AddObserver(p); err != nil {
 		slog.Error("add observer error", "error", err)
 		return nil, err
 	}
@@ -112,19 +112,19 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 
 	go func() {
 		// tell the collection to start collecting - this is a blocking call
-		collectionState, err := partition.Collect(ctx)
+		collectionState, err := collector.Collect(ctx)
 		if err != nil {
 			_ = p.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
 		}
 
-		timing := partition.GetTiming()
+		timing := collector.GetTiming()
 
 		// signal we have completed - pass error if there was one
 		_ = p.OnCompleted(ctx, req.ExecutionId, collectionState, timing, err)
 	}()
 
-	// wait for the schema
-	return partition.GetSchema()
+	// return the schema (if available - this may be nil for dynamic tables, in which case the CLI will infer the schema)
+	return collector.GetSchema()
 }
 
 // Describe implements TailpipePlugin

@@ -27,8 +27,21 @@ func SchemaMapFromProto(p map[string]*proto.Schema) SchemaMap {
 	return res
 }
 
+type SchemaMode int
+
+const (
+	// SchemaModeFull means that the schema is fully defined
+	SchemaModeFull SchemaMode = iota
+	// SchemaModePartial means that the schema is partially defined
+	SchemaModePartial
+	// SchemaModeDynamic means that the schema is dynamic and will be determined at runtime
+	SchemaModeDynamic
+)
+
 type RowSchema struct {
 	Columns []*ColumnSchema `json:"columns"`
+	// does this schema struct fully define the schema or is it partial
+	SchemaMode SchemaMode `json:"schema_mode"`
 }
 
 func (r *RowSchema) ToProto() *proto.Schema {

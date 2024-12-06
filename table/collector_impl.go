@@ -23,13 +23,13 @@ import (
 
 const statusUpdateInterval = 250 * time.Millisecond
 
-// Partition is a generic implementation of the Collection interface
+// CollectorImpl is a generic implementation of the Collector interface
 // it is responsible for coordinating the collection process and reporting status
 // R is the type of the row struct
 // S is the type of the partition config
 // T is the type of the table
 // U is the type of the connection
-type Partition[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
+type CollectorImpl[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
 	observable.ObservableImpl
 
 	table  Table[R, S]
@@ -50,7 +50,7 @@ type Partition[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
 	req          *types.CollectRequest
 }
 
-func (c *Partition[R, S, T]) Init(ctx context.Context, req *types.CollectRequest) error {
+func (c *CollectorImpl[R, S, T]) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
 	// parse partition config
 	if err := c.initialiseConfig(req.PartitionData); err != nil {
@@ -63,44 +63,45 @@ func (c *Partition[R, S, T]) Init(ctx context.Context, req *types.CollectRequest
 	}
 	slog.Info("Start collection")
 
-	// if the table is dynamic, initialise it - it will subscribe to the source
-	// if the table is dynamic, ask it for the schema
-	if d, ok := c.table.(DynamicTable[R, S]); ok {
-		return d.Init(c.source, c.Config)
-	}
-
 	return nil
 }
 
-func (c *Partition[R, S, T]) Identifier() string {
+func (c *CollectorImpl[R, S, T]) Identifier() string {
 	return c.table.Identifier()
 }
 
-func (c *Partition[R, S, T]) GetSource() row_source.RowSource {
+func (c *CollectorImpl[R, S, T]) GetSource() row_source.RowSource {
 	return c.source
 }
 
-// IsDynamic returns true if the table is dynamic
-func (c *Partition[R, S, T]) IsDynamic() bool {
-	_, ok := c.table.(DynamicTable[R, S])
+// GetSchema returns the schema of the table if available
+// for dynamic tables, the schema is only available at this if the config contains a schema
+func (c *CollectorImpl[R, S, T]) GetSchema() (*schema.RowSchema, error) {
+	rowStruct := utils.InstanceOf[R]()
 
-	return ok
-	//// Check if R is a *DynamicRow using type assertion
-	//_, isDynamic := any(utils.InstanceOf[R]()).(*DynamicRow)
-	//return isDynamic
-}
-
-func (c *Partition[R, S, T]) GetSchema() (*schema.RowSchema, error) {
-	// if the table is dynamic, ask it for the schema
-	if d, ok := c.table.(DynamicTable[R, S]); ok {
-		return d.GetSchema()
+	// if the table has a dynamic row, we can only return the schema is the config supports it
+	if _, ok := any(rowStruct).(DynamicRow); ok {
+		var s *schema.RowSchema
+		// does the config implement GetSchema()
+		if d, ok := any(c.Config).(parse.DynamicTableConfig); ok {
+			// return s from config, if defined (NO
+			s = d.GetSchema()
+		}
+		// if we have not got a schema from the config, create a dynamic schema
+		if s == nil {
+			s = &schema.RowSchema{
+				SchemaMode: schema.SchemaModeDynamic,
+			}
+		}
+		// return s, which MAY BE NIL - this is expected and handled
+		return s, nil
 	}
 
 	// otherwise, return the schema from the row struct
-	return schema.SchemaFromStruct(utils.InstanceOf[R]())
+	return schema.SchemaFromStruct(rowStruct)
 }
 
-func (c *Partition[R, S, T]) initialiseConfig(tableConfigData config_data.ConfigData) error {
+func (c *CollectorImpl[R, S, T]) initialiseConfig(tableConfigData config_data.ConfigData) error {
 	// default to empty config
 	cfg := utils.InstanceOf[S]()
 	if len(tableConfigData.GetHcl()) > 0 {
@@ -123,7 +124,7 @@ func (c *Partition[R, S, T]) initialiseConfig(tableConfigData config_data.Config
 }
 
 // Collect executes the collection process. Tell our source to start collection
-func (c *Partition[R, S, T]) Collect(ctx context.Context) (json.RawMessage, error) {
+func (c *CollectorImpl[R, S, T]) Collect(ctx context.Context) (json.RawMessage, error) {
 
 	// create empty status event#
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
@@ -155,8 +156,8 @@ func (c *Partition[R, S, T]) Collect(ctx context.Context) (json.RawMessage, erro
 }
 
 // Notify implements observable.Observer
-// it handles all events which partitionFuncMap may receive (these will all come from the source)
-func (c *Partition[R, S, T]) Notify(ctx context.Context, event events.Event) error {
+// it handles all events which collectorFuncMap may receive (these will all come from the source)
+func (c *CollectorImpl[R, S, T]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	c.updateStatus(ctx, event)
 
@@ -164,7 +165,7 @@ func (c *Partition[R, S, T]) Notify(ctx context.Context, event events.Event) err
 	case *events.Row:
 		return c.handleRowEvent(ctx, e)
 	case *events.Error:
-		slog.Error("Partition: error event received", "error", e.Err)
+		slog.Error("CollectorImpl: error event received", "error", e.Err)
 		return c.NotifyObservers(context.Background(), e)
 	default:
 		// ignore
@@ -172,11 +173,11 @@ func (c *Partition[R, S, T]) Notify(ctx context.Context, event events.Event) err
 	}
 }
 
-func (c *Partition[R, S, T]) GetTiming() types.TimingCollection {
+func (c *CollectorImpl[R, S, T]) GetTiming() types.TimingCollection {
 	return append(c.source.GetTiming(), c.enrichTiming)
 }
 
-func (c *Partition[R, S, T]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
+func (c *CollectorImpl[R, S, T]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
 	requestedSource := configData.Type
 
 	// get the source metadata for this source type
@@ -203,7 +204,7 @@ func (c *Partition[R, S, T]) initSource(ctx context.Context, configData *config_
 	return c.source.AddObserver(c)
 }
 
-func (c *Partition[R, S, T]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
+func (c *CollectorImpl[R, S, T]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
 	// get the supported sources for the table
 	supportedSourceMap := c.getSourceMetadataMap()
 
@@ -237,7 +238,7 @@ func (c *Partition[R, S, T]) getSourceMetadata(requestedSource string) (sourceMe
 }
 
 // ask table for it;s supported sources and put into map for ease of lookup
-func (c *Partition[R, S, T]) getSourceMetadataMap() map[string]*SourceMetadata[R] {
+func (c *CollectorImpl[R, S, T]) getSourceMetadataMap() map[string]*SourceMetadata[R] {
 	supportedSources := c.table.GetSourceMetadata(c.Config)
 	// convert to a map for easy lookup
 	sourceMap := make(map[string]*SourceMetadata[R])
@@ -250,7 +251,7 @@ func (c *Partition[R, S, T]) getSourceMetadataMap() map[string]*SourceMetadata[R
 // updateStatus updates the status counters with the latest event
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
-func (c *Partition[R, S, T]) updateStatus(ctx context.Context, e events.Event) {
+func (c *CollectorImpl[R, S, T]) updateStatus(ctx context.Context, e events.Event) {
 	c.statusLock.Lock()
 	defer c.statusLock.Unlock()
 
@@ -268,7 +269,7 @@ func (c *Partition[R, S, T]) updateStatus(ctx context.Context, e events.Event) {
 }
 
 // handleRowEvent is invoked when a Row event is received - map, enrich and publish the row
-func (c *Partition[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (c *CollectorImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	c.rowWg.Add(1)
 	defer c.rowWg.Done()
 
@@ -316,7 +317,7 @@ func (c *Partition[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) 
 }
 
 // mapRow applies any configured mappers to the raw rows
-func (c *Partition[R, S, T]) mapRow(ctx context.Context, rawRow any) (R, error) {
+func (c *CollectorImpl[R, S, T]) mapRow(ctx context.Context, rawRow any) (R, error) {
 	var empty R
 	// if there is no mapperFunc, just return the data as is
 	if c.mapper == nil {

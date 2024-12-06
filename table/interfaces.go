@@ -23,29 +23,15 @@ type Table[R types.RowStruct, S parse.Config] interface {
 	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
 }
 
-// DynamicTable is a generic interface which provides methods for dynamic tables
-type DynamicTable[R types.RowStruct, S parse.Config] interface {
-	Init(row_source.RowSource, S) error
-	GetSchema() (*schema.RowSchema, error)
-}
-
-// ArtifactDynamicTable is a generic interface which provides methods for dynamic tables which are based on artifacts
-// (e.g. csv, JSON)
-type ArtifactDynamicTable[R types.RowStruct, S parse.DynamicTableConfig] interface {
-	DynamicTable[R, S]
-	DetermineSchemaFromArtifact(string, S) (*schema.RowSchema, error)
-}
-
-// Collection is an interface which provides a methods for collecting table data from a source
-// This is implemented by the generic Partition struct
-type Collection interface {
+// Collector is an interface which provides a methods for collecting table data from a source
+// This is implemented by the generic CollectorImpl struct
+type Collector interface {
 	observable.Observable
 
 	GetTiming() types.TimingCollection
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
 	GetSource() row_source.RowSource
-	IsDynamic() bool
 	Collect(context.Context) (json.RawMessage, error)
 	GetSchema() (*schema.RowSchema, error)
 }
