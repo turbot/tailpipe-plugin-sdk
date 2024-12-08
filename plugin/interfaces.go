@@ -39,7 +39,3 @@ type TailpipePlugin interface {
 	// Impl returns the common plugin implementation - used for validation testing
 	Impl() *PluginImpl
 }
-
-type ChunkWriter interface {
-	WriteChunk(ctx context.Context, rows []any, chunkNumber int) error
-}

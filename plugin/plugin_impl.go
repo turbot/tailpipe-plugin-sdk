@@ -2,11 +2,9 @@ package plugin
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
-	"sync"
 
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -18,24 +16,9 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// JSONLChunkSizeis the number of  rows to write in each JSONL file
-// - make the same size as duck db uses to infer schema (10000)
-const JSONLChunkSize = 10000
-
 // PluginImpl should be created via NewPluginImpl method.
 type PluginImpl struct {
 	observable.ObservableImpl
-
-	// row buffer keyed by execution id
-	// each row buffer is used to write a JSONL file
-	rowBufferMap map[string][]any
-	// mutex for row buffer map AND rowCountMap
-	rowBufferLock sync.RWMutex
-
-	// map of row counts keyed by execution id
-	rowCountMap map[string]int
-
-	writer ChunkWriter
 
 	identifier string
 }
@@ -54,10 +37,6 @@ func (p *PluginImpl) Identifier() string {
 
 // Init implements [plugin.TailpipePlugin]
 func (p *PluginImpl) Init(context.Context) error {
-	// if the plugin overrides this function it must call the base implementation
-	p.rowBufferMap = make(map[string][]any)
-	p.rowCountMap = make(map[string]int)
-
 	//initialise the table factory
 	// this converts the array of table constructors to a map of table constructors
 	// and populates the table schemas
@@ -66,14 +45,11 @@ func (p *PluginImpl) Init(context.Context) error {
 
 // initialized returns true if the plugin has been initialized
 func (p *PluginImpl) initialized() bool {
-	return p.rowBufferMap != nil
+	return table.Factory.Initialized()
 }
 
 func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*schema.RowSchema, error) {
 	log.Println("[INFO] Collect")
-
-	// create writer
-	p.writer = NewJSONLWriter(req.OutputPath)
 
 	// map req to our internal type
 	collectRequest, err := types.CollectRequestFromProto(req)
@@ -107,20 +83,15 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 	// signal we have started
 	if err := p.OnStarted(ctx, req.ExecutionId); err != nil {
 		err := fmt.Errorf("error signalling started: %w", err)
-		_ = p.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
+		_ = p.OnCompleted(ctx, req.ExecutionId, 0, 0, nil, err)
 	}
 
 	go func() {
 		// tell the collection to start collecting - this is a blocking call
-		collectionState, err := collector.Collect(ctx)
-		if err != nil {
-			_ = p.OnCompleted(ctx, req.ExecutionId, nil, nil, err)
-		}
-
+		rowCount, chunksWritten, err := collector.Collect(ctx)
 		timing := collector.GetTiming()
-
 		// signal we have completed - pass error if there was one
-		_ = p.OnCompleted(ctx, req.ExecutionId, collectionState, timing, err)
+		_ = p.OnCompleted(ctx, req.ExecutionId, rowCount, chunksWritten, timing, err)
 	}()
 
 	// return the schema (if available - this may be nil for dynamic tables, in which case the CLI will infer the schema)
@@ -145,29 +116,7 @@ func (p *PluginImpl) Impl() *PluginImpl {
 	return p
 }
 
-func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, collectionState json.RawMessage, timing types.TimingCollection, err error) error {
-	// get row count and the rows in the buffers
-	p.rowBufferLock.Lock()
-	rowCount := p.rowCountMap[executionId]
-	rowsToWrite := p.rowBufferMap[executionId]
-	p.rowBufferMap[executionId] = nil
-	p.rowCountMap[executionId] = 0
-	p.rowBufferLock.Unlock()
-
-	// tell our write to write any remaining rows
-	if len(rowsToWrite) > 0 {
-		if err := p.writeChunk(ctx, rowCount, rowsToWrite, collectionState); err != nil {
-			slog.Error("failed to write final chunk", "error", err)
-			return fmt.Errorf("failed to write final chunk: %w", err)
-		}
-	}
-
-	// notify observers of completion
-	// figure out the number of chunks written, including partial chunks
-	chunksWritten := int(rowCount / JSONLChunkSize)
-	if rowCount%JSONLChunkSize > 0 {
-		chunksWritten++
-	}
+func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, rowCount int, chunksWritten int, timing types.TimingCollection, err error) error {
 
 	return p.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, timing, err))
 }

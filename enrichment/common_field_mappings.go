@@ -1,5 +1,7 @@
 package enrichment
 
+import "reflect"
+
 const DefaultIndex = "default"
 
 type CommonFieldsMappings struct {
@@ -21,10 +23,46 @@ type CommonFieldsMappings struct {
 	TpSourceLocation *string `hcl:"tp_source_location"`
 
 	// Searchable
-	TpAkas      *string `hcl:"tp_akas,omitempty"`
-	TpIps       *string `hcl:"tp_ips,omitempty"`
-	TpTags      *string `hcl:"tp_tags,omitempty"`
-	TpDomains   *string `hcl:"tp_domains,omitempty"`
-	TpEmails    *string `hcl:"tp_emails,omitempty"`
-	TpUsernames *string `hcl:"tp_usernames,omitempty"`
+	TpAkas      *string `hcl:"tp_akas"`
+	TpIps       *string `hcl:"tp_ips"`
+	TpTags      *string `hcl:"tp_tags"`
+	TpDomains   *string `hcl:"tp_domains"`
+	TpEmails    *string `hcl:"tp_emails"`
+	TpUsernames *string `hcl:"tp_usernames"`
+}
+
+// AsMap converts the fields of the struct to a map, using their "hcl" tags as keys.
+// For pointers, includes the dereferenced value if non-nil. For non-pointers, includes the value.
+func (c *CommonFieldsMappings) AsMap() map[string]string {
+	result := make(map[string]string)
+
+	// Use reflection to iterate over the struct fields
+
+	// Get the value the receiver pointer points to
+	v := reflect.ValueOf(c).Elem()
+	// Get the type of the struct
+	t := v.Type()
+
+	for i := 0; i < v.NumField(); i++ {
+		field := t.Field(i)
+		value := v.Field(i)
+
+		// Get the "hcl" tag
+		tag := field.Tag.Get("hcl")
+		if tag == "" || tag == "-" {
+			continue // Skip fields without a tag or explicitly ignored
+		}
+
+		// Handle pointer and non-pointer fields
+		if value.Kind() == reflect.Ptr {
+			// For pointers, include only non-nil values
+			if !value.IsNil() {
+				result[tag] = value.Elem().Interface().(string) // Dereference the pointer
+			}
+		} else {
+			// For non-pointer fields, include the value directly
+			result[tag] = value.Interface().(string)
+		}
+	}
+	return result
 }

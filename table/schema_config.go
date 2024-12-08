@@ -11,6 +11,21 @@ type RowSchemaConfig struct {
 	Mode schema.Mode `hcl:"modes"`
 }
 
+func (c RowSchemaConfig) ToRowSchema() *schema.RowSchema {
+	var res = &schema.RowSchema{
+		Mode: c.Mode,
+	}
+	for _, col := range c.Columns {
+		res.Columns = append(res.Columns, &schema.ColumnSchema{
+			// source name and column name are the same in this case
+			SourceName: col.Name,
+			ColumnName: col.Name,
+			Type:       col.Type,
+		})
+	}
+	return res
+}
+
 type ColumnSchemaConfig struct {
 	Name string `hcl:"name,label"`
 	Type string `hcl:"type"`

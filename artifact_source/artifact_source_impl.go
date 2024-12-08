@@ -336,9 +336,11 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		}
 	}
 
-	// notify observers of download
-	if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
-		return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
+	// notify observers of extraction (if any rows were extracted)
+	if count > 0 {
+		if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
+			return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
+		}
 	}
 
 	// if we skipped the header row, decrement the count to ensure logged row count is accurate

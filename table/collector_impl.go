@@ -2,8 +2,11 @@ package table
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"log/slog"
 	"sync"
 	"time"
@@ -22,6 +25,10 @@ import (
 // how often to send status events
 
 const statusUpdateInterval = 250 * time.Millisecond
+
+// JSONLChunkSizeis the number of  rows to write in each JSONL file
+// - make the same size as duck db uses to infer schema (10000)
+const JSONLChunkSize = 10000
 
 // CollectorImpl is a generic implementation of the Collector interface
 // it is responsible for coordinating the collection process and reporting status
@@ -48,6 +55,18 @@ type CollectorImpl[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
 	statusLock   sync.RWMutex
 	enrichTiming types.Timing
 	req          *types.CollectRequest
+
+	// row buffer keyed by execution id
+	// each row buffer is used to write a JSONL file
+	rowBufferMap map[string][]any
+	// mutex for row buffer map AND rowCountMap
+	rowBufferLock sync.RWMutex
+	// map of row counts keyed by execution id
+	rowCountMap map[string]int
+	// map of chunks written keyed by execution id
+	chunkCountMap map[string]int
+
+	writer ChunkWriter
 }
 
 func (c *CollectorImpl[R, S, T]) Init(ctx context.Context, req *types.CollectRequest) error {
@@ -62,6 +81,12 @@ func (c *CollectorImpl[R, S, T]) Init(ctx context.Context, req *types.CollectReq
 		return err
 	}
 	slog.Info("Start collection")
+
+	// if the plugin overrides this function it must call the base implementation
+	c.rowBufferMap = make(map[string][]any)
+	c.rowCountMap = make(map[string]int)
+	// create writer
+	c.writer = NewJSONLWriter(req.OutputPath)
 
 	return nil
 }
@@ -125,16 +150,15 @@ func (c *CollectorImpl[R, S, T]) initialiseConfig(tableConfigData config_data.Co
 }
 
 // Collect executes the collection process. Tell our source to start collection
-func (c *CollectorImpl[R, S, T]) Collect(ctx context.Context) (json.RawMessage, error) {
-
+func (c *CollectorImpl[R, S, T]) Collect(ctx context.Context) (int, int, error) {
 	// create empty status event#
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
 
 	// tell our source to collect
-	// this is a blocking call, but we will receive and processrow events during the execution
+	// this is a blocking call, but we will receive and process row events during the execution
 	err := c.source.Collect(ctx)
 	if err != nil {
-		return nil, err
+		return 0, 0, err
 	}
 
 	slog.Info("Source collection complete - waiting for enrichment")
@@ -152,8 +176,7 @@ func (c *CollectorImpl[R, S, T]) Collect(ctx context.Context) (json.RawMessage, 
 		slog.Error("Table RowSourceImpl: error notifying observers of status", "error", err)
 	}
 
-	// now ask the source for its updated collection state data
-	return c.source.GetCollectionStateJSON()
+	return c.WriteRemainingRows(ctx, c.req.ExecutionId)
 }
 
 // Notify implements observable.Observer
@@ -163,6 +186,8 @@ func (c *CollectorImpl[R, S, T]) Notify(ctx context.Context, event events.Event)
 	c.updateStatus(ctx, event)
 
 	switch e := event.(type) {
+	case *events.ArtifactDownloaded:
+		return c.handleArtifactDownloaded(ctx, e)
 	case *events.Row:
 		return c.handleRowEvent(ctx, e)
 	case *events.Error:
@@ -269,6 +294,52 @@ func (c *CollectorImpl[R, S, T]) updateStatus(ctx context.Context, e events.Even
 	}
 }
 
+func (c *CollectorImpl[R, S, T]) handleArtifactDownloaded(ctx context.Context, e *events.ArtifactDownloaded) error {
+	if q, ok := any(c.table).(ArtifactToJsonConverter[S]); ok {
+		executionId, err := context_values.ExecutionIdFromContext(ctx)
+		if err != nil {
+			return err
+		}
+
+		// get chunk count
+		c.rowBufferLock.Lock()
+		chunkNumber := c.chunkCountMap[e.ExecutionId]
+		c.rowBufferLock.Unlock()
+
+		// build JSON filename
+		destFile := ExecutionIdToFileName(executionId, chunkNumber)
+
+		// convert the artifact to JSONL
+		query := q.GetArtifactConversionQuery(e.Info.Name, destFile, c.Config)
+
+		// Open DuckDB
+		db, err := sql.Open("duckdb", "")
+		if err != nil {
+			return fmt.Errorf("failed to open DuckDB connection: %w", err)
+		}
+		defer db.Close() // Ensure the database connection is closed when done
+
+		// Execute the query and retrieve the row count
+		var rowCount int
+		err = db.QueryRowContext(ctx, query).Scan(&rowCount)
+		if err != nil {
+			return fmt.Errorf("artifact conversion query failed: %w", err)
+		}
+
+		// Use the row count as needed
+		fmt.Printf("Rows converted: %d\n", rowCount)
+
+		// update rows and chunks written
+		c.rowBufferLock.Lock()
+		c.rowCountMap[e.ExecutionId] += rowCount
+		c.chunkCountMap[e.ExecutionId]++
+		c.rowBufferLock.Unlock()
+
+	}
+	return nil
+
+}
+
 // handleRowEvent is invoked when a Row event is received - map, enrich and publish the row
 func (c *CollectorImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	c.rowWg.Add(1)
@@ -307,15 +378,11 @@ func (c *CollectorImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.R
 		return err
 	}
 
-	// notify observers of enriched row
-	if err := c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, enrichedRow, e.CollectionState)); err != nil {
-		return err
-	}
-
 	// update the enrich active duration
 	c.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
 
-	return nil
+	// buffer the enriched row and write to JSON file if buffer is full
+	return c.onRowEnriched(ctx, enrichedRow, e.CollectionState)
 }
 
 // mapRow applies any configured mappers to the raw rows
@@ -333,4 +400,111 @@ func (c *CollectorImpl[R, S, T]) mapRow(ctx context.Context, rawRow any) (R, err
 	}
 
 	return c.mapper.Map(ctx, rawRow)
+}
+
+// onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full
+func (c *CollectorImpl[R, S, T]) onRowEnriched(ctx context.Context, row R, collectionState json.RawMessage) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	if c.rowBufferMap == nil {
+		// this must mean the plugin has overridden the Init function and not called the base
+		// this should be prevented by the validation test
+		return errors.New("RowSourceImpl.Init must be called from the plugin Init function")
+	}
+
+	// add row to row buffer
+	c.rowBufferLock.Lock()
+
+	rowCount := c.rowCountMap[executionId]
+	c.rowBufferMap[executionId] = append(c.rowBufferMap[executionId], row)
+	rowCount++
+	c.rowCountMap[executionId] = rowCount
+
+	var rowsToWrite []any
+	if len(c.rowBufferMap[executionId]) == JSONLChunkSize {
+		rowsToWrite = c.rowBufferMap[executionId]
+		c.rowBufferMap[executionId] = nil
+	}
+	c.rowBufferLock.Unlock()
+
+	if numRowsToWrite := len(rowsToWrite); numRowsToWrite > 0 {
+		return c.writeChunk(ctx, rowCount, rowsToWrite, collectionState)
+	}
+
+	return nil
+}
+
+// writeChunk writes a chunk of rows to a JSONL file
+func (c *CollectorImpl[R, S, T]) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	// determine chunk number from rowCountMap
+	chunkNumber := rowCount / JSONLChunkSize
+	// check for final partial chunk
+	if rowCount%JSONLChunkSize > 0 {
+		chunkNumber++
+	}
+	slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", len(rowsToWrite))
+
+	// convert row to a JSONL file
+	err = c.writer.WriteChunk(ctx, rowsToWrite, chunkNumber)
+	if err != nil {
+		slog.Error("failed to write JSONL file", "error", err)
+		return fmt.Errorf("failed to write JSONL file: %w", err)
+	}
+
+	// increment the chunk count
+	c.rowBufferLock.Lock()
+	c.chunkCountMap[executionId]++
+	c.rowBufferLock.Unlock()
+
+	// notify observers, passing the collection state data
+	return c.OnChunk(ctx, chunkNumber, collectionState)
+}
+
+// OnChunk is called by the we have written a chunk of enriched rows to a [JSONL/CSV] file
+// notify observers of the chunk
+func (c *CollectorImpl[R, S, T]) OnChunk(ctx context.Context, chunkNumber int, collectionState json.RawMessage) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	// construct proto event
+	e := events.NewChunkEvent(executionId, chunkNumber, collectionState)
+
+	return c.NotifyObservers(ctx, e)
+}
+
+func (c *CollectorImpl[R, S, T]) WriteRemainingRows(ctx context.Context, executionId string) (int, int, error) {
+	collectionState, err := c.source.GetCollectionStateJSON()
+	if err != nil {
+		return 0, 0, fmt.Errorf("error getting collection state: %w", err)
+	}
+
+	// get row count and the rows in the buffers
+	c.rowBufferLock.Lock()
+
+	rowCount := c.rowCountMap[executionId]
+	rowsToWrite := c.rowBufferMap[executionId]
+	chunksWritten := c.chunkCountMap[executionId]
+	delete(c.rowBufferMap, executionId)
+	delete(c.rowCountMap, executionId)
+
+	c.rowBufferLock.Unlock()
+
+	// tell our write to write any remaining rows
+	if len(rowsToWrite) > 0 {
+		if err := c.writeChunk(ctx, rowCount, rowsToWrite, collectionState); err != nil {
+			slog.Error("failed to write final chunk", "error", err)
+			return 0, 0, fmt.Errorf("failed to write final chunk: %w", err)
+		}
+	}
+
+	return rowCount, chunksWritten, nil
 }

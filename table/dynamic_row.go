@@ -10,8 +10,6 @@ type DynamicRow struct {
 	enrichment.CommonFields
 
 	// dynamic columns
-	//Columns map[string]any
-	// todo this is for gonx compatibility - will we need map[string]any
 	Columns map[string]string
 }
 
@@ -27,6 +25,7 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 	return nil
 }
 
+// Enrich uses the provided mappings to populate the common fields from mapped column values
 func (l *DynamicRow) Enrich(mappings *enrichment.CommonFieldsMappings, fields enrichment.CommonFields) {
 	l.CommonFields = fields
 
@@ -34,6 +33,7 @@ func (l *DynamicRow) Enrich(mappings *enrichment.CommonFieldsMappings, fields en
 	l.TpID = xid.New().String()
 	l.TpIngestTimestamp = time.Now()
 
+	// init common fields using the mappings and our column values
 	l.CommonFields.InitFromMap(l.Columns, mappings)
 
 	// if no index is set, set the the default

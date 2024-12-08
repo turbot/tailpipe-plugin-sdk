@@ -8,6 +8,8 @@ import (
 	"os"
 )
 
+const FileLoaderIdentifier = "file_loader"
+
 // FileLoader is an Loader that can loads a file from a path and extracts all the content
 type FileLoader struct {
 }

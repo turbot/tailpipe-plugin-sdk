@@ -1,4 +1,4 @@
-package plugin
+package table
 
 import (
 	"context"
@@ -22,10 +22,6 @@ func NewJSONLWriter(destPath string) ChunkWriter {
 
 func (j JSONLWriter) WriteChunk(ctx context.Context, rows []any, chunkNumber int) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
 	if err != nil {
 		return err
 	}

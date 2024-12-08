@@ -104,3 +104,7 @@ func (f *TableFactory) GetPartitions() map[string]func() Collector {
 func (f *TableFactory) GetSchema() schema.SchemaMap {
 	return f.schemaMap
 }
+
+func (f *TableFactory) Initialized() bool {
+	return len(f.collectorFuncMap) > 0
+}

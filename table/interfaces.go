@@ -2,7 +2,6 @@ package table
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
@@ -32,7 +31,7 @@ type Collector interface {
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
 	GetSource() row_source.RowSource
-	Collect(context.Context) (json.RawMessage, error)
+	Collect(context.Context) (int, int, error)
 	GetSchema() (*schema.RowSchema, error)
 }
 
@@ -48,4 +47,12 @@ type Mapper[R types.RowStruct] interface {
 // this is used in combination with the RowPatternMapper
 type MapInitialisedRow interface {
 	InitialiseFromMap(m map[string]string) error
+}
+
+type ArtifactToJsonConverter[S parse.Config] interface {
+	GetArtifactConversionQuery(string, string, S) string
+}
+
+type ChunkWriter interface {
+	WriteChunk(ctx context.Context, rows []any, chunkNumber int) error
 }
