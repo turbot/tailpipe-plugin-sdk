@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/context_values"
+	"github.com/turbot/go-kit/helpers"
 	"log/slog"
 	"sync"
 	"time"
@@ -14,6 +14,8 @@ import (
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
+	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
@@ -85,6 +87,7 @@ func (c *CollectorImpl[R, S, T]) Init(ctx context.Context, req *types.CollectReq
 	// if the plugin overrides this function it must call the base implementation
 	c.rowBufferMap = make(map[string][]any)
 	c.rowCountMap = make(map[string]int)
+	c.chunkCountMap = make(map[string]int)
 	// create writer
 	c.writer = NewJSONLWriter(req.OutputPath)
 
@@ -105,21 +108,30 @@ func (c *CollectorImpl[R, S, T]) GetSchema() (*schema.RowSchema, error) {
 	rowStruct := utils.InstanceOf[R]()
 
 	// if the table has a dynamic row, we can only return the schema is the config supports it
-	if _, ok := any(rowStruct).(DynamicRow); ok {
-		var s *schema.RowSchema
-		// does the config implement GetSchema()
-		if d, ok := any(c.Config).(parse.DynamicTableConfig); ok {
-			// return s from config, if defined (NO
-			s = d.GetSchema()
+	if _, ok := any(rowStruct).(*DynamicRow); ok {
+
+		// get the schema from the common fields
+		s, err := schema.SchemaFromStruct(enrichment.CommonFields{})
+		if err != nil {
+			return nil, err
 		}
-		// if we have not got a schema from the config, create an empty (dynamic) schema
-		if s == nil {
-			s = &schema.RowSchema{
-				Mode: schema.ModeDynamic,
+		// set mode to partial
+		s.Mode = schema.ModePartial
+
+		// does the config implement GetSchema()
+		// NOTE: the config may be nil here as this is called both from collection and from the factory
+		// (if a Describe call has been made)
+		if !helpers.IsNil(c.Config) {
+			if d, ok := any(c.Config).(parse.DynamicTableConfig); ok {
+				// return s from config, if defined (NO
+				configuredSchema := d.GetSchema()
+				if configuredSchema != nil {
+					// if we have a schema from the config, use it (but do not overwrite the schema from the common fields)
+					s.DefaultTo(configuredSchema)
+				}
 			}
 		}
 
-		// return s, which MAY BE EMPTY (i.e. dynamic) - this is expected and handled by the CLI
 		return s, nil
 	}
 

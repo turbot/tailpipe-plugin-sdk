@@ -54,6 +54,7 @@ message CollectResponse {
 message Schema {
   // Map of source field name to column name and type
   repeated ColumnSchema columns = 1;
+  string mode = 2;
 }
 
 message ColumnSchema {

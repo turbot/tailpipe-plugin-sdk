@@ -36,6 +36,7 @@ type RowSchema struct {
 func (r *RowSchema) ToProto() *proto.Schema {
 	var res = &proto.Schema{
 		Columns: make([]*proto.ColumnSchema, len(r.Columns)),
+		Mode:    string(r.Mode),
 	}
 
 	for i, c := range r.Columns {
@@ -45,9 +46,29 @@ func (r *RowSchema) ToProto() *proto.Schema {
 	return res
 }
 
+func (r *RowSchema) DefaultTo(other *RowSchema) {
+	// build a lookup of our columns
+	var colLookup = make(map[string]*ColumnSchema, len(r.Columns))
+	for _, c := range r.Columns {
+		colLookup[c.SourceName] = c
+	}
+
+	for _, c := range other.Columns {
+		// if we DO NOT already have this column, add it
+		if _, ok := colLookup[c.SourceName]; !ok {
+			r.Columns = append(r.Columns, c)
+		}
+	}
+	// if the other schema is full, or our mode is dynamic, set our mode to whatever the other schema is
+	if other.Mode == ModeFull || r.Mode == ModeDynamic {
+		r.Mode = other.Mode
+	}
+}
+
 func RowSchemaFromProto(p *proto.Schema) *RowSchema {
 	var res = &RowSchema{
 		Columns: make([]*ColumnSchema, 0, len(p.Columns)),
+		Mode:    Mode(p.Mode),
 	}
 	for _, c := range p.Columns {
 		res.Columns = append(res.Columns, ColumnFromProto(c))
@@ -61,7 +82,6 @@ type ColumnSchema struct {
 	// DuckDB type for the column
 	Type string `json:"type"`
 	// for struct and struct[]
-	// TODO #schema what about map
 	StructFields []*ColumnSchema `json:"struct_fields,omitempty"`
 }
 

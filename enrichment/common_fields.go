@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"strings"
 	"time"
+
+	"github.com/turbot/pipe-fittings/utils"
 )
 
 // CommonFields represents the common fields with JSON tags
@@ -40,7 +42,7 @@ type CommonFields struct {
 // Validate implements the Validatable interface and is used to validate that the required fields have been set
 // it can also be overridden by RowStruct implementations to perform additional validation - in this case
 // CommonFields.Validate() should be called first
-func (c CommonFields) Validate() error {
+func (c *CommonFields) Validate() error {
 	var missingFields []string
 	var invalidFields []string
 	// ensure required fields are set
@@ -74,7 +76,7 @@ func (c CommonFields) Validate() error {
 	}
 	var missingFieldsStr, invalidFieldsStr string
 	if len(missingFields) > 0 {
-		missingFieldsStr = fmt.Sprintf("missing required fields: %s", strings.Join(missingFields, ", "))
+		missingFieldsStr = fmt.Sprintf("missing required %s: %s", utils.Pluralize("field", len(missingFields)), strings.Join(missingFields, ", "))
 	}
 	if len(invalidFields) > 0 {
 		invalidFieldsStr = fmt.Sprintf("invalid fields: %s", strings.Join(invalidFields, ", "))
@@ -93,12 +95,12 @@ func (c CommonFields) Validate() error {
 }
 
 // GetCommonFields implements RowStruct
-func (c CommonFields) GetCommonFields() CommonFields {
+func (c *CommonFields) GetCommonFields() CommonFields {
 	// just return ourselves
-	return c
+	return *c
 }
 
-func (c CommonFields) InitialiseFromMap(source map[string]string, mappings CommonFieldsMappings) {
+func (c *CommonFields) InitialiseFromMap(source map[string]string, mappings CommonFieldsMappings) {
 	if val, ok := source[mappings.TpTimestamp]; ok {
 		if t, err := time.Parse(time.RFC3339, val); err == nil {
 			c.TpTimestamp = t
@@ -183,4 +185,37 @@ func (c CommonFields) InitialiseFromMap(source map[string]string, mappings Commo
 		}
 	}
 
+}
+
+func (c *CommonFields) AsMap() map[string]interface{} {
+	var m = make(map[string]interface{})
+	m["tp_id"] = c.TpID
+	m["tp_source_type"] = c.TpSourceType
+	m["tp_ingest_timestamp"] = c.TpIngestTimestamp
+	m["tp_timestamp"] = c.TpTimestamp
+	m["tp_table"] = c.TpTable
+	m["tp_partition"] = c.TpPartition
+	m["tp_index"] = c.TpIndex
+	m["tp_date"] = c.TpDate
+	if c.TpSourceIP != nil {
+		m["tp_source_ip"] = *c.TpSourceIP
+	}
+	if c.TpDestinationIP != nil {
+		m["tp_destination_ip"] = *c.TpDestinationIP
+	}
+	if c.TpSourceName != nil {
+		m["tp_source_name"] = *c.TpSourceName
+	}
+	if c.TpSourceLocation != nil {
+		m["tp_source_location"] = *c.TpSourceLocation
+	}
+
+	m["tp_akas"] = c.TpAkas
+	m["tp_ips"] = c.TpIps
+	m["tp_tags"] = c.TpTags
+	m["tp_domains"] = c.TpDomains
+	m["tp_emails"] = c.TpEmails
+	m["tp_usernames"] = c.TpUsernames
+
+	return m
 }

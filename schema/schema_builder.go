@@ -30,7 +30,13 @@ func NewSchemaBuilder() *SchemaBuilder {
 func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
 	// Get the type of the rowStruct
 	t := reflect.TypeOf(s)
-	return b.schemaFromType(t)
+	res, err := b.schemaFromType(t)
+	if err != nil {
+		return nil, err
+	}
+	// set mode to full
+	res.Mode = ModeFull
+	return res, nil
 }
 
 func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {

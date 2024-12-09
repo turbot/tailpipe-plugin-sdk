@@ -99,11 +99,15 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 }
 
 // Describe implements TailpipePlugin
-func (p *PluginImpl) Describe() DescribeResponse {
-	return DescribeResponse{
-		Schemas: table.Factory.GetSchema(),
-		Sources: row_source.Factory.DescribeSources(),
+func (p *PluginImpl) Describe() (DescribeResponse, error) {
+	schemas, err := table.Factory.GetSchema()
+	if err != nil {
+		return DescribeResponse{}, err
 	}
+	return DescribeResponse{
+		Schemas: schemas,
+		Sources: row_source.Factory.DescribeSources(),
+	}, nil
 }
 
 // Shutdown is called by Serve when the plugin exits

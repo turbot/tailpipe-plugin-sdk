@@ -36,7 +36,6 @@ type TableFactory struct {
 func newTableFactory() TableFactory {
 	return TableFactory{
 		collectorFuncMap: make(map[string]func() Collector),
-		schemaMap:        make(schema.SchemaMap),
 	}
 }
 
@@ -67,6 +66,30 @@ func (f *TableFactory) Init() (err error) {
 
 		// register the collector func with the table factory
 		f.collectorFuncMap[collector.Identifier()] = ctor
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+// populateSchemas builds the map of table constructors and schemas
+// NOTE we could call this from Init but we only need it if a describe call is made so do it lazily
+func (f *TableFactory) populateSchemas() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = helpers.ToError(r)
+		}
+	}()
+
+	// create schema map
+	f.schemaMap = make(schema.SchemaMap)
+
+	errs := make([]error, 0)
+
+	for _, ctor := range f.collectorFuncs {
+		// create an instance of the table to get the identifier
+		collector := ctor()
 
 		// get the schema for the table row type
 		s, err := collector.GetSchema()
@@ -101,8 +124,14 @@ func (f *TableFactory) GetPartitions() map[string]func() Collector {
 	return f.collectorFuncMap
 }
 
-func (f *TableFactory) GetSchema() schema.SchemaMap {
-	return f.schemaMap
+func (f *TableFactory) GetSchema() (schema.SchemaMap, error) {
+	if f.schemaMap == nil {
+		err := f.populateSchemas()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return f.schemaMap, nil
 }
 
 func (f *TableFactory) Initialized() bool {

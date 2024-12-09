@@ -1,12 +1,14 @@
 package table
 
 import (
+	"encoding/json"
 	"github.com/rs/xid"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"time"
 )
 
 type DynamicRow struct {
+	// NOTE: no JSON tags are required here as we override the JSON serialization
 	enrichment.CommonFields
 
 	// dynamic columns
@@ -40,4 +42,18 @@ func (l *DynamicRow) Enrich(mappings enrichment.CommonFieldsMappings, fields enr
 	if l.TpIndex == "" {
 		l.TpIndex = enrichment.DefaultIndex
 	}
+	// if tpDate is not set, and tpTimestamp is, set tpDate to the date part of tpTimestamp
+	if l.TpDate.IsZero() && !l.TpTimestamp.IsZero() {
+		l.TpDate = l.TpTimestamp.Truncate(24 * time.Hour)
+	}
+}
+
+// MarshalJSON overrides JSON serialization to include the dynamic columns
+func (l *DynamicRow) MarshalJSON() ([]byte, error) {
+	res := l.CommonFields.AsMap()
+
+	for k, v := range l.Columns {
+		res[k] = v
+	}
+	return json.Marshal(res)
 }

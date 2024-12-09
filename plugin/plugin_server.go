@@ -57,7 +57,10 @@ func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer)
 
 // Describe returns the schema for the plugin
 func (s PluginServer) Describe() (*proto.DescribeResponse, error) {
-	describeResponse := s.impl.Describe()
+	describeResponse, err := s.impl.Describe()
+	if err != nil {
+		return nil, err
+	}
 
 	// convert the response to proto
 	resp := describeResponse.ToProto()
