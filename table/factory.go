@@ -13,16 +13,16 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
-// RegisterTable registers a table constructor with the factory
+// RegisterTable registers a collector constructor with the factory
 // this is called from the package init function of the table implementation
 func RegisterTable[R types.RowStruct, S parse.Config, T Table[R, S]]() {
-	tableFunc := func() Collector {
+	collectorFunc := func() Collector {
 		return &CollectorImpl[R, S, T]{
 			table: utils.InstanceOf[T](),
 		}
 	}
 
-	Factory.registerTable(tableFunc)
+	Factory.registerCollector(collectorFunc)
 }
 
 type TableFactory struct {
@@ -40,13 +40,13 @@ func newTableFactory() TableFactory {
 	}
 }
 
-// registerTable just store the constructor in an array
+// registerCollector just store the constructor in an array
 // This will be called before the Init function is called
 // Init creates instances of each table - these ar eused to get the table identifier
 // (for the map key) and the schema
-// we defer this until TableFactory.Init as registerTable is called from
+// we defer this until TableFactory.Init as registerCollector is called from
 // package init functions which cannot return an error
-func (f *TableFactory) registerTable(ctor func() Collector) {
+func (f *TableFactory) registerCollector(ctor func() Collector) {
 	f.collectorFuncs = append(f.collectorFuncs, ctor)
 
 }

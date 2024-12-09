@@ -2,6 +2,7 @@ package enrichment
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 )
@@ -97,12 +98,14 @@ func (c CommonFields) GetCommonFields() CommonFields {
 	return c
 }
 
-func (c CommonFields) InitFromMap(source map[string]string, mappings *CommonFieldsMappings) {
-
+func (c CommonFields) InitialiseFromMap(source map[string]string, mappings CommonFieldsMappings) {
 	if val, ok := source[mappings.TpTimestamp]; ok {
 		if t, err := time.Parse(time.RFC3339, val); err == nil {
 			c.TpTimestamp = t
-			c.TpDate = t
+			c.TpDate = t.Truncate(24 * time.Hour)
+		} else {
+			// TODO #errors what to do
+			slog.Warn("Failed to parse timestamp", "value", val, "error", err)
 		}
 	}
 
@@ -121,6 +124,7 @@ func (c CommonFields) InitFromMap(source map[string]string, mappings *CommonFiel
 	if mappings.TpDestinationIP != nil {
 		if val, ok := source[*mappings.TpDestinationIP]; ok {
 			c.TpDestinationIP = &val
+
 		}
 	}
 
@@ -136,7 +140,7 @@ func (c CommonFields) InitFromMap(source map[string]string, mappings *CommonFiel
 		}
 	}
 
-	// TODO K not sure about the arrays
+	// TODO K not sure about the arrays - for now assume escaped csv
 	if mappings.TpAkas != nil {
 		if val, ok := source[*mappings.TpAkas]; ok {
 			// try to split the strings into an array

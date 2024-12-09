@@ -26,7 +26,7 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
-func (l *DynamicRow) Enrich(mappings *enrichment.CommonFieldsMappings, fields enrichment.CommonFields) {
+func (l *DynamicRow) Enrich(mappings enrichment.CommonFieldsMappings, fields enrichment.CommonFields) {
 	l.CommonFields = fields
 
 	// Standard record enrichment
@@ -34,7 +34,7 @@ func (l *DynamicRow) Enrich(mappings *enrichment.CommonFieldsMappings, fields en
 	l.TpIngestTimestamp = time.Now()
 
 	// init common fields using the mappings and our column values
-	l.CommonFields.InitFromMap(l.Columns, mappings)
+	l.CommonFields.InitialiseFromMap(l.Columns, mappings)
 
 	// if no index is set, set the the default
 	if l.TpIndex == "" {
