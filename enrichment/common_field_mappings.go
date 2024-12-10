@@ -5,30 +5,24 @@ import "reflect"
 const DefaultIndex = "default"
 
 type CommonFieldsMappings struct {
-	// Mandatory fields
-	//TpID string `hcl:"tp_id"`
-	//TpSourceType      *string `hcl:"tp_source_type"`
-	//TpIngestTimestamp *string `hcl:"tp_ingest_timestamp"`
+	//Mandatory fields
 	TpTimestamp string `hcl:"tp_timestamp"`
 
-	// Hive fields
-	//TpPartition *string `hcl:"tp_partition"`
-	TpIndex *string `hcl:"tp_index"`
-	//TpDate  *string `hcl:"tp_date"`
-
 	// Optional fields
+	TpIndex          *string `hcl:"tp_index"`
 	TpSourceIP       *string `hcl:"tp_source_ip"`
 	TpDestinationIP  *string `hcl:"tp_destination_ip"`
 	TpSourceName     *string `hcl:"tp_source_name"`
 	TpSourceLocation *string `hcl:"tp_source_location"`
+	TpAkas           *string `hcl:"tp_akas"`
+	TpIps            *string `hcl:"tp_ips"`
+	TpTags           *string `hcl:"tp_tags"`
+	TpDomains        *string `hcl:"tp_domains"`
+	TpEmails         *string `hcl:"tp_emails"`
+	TpUsernames      *string `hcl:"tp_usernames"`
 
-	// Searchable
-	TpAkas      *string `hcl:"tp_akas"`
-	TpIps       *string `hcl:"tp_ips"`
-	TpTags      *string `hcl:"tp_tags"`
-	TpDomains   *string `hcl:"tp_domains"`
-	TpEmails    *string `hcl:"tp_emails"`
-	TpUsernames *string `hcl:"tp_usernames"`
+	// Auto populated field which require no mapping
+	// TpID, TpSourceType, TpIngestTimestamp, TpPartition, TpDate
 }
 
 // AsMap converts the fields of the struct to a map, using their "hcl" tags as keys.
