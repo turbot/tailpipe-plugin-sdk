@@ -68,7 +68,7 @@ func CsvToJsonQuery(sourceFile, destFile string, mappings map[string]string, opt
 
 	// Add DELIM option
 	if config.Delimiter != nil {
-		readCsvOpts = append(readCsvOpts, fmt.Sprintf("DELIM '%s'", config.Delimiter))
+		readCsvOpts = append(readCsvOpts, fmt.Sprintf("DELIM '%s'", *config.Delimiter))
 	}
 
 	// Add HEADER option
@@ -81,7 +81,7 @@ func CsvToJsonQuery(sourceFile, destFile string, mappings map[string]string, opt
 
 	// Add COMMENT option
 	if config.Comment != nil {
-		readCsvOpts = append(readCsvOpts, fmt.Sprintf("COMMENT '%s'", config.Comment))
+		readCsvOpts = append(readCsvOpts, fmt.Sprintf("COMMENT '%s'", *config.Comment))
 	}
 
 	// Start building the query
@@ -95,7 +95,7 @@ func CsvToJsonQuery(sourceFile, destFile string, mappings map[string]string, opt
 	// if a FULL schema is provided, use it to build the remaining columns to select - otherwise select all columns (*)
 	columnSelectString := getSchemaColumnSelect(config.Schema)
 	// Use the mapped columns
-	query += fmt.Sprintf("SELECT %s%s FROM read_csv(%s)", mappedColumnSelectString, columnSelectString)
+	query += fmt.Sprintf("SELECT %s%s FROM read_csv(%s)", mappedColumnSelectString, columnSelectString, strings.Join(readCsvOpts, ", "))
 
 	// Close COPY and specify the output file and format
 	query += fmt.Sprintf(") TO '%s' (FORMAT JSON) RETURNING COUNT(*) AS row_count;", destFile)
