@@ -199,8 +199,11 @@ func (c *CollectorImpl[R, S, T]) Notify(ctx context.Context, event events.Event)
 
 	switch e := event.(type) {
 	case *events.ArtifactDownloaded:
+		// handle artifact downloaded event - we only act on this if the table implements ArtifactToJsonConverter
 		return c.handleArtifactDownloaded(ctx, e)
 	case *events.Row:
+		// handle row event - map, enrich and publish the row
+		// NOTE: we will not receive these if the table implements ArtifactToJsonConverter and therefore has a null loader
 		return c.handleRowEvent(ctx, e)
 	case *events.Error:
 		slog.Error("CollectorImpl: error event received", "error", e.Err)
@@ -458,6 +461,7 @@ func (c *CollectorImpl[R, S, T]) writeChunk(ctx context.Context, rowCount int, r
 
 	// determine chunk number from rowCountMap
 	chunkNumber := rowCount / JSONLChunkSize
+
 	// check for final partial chunk
 	if rowCount%JSONLChunkSize > 0 {
 		chunkNumber++
@@ -501,7 +505,6 @@ func (c *CollectorImpl[R, S, T]) WriteRemainingRows(ctx context.Context, executi
 
 	// get row count and the rows in the buffers
 	c.rowBufferLock.Lock()
-
 	rowCount := c.rowCountMap[executionId]
 	rowsToWrite := c.rowBufferMap[executionId]
 	chunksWritten := c.chunkCountMap[executionId]
@@ -516,6 +519,7 @@ func (c *CollectorImpl[R, S, T]) WriteRemainingRows(ctx context.Context, executi
 			slog.Error("failed to write final chunk", "error", err)
 			return 0, 0, fmt.Errorf("failed to write final chunk: %w", err)
 		}
+		chunksWritten++
 	}
 
 	return rowCount, chunksWritten, nil

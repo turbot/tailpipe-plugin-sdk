@@ -3,6 +3,7 @@ package table
 import (
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"golang.org/x/exp/maps"
 	"sort"
 	"strings"
 )
@@ -27,13 +28,13 @@ func WithCsvHeaderMode(headerMode CsvHeaderMode) CsvToJsonOpts {
 
 func WithCsvDelimiter(delimiter string) CsvToJsonOpts {
 	return func(c *CsvTableConfig) {
-		c.Delimiter = delimiter
+		c.Delimiter = &delimiter
 	}
 }
 
 func WithCsvComment(comment string) CsvToJsonOpts {
 	return func(c *CsvTableConfig) {
-		c.Comment = comment
+		c.Comment = &comment
 	}
 }
 
@@ -45,18 +46,15 @@ func WithCsvSchema(schema *schema.RowSchema) CsvToJsonOpts {
 
 type CsvTableConfig struct {
 	HeaderMode CsvHeaderMode
-	Delimiter  string
-	Comment    string
+	Delimiter  *string
+	Comment    *string
 	Schema     *schema.RowSchema
 }
 
 func CsvToJsonQuery(sourceFile, destFile string, mappings map[string]string, opts ...CsvToJsonOpts) string {
 	// Initialize the default configuration
 	config := &CsvTableConfig{
-		HeaderMode: CsvHeaderModeOn, // Default to assuming a header row
-		Delimiter:  ",",             // Default delimiter
-		Comment:    "",              // No comment character by default
-		Schema:     nil,             // No schema by default
+		HeaderMode: CsvHeaderModeAuto, // Default to assuming a header row
 	}
 
 	// Apply the options to the configuration
@@ -69,7 +67,7 @@ func CsvToJsonQuery(sourceFile, destFile string, mappings map[string]string, opt
 	readCsvOpts = append(readCsvOpts, fmt.Sprintf("'%s'", sourceFile))
 
 	// Add DELIM option
-	if config.Delimiter != "" {
+	if config.Delimiter != nil {
 		readCsvOpts = append(readCsvOpts, fmt.Sprintf("DELIM '%s'", config.Delimiter))
 	}
 
@@ -82,39 +80,55 @@ func CsvToJsonQuery(sourceFile, destFile string, mappings map[string]string, opt
 	}
 
 	// Add COMMENT option
-	if config.Comment != "" {
+	if config.Comment != nil {
 		readCsvOpts = append(readCsvOpts, fmt.Sprintf("COMMENT '%s'", config.Comment))
 	}
 
 	// Start building the query
 	query := "COPY ("
 
-	// Dynamically build the SELECT clause based on mappings
-	columns := []string{}
+	// the mappings provided are for tp_ fields - we select mapped columns with '<source_name> AS <mapped_name>
+	// e.g. SELECT index AS tp_index, log_tims as tp_timestamp, * FROM read_csv(...)
+	// build the mapped column SELECT clause
+	mappedColumnSelectString := getMappedColumnSelect(mappings)
 
-	// Sort the keys for deterministic ordering
-	keys := make([]string, 0, len(mappings))
-	for key := range mappings {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	// Build the column mappings
-	for _, destField := range keys {
-		sourceField := mappings[destField]
-		columns = append(columns, fmt.Sprintf("%s AS %s", sourceField, destField))
-	}
-
-	if len(columns) > 0 {
-		// Use the mapped columns
-		query += fmt.Sprintf("SELECT %s FROM read_csv(%s)", strings.Join(columns, ", "), strings.Join(readCsvOpts, ", "))
-	} else {
-		// Default to SELECT * if no mappings are provided
-		query += fmt.Sprintf("SELECT * FROM read_csv(%s)", strings.Join(readCsvOpts, ", "))
-	}
+	// if a FULL schema is provided, use it to build the remaining columns to select - otherwise select all columns (*)
+	columnSelectString := getSchemaColumnSelect(config.Schema)
+	// Use the mapped columns
+	query += fmt.Sprintf("SELECT %s%s FROM read_csv(%s)", mappedColumnSelectString, columnSelectString)
 
 	// Close COPY and specify the output file and format
 	query += fmt.Sprintf(") TO '%s' (FORMAT JSON) RETURNING COUNT(*) AS row_count;", destFile)
 
 	return query
+}
+
+func getSchemaColumnSelect(rowSchema *schema.RowSchema) string {
+	if rowSchema == nil || len(rowSchema.Columns) == 0 || rowSchema.Mode != schema.ModeFull {
+		return "*"
+	}
+
+	var columns []string
+	for _, column := range rowSchema.Columns {
+		columns = append(columns, column.ColumnName)
+	}
+
+	return strings.Join(columns, ", ")
+}
+
+func getMappedColumnSelect(mappings map[string]string) string {
+	if len(mappings) == 0 {
+		return ""
+	}
+	var mappedColumns []string
+
+	// Sort the keys for deterministic ordering
+	keys := maps.Keys(mappings)
+	sort.Strings(keys)
+	for _, destField := range keys {
+		sourceField := mappings[destField]
+		mappedColumns = append(mappedColumns, fmt.Sprintf("%s AS %s", sourceField, destField))
+	}
+
+	return strings.Join(mappedColumns, ", ") + ", "
 }
