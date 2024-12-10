@@ -17,7 +17,7 @@ type Row struct {
 
 type RowEventOption func(*Row)
 
-func WithSourceMetadata(sourceMetadata *enrichment.SourceEnrichment) RowEventOption {
+func WithSourceEnrichment(sourceMetadata *enrichment.SourceEnrichment) RowEventOption {
 	return func(r *Row) {
 		if sourceMetadata != nil {
 			r.SourceMetadata = *sourceMetadata
