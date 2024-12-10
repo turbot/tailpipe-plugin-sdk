@@ -32,7 +32,8 @@ func Validate(t *testing.T, ctor func() (TailpipePlugin, error)) {
 }
 
 func TestDescribe(t *testing.T, p TailpipePlugin) {
-	schema := p.Describe()
+	schema, err := p.Describe()
+	assert.Nil(t, err)
 	assert.NotNil(t, schema)
 	assert.NotEmpty(t, schema)
 }

@@ -11,6 +11,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+const GzipLoaderIdentifier = "gzip_loader"
+
 // GzipLoader is an Loader that can extracts a gzip file and returns all the content
 type GzipLoader struct {
 }

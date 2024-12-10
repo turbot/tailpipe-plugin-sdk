@@ -308,8 +308,8 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		// raise row events, sending collection state data
 		var notifyErrors []error
 		// NOTE: if no metadata has been set on the row, use any metadata from the artifact
-		if artifactData.Metadata == nil {
-			artifactData.Metadata = info.EnrichmentFields
+		if artifactData.SourceEnrichment == nil {
+			artifactData.SourceEnrichment = info.SourceEnrichment
 		}
 
 		// if an extractor was specified by the table, apply it
@@ -336,9 +336,11 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		}
 	}
 
-	// notify observers of download
-	if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
-		return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
+	// notify observers of extraction (if any rows were extracted)
+	if count > 0 {
+		if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
+			return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
+		}
 	}
 
 	// if we skipped the header row, decrement the count to ensure logged row count is accurate
@@ -352,11 +354,6 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 
 // if an extractor is specified, apply it to the artifact data to extract rows
 func (a *ArtifactSourceImpl[S, T]) extractRowsFromArtifact(ctx context.Context, artifactData *types.RowData) ([]*types.RowData, error) {
-	t := time.Now()
-	defer func() {
-		slog.Debug("extractRowsFromArtifact", "duration", time.Since(t))
-	}()
-
 	// if no extractor is set, nothing to do
 	if a.extractor == nil {
 		// just return the artifact data as a single row
@@ -372,8 +369,8 @@ func (a *ArtifactSourceImpl[S, T]) extractRowsFromArtifact(ctx context.Context, 
 	// convert the rows to an array of RowData
 	for _, row := range rows {
 		res = append(res, &types.RowData{
-			Data:     row,
-			Metadata: artifactData.Metadata,
+			Data:             row,
+			SourceEnrichment: artifactData.SourceEnrichment,
 		})
 	}
 	return res, nil

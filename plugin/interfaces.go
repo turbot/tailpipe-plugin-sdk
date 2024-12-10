@@ -16,7 +16,7 @@ type TailpipePlugin interface {
 
 	// Describe returns the duck DB schema for all tables
 	// this must be implemented by the plugin implementation
-	Describe() DescribeResponse
+	Describe() (DescribeResponse, error)
 
 	// AddObserver adda an observer to the plugin to receive status events
 	// this is implemented by plugin.PluginImpl and should not be overridden
@@ -38,8 +38,4 @@ type TailpipePlugin interface {
 
 	// Impl returns the common plugin implementation - used for validation testing
 	Impl() *PluginImpl
-}
-
-type ChunkWriter interface {
-	WriteChunk(ctx context.Context, rows []any, chunkNumber int) error
 }

@@ -16,23 +16,23 @@ func WithDefaultArtifactSourceConfig(config *artifact_source_config.ArtifactSour
 	}
 }
 
-// WithArtifactExtractor is used to specify an artifact extractor
-// this is needed if the artifact contains a collection of rows which needs explicit extraction
-func WithArtifactExtractor(extractor Extractor) row_source.RowSourceOption {
+// WithArtifactLoader is used to specify an artifact loader
+func WithArtifactLoader(loader artifact_loader.Loader) row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
 		if a, ok := r.(ArtifactSource); ok {
-			a.SetExtractor(extractor)
+			a.SetLoader(loader)
 		}
 		return nil
 	}
 }
 
-// WithArtifactLoader is used when creating an ArtifactSourceImpl
-// It sets the a loader to the row source
-func WithArtifactLoader(loader artifact_loader.Loader) row_source.RowSourceOption {
+// WithArtifactExtractor is used to specify an artifact extractor
+// this is needed if the artifact contains a collection of rows which needs explicit extraction
+// (not this is in addition to the default extraction performed by the loaded)
+func WithArtifactExtractor(extractor Extractor) row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
 		if a, ok := r.(ArtifactSource); ok {
-			a.SetLoader(loader)
+			a.SetExtractor(extractor)
 		}
 		return nil
 	}

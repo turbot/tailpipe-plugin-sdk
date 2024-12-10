@@ -2,10 +2,10 @@ package table
 
 import (
 	"context"
-	"encoding/json"
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -16,27 +16,27 @@ type Table[R types.RowStruct, S parse.Config] interface {
 	// Identifier must return the collection name
 	Identifier() string
 
-	// SourceMetadata returns the supported sources for the table
-	SupportedSources(S) []*SourceMetadata[R]
+	// GetSourceMetadata returns the supported sources for the table
+	GetSourceMetadata(S) []*SourceMetadata[R]
 	// EnrichRow is called to enrich the row with common (tp_*) fields
-	EnrichRow(row R, sourceEnrichmentFields *enrichment.CommonFields) (R, error)
+	EnrichRow(R, S, enrichment.SourceEnrichment) (R, error)
 }
 
-// Collection is an interface which provides a methods for collecting table data from a source
-// This is implemented by the generic Partition struct
-type Collection interface {
+// Collector is an interface which provides a methods for collecting table data from a source
+// This is implemented by the generic CollectorImpl struct
+type Collector interface {
 	observable.Observable
 
 	GetTiming() types.TimingCollection
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
+	GetSource() row_source.RowSource
+	Collect(context.Context) (int, int, error)
 	GetSchema() (*schema.RowSchema, error)
-	IsDynamic() bool
-	Collect(context.Context) (json.RawMessage, error)
 }
 
 // Mapper is a generic interface which provides a method for mapping raw source data into row structs
-// R is the type of the row struct which the mapper outputs
+// R is the type of the row struct which the mapperFunc outputs
 type Mapper[R types.RowStruct] interface {
 	Identifier() string
 	// Map converts raw rows to the desired format (type 'R')
@@ -44,7 +44,15 @@ type Mapper[R types.RowStruct] interface {
 }
 
 // MapInitialisedRow is an interface which provides a means to initialise a row struct from a string map
-// this is used in combination with the DelimitedLineMapper
+// this is used in combination with the RowPatternMapper
 type MapInitialisedRow interface {
 	InitialiseFromMap(m map[string]string) error
+}
+
+type ArtifactToJsonConverter[S parse.Config] interface {
+	GetArtifactConversionQuery(string, string, S) string
+}
+
+type ChunkWriter interface {
+	WriteChunk(ctx context.Context, rows []any, chunkNumber int) error
 }

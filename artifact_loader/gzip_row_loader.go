@@ -11,6 +11,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+const GzipRowLoaderIdentifier = "gzip_row_loader"
+
 // GzipRowLoader is an Loader that can extracts an object from a gzip file
 type GzipRowLoader struct {
 }

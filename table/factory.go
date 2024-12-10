@@ -13,41 +13,40 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
-// RegisterTable registers a table constructor with the factory
+// RegisterTable registers a collector constructor with the factory
 // this is called from the package init function of the table implementation
 func RegisterTable[R types.RowStruct, S parse.Config, T Table[R, S]]() {
-	tableFunc := func() Collection {
-		return &Partition[R, S, T]{
+	collectorFunc := func() Collector {
+		return &CollectorImpl[R, S, T]{
 			table: utils.InstanceOf[T](),
 		}
 	}
 
-	Factory.registerTable(tableFunc)
+	Factory.registerCollector(collectorFunc)
 }
 
 type TableFactory struct {
-	partitionFuncs []func() Collection
-	// maps of partition constructors, keyed by the name of the registered table types
-	partitionFuncMap map[string]func() Collection
+	collectorFuncs []func() Collector
+	// maps of collector constructors, keyed by the name of the registered table types
+	collectorFuncMap map[string]func() Collector
 	// map of table schemas
 	schemaMap schema.SchemaMap
 }
 
 func newTableFactory() TableFactory {
 	return TableFactory{
-		partitionFuncMap: make(map[string]func() Collection),
-		schemaMap:        make(schema.SchemaMap),
+		collectorFuncMap: make(map[string]func() Collector),
 	}
 }
 
-// registerTable just store the constructor in an array
+// registerCollector just store the constructor in an array
 // This will be called before the Init function is called
 // Init creates instances of each table - these ar eused to get the table identifier
 // (for the map key) and the schema
-// we defer this until TableFactory.Init as registerTable is called from
+// we defer this until TableFactory.Init as registerCollector is called from
 // package init functions which cannot return an error
-func (f *TableFactory) registerTable(ctor func() Collection) {
-	f.partitionFuncs = append(f.partitionFuncs, ctor)
+func (f *TableFactory) registerCollector(ctor func() Collector) {
+	f.collectorFuncs = append(f.collectorFuncs, ctor)
 
 }
 
@@ -61,25 +60,12 @@ func (f *TableFactory) Init() (err error) {
 
 	errs := make([]error, 0)
 
-	for _, ctor := range f.partitionFuncs {
+	for _, ctor := range f.collectorFuncs {
 		// create an instance of the table to get the identifier
-		partition := ctor()
+		collector := ctor()
 
-		// register the partition func with the table factory
-		f.partitionFuncMap[partition.Identifier()] = ctor
-
-		// if this is a static table, get the schema
-		if !partition.IsDynamic() {
-			// get the schema for the table row type
-			s, err := partition.GetSchema()
-			if err != nil {
-				errs = append(errs, err)
-				continue
-			}
-			// merge in the common schema
-			f.schemaMap[partition.Identifier()] = s
-		}
-
+		// register the collector func with the table factory
+		f.collectorFuncMap[collector.Identifier()] = ctor
 	}
 	if len(errs) > 0 {
 		return errors.Join(errs...)
@@ -87,9 +73,42 @@ func (f *TableFactory) Init() (err error) {
 	return nil
 }
 
-func (f *TableFactory) GetPartition(req *types.CollectRequest) (Collection, error) {
+// populateSchemas builds the map of table constructors and schemas
+// NOTE we could call this from Init but we only need it if a describe call is made so do it lazily
+func (f *TableFactory) populateSchemas() (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = helpers.ToError(r)
+		}
+	}()
+
+	// create schema map
+	f.schemaMap = make(schema.SchemaMap)
+
+	errs := make([]error, 0)
+
+	for _, ctor := range f.collectorFuncs {
+		// create an instance of the table to get the identifier
+		collector := ctor()
+
+		// get the schema for the table row type
+		s, err := collector.GetSchema()
+		if err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		// merge in the common schema
+		f.schemaMap[collector.Identifier()] = s
+	}
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+func (f *TableFactory) GetCollector(req *types.CollectRequest) (Collector, error) {
 	// get the registered partition constructor for the table
-	ctor, ok := f.partitionFuncMap[req.PartitionData.Table]
+	ctor, ok := f.collectorFuncMap[req.PartitionData.Table]
 	if !ok {
 		// this type is not registered
 		return nil, fmt.Errorf("table not found: %s", req.PartitionData.Table)
@@ -101,10 +120,20 @@ func (f *TableFactory) GetPartition(req *types.CollectRequest) (Collection, erro
 	return partition, nil
 }
 
-func (f *TableFactory) GetPartitions() map[string]func() Collection {
-	return f.partitionFuncMap
+func (f *TableFactory) GetPartitions() map[string]func() Collector {
+	return f.collectorFuncMap
 }
 
-func (f *TableFactory) GetSchema() schema.SchemaMap {
-	return f.schemaMap
+func (f *TableFactory) GetSchema() (schema.SchemaMap, error) {
+	if f.schemaMap == nil {
+		err := f.populateSchemas()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return f.schemaMap, nil
+}
+
+func (f *TableFactory) Initialized() bool {
+	return len(f.collectorFuncMap) > 0
 }

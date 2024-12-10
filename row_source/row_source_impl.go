@@ -134,7 +134,7 @@ func (r *RowSourceImpl[S, T]) OnRow(ctx context.Context, row *types.RowData, col
 	if err != nil {
 		return err
 	}
-	return r.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, collectionState, events.WithEnrichmentFields(row.Metadata)))
+	return r.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, collectionState, events.WithSourceEnrichment(row.SourceEnrichment)))
 }
 
 // GetCollectionStateJSON marshals the collection state data into JSON
