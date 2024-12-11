@@ -151,7 +151,7 @@ func (c *CollectorImpl[R, S, T]) initialiseConfig(tableConfigData config_data.Co
 
 	// validate config
 	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
+		return fmt.Errorf("invalid partition config: %w", err)
 	}
 
 	return nil

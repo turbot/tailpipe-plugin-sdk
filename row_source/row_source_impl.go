@@ -89,7 +89,7 @@ func (r *RowSourceImpl[S, T]) initialiseConfig(configData config_data.ConfigData
 	}
 	// validate config (even if it is empty - this is the config we will be using so it must be valid)
 	if err := c.Validate(); err != nil {
-		return fmt.Errorf("invalid config: %w", err)
+		return fmt.Errorf("invalid source config: %w", err)
 	}
 	r.Config = c
 	return nil
