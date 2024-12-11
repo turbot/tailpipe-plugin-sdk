@@ -11,9 +11,10 @@ type PartitionConfigData struct {
 func NewPartitionConfigData(hcl []byte, decRange hcl.Range, table string, partition string) *PartitionConfigData {
 	return &PartitionConfigData{
 		ConfigDataImpl: &ConfigDataImpl{
-			Hcl:   hcl,
-			Range: decRange,
-			Id:    table,
+			Hcl:        hcl,
+			Range:      decRange,
+			Id:         table,
+			ConfigType: "partition",
 		},
 		Table:     table,
 		Partition: partition,

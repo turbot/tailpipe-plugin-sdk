@@ -1,6 +1,8 @@
 package table
 
-import "testing"
+import (
+	"testing"
+)
 
 //
 //func TestCsvToJsonQuery(t *testing.T) {

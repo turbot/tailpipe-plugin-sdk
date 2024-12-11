@@ -14,16 +14,19 @@ type ConfigData interface {
 	GetHcl() []byte
 	GetRange() hcl.Range
 	Identifier() string
+	GetConfigType() string
 }
 
 type ConfigDataImpl struct {
 	Hcl   []byte
 	Range hcl.Range
 	// Id represent the type of the config:
-	// - if this is a table config, this will be the table name
+	// - if this is a partition config, this will be the table name
 	// - if this is a source config, this will be the source type
 	// - if this is a connection config, this will be the connection type (i.e. plugin name)
 	Id string
+	// ConfigType is the type of the config data, i.e. connection, source, partition
+	ConfigType string
 }
 
 // GetHcl returns the HCL config data
@@ -41,6 +44,11 @@ func (c *ConfigDataImpl) Identifier() string {
 	return c.Id
 }
 
+// GetConfigType returns the type of the config data
+func (c *ConfigDataImpl) GetConfigType() string {
+	return c.ConfigType
+}
+
 func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 	/* the target field is the name ofd the target - this will be either:
 	- a source: source.<source_type>
@@ -52,7 +60,9 @@ func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 	parts := strings.Split(data.Target, ".")
 	switch any(empty).(type) {
 	case *SourceConfigData:
-		// TODO assert len
+		if len(parts) != 2 {
+			return empty, fmt.Errorf("invalid source config target %s: expected a name of format source.<type>", data.Target)
+		}
 		if parts[0] != "source" {
 			return empty, fmt.Errorf("invalid source config target %s: expected a source", data.Target)
 		}
@@ -60,12 +70,18 @@ func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 		return ConfigData(d).(T), nil
 
 	case *PartitionConfigData:
+		if len(parts) != 3 {
+			return empty, fmt.Errorf("invalid source config target %s: expected a name of format partition.<table>.<partition>", data.Target)
+		}
 		if parts[0] != "partition" {
 			return empty, fmt.Errorf("invalid source config target %s: expected a partition", data.Target)
 		}
 		d := NewPartitionConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1], parts[2])
 		return ConfigData(d).(T), nil
 	case *ConnectionConfigData:
+		if len(parts) != 2 {
+			return empty, fmt.Errorf("invalid source config target %s: expected a name of format connection.<type>", data.Target)
+		}
 		if parts[0] != "connection" {
 			return empty, fmt.Errorf("invalid source config target %s: expected a connection", data.Target)
 		}

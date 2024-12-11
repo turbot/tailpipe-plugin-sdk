@@ -25,16 +25,16 @@ func ParseConfig[T Config](configData config_data.ConfigData) (T, error) {
 	// this ensures that the ConfigData type (the Identifier) matches the target type (the Identifier of the target)
 	id := target.Identifier()
 	if id != configData.Identifier() {
-		return target, fmt.Errorf("invalid config type %s: expected %s", configData.Identifier(), id)
+		return target, fmt.Errorf("invalid %s type '%s': expected '%s'", configData.GetConfigType(), configData.Identifier(), id)
 	}
 
 	// Parse the config
 	declRange := configData.GetRange()
 	hclBytes := configData.GetHcl()
 	file, diags := hclsyntax.ParseConfig(hclBytes, declRange.Filename, declRange.Start)
-	if diags.HasErrors() {
-		slog.Warn("failed to parse config", "hcl", hclBytes)
-		return target, fmt.Errorf("failed to parse config: %s", diags)
+	if diags != nil && diags.HasErrors() {
+		slog.Warn("failed to parse config", "config type", configData.GetConfigType(), "hcl", hclBytes)
+		return target, fmt.Errorf("failed to parse %s config: %s", configData.GetConfigType(), diags)
 	}
 
 	// Create empty eval context
@@ -48,7 +48,7 @@ func ParseConfig[T Config](configData config_data.ConfigData) (T, error) {
 	//decodeDiags := gohcl.DecodeBody(file.Body, evalCtx, target)
 	diags = append(diags, decodeDiags...)
 	if diags.HasErrors() {
-		return target, error_helpers.HclDiagsToError("Failed to decode config", diags)
+		return target, error_helpers.HclDiagsToError(fmt.Sprintf("Failed to decode %s config", configData.GetConfigType()), diags)
 	}
 
 	// Return the struct by value

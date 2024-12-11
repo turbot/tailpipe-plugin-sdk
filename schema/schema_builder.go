@@ -231,17 +231,6 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 	case reflect.Map:
 		// TODO we do not currently support maps https://github.com/turbot/tailpipe-plugin-sdk/issues/55
 		c.Type = "JSON"
-		//c.Type = "MAP"
-		//// get the key and value types
-		//keyType, err := b.getColumnSchemaType(t.Key())
-		//if err != nil {
-		//	return c, err
-		//}
-		//valueType, err := b.getColumnSchemaType(t.Elem())
-		//if err != nil {
-		//	return c, err
-		//}
-		//c.ChildFields = []*ColumnSchema{{Type: keyType.Type, StructFields: keyType.ChildFields}, {Type: valueType.Type, StructFields: valueType.ChildFields}}
 	default:
 
 		return c, fmt.Errorf("unsupported type %s", t)
@@ -252,25 +241,3 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 func isStruct(elem reflect.Type) bool {
 	return elem.Kind() == reflect.Struct || (elem.Kind() == reflect.Ptr && elem.Elem().Kind() == reflect.Struct)
 }
-
-//func schemaToDuckDBStruct(schema *RowSchema) (string, error) {
-//	/*
-//		 write a duck db struct def as follows:
-//
-//			STRUCT(
-//				field1 as column1_name VARCHAR,
-//				field2 as column2_name INTEGER
-//			)
-//	*/
-//
-//	var str strings.Builder
-//	str.WriteString("STRUCT(")
-//	for i, column := range schema.Columns {
-//		if i > 0 {
-//			str.WriteString(",")
-//		}
-//		str.WriteString(fmt.Sprintf(" %s as %s %s", column.SourceName, column.ColumnName, column.Type))
-//	}
-//	str.WriteString(")")
-//	return str.String(), nil
-//}

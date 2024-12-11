@@ -10,9 +10,10 @@ type ConnectionConfigData struct {
 func NewConnectionConfigData(hcl []byte, decRange hcl.Range, ty string) *ConnectionConfigData {
 	return &ConnectionConfigData{
 		ConfigDataImpl: &ConfigDataImpl{
-			Hcl:   hcl,
-			Range: decRange,
-			Id:    ty,
+			Hcl:        hcl,
+			Range:      decRange,
+			Id:         ty,
+			ConfigType: "connection",
 		},
 		Type: ty,
 	}
