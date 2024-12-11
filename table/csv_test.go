@@ -1,7 +1,6 @@
 package table
 
 import (
-	_ "github.com/marcboeker/go-duckdb"
 	"testing"
 )
 
