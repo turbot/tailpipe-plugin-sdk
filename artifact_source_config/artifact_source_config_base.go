@@ -14,7 +14,6 @@ type ArtifactSourceConfigBase struct {
 }
 
 func (b *ArtifactSourceConfigBase) Validate() error {
-	// TODO #config #valiate
 	return nil
 }
 

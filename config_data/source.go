@@ -10,9 +10,10 @@ type SourceConfigData struct {
 func NewSourceConfigData(hcl []byte, decRange hcl.Range, sourceType string) *SourceConfigData {
 	return &SourceConfigData{
 		ConfigDataImpl: &ConfigDataImpl{
-			Hcl:   hcl,
-			Range: decRange,
-			Id:    sourceType,
+			Hcl:        hcl,
+			Range:      decRange,
+			Id:         sourceType,
+			ConfigType: "source",
 		},
 		Type: sourceType,
 	}

@@ -98,10 +98,6 @@ func (c *CollectorImpl[R, S, T]) Identifier() string {
 	return c.table.Identifier()
 }
 
-func (c *CollectorImpl[R, S, T]) GetSource() row_source.RowSource {
-	return c.source
-}
-
 // GetSchema returns the schema of the table if available
 // for dynamic tables, the schema is only available at this if the config contains a schema
 func (c *CollectorImpl[R, S, T]) GetSchema() (*schema.RowSchema, error) {

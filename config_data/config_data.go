@@ -14,16 +14,19 @@ type ConfigData interface {
 	GetHcl() []byte
 	GetRange() hcl.Range
 	Identifier() string
+	GetConfigType() string
 }
 
 type ConfigDataImpl struct {
 	Hcl   []byte
 	Range hcl.Range
 	// Id represent the type of the config:
-	// - if this is a table config, this will be the table name
+	// - if this is a partition config, this will be the table name
 	// - if this is a source config, this will be the source type
 	// - if this is a connection config, this will be the connection type (i.e. plugin name)
 	Id string
+	// ConfigType is the type of the config data, i.e. connection, source, partition
+	ConfigType string
 }
 
 // GetHcl returns the HCL config data
@@ -39,6 +42,11 @@ func (c *ConfigDataImpl) GetRange() hcl.Range {
 // Identifier returns the identifier of the config data
 func (c *ConfigDataImpl) Identifier() string {
 	return c.Id
+}
+
+// GetConfigType returns the type of the config data
+func (c *ConfigDataImpl) GetConfigType() string {
+	return c.ConfigType
 }
 
 func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {

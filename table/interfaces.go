@@ -2,10 +2,10 @@ package table
 
 import (
 	"context"
+
 	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
-	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -30,7 +30,6 @@ type Collector interface {
 	GetTiming() types.TimingCollection
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
-	GetSource() row_source.RowSource
 	Collect(context.Context) (int, int, error)
 	GetSchema() (*schema.RowSchema, error)
 }
