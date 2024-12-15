@@ -50,6 +50,7 @@ type MapInitialisedRow interface {
 
 type ArtifactToJsonConverter[S parse.Config] interface {
 	GetArtifactConversionQuery(string, string, S) string
+	ArtifactToJSON(context.Context, string, string, int, S) (int, int, error)
 }
 
 type ChunkWriter interface {

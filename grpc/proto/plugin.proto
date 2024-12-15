@@ -26,10 +26,12 @@ message CollectRequest {
   ConfigData source_data = 4;
   // the raw hcl of the connection
   ConfigData connection_data = 5;
+  // the raw hcl of the source format
+  ConfigData source_format_data = 6;
 
   // this is json encoded data that represents the state of the collection, i.e. what data has been collected
   // this is used to resume a collection
-  bytes collection_state = 6;
+  bytes collection_state = 7;
 }
 
 

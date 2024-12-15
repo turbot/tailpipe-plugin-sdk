@@ -85,7 +85,7 @@ func (b *RowSourceFactory) DescribeSources() SourceMetadataMap {
 	return res
 }
 
-func (b *RowSourceFactory) IsArtifactSource(sourceType string) bool {
+func IsArtifactSource(sourceType string) bool {
 	// instantiate the source
 	if sourceType == constants.ArtifactSourceIdentifier {
 		return true

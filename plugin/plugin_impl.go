@@ -43,10 +43,10 @@ func (p *PluginImpl) Init(context.Context) error {
 	return table.Factory.Init()
 }
 
-// initialized returns true if the plugin has been initialized
-func (p *PluginImpl) initialized() bool {
-	return table.Factory.Initialized()
-}
+//// initialized returns true if the plugin has been initialized
+//func (p *PluginImpl) initialized() bool {
+//	return table.Factory.Initialized()
+//}
 
 func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*schema.RowSchema, error) {
 	log.Println("[INFO] Collect")

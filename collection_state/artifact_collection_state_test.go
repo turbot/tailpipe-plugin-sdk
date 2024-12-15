@@ -1,6 +1,11 @@
 package collection_state
 
 import (
+	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/assert"
+	"github.com/ucarion/urlpath"
+	"net/http"
+	"net/url"
 	"testing"
 )
 
@@ -129,3 +134,150 @@ func TestBenchmarkParseFilenameTemplate(t *testing.T) {
 //		})
 //	}
 //}
+
+func extractPathVars(pattern, path string) (map[string]string, bool) {
+	// Define the pattern
+	upath := urlpath.New(pattern)
+
+	// Match the path against the pattern
+	match, ok := upath.Match(path)
+	if !ok {
+		return nil, false
+	}
+
+	// Extract variables as a map
+	return match.Params, true
+}
+
+func TestExtractPathVars(t *testing.T) {
+	tests := []struct {
+		name        string
+		pattern     string
+		path        string
+		expectMatch bool
+		expected    map[string]string
+	}{
+		{
+			name:        "Valid path with account_id and region",
+			pattern:     "/logs/:account_id/:region/",
+			path:        "/logs/12345/us-west-1/",
+			expectMatch: true,
+			expected: map[string]string{
+				"account_id": "12345",
+				"region":     "us-west-1",
+			},
+		},
+		{
+			name:        "No match due to extra segment",
+			pattern:     "/logs/:account_id/:region/",
+			path:        "/logs/12345/us-west-1/extra/",
+			expectMatch: false,
+			expected:    nil,
+		},
+		{
+			name:        "No match due to missing trailing slash",
+			pattern:     "/logs/:account_id/:region/",
+			path:        "/logs/12345/us-west-1",
+			expectMatch: false,
+			expected:    nil,
+		},
+		{
+			name:        "Valid path with different account_id and region",
+			pattern:     "/logs/:account_id/:region/",
+			path:        "/logs/67890/eu-central-1/",
+			expectMatch: true,
+			expected: map[string]string{
+				"account_id": "67890",
+				"region":     "eu-central-1",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vars, matched := extractPathVars(tt.pattern, tt.path)
+
+			if matched != tt.expectMatch {
+				t.Errorf("expected match: %v, got: %v", tt.expectMatch, matched)
+			}
+			if matched && vars != nil {
+				for key, value := range tt.expected {
+					if vars[key] != value {
+						t.Errorf("expected %s: %s, got: %s", key, value, vars[key])
+					}
+				}
+			}
+		})
+	}
+}
+
+// Helper function to extract variables from a path using mux
+func extractPathVarsMux(pattern, path string) (map[string]string, bool) {
+	router := mux.NewRouter()
+	route := router.NewRoute().Path(pattern)
+
+	// Simulate a request using only the URL path
+	req := &http.Request{URL: &url.URL{Path: path}}
+	routeMatch := mux.RouteMatch{}
+
+	// Attempt to match the route
+	if route.Match(req, &routeMatch) {
+		return routeMatch.Vars, true
+	}
+	return nil, false
+}
+
+// Test suite for extractPathVars
+func TestExtractPathVarsMux(t *testing.T) {
+	tests := []struct {
+		name        string
+		pattern     string
+		path        string
+		expectMatch bool
+		expected    map[string]string
+	}{
+		{
+			name:        "Valid path with account_id and region",
+			pattern:     "/logs/{account_id}/{region}/",
+			path:        "/logs/12345/us-west-1/",
+			expectMatch: true,
+			expected: map[string]string{
+				"account_id": "12345",
+				"region":     "us-west-1",
+			},
+		},
+		{
+			name:        "No match due to extra segment",
+			pattern:     "/logs/{account_id}/{region}/",
+			path:        "/logs/12345/us-west-1/extra/",
+			expectMatch: false,
+			expected:    nil,
+		},
+		{
+			name:        "No match due to missing trailing slash",
+			pattern:     "/logs/{account_id}/{region}/",
+			path:        "/logs/12345/us-west-1",
+			expectMatch: false,
+			expected:    nil,
+		},
+		{
+			name:        "Valid path with different account_id and region",
+			pattern:     "/logs/{account_id}/foo{region}/",
+			path:        "/logs/67890/fooeu-central-1/",
+			expectMatch: true,
+			expected: map[string]string{
+				"account_id": "67890",
+				"region":     "eu-central-1",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vars, matched := extractPathVarsMux(tt.pattern, tt.path)
+
+			assert.Equal(t, tt.expectMatch, matched, "Match result should match expectation")
+			assert.Equal(t, tt.expected, vars, "Extracted variables should match expected values")
+		})
+	}
+}
