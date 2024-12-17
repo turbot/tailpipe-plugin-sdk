@@ -3,7 +3,6 @@ package plugin
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
@@ -49,7 +48,7 @@ func (p *PluginImpl) Init(context.Context) error {
 //}
 
 func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*schema.RowSchema, error) {
-	log.Println("[INFO] Collect")
+	slog.Info("Collect")
 
 	// map req to our internal type
 	collectRequest, err := types.CollectRequestFromProto(req)

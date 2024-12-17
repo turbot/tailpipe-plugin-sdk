@@ -87,6 +87,9 @@ func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 		}
 		d := NewConnectionConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1])
 		return ConfigData(d).(T), nil
+	case *FormatConfigData:
+		d := NewFormatConfigData(data.Hcl, proto.RangeFromProto(data.Range), data.Target)
+		return ConfigData(d).(T), nil
 	default:
 		return empty, fmt.Errorf("invalid config type %T", empty)
 	}

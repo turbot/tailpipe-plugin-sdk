@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"log/slog"
 	"sync"
 	"time"
@@ -22,12 +23,16 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// ArtifactConversionCollector is a collector that converts artifacts directly to JSONL
+// S is the table config type
 type ArtifactConversionCollector[S parse.Config] struct {
 	observable.ObservableImpl
 
 	source row_source.RowSource
 
 	tableName string
+	// the source format
+	formatData *proto.ConfigData
 	// the table config
 	Config S
 
@@ -40,9 +45,10 @@ type ArtifactConversionCollector[S parse.Config] struct {
 	req                 *types.CollectRequest
 }
 
-func NewArtifactConversionCollector[S parse.Config](tableName string) *ArtifactConversionCollector[S] {
+func NewArtifactConversionCollector[S parse.Config](tableName string, formatData *proto.ConfigData) *ArtifactConversionCollector[S] {
 	return &ArtifactConversionCollector[S]{
-		tableName: tableName,
+		tableName:  tableName,
+		formatData: formatData,
 	}
 }
 
@@ -52,6 +58,10 @@ func (c *ArtifactConversionCollector[S]) Init(ctx context.Context, req *types.Co
 	if err := c.initialiseConfig(req.PartitionData); err != nil {
 		return err
 	}
+
+	// TODO K validate no extractor
+
+	// TODO K validate table name does not clash
 
 	slog.Info("tableName RowSourceImpl: Collect", "table", c.tableName)
 	if err := c.initSource(ctx, req.SourceData, req.ConnectionData); err != nil {
@@ -98,6 +108,28 @@ func (c *ArtifactConversionCollector[S]) GetSchema() (*schema.RowSchema, error) 
 
 func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData config_data.ConfigData) error {
 	// default to empty config
+	cfg := utils.InstanceOf[S]()
+
+	if len(tableConfigData.GetHcl()) > 0 {
+		var err error
+		cfg, err = parse.ParseConfig[S](tableConfigData)
+		if err != nil {
+			return fmt.Errorf("error parsing config: %w", err)
+		}
+
+		slog.Info("tableName RowSourceImpl: config parsed", "config", c)
+		c.Config = cfg
+	}
+
+	// validate config
+	if err := c.Config.Validate(); err != nil {
+		return fmt.Errorf("invalid partition config: %w", err)
+	}
+
+	return nil
+}
+
+func (c *ArtifactConversionCollector[S]) initialiseFormat(tableConfigData config_data.ConfigData) error {
 	// default to empty config
 	cfg := utils.InstanceOf[S]()
 
@@ -252,6 +284,7 @@ func (c *ArtifactConversionCollector[S]) handleArtifactDownloaded(ctx context.Co
 	//c.chunkCountMap[e.ExecutionId]+= chunkCount
 	//c.rowBufferLock.Unlock()
 
+	//TODO K delete local artifact
 	return nil
 
 }

@@ -118,6 +118,80 @@ format "custom_logs" {
 
 
 
+# Variations
+```hcl
+
+
+partition "aws_cloudtrail_log" "fs" {
+    source "file_system"  {
+     	paths = ["/Users/kai/tailpipe_data/flaws_cloudtrail_logs"]
+      extensions = [".gz"]
+    }
+}
+
+partition "my_csv_log" "test"{
+    source "file_system"  {
+        paths = ["/Users/kai/tailpipe_data/logs"]
+        extensions = [".csv"]
+
+        #  we must must either define (default) format format MUST be set for a custom table on either the source or table (default)
+        format = format.csv_logs
+    }
+}
+
+# define a custom table 'my_log'
+table  "my_csv_log" {
+    # default format - optional
+    format = format.csv_logs
+
+
+    automap_source_fields = false | [true]
+    exclude_source_fields = ["org_id" ]
+       
+    
+    column "tp_timestamp" {
+        # if the source field is not present, this is an error 
+        source =  "time_local"
+        # maybe (for now assume required?)
+        
+        #------
+        #optional - day 2?
+        #required = true
+        # if not required, we can specify a default - defaults to NULL
+        #default = xxxx
+        #------
+        
+    }
+    column "tp_index" {
+        source = "account_id"
+    }
+    
+    column "user_id" {
+        type = "varchar"
+    }
+}
+
+
+format "csv_default_logs" {
+    type              = "delimited"
+}
+
+format "csv_logs" {
+    type              = "delimited"
+    delimiter         = "\t"
+    header            = false
+}
+
+# OR:
+
+format "delimited" "csv_logs" {
+   
+    delimiter         = "\t"
+    header            = false
+#}
+
+```
+
 
 
 

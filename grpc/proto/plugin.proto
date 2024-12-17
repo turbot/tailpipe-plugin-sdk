@@ -26,14 +26,21 @@ message CollectRequest {
   ConfigData source_data = 4;
   // the raw hcl of the connection
   ConfigData connection_data = 5;
-  // the raw hcl of the source format
-  ConfigData source_format_data = 6;
+  // if this is custom table, Table contains the source format and table schema
+  Table custom_table = 6;
 
   // this is json encoded data that represents the state of the collection, i.e. what data has been collected
   // this is used to resume a collection
   bytes collection_state = 7;
 }
 
+message Table {
+  string name = 1;
+  // the source format
+  ConfigData source_format = 2;
+  // the schema of the table
+  Schema schema = 3;
+}
 
 message DescribeRequest {
 }
@@ -56,6 +63,7 @@ message CollectResponse {
 message Schema {
   // Map of source field name to column name and type
   repeated ColumnSchema columns = 1;
+  // The mode of the schema - must be one of 'full', 'partial` (or 'dynamic' but that is unexpected as it means no columns are specified)
   string mode = 2;
 }
 
@@ -66,7 +74,7 @@ message ColumnSchema {
   string source_name = 2;
   // The name of the column
   string column_name = 3;
-  // child fields (for a struct
+  // child fields (for a struct)
   repeated ColumnSchema child_fields = 4;
 }
 

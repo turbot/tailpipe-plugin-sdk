@@ -4,13 +4,32 @@ import (
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
+
+type Table struct {
+	Name         string
+	SourceFormat *config_data.FormatConfigData
+	Schema       *schema.RowSchema
+}
+
+func TableFromProto(pt *proto.Table) (*Table, error) {
+	sourceFormat, err := config_data.DataFromProto[*config_data.FormatConfigData](pt.SourceFormat)
+	if err != nil {
+		return nil, err
+	}
+	return &Table{
+		Name:         pt.Name,
+		SourceFormat: sourceFormat,
+		Schema:       schema.RowSchemaFromProto(pt.Schema),
+	}, nil
+}
 
 type CollectRequest struct {
 	// unique identifier for collection execution this will be used as base for the filename fo the resultiung JSONL files
 	ExecutionId string
 	// dest path for jsonl files
-	OutputPath string `protobuf:"bytes,2,opt,name=output_path,json=outputPath,proto3" json:"output_path,omitempty"`
+	OutputPath string
 	// the table to collect (with raw config)
 	PartitionData *config_data.PartitionConfigData
 	// the source to use (with raw config)
@@ -20,6 +39,8 @@ type CollectRequest struct {
 	// this is json encoded data that represents the state of the collection, i.e. what data has been collected
 	// this is used to resume a collection
 	CollectionState []byte
+
+	CustomTable *Table
 }
 
 func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
@@ -51,6 +72,13 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 			return nil, err
 		}
 		req.ConnectionData = connectionData
+	}
+	if pr.CustomTable != nil {
+		t, err := TableFromProto(pr.CustomTable)
+		if err != nil {
+			return nil, err
+		}
+		req.CustomTable = t
 	}
 	return req, nil
 }
