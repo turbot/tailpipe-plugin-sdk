@@ -13,11 +13,25 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
+// RegisterTableFormat registers a collector constructor for a table which supports Format
+// this is called from the package init function of the table implementation
+func RegisterTableFormat[R types.RowStruct, S parse.Config, T TableWithFormat[R, S]]() {
+	collectorFunc := func() Collector {
+		return &CollectorWithFormat[R, S]{
+			CollectorImpl: CollectorImpl[R]{
+				Table: utils.InstanceOf[T](),
+			},
+		}
+	}
+
+	Factory.registerCollector(collectorFunc)
+}
+
 // RegisterTable registers a collector constructor with the factory
 // this is called from the package init function of the table implementation
-func RegisterTable[R types.RowStruct, S parse.Config, T Table[R, S]]() {
+func RegisterTable[R types.RowStruct, T Table[R]]() {
 	collectorFunc := func() Collector {
-		return &CollectorImpl[R, S]{
+		return &CollectorImpl[R]{
 			Table: utils.InstanceOf[T](),
 		}
 	}
@@ -112,11 +126,11 @@ func (f *TableFactory) populateSchemas() (err error) {
 }
 
 func (f *TableFactory) GetCollector(req *types.CollectRequest) (Collector, error) {
-	// get the registered partition constructor for the table
-	ctor, ok := f.collectorFuncMap[req.PartitionData.Table]
+	// get the registered collector constructor for the table
+	ctor, ok := f.collectorFuncMap[req.TableName]
 	if !ok {
 		// this type is not registered
-		return nil, fmt.Errorf("table not found: %s", req.PartitionData.Table)
+		return nil, fmt.Errorf("table not found: %s", req.TableName)
 	}
 
 	// create the partition
@@ -171,7 +185,7 @@ type TableFactory interface {
 
 // RegisterTable registers a collector constructor with the factory
 // this is called from the package init function of the table implementation
-func RegisterTable[R types.RowStruct, S parse.Config, T Table[R, S]]() {
+func RegisterTable[R types.RowStruct, S parse.Config, T Table[R]]() {
 	collectorFunc := func() Collector {
 		return &CollectorImpl[R, S]{
 			Table:utils.InstanceOf[T](),

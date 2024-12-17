@@ -54,10 +54,6 @@ func NewArtifactConversionCollector[S parse.Config](tableName string, formatData
 
 func (c *ArtifactConversionCollector[S]) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
-	// parse partition config
-	if err := c.initialiseConfig(req.PartitionData); err != nil {
-		return err
-	}
 
 	// TODO K validate no extractor
 

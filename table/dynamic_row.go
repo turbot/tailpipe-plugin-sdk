@@ -11,6 +11,9 @@ type DynamicRow struct {
 	// NOTE: no JSON tags are required here as we override the JSON serialization
 	enrichment.CommonFields
 
+	// TODO populate this on the row before calling enrich
+	mappings enrichment.CommonFieldsMappings
+
 	// dynamic columns
 	Columns map[string]string
 }
@@ -28,7 +31,8 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
-func (l *DynamicRow) Enrich(mappings enrichment.CommonFieldsMappings, fields enrichment.CommonFields) {
+func (l *DynamicRow) Enrich(fields enrichment.CommonFields) {
+
 	l.CommonFields = fields
 
 	// Standard record enrichment
@@ -36,7 +40,7 @@ func (l *DynamicRow) Enrich(mappings enrichment.CommonFieldsMappings, fields enr
 	l.TpIngestTimestamp = time.Now()
 
 	// init common fields using the mappings and our column values
-	l.CommonFields.InitialiseFromMap(l.Columns, mappings)
+	l.CommonFields.InitialiseFromMap(l.Columns, l.mappings)
 
 	// if no index is set, set the the default
 	if l.TpIndex == "" {
