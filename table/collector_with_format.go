@@ -13,19 +13,32 @@ import (
 type CollectorWithFormat[R types.RowStruct, S parse.Config] struct {
 	CollectorImpl[R]
 
+	// shadow the table field from the base collector, so we store it as a TableWithFormat,
+	//to avoid the need for a type assertion
+	Table TableWithFormat[R, S]
 	// the table format
 	Format S
 }
 
+func NewCollectorWithFormat[R types.RowStruct, S parse.Config, T TableWithFormat[R, S]]() *CollectorWithFormat[R, S] {
+	table := utils.InstanceOf[T]()
+
+	return &CollectorWithFormat[R, S]{
+		Table: table,
+		CollectorImpl: CollectorImpl[R]{
+			Table: table,
+		},
+	}
+
+}
 func (c *CollectorWithFormat[R, S]) Init(ctx context.Context, req *types.CollectRequest) error {
-	c.req = req
 	// parse format config
 	if err := c.initialiseFormat(req.SourceFormat); err != nil {
 		return err
 	}
 
-	// set the format on the table (we know it supports it as our T TableWithFormat constraint ensures it)
-	any(c.Table).(TableWithFormat[R, S]).SetFormat(c.Format)
+	// set the format on the table
+	c.Table.SetFormat(c.Format)
 
 	// now call base init
 	return c.CollectorImpl.Init(ctx, req)
@@ -47,7 +60,7 @@ func (c *CollectorWithFormat[R, S]) initialiseFormat(formatData config_data.Conf
 
 	// validate format
 	if err := format.Validate(); err != nil {
-		return fmt.Errorf("invalid partition config: %w", err)
+		return fmt.Errorf("invalid format config: %w", err)
 	}
 
 	return nil

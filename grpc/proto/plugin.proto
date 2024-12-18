@@ -63,8 +63,10 @@ message CollectResponse {
 message Schema {
   // Map of source field name to column name and type
   repeated ColumnSchema columns = 1;
-  // The mode of the schema - must be one of 'full', 'partial` (or 'dynamic' but that is unexpected as it means no columns are specified)
-  string mode = 2;
+  // should we include ALL source fields in addition to any defined columns, or ONLY include the columns defined
+  bool automap_source_fields = 2;
+  // should we exclude any source fields from the output (only applicable if automap_source_fields is true)
+  repeated string exclude_source_fields = 3;
 }
 
 message ColumnSchema {

@@ -2,12 +2,14 @@ package enrichment
 
 import (
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
+
+const DefaultIndex = "default"
 
 // CommonFields represents the common fields with JSON tags
 type CommonFields struct {
@@ -100,122 +102,143 @@ func (c *CommonFields) GetCommonFields() CommonFields {
 	return *c
 }
 
-func (c *CommonFields) InitialiseFromMap(source map[string]string, mappings CommonFieldsMappings) {
-	if val, ok := source[mappings.TpTimestamp]; ok {
-		if t, err := time.Parse(time.RFC3339, val); err == nil {
+// InitialiseFromMap initializes a CommonFields struct using a source map and schema.
+func (c *CommonFields) InitialiseFromMap(source map[string]string, schema *schema.RowSchema) {
+	const timeFormat = time.RFC3339
+
+	columnMappings := schema.AsMap()
+
+	// Helper function to get the value from the source map based on schema mapping
+	getValue := func(fieldName string) (string, bool) {
+		sourceField := fieldName
+		if schemaField, ok := columnMappings[fieldName]; ok {
+			if schemaField.SourceName != "" {
+				sourceField = schemaField.SourceName
+			}
+		}
+		value, ok := source[sourceField]
+		return value, ok
+	}
+
+	// Mandatory fields
+	if value, ok := getValue("tp_id"); ok {
+		c.TpID = value
+	}
+	if value, ok := getValue("tp_source_type"); ok {
+		c.TpSourceType = value
+	}
+	if value, ok := getValue("tp_ingest_timestamp"); ok {
+		if t, err := time.Parse(timeFormat, value); err == nil {
+			c.TpIngestTimestamp = t
+		}
+	}
+	if value, ok := getValue("tp_timestamp"); ok {
+		if t, err := time.Parse(timeFormat, value); err == nil {
 			c.TpTimestamp = t
-			c.TpDate = t.Truncate(24 * time.Hour)
-		} else {
-			// TODO #errors what to do
-			slog.Warn("Failed to parse timestamp", "value", val, "error", err)
 		}
 	}
 
-	if mappings.TpIndex != nil {
-		if val, ok := source[*mappings.TpIndex]; ok {
-			c.TpIndex = val
+	// Hive fields
+	if value, ok := getValue("tp_table"); ok {
+		c.TpTable = value
+	}
+	if value, ok := getValue("tp_partition"); ok {
+		c.TpPartition = value
+	}
+	if value, ok := getValue("tp_index"); ok {
+		c.TpIndex = value
+	}
+	if value, ok := getValue("tp_date"); ok {
+		if t, err := time.Parse(timeFormat, value); err == nil {
+			c.TpDate = t
 		}
 	}
 
-	if mappings.TpSourceIP != nil {
-		if val, ok := source[*mappings.TpSourceIP]; ok {
-			c.TpSourceIP = &val
-		}
+	// Optional fields
+	if value, ok := getValue("tp_source_ip"); ok {
+		c.TpSourceIP = &value
+	}
+	if value, ok := getValue("tp_destination_ip"); ok {
+		c.TpDestinationIP = &value
+	}
+	if value, ok := getValue("tp_source_name"); ok {
+		c.TpSourceName = &value
+	}
+	if value, ok := getValue("tp_source_location"); ok {
+		c.TpSourceLocation = &value
 	}
 
-	if mappings.TpDestinationIP != nil {
-		if val, ok := source[*mappings.TpDestinationIP]; ok {
-			c.TpDestinationIP = &val
-
-		}
+	// Searchable fields (slices)
+	if value, ok := getValue("tp_akas"); ok {
+		c.TpAkas = strings.Split(value, ",")
 	}
-
-	if mappings.TpSourceName != nil {
-		if val, ok := source[*mappings.TpSourceName]; ok {
-			c.TpSourceName = &val
-		}
+	if value, ok := getValue("tp_ips"); ok {
+		c.TpIps = strings.Split(value, ",")
 	}
-
-	if mappings.TpSourceLocation != nil {
-		if val, ok := source[*mappings.TpSourceLocation]; ok {
-			c.TpSourceLocation = &val
-		}
+	if value, ok := getValue("tp_tags"); ok {
+		c.TpTags = strings.Split(value, ",")
 	}
-
-	// TODO K not sure about the arrays - for now assume escaped csv
-	if mappings.TpAkas != nil {
-		if val, ok := source[*mappings.TpAkas]; ok {
-			// try to split the strings into an array
-			c.TpAkas = strings.Split(val, ",")
-		}
+	if value, ok := getValue("tp_domains"); ok {
+		c.TpDomains = strings.Split(value, ",")
 	}
-
-	if mappings.TpIps != nil {
-		if val, ok := source[*mappings.TpIps]; ok {
-			// try to split the strings into an array
-			c.TpIps = strings.Split(val, ",")
-		}
+	if value, ok := getValue("tp_emails"); ok {
+		c.TpEmails = strings.Split(value, ",")
 	}
-
-	if mappings.TpTags != nil {
-		if val, ok := source[*mappings.TpTags]; ok {
-			// try to split the strings into an array
-			c.TpTags = strings.Split(val, ",")
-		}
+	if value, ok := getValue("tp_usernames"); ok {
+		c.TpUsernames = strings.Split(value, ",")
 	}
-
-	if mappings.TpDomains != nil {
-		if val, ok := source[*mappings.TpDomains]; ok {
-			// try to split the strings into an array
-			c.TpDomains = strings.Split(val, ",")
-		}
-	}
-
-	if mappings.TpEmails != nil {
-		if val, ok := source[*mappings.TpEmails]; ok {
-			// try to split the strings into an array
-			c.TpEmails = strings.Split(val, ",")
-		}
-	}
-
-	if mappings.TpUsernames != nil {
-		if val, ok := source[*mappings.TpUsernames]; ok {
-			// try to split the strings into an array
-			c.TpUsernames = strings.Split(val, ",")
-		}
-	}
-
 }
 
-func (c *CommonFields) AsMap() map[string]interface{} {
-	var m = make(map[string]interface{})
-	m["tp_id"] = c.TpID
-	m["tp_source_type"] = c.TpSourceType
-	m["tp_ingest_timestamp"] = c.TpIngestTimestamp
-	m["tp_timestamp"] = c.TpTimestamp
-	m["tp_table"] = c.TpTable
-	m["tp_partition"] = c.TpPartition
-	m["tp_index"] = c.TpIndex
-	m["tp_date"] = c.TpDate
+// AsMap converts the CommonFields struct into a map[string]string.
+func (c *CommonFields) AsMap() map[string]string {
+	result := make(map[string]string)
+	const timeFormat = time.RFC3339
+
+	// Mandatory fields
+	result["tp_id"] = c.TpID
+	result["tp_source_type"] = c.TpSourceType
+	result["tp_ingest_timestamp"] = c.TpIngestTimestamp.Format(timeFormat)
+	result["tp_timestamp"] = c.TpTimestamp.Format(timeFormat)
+
+	// Hive fields
+	result["tp_table"] = c.TpTable
+	result["tp_partition"] = c.TpPartition
+	result["tp_index"] = c.TpIndex
+	result["tp_date"] = c.TpDate.Format(timeFormat)
+
+	// Optional fields
 	if c.TpSourceIP != nil {
-		m["tp_source_ip"] = *c.TpSourceIP
+		result["tp_source_ip"] = *c.TpSourceIP
 	}
 	if c.TpDestinationIP != nil {
-		m["tp_destination_ip"] = *c.TpDestinationIP
+		result["tp_destination_ip"] = *c.TpDestinationIP
 	}
 	if c.TpSourceName != nil {
-		m["tp_source_name"] = *c.TpSourceName
+		result["tp_source_name"] = *c.TpSourceName
 	}
 	if c.TpSourceLocation != nil {
-		m["tp_source_location"] = *c.TpSourceLocation
+		result["tp_source_location"] = *c.TpSourceLocation
 	}
 
-	m["tp_akas"] = c.TpAkas
-	m["tp_ips"] = c.TpIps
-	m["tp_tags"] = c.TpTags
-	m["tp_domains"] = c.TpDomains
-	m["tp_emails"] = c.TpEmails
-	m["tp_usernames"] = c.TpUsernames
+	// Searchable fields
+	if len(c.TpAkas) > 0 {
+		result["tp_akas"] = strings.Join(c.TpAkas, ",")
+	}
+	if len(c.TpIps) > 0 {
+		result["tp_ips"] = strings.Join(c.TpIps, ",")
+	}
+	if len(c.TpTags) > 0 {
+		result["tp_tags"] = strings.Join(c.TpTags, ",")
+	}
+	if len(c.TpDomains) > 0 {
+		result["tp_domains"] = strings.Join(c.TpDomains, ",")
+	}
+	if len(c.TpEmails) > 0 {
+		result["tp_emails"] = strings.Join(c.TpEmails, ",")
+	}
+	if len(c.TpUsernames) > 0 {
+		result["tp_usernames"] = strings.Join(c.TpUsernames, ",")
+	}
 
-	return m
+	return result
 }

@@ -107,7 +107,7 @@ func GetReadCsvChunkQueryFormat(sourceFile string, opts ...CsvToJsonOpts) string
 }
 
 func getSchemaColumnSelect(rowSchema *schema.RowSchema) string {
-	if rowSchema == nil || len(rowSchema.Columns) == 0 || rowSchema.Mode != schema.ModeFull {
+	if rowSchema == nil || len(rowSchema.Columns) == 0 || rowSchema.AutoMapSourceFields {
 		return "*"
 	}
 

@@ -7,6 +7,7 @@ toolchain go1.23.2
 replace github.com/turbot/pipe-fittings => ../pipe-fittings
 
 require (
+	github.com/elastic/go-grok v0.3.1
 	github.com/gorilla/mux v1.8.1
 	github.com/hashicorp/go-hclog v1.6.2
 	github.com/hashicorp/go-plugin v1.6.1
@@ -115,6 +116,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
+	github.com/magefile/mage v1.15.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect

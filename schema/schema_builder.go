@@ -34,8 +34,8 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
 	if err != nil {
 		return nil, err
 	}
-	// set mode to full
-	res.Mode = ModeFull
+	// just use the column names from the struct, do not automap source fields
+	res.AutoMapSourceFields = false
 	return res, nil
 }
 

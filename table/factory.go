@@ -17,11 +17,7 @@ var Factory = newTableFactory()
 // this is called from the package init function of the table implementation
 func RegisterTableFormat[R types.RowStruct, S parse.Config, T TableWithFormat[R, S]]() {
 	collectorFunc := func() Collector {
-		return &CollectorWithFormat[R, S]{
-			CollectorImpl: CollectorImpl[R]{
-				Table: utils.InstanceOf[T](),
-			},
-		}
+		return NewCollectorWithFormat[R, S, T]()
 	}
 
 	Factory.registerCollector(collectorFunc)

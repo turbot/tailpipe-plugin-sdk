@@ -299,7 +299,13 @@ func (c *CollectorImpl[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
 		return row, nil
 	}
 
-	return c.mapper.Map(ctx, rawRow)
+	// if there is a custom table, pass the schema to the mapper
+	var opts []MapOption[R]
+	if c.req.CustomTable != nil {
+		opts = append(opts, WithSchema[R](c.req.CustomTable.Schema))
+	}
+
+	return c.mapper.Map(ctx, rawRow, opts...)
 }
 
 // onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full

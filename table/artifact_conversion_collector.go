@@ -81,8 +81,6 @@ func (c *ArtifactConversionCollector[S]) GetSchema() (*schema.RowSchema, error) 
 	if err != nil {
 		return nil, err
 	}
-	// set mode to partial
-	s.Mode = schema.ModePartial
 
 	// does the config implement GetSchema()
 	// NOTE: the config may be nil here as this is called both from collection and from the factory
