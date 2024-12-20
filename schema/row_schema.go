@@ -3,6 +3,7 @@ package schema
 import (
 	"fmt"
 	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -26,25 +27,6 @@ func (r *RowSchema) ToProto() *proto.Schema {
 		res.Columns[i] = pp
 	}
 	return res
-}
-
-func (r *RowSchema) DefaultTo(other *RowSchema) {
-	// build a lookup of our columns
-	var colLookup = make(map[string]*ColumnSchema, len(r.Columns))
-	for _, c := range r.Columns {
-		colLookup[c.SourceName] = c
-	}
-
-	for _, c := range other.Columns {
-		// if we DO NOT already have this column, add it
-		if _, ok := colLookup[c.SourceName]; !ok {
-			r.Columns = append(r.Columns, c)
-		}
-	}
-	// if the other schema is NOT set to automap source fields, we should not either
-	if other.AutoMapSourceFields == false {
-		r.AutoMapSourceFields = false
-	}
 }
 
 func (r *RowSchema) AsMap() map[string]*ColumnSchema {
@@ -95,4 +77,65 @@ func (r *RowSchema) MapRow(rowMap map[string]string) (map[string]string, error) 
 		}
 	}
 	return res, nil
+}
+
+// InitialiseFromInferredSchema populates this schema using an inferred row schema
+// this is called from the CLI when we are trying to determine the full schema after receiving the first JSONL file
+// it either adds all fields in the inferred schema (if AutoMapSourceFields is true) or
+// just populate missing types if AutoMapSourceFields is false
+func (r *RowSchema) InitialiseFromInferredSchema(inferredSchema *RowSchema) {
+	// TOPDO K test this
+	// if we are in autoMap mode, we use the inferred schema in full
+	if r.AutoMapSourceFields {
+		// store our own schema as a map
+		selfMap := r.AsMap()
+		excludedMap := utils.SliceToLookup(r.ExcludeSourceFields)
+		for _, c := range inferredSchema.Columns {
+			// skip common fields (which will already be in our schema)
+			if enrichment.IsCommonField(c.ColumnName) {
+				continue
+			}
+			// skip any excluded fields
+			if _, excluded := excludedMap[c.ColumnName]; excluded {
+				continue
+			}
+			// we already have this column - does it have a type?
+			if columnSchema, haveColumn := selfMap[c.ColumnName]; haveColumn {
+				if columnSchema.Type == "" {
+					columnSchema.Type = c.Type
+				}
+			} else {
+				// we do not have this column - add it add this column
+				r.Columns = append(r.Columns, c)
+			}
+		}
+	} else {
+		// we ar not automapping - just the typ efor any columns missing a type
+		inferredMap := inferredSchema.AsMap()
+
+		for _, c := range r.Columns {
+			if c.Type == "" {
+				columnSchema, ok := inferredMap[c.ColumnName]
+				if !ok {
+					return
+				}
+				c.Type = columnSchema.Type
+			}
+		}
+	}
+	return
+}
+
+func (r *RowSchema) Complete() bool {
+	return len(r.columnsWithNoType()) == 0 && !r.AutoMapSourceFields
+}
+
+func (r *RowSchema) columnsWithNoType() []string {
+	var res []string
+	for _, c := range r.Columns {
+		if c.Type == "" {
+			res = append(res, c.ColumnName)
+		}
+	}
+	return res
 }

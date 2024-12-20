@@ -43,6 +43,8 @@ func (r *Status) Update(event Event) {
 		r.ArtifactsDownloaded++
 	case *ArtifactExtracted:
 		r.ArtifactsExtracted++
+	case *Error:
+		r.Errors++
 	case *Row:
 		r.RowsEnriched++
 	case *Status:

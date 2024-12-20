@@ -242,3 +242,30 @@ func (c *CommonFields) AsMap() map[string]string {
 
 	return result
 }
+
+// CommonFieldNameMap is a lookup of all the common field names
+var CommonFieldNameMap = map[string]struct{}{
+	"tp_id":               {},
+	"tp_source_type":      {},
+	"tp_ingest_timestamp": {},
+	"tp_timestamp":        {},
+	"tp_table":            {},
+	"tp_partition":        {},
+	"tp_index":            {},
+	"tp_date":             {},
+	"tp_source_ip":        {},
+	"tp_destination_ip":   {},
+	"tp_source_name":      {},
+	"tp_source_location":  {},
+	"tp_akas":             {},
+	"tp_ips":              {},
+	"tp_tags":             {},
+	"tp_domains":          {},
+	"tp_emails":           {},
+	"tp_usernames":        {},
+}
+
+func IsCommonField(name string) bool {
+	_, ok := CommonFieldNameMap[name]
+	return ok
+}

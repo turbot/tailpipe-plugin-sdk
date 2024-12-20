@@ -48,20 +48,24 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	if err != nil {
 		return nil, err
 	}
-	sourceFormat, err := config_data.DataFromProto[*config_data.FormatConfigData](pr.SourceFormat)
-	if err != nil {
-		return nil, err
-	}
 
 	req := &CollectRequest{
 		TableName:       pr.TableName,
 		PartitionName:   pr.PartitionName,
 		ExecutionId:     pr.ExecutionId,
 		OutputPath:      pr.OutputPath,
-		SourceFormat:    sourceFormat,
 		SourceData:      sourceData,
 		CollectionState: pr.CollectionState,
 	}
+
+	if pr.SourceFormat != nil {
+		sourceFormat, err := config_data.DataFromProto[*config_data.FormatConfigData](pr.SourceFormat)
+		if err != nil {
+			return nil, err
+		}
+		req.SourceFormat = sourceFormat
+	}
+
 	if pr.ConnectionData != nil {
 		connectionData, err := config_data.DataFromProto[*config_data.ConnectionConfigData](pr.ConnectionData)
 		if err != nil {
@@ -72,5 +76,6 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	if pr.CustomTable != nil {
 		req.CustomTable = TableFromProto(pr.CustomTable)
 	}
+
 	return req, nil
 }

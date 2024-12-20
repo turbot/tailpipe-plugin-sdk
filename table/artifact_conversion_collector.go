@@ -11,10 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
@@ -34,7 +32,7 @@ type ArtifactConversionCollector[S parse.Config] struct {
 	// the source format
 	formatData *proto.ConfigData
 	// the table config
-	Config S
+	Format S
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
@@ -75,29 +73,8 @@ func (c *ArtifactConversionCollector[S]) Identifier() string {
 // GetSchema returns the schema of the table if available
 // for dynamic tables, the schema is only available at this if the config contains a schema
 func (c *ArtifactConversionCollector[S]) GetSchema() (*schema.RowSchema, error) {
-
-	// get the schema from the common fields
-	s, err := schema.SchemaFromStruct(enrichment.CommonFields{})
-	if err != nil {
-		return nil, err
-	}
-
-	// does the config implement GetSchema()
-	// NOTE: the config may be nil here as this is called both from collection and from the factory
-	// (if a Describe call has been made)
-	if !helpers.IsNil(c.Config) {
-		if d, ok := any(c.Config).(parse.DynamicTableConfig); ok {
-			// return s from config, if defined (NO
-			configuredSchema := d.GetSchema()
-			if configuredSchema != nil {
-				// if we have a schema from the config, use it (but do not overwrite the schema from the common fields)
-				s.DefaultTo(configuredSchema)
-			}
-		}
-	}
-
-	return s, nil
-
+	var row *DynamicRow
+	return row.ResolveSchema(c.req.CustomTable)
 }
 
 func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData config_data.ConfigData) error {
@@ -112,11 +89,11 @@ func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData config
 		}
 
 		slog.Info("tableName RowSourceImpl: config parsed", "config", c)
-		c.Config = cfg
+		c.Format = cfg
 	}
 
 	// validate config
-	if err := c.Config.Validate(); err != nil {
+	if err := c.Format.Validate(); err != nil {
 		return fmt.Errorf("invalid partition config: %w", err)
 	}
 
@@ -135,11 +112,11 @@ func (c *ArtifactConversionCollector[S]) initialiseFormat(tableConfigData config
 		}
 
 		slog.Info("tableName RowSourceImpl: config parsed", "config", c)
-		c.Config = cfg
+		c.Format = cfg
 	}
 
 	// validate config
-	if err := c.Config.Validate(); err != nil {
+	if err := c.Format.Validate(); err != nil {
 		return fmt.Errorf("invalid partition config: %w", err)
 	}
 
