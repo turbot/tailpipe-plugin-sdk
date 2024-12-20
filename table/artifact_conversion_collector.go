@@ -53,9 +53,8 @@ func NewArtifactConversionCollector[S parse.Config](tableName string, formatData
 func (c *ArtifactConversionCollector[S]) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
 
-	// TODO K validate no extractor
-
-	// TODO K validate table name does not clash
+	// TODO #validate validate no extractor
+	// TODO #validate validate table name does not clash
 
 	slog.Info("tableName RowSourceImpl: Collect", "table", c.tableName)
 	if err := c.initSource(ctx, req.SourceData, req.ConnectionData); err != nil {

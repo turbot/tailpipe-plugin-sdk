@@ -91,7 +91,7 @@ func IsArtifactSource(sourceType string) bool {
 		return true
 	}
 
-	// TODO K hack STRICTLY TEMPORARY
+	// TODO hack STRICTLY TEMPORARY https://github.com/turbot/tailpipe-plugin-sdk/issues/67
 	// we cannot reference artifact_source here as it would create a circular dependency
 	// for now use a map of known types
 	artifactSources := map[string]struct{}{
