@@ -4,9 +4,9 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type ArtifactToJsonConverterImpl[S parse.Config] struct {
@@ -23,7 +23,7 @@ func (c *ArtifactToJsonConverterImpl[S]) GetSourceMetadata(_ S) []*SourceMetadat
 	}
 }
 
-func (c *ArtifactToJsonConverterImpl[S]) EnrichRow(_ *DynamicRow, _ S, _ enrichment.SourceEnrichment) (*DynamicRow, error) {
+func (c *ArtifactToJsonConverterImpl[S]) EnrichRow(_ *DynamicRow, _ S, _ schema.SourceEnrichment) (*DynamicRow, error) {
 	// this should never be called as we are using a null loader which means we will not receive row events
 	panic("EnrichRow should never be called for tables implementing ArtifactToJsonConverter")
 }

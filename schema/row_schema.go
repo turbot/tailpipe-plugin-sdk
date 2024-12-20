@@ -2,8 +2,8 @@ package schema
 
 import (
 	"fmt"
+
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -92,7 +92,7 @@ func (r *RowSchema) InitialiseFromInferredSchema(inferredSchema *RowSchema) {
 		excludedMap := utils.SliceToLookup(r.ExcludeSourceFields)
 		for _, c := range inferredSchema.Columns {
 			// skip common fields (which will already be in our schema)
-			if enrichment.IsCommonField(c.ColumnName) {
+			if IsCommonField(c.ColumnName) {
 				continue
 			}
 			// skip any excluded fields

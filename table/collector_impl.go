@@ -117,6 +117,8 @@ func (c *CollectorImpl[R]) Collect(ctx context.Context) (int, int, error) {
 		return 0, 0, err
 	}
 
+	return 0, 0, fmt.Errorf("not implemented")
+
 	slog.Info("Source collection complete - waiting for enrichment")
 
 	// wait for all rows to be processed

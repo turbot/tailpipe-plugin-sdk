@@ -1,4 +1,4 @@
-package enrichment
+package schema
 
 type SourceEnrichment struct {
 	CommonFields CommonFields

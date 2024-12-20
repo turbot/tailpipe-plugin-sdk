@@ -1,4 +1,4 @@
-package enrichment
+package schema
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 const DefaultIndex = "default"
@@ -103,7 +102,7 @@ func (c *CommonFields) GetCommonFields() CommonFields {
 }
 
 // InitialiseFromMap initializes a CommonFields struct using a source map and schema.
-func (c *CommonFields) InitialiseFromMap(source map[string]string, schema *schema.RowSchema) {
+func (c *CommonFields) InitialiseFromMap(source map[string]string, schema *RowSchema) {
 	const timeFormat = time.RFC3339
 
 	columnMappings := schema.AsMap()

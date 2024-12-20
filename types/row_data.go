@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 // RowData is a container for the data and metadata of an row
@@ -9,7 +9,7 @@ import (
 // The RowData returned by the loader  is used as the payload of a [events.Row] which is sent to the [table.Table]
 type RowData struct {
 	Data             any
-	SourceEnrichment *enrichment.SourceEnrichment
+	SourceEnrichment *schema.SourceEnrichment
 }
 
 //// ArtifactDataOption is a function that can be used to set options on an RowData

@@ -3,7 +3,6 @@ package table
 import (
 	"context"
 
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -24,7 +23,7 @@ type Table[R types.RowStruct] interface {
 	// GetSourceMetadata returns the supported sources for the table
 	GetSourceMetadata() []*SourceMetadata[R]
 	// EnrichRow is called to enrich the row with common (tp_*) fields
-	EnrichRow(R, enrichment.SourceEnrichment) (R, error)
+	EnrichRow(R, schema.SourceEnrichment) (R, error)
 }
 
 // Collector is an interface which provides a methods for collecting table data from a source

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/rs/xid"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -29,7 +28,7 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
-func (l *DynamicRow) Enrich(fields enrichment.CommonFields) {
+func (l *DynamicRow) Enrich(fields schema.CommonFields) {
 	for k, v := range fields.AsMap() {
 		if _, ok := l.Columns[k]; !ok {
 			l.Columns[k] = v
@@ -44,7 +43,7 @@ func (l *DynamicRow) Enrich(fields enrichment.CommonFields) {
 
 	// if no index is set, set the the default
 	if l.Columns["tp_index"] == "" {
-		l.Columns["tp_index"] = enrichment.DefaultIndex
+		l.Columns["tp_index"] = schema.DefaultIndex
 	}
 
 	// if tp_date is not set, and tp_timestamp is, set tpDate to the date part of tpTimestamp
@@ -66,8 +65,8 @@ func (l *DynamicRow) Validate() error {
 	return commonFields.Validate()
 }
 
-func (l *DynamicRow) GetCommonFields() enrichment.CommonFields {
-	var res enrichment.CommonFields
+func (l *DynamicRow) GetCommonFields() schema.CommonFields {
+	var res schema.CommonFields
 	res.InitialiseFromMap(l.Columns, &schema.RowSchema{})
 	return res
 }
@@ -84,14 +83,14 @@ func (l *DynamicRow) ResolveSchema(customTable *types.Table) (*schema.RowSchema,
 		return nil, fmt.Errorf("no schema provided for dynamic row")
 	}
 	// get the schema from the common fields
-	s, err := schema.SchemaFromStruct(enrichment.CommonFields{})
+	s, err := schema.SchemaFromStruct(schema.CommonFields{})
 	if err != nil {
 		return nil, err
 	}
 
 	for _, c := range customTable.Schema.Columns {
 		// skip the common fields
-		if enrichment.IsCommonField(c.ColumnName) {
+		if schema.IsCommonField(c.ColumnName) {
 			continue
 		}
 		s.Columns = append(s.Columns, &schema.ColumnSchema{
