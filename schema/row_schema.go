@@ -84,7 +84,7 @@ func (r *RowSchema) MapRow(rowMap map[string]string) (map[string]string, error) 
 // it either adds all fields in the inferred schema (if AutoMapSourceFields is true) or
 // just populate missing types if AutoMapSourceFields is false
 func (r *RowSchema) InitialiseFromInferredSchema(inferredSchema *RowSchema) {
-	// TOPDO K test this
+	// TODO K test this https://github.com/turbot/tailpipe/issues/108
 	// if we are in autoMap mode, we use the inferred schema in full
 	if r.AutoMapSourceFields {
 		// store our own schema as a map
