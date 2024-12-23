@@ -24,7 +24,7 @@ import (
 
 const statusUpdateInterval = 250 * time.Millisecond
 
-// JSONLChunkSizeis the number of  rows to write in each JSONL file
+// JSONLChunkSize the number of  rows to write in each JSONL file
 // - make the same size as duck db uses to infer schema (10000)
 const JSONLChunkSize = 10000
 

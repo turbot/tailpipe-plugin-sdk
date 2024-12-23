@@ -1,12 +1,13 @@
 package collection_state
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/stretchr/testify/assert"
-	"github.com/ucarion/urlpath"
 	"net/http"
 	"net/url"
 	"testing"
+
+	"github.com/gorilla/mux"
+	"github.com/stretchr/testify/assert"
+	"github.com/ucarion/urlpath"
 )
 
 // TODO #testing

@@ -10,6 +10,8 @@ import (
 	"log/slog"
 )
 
+// CollectorWithFormat is a collector that has a table format
+// The format is parsed from the source format config
 type CollectorWithFormat[R types.RowStruct, S parse.Config] struct {
 	CollectorImpl[R]
 

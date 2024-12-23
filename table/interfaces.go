@@ -9,6 +9,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// TableWithFormat is a generic interface representing a plugin table definition with a format
 type TableWithFormat[R types.RowStruct, S parse.Config] interface {
 	Table[R]
 	SetFormat(S)
@@ -48,10 +49,12 @@ type Mapper[R types.RowStruct] interface {
 	Map(context.Context, any, ...MapOption[R]) (R, error)
 }
 
+// SchemaSetter is an interface which provides a method to set the schema
 type SchemaSetter interface {
 	SetSchema(*schema.RowSchema)
 }
 
+// WithSchema is a MapOption which sets the schema on a Mapper
 func WithSchema[R types.RowStruct](schema *schema.RowSchema) MapOption[R] {
 	return func(m Mapper[R]) {
 		if mapper, ok := m.(SchemaSetter); ok {

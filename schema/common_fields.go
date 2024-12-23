@@ -13,7 +13,6 @@ const DefaultIndex = "default"
 // CommonFields represents the common fields with JSON tags
 type CommonFields struct {
 	// Mandatory fields
-
 	TpID              string    `json:"tp_id"`
 	TpSourceType      string    `json:"tp_source_type"`
 	TpIngestTimestamp time.Time `json:"tp_ingest_timestamp"`

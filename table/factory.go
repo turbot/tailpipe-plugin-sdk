@@ -36,7 +36,7 @@ func RegisterTable[R types.RowStruct, T Table[R]]() {
 }
 
 // RegisterCollector registers a collector constructor directly
-// this is onl used if we need to specify a custom collector (used for custom tables)
+// this is only used if we need to specify a custom collector (used for custom tables)
 func RegisterCollector(collectorFunc func() Collector) {
 	Factory.registerCollector(collectorFunc)
 }
