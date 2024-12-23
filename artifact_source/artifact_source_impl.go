@@ -249,9 +249,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	// extract asynchronously
 	go func() {
 		extractStart := time.Now()
-		// TODO #error make sure errors handles and bubble back
 		err := a.processArtifact(ctx, info, collectionState)
-
 		// update extract active duration
 		activeDuration := time.Since(extractStart)
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name, "duration (ms)", activeDuration.Milliseconds())

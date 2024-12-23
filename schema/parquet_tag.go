@@ -56,8 +56,6 @@ func ParseParquetTag(tag string) (*ParquetTag, error) {
 	return pt.validate()
 }
 
-// TODO K use defs for these, shared with CLI??
-// TODO K func Testall of these(t *testing.T)
 // Define valid DuckDB types using a struct{} map for efficient membership checking
 var validDuckDBTypes = map[string]struct{}{
 	// TODO #schema STRUCT/LIST/ https://github.com/turbot/tailpipe-plugin-sdk/issues/21
@@ -86,7 +84,7 @@ var validDuckDBTypes = map[string]struct{}{
 }
 
 func (t *ParquetTag) validate() (*ParquetTag, error) {
-	// TODO #validation validate name is duckdb compliant?
+	// TODO #validation validate name is duckdb compliant? https://github.com/turbot/tailpipe-plugin-sdk/issues/70
 
 	if t.Type != "" {
 		// Convert type to upper case for case-insensitive comparison

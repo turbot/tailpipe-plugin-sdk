@@ -69,15 +69,6 @@ func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 		d := NewSourceConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1])
 		return ConfigData(d).(T), nil
 
-	case *PartitionConfigData:
-		if len(parts) != 3 {
-			return empty, fmt.Errorf("invalid source config target %s: expected a name of format partition.<table>.<partition>", data.Target)
-		}
-		if parts[0] != "partition" {
-			return empty, fmt.Errorf("invalid source config target %s: expected a partition", data.Target)
-		}
-		d := NewPartitionConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1], parts[2])
-		return ConfigData(d).(T), nil
 	case *ConnectionConfigData:
 		if len(parts) != 2 {
 			return empty, fmt.Errorf("invalid source config target %s: expected a name of format connection.<type>", data.Target)
@@ -86,6 +77,9 @@ func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 			return empty, fmt.Errorf("invalid source config target %s: expected a connection", data.Target)
 		}
 		d := NewConnectionConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1])
+		return ConfigData(d).(T), nil
+	case *FormatConfigData:
+		d := NewFormatConfigData(data.Hcl, proto.RangeFromProto(data.Range), data.Target)
 		return ConfigData(d).(T), nil
 	default:
 		return empty, fmt.Errorf("invalid config type %T", empty)

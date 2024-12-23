@@ -1,6 +1,6 @@
 package artifact_source
 
-// for now, sources muyst be parametrized by a connection, so we need a dummy connection for those that don't need one
+// for now, sources must be parametrized by a connection, so we need a dummy connection for those that don't need one
 type EmptyConnection struct {
 }
 

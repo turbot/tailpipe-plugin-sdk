@@ -1,6 +1,12 @@
 package table
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
+	"github.com/marcboeker/go-duckdb"
+	_ "github.com/marcboeker/go-duckdb"
+	"log"
 	"testing"
 )
 
@@ -107,8 +113,8 @@ import (
 //			if mappings == nil {
 //				mappings = map[string]string{}
 //			}
-//			if got := CsvToJsonQuery(tt.args.sourceFile, tt.args.destFile, mappings, tt.args.opts...); got != tt.want {
-//				t.Errorf("CsvToJsonQuery() = %v, want %v", got, tt.want)
+//			if got := GetReadCsvChunkQueryFormat(tt.args.sourceFile, tt.args.destFile, mappings, tt.args.opts...); got != tt.want {
+//				t.Errorf("GetReadCsvChunkQueryFormat() = %v, want %v", got, tt.want)
 //			}
 //		})
 //	}
@@ -130,9 +136,66 @@ func TestCsvToJsonQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CsvToJsonQuery(tt.args.sourceFile, tt.args.destFile, tt.args.mappings, tt.args.opts...); got != tt.want {
-				t.Errorf("CsvToJsonQuery() = %v, want %v", got, tt.want)
+			if got := GetReadCsvChunkQueryFormat(tt.args.sourceFile, tt.args.destFile, tt.args.mappings, tt.args.opts...); got != tt.want {
+				t.Errorf("GetReadCsvChunkQueryFormat() = %v, want %v", got, tt.want)
 			}
 		})
 	}
+}
+
+// test
+func TestFoo(t *testing.T) {
+
+	// Parameters
+	csvFile := "/Users/kai/tailpipe_data/a.csv"
+	outputTemplate := "/Users/kai/tailpipe_data/output_chunk_%d.jsonl"
+	chunkSize := 7
+	offset := 0
+
+	// Connect to DuckDB
+	db, err := sql.Open("duckdb", "")
+
+	if err != nil {
+		log.Fatalf("Failed to connect to DuckDB: %v", err)
+	}
+	defer db.Close()
+
+	for {
+		// Construct the COPY query
+		outputFile := fmt.Sprintf(outputTemplate, offset/chunkSize)
+		query := fmt.Sprintf(`
+			COPY (
+				SELECT * FROM read_csv('%s', skip=%d)
+				LIMIT %d¡
+			) TO '%s' (FORMAT JSON);
+		`, csvFile, offset, chunkSize, outputFile)
+
+		// Execute the query
+		_, err := db.Exec(query)
+		if err != nil {
+			// Stop if the error indicates we've reached the end of the file
+			if isEndOfFileError(err) {
+				fmt.Println("No more rows to process. Stopping.")
+				break
+			}
+			// Handle other errors
+			log.Fatalf("Failed to execute COPY: %v", err)
+		}
+
+		fmt.Printf("Wrote chunk to %s\n", outputFile)
+
+		// Increment the offset
+		offset += chunkSize
+	}
+
+	fmt.Println("Splitting complete!")
+}
+
+// Helper function to detect "end of file" error
+func isEndOfFileError(err error) bool {
+	var d *duckdb.Error
+	if errors.As(err, &d) {
+		return d.Type == duckdb.ErrorTypeInvalidInput
+	}
+	return false
 }

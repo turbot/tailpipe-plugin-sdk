@@ -1,18 +1,19 @@
 package types
 
 import (
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"log/slog"
 	"strconv"
 	"time"
+
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type ArtifactInfo struct {
 	Name         string `json:"-"`
 	OriginalName string `json:"-"`
 
-	SourceEnrichment *enrichment.SourceEnrichment `json:"-"`
+	SourceEnrichment *schema.SourceEnrichment `json:"-"`
 
 	// collection state properties
 	Index     string    `json:"index,omitempty"`

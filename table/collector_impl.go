@@ -2,11 +2,9 @@ package table
 
 import (
 	"context"
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/turbot/go-kit/helpers"
 	"log/slog"
 	"sync"
 	"time"
@@ -15,10 +13,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -28,7 +24,7 @@ import (
 
 const statusUpdateInterval = 250 * time.Millisecond
 
-// JSONLChunkSizeis the number of  rows to write in each JSONL file
+// JSONLChunkSize the number of  rows to write in each JSONL file
 // - make the same size as duck db uses to infer schema (10000)
 const JSONLChunkSize = 10000
 
@@ -38,15 +34,12 @@ const JSONLChunkSize = 10000
 // S is the type of the partition config
 // T is the type of the table
 // U is the type of the connection
-type CollectorImpl[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
+type CollectorImpl[R types.RowStruct] struct {
 	observable.ObservableImpl
 
-	table  Table[R, S]
+	Table  Table[R]
 	source row_source.RowSource
 	mapper Mapper[R]
-
-	// the table config
-	Config S
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
@@ -71,14 +64,10 @@ type CollectorImpl[R types.RowStruct, S parse.Config, T Table[R, S]] struct {
 	writer ChunkWriter
 }
 
-func (c *CollectorImpl[R, S, T]) Init(ctx context.Context, req *types.CollectRequest) error {
+func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
-	// parse partition config
-	if err := c.initialiseConfig(req.PartitionData); err != nil {
-		return err
-	}
 
-	slog.Info("Table RowSourceImpl: Collect", "table", c.table.Identifier())
+	slog.Info("CollectorImpl: Collect", "Table", c.Table.Identifier())
 	if err := c.initSource(ctx, req.SourceData, req.ConnectionData); err != nil {
 		return err
 	}
@@ -94,71 +83,30 @@ func (c *CollectorImpl[R, S, T]) Init(ctx context.Context, req *types.CollectReq
 	return nil
 }
 
-func (c *CollectorImpl[R, S, T]) Identifier() string {
-	return c.table.Identifier()
+func (c *CollectorImpl[R]) Identifier() string {
+	return c.Table.Identifier()
 }
 
-// GetSchema returns the schema of the table if available
-// for dynamic tables, the schema is only available at this if the config contains a schema
-func (c *CollectorImpl[R, S, T]) GetSchema() (*schema.RowSchema, error) {
+// GetSchema returns the schema of the table
+func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
 	rowStruct := utils.InstanceOf[R]()
 
 	// if the table has a dynamic row, we can only return the schema is the config supports it
-	if _, ok := any(rowStruct).(*DynamicRow); ok {
-
-		// get the schema from the common fields
-		s, err := schema.SchemaFromStruct(enrichment.CommonFields{})
-		if err != nil {
-			return nil, err
+	if d, ok := any(rowStruct).(*DynamicRow); ok {
+		// we must have a custom table
+		customTable := c.req.CustomTable
+		if customTable == nil {
+			return nil, fmt.Errorf("table %s has dynamic row but no custom table definition", c.Table.Identifier())
 		}
-		// set mode to partial
-		s.Mode = schema.ModePartial
-
-		// does the config implement GetSchema()
-		// NOTE: the config may be nil here as this is called both from collection and from the factory
-		// (if a Describe call has been made)
-		if !helpers.IsNil(c.Config) {
-			if d, ok := any(c.Config).(parse.DynamicTableConfig); ok {
-				// return s from config, if defined (NO
-				configuredSchema := d.GetSchema()
-				if configuredSchema != nil {
-					// if we have a schema from the config, use it (but do not overwrite the schema from the common fields)
-					s.DefaultTo(configuredSchema)
-				}
-			}
-		}
-
-		return s, nil
+		return d.ResolveSchema(customTable)
 	}
 
 	// otherwise, return the schema from the row struct
 	return schema.SchemaFromStruct(rowStruct)
 }
 
-func (c *CollectorImpl[R, S, T]) initialiseConfig(tableConfigData config_data.ConfigData) error {
-	// default to empty config
-	cfg := utils.InstanceOf[S]()
-	if len(tableConfigData.GetHcl()) > 0 {
-		var err error
-		cfg, err = parse.ParseConfig[S](tableConfigData)
-		if err != nil {
-			return fmt.Errorf("error parsing config: %w", err)
-		}
-
-		slog.Info("Table RowSourceImpl: config parsed", "config", c)
-	}
-	c.Config = cfg
-
-	// validate config
-	if err := cfg.Validate(); err != nil {
-		return fmt.Errorf("invalid partition config: %w", err)
-	}
-
-	return nil
-}
-
 // Collect executes the collection process. Tell our source to start collection
-func (c *CollectorImpl[R, S, T]) Collect(ctx context.Context) (int, int, error) {
+func (c *CollectorImpl[R]) Collect(ctx context.Context) (int, int, error) {
 	// create empty status event#
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
 
@@ -181,7 +129,7 @@ func (c *CollectorImpl[R, S, T]) Collect(ctx context.Context) (int, int, error) 
 
 	// notify observers of final status
 	if err := c.NotifyObservers(ctx, c.status); err != nil {
-		slog.Error("Table RowSourceImpl: error notifying observers of status", "error", err)
+		slog.Error("CollectorImpl: error notifying observers of status", "error", err)
 	}
 
 	return c.WriteRemainingRows(ctx, c.req.ExecutionId)
@@ -189,19 +137,19 @@ func (c *CollectorImpl[R, S, T]) Collect(ctx context.Context) (int, int, error) 
 
 // Notify implements observable.Observer
 // it handles all events which collectorFuncMap may receive (these will all come from the source)
-func (c *CollectorImpl[R, S, T]) Notify(ctx context.Context, event events.Event) error {
+func (c *CollectorImpl[R]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	c.updateStatus(ctx, event)
 
 	switch e := event.(type) {
-	case *events.ArtifactDownloaded:
-		// handle artifact downloaded event - we only act on this if the table implements ArtifactToJsonConverter
-		return c.handleArtifactDownloaded(ctx, e)
+
 	case *events.Row:
 		// handle row event - map, enrich and publish the row
-		// NOTE: we will not receive these if the table implements ArtifactToJsonConverter and therefore has a null loader
 		return c.handleRowEvent(ctx, e)
 	case *events.Error:
+		// TODO determine whether this is a non-fatal error (in which case send an error event??) or a fatal error https://github.com/turbot/tailpipe-plugin-sdk/issues/72
+		// in which case we need to terminate execution
+
 		slog.Error("CollectorImpl: error event received", "error", e.Err)
 		return c.NotifyObservers(context.Background(), e)
 	default:
@@ -210,11 +158,11 @@ func (c *CollectorImpl[R, S, T]) Notify(ctx context.Context, event events.Event)
 	}
 }
 
-func (c *CollectorImpl[R, S, T]) GetTiming() types.TimingCollection {
+func (c *CollectorImpl[R]) GetTiming() types.TimingCollection {
 	return append(c.source.GetTiming(), c.enrichTiming)
 }
 
-func (c *CollectorImpl[R, S, T]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
+func (c *CollectorImpl[R]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
 	requestedSource := configData.Type
 
 	// get the source metadata for this source type
@@ -241,7 +189,7 @@ func (c *CollectorImpl[R, S, T]) initSource(ctx context.Context, configData *con
 	return c.source.AddObserver(c)
 }
 
-func (c *CollectorImpl[R, S, T]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
+func (c *CollectorImpl[R]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
 	// get the supported sources for the table
 	supportedSourceMap := c.getSourceMetadataMap()
 
@@ -253,14 +201,14 @@ func (c *CollectorImpl[R, S, T]) getSourceMetadata(requestedSource string) (sour
 		// whereas the map will have an entry keyed by `artifact`
 
 		// is the requested source an artifact source?
-		if row_source.Factory.IsArtifactSource(requestedSource) {
+		if row_source.IsArtifactSource(requestedSource) {
 			// check whether the supported sources map has an entry for 'artifact'
 			sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]
 		}
 
 		// if we still don't have a source metadata, return an error
 		if !ok {
-			return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.table.Identifier())
+			return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.Table.Identifier())
 		}
 	}
 
@@ -275,8 +223,8 @@ func (c *CollectorImpl[R, S, T]) getSourceMetadata(requestedSource string) (sour
 }
 
 // ask table for it;s supported sources and put into map for ease of lookup
-func (c *CollectorImpl[R, S, T]) getSourceMetadataMap() map[string]*SourceMetadata[R] {
-	supportedSources := c.table.GetSourceMetadata(c.Config)
+func (c *CollectorImpl[R]) getSourceMetadataMap() map[string]*SourceMetadata[R] {
+	supportedSources := c.Table.GetSourceMetadata()
 	// convert to a map for easy lookup
 	sourceMap := make(map[string]*SourceMetadata[R])
 	for _, s := range supportedSources {
@@ -288,7 +236,7 @@ func (c *CollectorImpl[R, S, T]) getSourceMetadataMap() map[string]*SourceMetada
 // updateStatus updates the status counters with the latest event
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
-func (c *CollectorImpl[R, S, T]) updateStatus(ctx context.Context, e events.Event) {
+func (c *CollectorImpl[R]) updateStatus(ctx context.Context, e events.Event) {
 	c.statusLock.Lock()
 	defer c.statusLock.Unlock()
 
@@ -298,61 +246,15 @@ func (c *CollectorImpl[R, S, T]) updateStatus(ctx context.Context, e events.Even
 	if time.Since(c.lastStatusEventTime) > statusUpdateInterval {
 		// notify observers
 		if err := c.NotifyObservers(ctx, c.status); err != nil {
-			slog.Error("Table RowSourceImpl: error notifying observers of status", "error", err)
+			slog.Error("tableName RowSourceImpl: error notifying observers of status", "error", err)
 		}
 		// update lastStatusEventTime
 		c.lastStatusEventTime = time.Now()
 	}
 }
 
-func (c *CollectorImpl[R, S, T]) handleArtifactDownloaded(ctx context.Context, e *events.ArtifactDownloaded) error {
-	if q, ok := any(c.table).(ArtifactToJsonConverter[S]); ok {
-		executionId, err := context_values.ExecutionIdFromContext(ctx)
-		if err != nil {
-			return err
-		}
-
-		// get chunk count
-		c.rowBufferLock.Lock()
-		chunkNumber := c.chunkCountMap[e.ExecutionId]
-		c.rowBufferLock.Unlock()
-
-		// build JSON filename
-		destFile := ExecutionIdToFileName(executionId, chunkNumber)
-
-		// convert the artifact to JSONL
-		query := q.GetArtifactConversionQuery(e.Info.Name, destFile, c.Config)
-
-		// Open DuckDB
-		db, err := sql.Open("duckdb", "")
-		if err != nil {
-			return fmt.Errorf("failed to open DuckDB connection: %w", err)
-		}
-		defer db.Close() // Ensure the database connection is closed when done
-
-		// Execute the query and retrieve the row count
-		var rowCount int
-		err = db.QueryRowContext(ctx, query).Scan(&rowCount)
-		if err != nil {
-			return fmt.Errorf("artifact conversion query failed: %w", err)
-		}
-
-		// Use the row count as needed
-		fmt.Printf("Rows converted: %d\n", rowCount)
-
-		// update rows and chunks written
-		c.rowBufferLock.Lock()
-		c.rowCountMap[e.ExecutionId] += rowCount
-		c.chunkCountMap[e.ExecutionId]++
-		c.rowBufferLock.Unlock()
-
-	}
-	return nil
-
-}
-
 // handleRowEvent is invoked when a Row event is received - map, enrich and publish the row
-func (c *CollectorImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.Row) error {
+func (c *CollectorImpl[R]) handleRowEvent(ctx context.Context, e *events.Row) error {
 	c.rowWg.Add(1)
 	defer c.rowWg.Done()
 
@@ -375,11 +277,11 @@ func (c *CollectorImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.R
 	// add table and partition to the enrichment fields
 
 	sourceMetadata := e.SourceMetadata
-	sourceMetadata.CommonFields.TpTable = c.req.PartitionData.Table
-	sourceMetadata.CommonFields.TpPartition = c.req.PartitionData.Partition
+	sourceMetadata.CommonFields.TpTable = c.req.TableName
+	sourceMetadata.CommonFields.TpPartition = c.req.PartitionName
 
 	// enrich the row
-	enrichedRow, err := c.table.EnrichRow(mappedRow, c.Config, sourceMetadata)
+	enrichedRow, err := c.Table.EnrichRow(mappedRow, sourceMetadata)
 	if err != nil {
 		return err
 	}
@@ -397,7 +299,7 @@ func (c *CollectorImpl[R, S, T]) handleRowEvent(ctx context.Context, e *events.R
 }
 
 // mapRow applies any configured mappers to the raw rows
-func (c *CollectorImpl[R, S, T]) mapRow(ctx context.Context, rawRow any) (R, error) {
+func (c *CollectorImpl[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
 	var empty R
 	// if there is no mapperFunc, just return the data as is
 	if c.mapper == nil {
@@ -410,11 +312,17 @@ func (c *CollectorImpl[R, S, T]) mapRow(ctx context.Context, rawRow any) (R, err
 		return row, nil
 	}
 
-	return c.mapper.Map(ctx, rawRow)
+	// if there is a custom table, pass the schema to the mapper
+	var opts []MapOption[R]
+	if c.req.CustomTable != nil {
+		opts = append(opts, WithSchema[R](c.req.CustomTable.Schema))
+	}
+
+	return c.mapper.Map(ctx, rawRow, opts...)
 }
 
 // onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full
-func (c *CollectorImpl[R, S, T]) onRowEnriched(ctx context.Context, row R, collectionState json.RawMessage) error {
+func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R, collectionState json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -449,7 +357,7 @@ func (c *CollectorImpl[R, S, T]) onRowEnriched(ctx context.Context, row R, colle
 }
 
 // writeChunk writes a chunk of rows to a JSONL file
-func (c *CollectorImpl[R, S, T]) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
+func (c *CollectorImpl[R]) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -482,7 +390,7 @@ func (c *CollectorImpl[R, S, T]) writeChunk(ctx context.Context, rowCount int, r
 
 // OnChunk is called by the we have written a chunk of enriched rows to a [JSONL/CSV] file
 // notify observers of the chunk
-func (c *CollectorImpl[R, S, T]) OnChunk(ctx context.Context, chunkNumber int, collectionState json.RawMessage) error {
+func (c *CollectorImpl[R]) OnChunk(ctx context.Context, chunkNumber int, collectionState json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -493,7 +401,7 @@ func (c *CollectorImpl[R, S, T]) OnChunk(ctx context.Context, chunkNumber int, c
 	return c.NotifyObservers(ctx, e)
 }
 
-func (c *CollectorImpl[R, S, T]) WriteRemainingRows(ctx context.Context, executionId string) (int, int, error) {
+func (c *CollectorImpl[R]) WriteRemainingRows(ctx context.Context, executionId string) (int, int, error) {
 	collectionState, err := c.source.GetCollectionStateJSON()
 	if err != nil {
 		return 0, 0, fmt.Errorf("error getting collection state: %w", err)

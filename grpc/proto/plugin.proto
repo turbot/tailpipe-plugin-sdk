@@ -16,22 +16,31 @@ service TailpipePlugin {
 message AddObserverRequest{}
 
 message CollectRequest {
+  string table_name = 1;
+  string partition_name = 2;
   // unique identifier for collection execution this will be used as base for the filename fo the resultiung JSONL files
-  string execution_id = 1;
+  string execution_id = 3;
   //  dest path for json`l files
-  string output_path= 2;
-  // the partition to collect (with raw config)
-  ConfigData partition_data = 3;
+  string output_path= 4;
   // the source to use (with raw config)
-  ConfigData source_data = 4;
+  ConfigData source_data = 5;
   // the raw hcl of the connection
-  ConfigData connection_data = 5;
+  ConfigData connection_data = 6;
+  // if this is custom table, Table contains the source format and table schema
+  Table custom_table = 7;
+  // the source format
+  ConfigData source_format = 8;
 
   // this is json encoded data that represents the state of the collection, i.e. what data has been collected
   // this is used to resume a collection
-  bytes collection_state = 6;
+  bytes collection_state = 9;
 }
 
+message Table {
+  string name = 1;
+  // the schema of the table
+  Schema schema = 2;
+}
 
 message DescribeRequest {
 }
@@ -54,7 +63,10 @@ message CollectResponse {
 message Schema {
   // Map of source field name to column name and type
   repeated ColumnSchema columns = 1;
-  string mode = 2;
+  // should we include ALL source fields in addition to any defined columns, or ONLY include the columns defined
+  bool automap_source_fields = 2;
+  // should we exclude any source fields from the output (only applicable if automap_source_fields is true)
+  repeated string exclude_source_fields = 3;
 }
 
 message ColumnSchema {
@@ -64,7 +76,7 @@ message ColumnSchema {
   string source_name = 2;
   // The name of the column
   string column_name = 3;
-  // child fields (for a struct
+  // child fields (for a struct)
   repeated ColumnSchema child_fields = 4;
 }
 

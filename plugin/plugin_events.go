@@ -12,7 +12,7 @@ import (
 func (p *PluginImpl) Notify(ctx context.Context, event events.Event) error {
 	switch e := event.(type) {
 
-	case *events.Status:
+	case *events.Status, *events.Error:
 		return p.NotifyObservers(ctx, e)
 	case *events.Chunk:
 		// NOTE: this will only be received if the table is directly converting an artifact to JSONL

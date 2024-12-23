@@ -1,6 +1,6 @@
 package table
 
-// TODO K readd validation
+// TODO #validate readd validation https://github.com/turbot/tailpipe-plugin-sdk/issues/71
 //
 //func Validate(t *testing.T, ctor func() TableCore) {
 //	c := ctor()

@@ -44,14 +44,21 @@ func WithCsvSchema(schema *schema.RowSchema) CsvToJsonOpts {
 	}
 }
 
+func WithMappings(mappings map[string]string) CsvToJsonOpts {
+	return func(c *CsvTableConfig) {
+		c.Mappings = mappings
+	}
+}
+
 type CsvTableConfig struct {
 	HeaderMode CsvHeaderMode
 	Delimiter  *string
 	Comment    *string
 	Schema     *schema.RowSchema
+	Mappings   map[string]string
 }
 
-func CsvToJsonQuery(sourceFile, destFile string, mappings map[string]string, opts ...CsvToJsonOpts) string {
+func GetReadCsvChunkQueryFormat(sourceFile string, opts ...CsvToJsonOpts) string {
 	// Initialize the default configuration
 	config := &CsvTableConfig{
 		HeaderMode: CsvHeaderModeAuto, // Default to assuming a header row
@@ -84,27 +91,23 @@ func CsvToJsonQuery(sourceFile, destFile string, mappings map[string]string, opt
 		readCsvOpts = append(readCsvOpts, fmt.Sprintf("COMMENT '%s'", *config.Comment))
 	}
 
-	// Start building the query
-	query := "COPY ("
+	// Add skip option
+	readCsvOpts = append(readCsvOpts, `SKIP %d`)
 
 	// the mappings provided are for tp_ fields - we select mapped columns with '<source_name> AS <mapped_name>
 	// e.g. SELECT index AS tp_index, log_tims as tp_timestamp, * FROM read_csv(...)
 	// build the mapped column SELECT clause
-	mappedColumnSelectString := getMappedColumnSelect(mappings)
+	mappedColumnSelectString := getMappedColumnSelect(config.Mappings)
 
 	// if a FULL schema is provided, use it to build the remaining columns to select - otherwise select all columns (*)
 	columnSelectString := getSchemaColumnSelect(config.Schema)
+
 	// Use the mapped columns
-	query += fmt.Sprintf("SELECT %s%s FROM read_csv(%s)", mappedColumnSelectString, columnSelectString, strings.Join(readCsvOpts, ", "))
-
-	// Close COPY and specify the output file and format
-	query += fmt.Sprintf(") TO '%s' (FORMAT JSON) RETURNING COUNT(*) AS row_count;", destFile)
-
-	return query
+	return fmt.Sprintf("SELECT %s%s FROM read_csv(%s) LIMIT %d", mappedColumnSelectString, columnSelectString, strings.Join(readCsvOpts, ", "), JSONLChunkSize)
 }
 
 func getSchemaColumnSelect(rowSchema *schema.RowSchema) string {
-	if rowSchema == nil || len(rowSchema.Columns) == 0 || rowSchema.Mode != schema.ModeFull {
+	if rowSchema == nil || len(rowSchema.Columns) == 0 || rowSchema.AutoMapSourceFields {
 		return "*"
 	}
 

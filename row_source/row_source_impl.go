@@ -105,8 +105,6 @@ func (r *RowSourceImpl[S, T]) initialiseConnection(connectionData config_data.Co
 		if err != nil {
 			return fmt.Errorf("error parsing connection: %w", err)
 		}
-
-		slog.Info("Table RowSourceImpl: } parsed", "}", r)
 	}
 	r.Connection = conn
 

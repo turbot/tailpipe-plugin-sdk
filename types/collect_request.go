@@ -2,34 +2,46 @@ package types
 
 import (
 	"fmt"
+
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
+type Table struct {
+	Name   string
+	Schema *schema.RowSchema
+}
+
+func TableFromProto(pt *proto.Table) *Table {
+	return &Table{
+		Name:   pt.Name,
+		Schema: schema.RowSchemaFromProto(pt.Schema),
+	}
+}
+
 type CollectRequest struct {
+	TableName     string
+	PartitionName string
+
 	// unique identifier for collection execution this will be used as base for the filename fo the resultiung JSONL files
 	ExecutionId string
 	// dest path for jsonl files
-	OutputPath string `protobuf:"bytes,2,opt,name=output_path,json=outputPath,proto3" json:"output_path,omitempty"`
-	// the table to collect (with raw config)
-	PartitionData *config_data.PartitionConfigData
+	OutputPath string
 	// the source to use (with raw config)
 	SourceData *config_data.SourceConfigData
+	// the source format to use (with raw config)
+	SourceFormat *config_data.FormatConfigData
 	// the raw hcl of the connection
 	ConnectionData *config_data.ConnectionConfigData
 	// this is json encoded data that represents the state of the collection, i.e. what data has been collected
 	// this is used to resume a collection
 	CollectionState []byte
+
+	CustomTable *Table
 }
 
 func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
-	if pr.PartitionData == nil {
-		return nil, fmt.Errorf("partition data is required")
-	}
-	partitionData, err := config_data.DataFromProto[*config_data.PartitionConfigData](pr.PartitionData)
-	if err != nil {
-		return nil, err
-	}
 	if pr.SourceData == nil {
 		return nil, fmt.Errorf("source data is required")
 	}
@@ -39,12 +51,22 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	req := &CollectRequest{
+		TableName:       pr.TableName,
+		PartitionName:   pr.PartitionName,
 		ExecutionId:     pr.ExecutionId,
 		OutputPath:      pr.OutputPath,
-		PartitionData:   partitionData,
 		SourceData:      sourceData,
 		CollectionState: pr.CollectionState,
 	}
+
+	if pr.SourceFormat != nil {
+		sourceFormat, err := config_data.DataFromProto[*config_data.FormatConfigData](pr.SourceFormat)
+		if err != nil {
+			return nil, err
+		}
+		req.SourceFormat = sourceFormat
+	}
+
 	if pr.ConnectionData != nil {
 		connectionData, err := config_data.DataFromProto[*config_data.ConnectionConfigData](pr.ConnectionData)
 		if err != nil {
@@ -52,5 +74,9 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		}
 		req.ConnectionData = connectionData
 	}
+	if pr.CustomTable != nil {
+		req.CustomTable = TableFromProto(pr.CustomTable)
+	}
+
 	return req, nil
 }

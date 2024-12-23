@@ -9,8 +9,8 @@ import (
 
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
-	"github.com/turbot/tailpipe-plugin-sdk/enrichment"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -56,8 +56,8 @@ func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
 			if s.Extensions.IsValid(path) {
 				// populate enrichment fields the source is aware of
 				// - in this case the source location
-				sourceEnrichment := &enrichment.SourceEnrichment{
-					CommonFields: enrichment.CommonFields{
+				sourceEnrichment := &schema.SourceEnrichment{
+					CommonFields: schema.CommonFields{
 						TpSourceType:     artifact_source_config.FileSystemSourceIdentifier,
 						TpSourceLocation: &path,
 					},
