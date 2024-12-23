@@ -45,3 +45,9 @@ type RowSource interface {
 	// GetTiming returns the timing for the source row collection
 	GetTiming() types.TimingCollection
 }
+
+// BaseSource registers the rowSource implementation with the base struct (_before_ calling Init)
+// we do not want to expose this function in the RowSource interface
+type BaseSource interface {
+	RegisterSource(rowSource RowSource)
+}

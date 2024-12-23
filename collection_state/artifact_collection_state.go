@@ -2,10 +2,11 @@ package collection_state
 
 import (
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 	"log/slog"
-	"regexp"
 	"time"
 
+	"github.com/elastic/go-grok"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
@@ -35,10 +36,11 @@ type ArtifactCollectionState[T artifact_source_config.ArtifactSourceConfig] stru
 	StartObjects map[string]*ArtifactMetadata `json:"start_objects,omitempty"`
 	EndObjects   map[string]*ArtifactMetadata `json:"end_objects,omitempty"`
 
-	re *regexp.Regexp
 	// the granularity of the file naming scheme - so we must keep track of object metadata
 	// this will depend on the template used to name the files
 	granularity time.Duration
+	// the grok parser
+	g *grok.Grok
 }
 
 func NewArtifactCollectionState[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
@@ -49,21 +51,23 @@ func NewArtifactCollectionState[T artifact_source_config.ArtifactSourceConfig]()
 func (s *ArtifactCollectionState[T]) Init(config T) error {
 	fileLayout := config.GetFileLayout()
 	slog.Info(fmt.Sprintf("Initializing ArtifactCollectionState %p", s), "fileLayout", fileLayout)
+	// create a grok parser even if we do not have a file layout - we use it to check for initalized state
+	g := grok.New()
+
 	// if we do not have a file layout, we have nothing to do
 	if fileLayout == nil {
 		// nothing more to do
 		return nil
 	}
 
-	// convert pattern to a regex
-	re, err := regexp.Compile(*fileLayout)
+	// convert pattern to a grok parser
+	err := g.Compile(*fileLayout, true)
 	if err != nil {
 		return err
 	}
-	s.re = re
 
 	// deduce granularity from the regex
-	s.getGranularityFromRegex()
+	s.getGranularityFromMetadata(*fileLayout)
 
 	return nil
 }
@@ -147,9 +151,10 @@ func (s *ArtifactCollectionState[T]) IsEmpty() bool {
 // e.g., if the filename contains {year}/{month}/{day}/{hour}/{minute}, the granularity is 1 minute
 // if the filename contains {year}/{month}/{day}/{hour}, the granularity is 1 hour
 // NOTE: we traverse the time properties from largest to smallest
-func (s *ArtifactCollectionState[T]) getGranularityFromRegex() {
+func (s *ArtifactCollectionState[T]) getGranularityFromMetadata(fileLayout string) {
+
 	// get the named capture groups from the regex
-	captureGroups := s.re.SubexpNames()
+	captureGroups := helpers.ExtractNamedGroupsFromGrok(fileLayout)
 	propertyLookup := utils.SliceToLookup(captureGroups)
 
 	// check year/month/day/hour/minute/second
@@ -178,7 +183,7 @@ func (s *ArtifactCollectionState[T]) getGranularityFromRegex() {
 	}
 
 	//	 nothing found, leave granularity as 0
-	slog.Info("getGranularityFromRegex", "granularity", s.granularity, "capture groups", captureGroups)
+	slog.Info("getGranularityFromMetadata", "granularity", s.granularity, "capture groups", captureGroups)
 }
 
 // ArtifactCollectionStateOption is a function that sets an option on the ArtifactCollectionState
@@ -226,14 +231,13 @@ func (s *ArtifactCollectionState[T]) validateGranularity(a *types.ArtifactInfo) 
 func (s *ArtifactCollectionState[T]) ParseFilename(fileName string) (_ map[string]string, err error) {
 	result := make(map[string]string)
 	// Match the filename against the re
-	match := s.re.FindStringSubmatch(fileName)
-	if match != nil {
-		// Create a map to store the extracted values
-		for i, name := range s.re.SubexpNames() {
-			if i != 0 && name != "" {
-				result[name] = match[i]
-			}
-		}
+	metadata, err := s.g.Parse([]byte(fileName))
+	if err != nil {
+		return nil, err
+	}
+	// Create a map to store the extracted values
+	for k, v := range metadata {
+		result[k] = string(v)
 	}
 
 	return result, nil
@@ -248,5 +252,5 @@ func (s *ArtifactCollectionState[T]) inMap(m *types.ArtifactInfo, objectMap map[
 }
 
 func (s *ArtifactCollectionState[T]) Initialized() bool {
-	return s.re != nil
+	return s.g != nil
 }

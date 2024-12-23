@@ -3,10 +3,11 @@ package artifact_source
 import (
 	"context"
 	"errors"
-	"log/slog"
-	"os"
+	"fmt"
+	"io/fs"
 	"path/filepath"
 
+	"github.com/elastic/go-grok"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -21,8 +22,7 @@ func init() {
 
 type FileSystemSource struct {
 	ArtifactSourceImpl[*artifact_source_config.FileSystemSourceConfig, *EmptyConnection]
-	Paths      []string
-	Extensions types.ExtensionLookup
+	Paths []string
 }
 
 func (s *FileSystemSource) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
@@ -32,8 +32,6 @@ func (s *FileSystemSource) Init(ctx context.Context, configData, connectionData 
 	}
 
 	s.Paths = s.Config.Paths
-	s.Extensions = types.NewExtensionLookup(s.Config.Extensions)
-	slog.Info("Initialized FileSystemSource", "paths", s.Paths, "extensions", s.Extensions)
 	return nil
 }
 
@@ -42,32 +40,71 @@ func (s *FileSystemSource) Identifier() string {
 }
 
 func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
+	// if we have a layout, check whether this is a directory we should descend into
+	layout := s.Config.GetFileLayout()
+	filterMap := s.Config.FilterMap
+	g := grok.New()
+	// add any patterns defined in config
+	err := g.AddPatterns(s.Config.GetPatterns())
+	if err != nil {
+		return fmt.Errorf("error adding grok patterns: %v", err)
+	}
+
 	var errList []error
-	for _, path := range s.Paths {
-		err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+	for _, basePath := range s.Paths {
+		err := filepath.WalkDir(basePath, func(targetPath string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
-			if info.IsDir() {
+
+			// if we have a layout, check whether this path satisfies the layout and filters
+			var metadata map[string][]byte
+			var satisfied = true
+			if layout != nil {
+				// if we are a directory and we are not satisfied, skip the directory by returning fs.SkipDir
+				match, metadata, err := s.getPathMetadata(g, basePath, targetPath, layout, d.IsDir())
+				if err != nil {
+					return err
+				}
+
+				// check if the path matches the layout and if so, are filters satisfied
+				satisfied = match && MetadataSatisfiesFilters(metadata, filterMap)
+			}
+
+			if d.IsDir() {
+				// if this is a directory and the pattern is satisfied, descend into the directory
+				// (we return nil to continue processing the directory)
+				if satisfied {
+					return nil
+				} else {
+					return fs.SkipDir
+				}
+			}
+
+			// so this is a file
+			//if the pattern is not satisfied, skip the file
+			if !satisfied {
 				return nil
 			}
 
-			// check the extension
-			if s.Extensions.IsValid(path) {
-				// populate enrichment fields the source is aware of
-				// - in this case the source location
-				sourceEnrichment := &schema.SourceEnrichment{
-					CommonFields: schema.CommonFields{
-						TpSourceType:     artifact_source_config.FileSystemSourceIdentifier,
-						TpSourceLocation: &path,
-					},
-				}
-
-				artifactInfo := &types.ArtifactInfo{Name: path, SourceEnrichment: sourceEnrichment}
-				// notify observers of the discovered artifact
-				return s.OnArtifactDiscovered(ctx, artifactInfo)
+			// get the full path
+			absLocation, err := filepath.Abs(targetPath)
+			if err != nil {
+				return err
 			}
-			return nil
+			// populate enrichment fields the source is aware of
+			// - in this case the source location
+			sourceEnrichment := &schema.SourceEnrichment{
+				CommonFields: schema.CommonFields{
+					TpSourceType:     artifact_source_config.FileSystemSourceIdentifier,
+					TpSourceLocation: &absLocation,
+				},
+				Metadata: metadata,
+			}
+
+			artifactInfo := &types.ArtifactInfo{Name: targetPath, SourceEnrichment: sourceEnrichment}
+			// notify observers of the discovered artifact
+			return s.OnArtifactDiscovered(ctx, artifactInfo)
 		})
 		if err != nil {
 			errList = append(errList, err)
@@ -80,11 +117,35 @@ func (s *FileSystemSource) DiscoverArtifacts(ctx context.Context) error {
 	return nil
 }
 
+// get the metadata from the given file path, based on the file layout
+// returns whether the path matches the layout pattern, and the medata map
+func (s *FileSystemSource) getPathMetadata(g *grok.Grok, basePath, targetPath string, layout *string, isDir bool) (bool, map[string][]byte, error) {
+	if layout == nil {
+		return false, nil, nil
+	}
+	// remove the base path from the path
+	relPath, err := filepath.Rel(basePath, targetPath)
+	if err != nil {
+		return false, nil, err
+	}
+	var metadata map[string][]byte
+	var match bool
+	// if this is a directory, we just want to evaluate the pattern segments up to this directory
+	// so call GetPathSegmentMetadata which trims the pattern to match the path length
+	if isDir {
+		match, metadata, err = GetPathSegmentMetadata(g, relPath, *layout)
+	} else {
+		match, metadata, err = GetPathMetadata(g, relPath, *layout)
+	}
+	if err != nil {
+		return false, nil, err
+	}
+
+	return match, metadata, nil
+}
+
+// DownloadArtifact does nothing as the artifact already exists on the local file system
 func (s *FileSystemSource) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
-
-	// TODO consider large/remote files/download progress https://github.com/turbot/tailpipe-plugin-sdk/issues/10
-	//s.NotifyObservers(events.NewArtifactDownloadProgress(request, info))
-
 	// notify observers of the discovered artifact
 	// NOTE: for now just pass on the info as is
 	// if the file was downloaded we would update the Name to the local path, leaving OriginalName as the source path
