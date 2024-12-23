@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	pluginshared "github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -80,38 +79,44 @@ func (c *SourcePluginClient) AddObserver() (proto.TailpipePlugin_AddObserverClie
 	return c.Stub.AddObserver()
 }
 
-func (c *SourcePluginClient) Init(ctx context.Context, sourceConfig config_data.ConfigData, connectionConfig config_data.ConfigData, opts ...RowSourceOption) error {
+func (c *SourcePluginClient) Init(_ context.Context, sourceConfig types.ConfigData, connectionConfig types.ConfigData, opts ...RowSourceOption) error {
 	req := &proto.InitRequest{
 		SourceConfig:     sourceConfig.AsProto(),
 		ConnectionConfig: connectionConfig.AsProto(),
 	}
 
 	// TODO how do we handle opts????
-
+	_, err := c.Stub.Init(req)
+	return err
 }
 
 func (c *SourcePluginClient) Close() error {
-
+	_, err := c.Stub.Close()
+	return err
 }
 
-func (c *SourcePluginClient) Collect(ctx context.Context) error {
+func (c *SourcePluginClient) Collect(_ context.Context) error {
+	_, err := c.Stub.SourceCollect(&proto.SourceCollectRequest{})
+	return err
 
 }
 
 func (c *SourcePluginClient) GetCollectionStateJSON() (json.RawMessage, error) {
-
+	panic("implement me")
 }
 
 func (c *SourcePluginClient) SetCollectionStateJSON(stateJSON json.RawMessage) error {
-
+	panic("implement me")
 }
 
 func (c *SourcePluginClient) GetTiming() types.TimingCollection {
-	resp, err := c.Stub.GetSourceTiming()
-	if err != nil {
-		log.Printf("[ERROR] GetTiming failed: %s", err.Error())
-		return types.TimingCollection{}
-	}
+	panic("implement me")
+	//resp, err := c.Stub.GetSourceTiming()
+	//if err != nil {
+	//	log.Printf("[ERROR] GetTiming failed: %s", err.Error())
+	//	return types.TimingCollection{}
+	//}
+	//return types.TimingCollection{
 }
 
 func (c *SourcePluginClient) Describe() (*proto.DescribeResponse, error) {

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/turbot/go-kit/helpers"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
+	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -24,7 +24,7 @@ func NewPluginSourceWrapper(sourcePlugin *types.SourcePluginReattach) (*PluginSo
 		return nil, err
 	}
 	s := &PluginSourceWrapper{
-		client: client,
+		client:     client,
 		pluginName: sourcePlugin.Plugin,
 		sourceType: sourcePlugin.SourceType,
 	}
@@ -48,17 +48,17 @@ func (w *PluginSourceWrapper) AddObserver(o observable.Observer) error {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (w *PluginSourceWrapper)Init(ctx context.Context, configData config_data.ConfigData, connectionData config_data.ConfigData, opts ...RowSourceOption) error{
+func (w *PluginSourceWrapper) Init(ctx context.Context, configData types.ConfigData, connectionData types.ConfigData, opts ...RowSourceOption) error {
 	return w.client.Init(ctx, configData, connectionData, opts...)
 }
 
 // Identifier must return the source name
-func (w *PluginSourceWrapper)Identifier() string{
+func (w *PluginSourceWrapper) Identifier() string {
 	return w.sourceType
 }
 
 // Description returns a human readable description of the source
-func (w *PluginSourceWrapper)Description() (string, error){
+func (w *PluginSourceWrapper) Description() (string, error) {
 	res, err := w.client.Describe()
 	if err != nil {
 		return "", err
@@ -71,30 +71,30 @@ func (w *PluginSourceWrapper)Description() (string, error){
 	return source.Description, nil
 }
 
-func (w *PluginSourceWrapper)Close() error{
-	err :=  w.client.Close()
+func (w *PluginSourceWrapper) Close() error {
+	err := w.client.Close()
 	// TODO K correct?
 	w.client.client.Kill()
 	return err
 }
 
 // Collect is called to start collecting data,
-func (w *PluginSourceWrapper)Collect(ctx context.Context) error {
+func (w *PluginSourceWrapper) Collect(ctx context.Context) error {
 	return w.client.Collect(ctx)
 }
 
-// 	GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
-func (w *PluginSourceWrapper)GetCollectionStateJSON() (json.RawMessage, error) {
+// GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
+func (w *PluginSourceWrapper) GetCollectionStateJSON() (json.RawMessage, error) {
 	return w.client.GetCollectionStateJSON()
 }
 
 // SetCollectionStateJSON unmarshalls the collection state data JSON into the target object
-func (w *PluginSourceWrapper)SetCollectionStateJSON(stateJSON json.RawMessage) error {
+func (w *PluginSourceWrapper) SetCollectionStateJSON(stateJSON json.RawMessage) error {
 	return w.client.SetCollectionStateJSON(stateJSON)
 }
 
 // GetTiming returns the timing for the source row collection
-func (w *PluginSourceWrapper)GetTiming() types.TimingCollection {
+func (w *PluginSourceWrapper) GetTiming() types.TimingCollection {
 	return w.client.GetTiming()
 }
 
@@ -140,7 +140,7 @@ func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream
 				// TODO #error unexpected - raise an error - send error to observers
 				return
 			}
-			err := w.observer.Notify(ctx, protoEvent.)
+			err := w.observer.Notify(ctx, events.EventFromProto(protoEvent))
 			if err != nil {
 				fmt.Printf("Error notifying observer: %v\n", err)
 				// TODO #error WHAT TO DO HERE? send error to observers

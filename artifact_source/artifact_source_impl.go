@@ -14,7 +14,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -86,7 +85,7 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	timingLock      sync.Mutex
 }
 
-func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...row_source.RowSourceOption) error {
+func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, configData, connectionData types.ConfigData, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing ArtifactSourceImpl", "configData", configData.GetHcl())
 
 	// if no collection state func has been set by a derived struct,

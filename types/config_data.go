@@ -1,4 +1,4 @@
-package config_data
+package types
 
 import (
 	"fmt"

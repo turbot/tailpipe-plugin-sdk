@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -162,7 +161,7 @@ func (c *CollectorImpl[R]) GetTiming() types.TimingCollection {
 	return append(c.source.GetTiming(), c.enrichTiming)
 }
 
-func (c *CollectorImpl[R]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
+func (c *CollectorImpl[R]) initSource(ctx context.Context, configData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
 	requestedSource := configData.Type
 
 	// get the source metadata for this source type

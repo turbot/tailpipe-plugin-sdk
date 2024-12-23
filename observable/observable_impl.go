@@ -3,7 +3,6 @@ package observable
 import (
 	"context"
 	"errors"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"log"
 	"sync"
 
@@ -20,14 +19,16 @@ type ObservableImpl struct {
 	Observers []Observer
 }
 
-func (p *ObservableImpl) AddObserver(o Observer) (proto.TailpipePlugin_AddObserverClient, error) {
+// TODO #pluginsource SORT TailpipePlugin_AddObserverClient
+// func (p *ObservableImpl) AddObserver(o Observer) (proto.TailpipePlugin_AddObserverClient, error) {
+func (p *ObservableImpl) AddObserver(o Observer) error {
 	log.Println("[INFO] AddObserver")
 	// add to list of Observers
 	p.observerLock.Lock()
 	p.Observers = append(p.Observers, o)
 	p.observerLock.Unlock()
 
-	return nil, nil
+	return nil
 }
 
 func (p *ObservableImpl) NotifyObservers(ctx context.Context, e events.Event) error {

@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // RegisterRowSource registers a row source type
@@ -48,7 +48,7 @@ func (b *RowSourceFactory) ProvidesRowSource(sourceType string) bool {
 // GetRowSource attempts to instantiate a row source, using the provided row source data
 // It will fail if the requested source type is not registered
 // Implements [plugin.SourceFactory]
-func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData, sourceOpts ...RowSourceOption) (RowSource, error) {
+func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *types.SourceConfigData, connectionData *types.ConnectionConfigData, sourceOpts ...RowSourceOption) (RowSource, error) {
 
 	// if a reattach config is provided, we need to create a wrapper source which will handle the reattach
 
