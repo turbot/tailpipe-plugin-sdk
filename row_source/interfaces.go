@@ -28,7 +28,7 @@ type RowSource interface {
 	Identifier() string
 
 	// Description returns a human readable description of the source
-	Description() string
+	Description() (string, error)
 
 	Close() error
 

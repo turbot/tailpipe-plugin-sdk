@@ -45,7 +45,7 @@ func (r *RowSourceImpl[S, T]) RegisterSource(source RowSource) {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (r *RowSourceImpl[S, T]) Init(ctx context.Context, configData, connectionData types.ConfigData, opts ...RowSourceOption) error {
+func (r *RowSourceImpl[S, T]) Init(_ context.Context, configData, connectionData types.ConfigData, opts ...RowSourceOption) error {
 	slog.Info(fmt.Sprintf("Initializing RowSourceImpl %p, impl %p", r, r.Source))
 
 	// apply options to the Source (as options will be dependent on the outer type)
@@ -173,7 +173,7 @@ func (r *RowSourceImpl[S, T]) GetTiming() types.TimingCollection {
 	return types.TimingCollection{}
 }
 
-func (*RowSourceImpl[S, T]) Description() string {
+func (*RowSourceImpl[S, T]) Description() (string, error) {
 	// override if you want to provide a description
-	return ""
+	return "", nil
 }

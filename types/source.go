@@ -11,7 +11,7 @@ type SourceConfigData struct {
 	ReattachConfig *SourcePluginReattach
 }
 
-func (d SourceConfigData) SetReattach(pr *proto.SourcePluginReattach) {
+func (d *SourceConfigData) SetReattach(pr *proto.SourcePluginReattach) {
 	d.ReattachConfig = ReattachFromProto(pr)
 }
 

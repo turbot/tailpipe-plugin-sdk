@@ -1,8 +1,10 @@
-package row_source
+package artifact_source
 
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	pluginshared "github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
@@ -37,10 +39,13 @@ func NewPluginClient(client *plugin.Client, pluginName string) (*SourcePluginCli
 		return nil, err
 	}
 	// we should have a stub plugin now
-	p := raw.(pluginshared.TailpipePluginClientWrapper)
+	p, ok := raw.(*pluginshared.TailpipePluginClientWrapper)
+	if !ok {
+		return nil, fmt.Errorf("unexpected type from plugin: %T", raw)
+	}
 	res := &SourcePluginClient{
 		Name:   pluginName,
-		Stub:   p,
+		Stub:   *p,
 		client: client,
 	}
 	return res, nil
@@ -79,7 +84,7 @@ func (c *SourcePluginClient) AddObserver() (proto.TailpipePlugin_AddObserverClie
 	return c.Stub.AddObserver()
 }
 
-func (c *SourcePluginClient) Init(_ context.Context, sourceConfig types.ConfigData, connectionConfig types.ConfigData, opts ...RowSourceOption) error {
+func (c *SourcePluginClient) Init(_ context.Context, sourceConfig types.ConfigData, connectionConfig types.ConfigData, opts ...row_source.RowSourceOption) error {
 	req := &proto.InitRequest{
 		SourceConfig:     sourceConfig.AsProto(),
 		ConnectionConfig: connectionConfig.AsProto(),
@@ -110,7 +115,8 @@ func (c *SourcePluginClient) SetCollectionStateJSON(stateJSON json.RawMessage) e
 }
 
 func (c *SourcePluginClient) GetTiming() types.TimingCollection {
-	panic("implement me")
+	return types.TimingCollection{}
+	//panic("implement me")
 	//resp, err := c.Stub.GetSourceTiming()
 	//if err != nil {
 	//	log.Printf("[ERROR] GetTiming failed: %s", err.Error())

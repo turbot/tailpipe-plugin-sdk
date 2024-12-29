@@ -161,18 +161,16 @@ func (c *CollectorImpl[R]) GetTiming() types.TimingCollection {
 	return append(c.source.GetTiming(), c.enrichTiming)
 }
 
-func (c *CollectorImpl[R]) initSource(ctx context.Context, configData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
-	requestedSource := configData.Type
-
+func (c *CollectorImpl[R]) initSource(ctx context.Context, sourceConfigData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
 	// get the source metadata for this source type
 	// (this returns an error if the source is not supported by the table)
-	sourceMetadata, err := c.getSourceMetadata(requestedSource)
+	sourceMetadata, err := c.getSourceMetadata(sourceConfigData)
 	if err != nil {
 		return err
 	}
 	// ask factory to create and initialise the source for us
 	// NOTE: we pass the original
-	source, err := row_source.Factory.GetRowSource(ctx, configData, connectionData, sourceMetadata.Options...)
+	source, err := row_source.Factory.GetRowSource(ctx, sourceConfigData, connectionData, sourceMetadata.Options...)
 	if err != nil {
 		return err
 	}
@@ -188,10 +186,10 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, configData *types.Sou
 	return c.source.AddObserver(c)
 }
 
-func (c *CollectorImpl[R]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
+func (c *CollectorImpl[R]) getSourceMetadata(sourceConfig *types.SourceConfigData) (sourceMetadata *SourceMetadata[R], err error) {
 	// get the supported sources for the table
 	supportedSourceMap := c.getSourceMetadataMap()
-
+	requestedSource := sourceConfig.Type
 	// validate the requested source type is supported by this table
 	sourceMetadata, ok := supportedSourceMap[requestedSource]
 	if !ok {
@@ -200,6 +198,8 @@ func (c *CollectorImpl[R]) getSourceMetadata(requestedSource string) (sourceMeta
 		// whereas the map will have an entry keyed by `artifact`
 
 		// is the requested source an artifact source?
+		// TODO #core how can we tell if any  given source is an artifact source?
+		// // we need to ask it - either via the local source or if it is tremote we can connect to it and ask
 		if row_source.IsArtifactSource(requestedSource) {
 			// check whether the supported sources map has an entry for 'artifact'
 			sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]

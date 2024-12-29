@@ -5,6 +5,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // TailpipePlugin is the interface that all tailpipe plugins must implement
@@ -25,6 +26,11 @@ type TailpipePlugin interface {
 	// Collect is called to start a collection run
 	// this is implemented by plugin.PluginImpl and should not be overridden
 	Collect(context.Context, *proto.CollectRequest) (*schema.RowSchema, error)
+
+	InitSource(context.Context) error
+	CloseSource(context.Context) error
+	SourceCollect(context.Context) error
+	GetSourceTiming(context.Context) (types.TimingCollection, error)
 
 	// Other interface functions
 

@@ -103,10 +103,34 @@ func (p *PluginImpl) Describe() (DescribeResponse, error) {
 	if err != nil {
 		return DescribeResponse{}, err
 	}
+	sources, err := row_source.Factory.DescribeSources()
+	if err != nil {
+		return DescribeResponse{}, err
+	}
 	return DescribeResponse{
 		Schemas: schemas,
-		Sources: row_source.Factory.DescribeSources(),
+		Sources: sources,
 	}, nil
+}
+
+func (p *PluginImpl) InitSource(ctx context.Context) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p *PluginImpl) CloseSource(ctx context.Context) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p *PluginImpl) SourceCollect(ctx context.Context) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (p *PluginImpl) GetSourceTiming(ctx context.Context) (types.TimingCollection, error) {
+	//TODO implement me
+	panic("implement me")
 }
 
 // Shutdown is called by Serve when the plugin exits

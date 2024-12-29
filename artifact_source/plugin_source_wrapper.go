@@ -1,24 +1,57 @@
-package row_source
+package artifact_source
 
 import (
 	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/turbot/go-kit/helpers"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// an empty config implementation as we need to ste connection and config type for the PluginSourceWrapper
+// the config and conneciton will not be used
+
+type NilConfig struct{}
+
+func (n NilConfig) Validate() error {
+	return nil
+}
+
+func (n NilConfig) Identifier() string {
+	return "empty_config"
+}
+
+type NilArtifactSourceConfig struct{}
+
+func (n NilArtifactSourceConfig) Validate() error {
+	return nil
+}
+
+func (n NilArtifactSourceConfig) Identifier() string {
+	return "empty_artifact_source_config"
+}
+
+func (n NilArtifactSourceConfig) GetFileLayout() *string {
+	return nil
+}
+
+func (n NilArtifactSourceConfig) DefaultTo(_ artifact_source_config.ArtifactSourceConfig) {
+}
+
 type PluginSourceWrapper struct {
+	ArtifactSourceImpl[*NilArtifactSourceConfig, *NilConfig]
 	client     *SourcePluginClient
 	pluginName string
 	sourceType string
 	observer   observable.Observer
 }
 
-func NewPluginSourceWrapper(sourcePlugin *types.SourcePluginReattach) (*PluginSourceWrapper, error) {
+func NewPluginSourceWrapper(sourcePlugin *types.SourcePluginReattach) (row_source.RowSource, error) {
 	client, err := NewPluginClientFromReattach(sourcePlugin)
 	if err != nil {
 		return nil, err
@@ -48,7 +81,14 @@ func (w *PluginSourceWrapper) AddObserver(o observable.Observer) error {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (w *PluginSourceWrapper) Init(ctx context.Context, configData types.ConfigData, connectionData types.ConfigData, opts ...RowSourceOption) error {
+func (w *PluginSourceWrapper) Init(ctx context.Context, configData types.ConfigData, connectionData types.ConfigData, opts ...row_source.RowSourceOption) error {
+	for _, opt := range opts {
+		err := opt(w)
+		if err != nil {
+			return err
+		}
+	}
+
 	return w.client.Init(ctx, configData, connectionData, opts...)
 }
 
@@ -83,7 +123,7 @@ func (w *PluginSourceWrapper) Collect(ctx context.Context) error {
 	return w.client.Collect(ctx)
 }
 
-// GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
+// GetCollectionStateJSON returns the json serialised collection state data for the ongoing collection
 func (w *PluginSourceWrapper) GetCollectionStateJSON() (json.RawMessage, error) {
 	return w.client.GetCollectionStateJSON()
 }

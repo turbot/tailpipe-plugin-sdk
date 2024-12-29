@@ -209,4 +209,7 @@ message CloseSourceResponse{}
 message SourceCollectRequest{}
 message SourceCollectResponse{}
 message GetSourceTimingRequest{}
-message GetSourceTimingResponse{};
+
+message GetSourceTimingResponse{
+  repeated Timing timing = 1;
+};
