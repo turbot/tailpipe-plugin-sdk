@@ -173,8 +173,13 @@ func (c *ArtifactConversionCollector[S]) Notify(ctx context.Context, event event
 	}
 }
 
-func (c *ArtifactConversionCollector[S]) GetTiming() types.TimingCollection {
-	return append(c.source.GetTiming(), c.enrichTiming)
+func (c *ArtifactConversionCollector[S]) GetTiming() (types.TimingCollection, error) {
+	res, err := c.source.GetTiming()
+	if err != nil {
+		return types.TimingCollection{}, err
+	}
+
+	return append(res, c.enrichTiming), nil
 }
 
 func (c *ArtifactConversionCollector[S]) initSource(ctx context.Context, configData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {

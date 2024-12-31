@@ -168,9 +168,9 @@ func (r *RowSourceImpl[S, T]) SetCollectionStateJSON(collectionStateJSON json.Ra
 	return nil
 }
 
-func (r *RowSourceImpl[S, T]) GetTiming() types.TimingCollection {
+func (r *RowSourceImpl[S, T]) GetTiming() (types.TimingCollection, error) {
 	// TODO #observability implement default timing for custom row sourceFuncs
-	return types.TimingCollection{}
+	return types.TimingCollection{}, nil
 }
 
 func (*RowSourceImpl[S, T]) Description() (string, error) {

@@ -11,7 +11,7 @@ service TailpipePlugin {
   rpc Describe(DescribeRequest) returns (DescribeResponse);
   rpc AddObserver(AddObserverRequest) returns (stream Event);
   rpc Collect(CollectRequest) returns (CollectResponse);
-  rpc InitSource(InitRequest) returns (InitResponse) ;
+  rpc InitSource(InitSourceRequest) returns (InitResponse) ;
   rpc CloseSource(CloseSourceRequest) returns (CloseSourceResponse);
   rpc SourceCollect(SourceCollectRequest) returns (SourceCollectResponse);
   rpc GetSourceTiming(GetSourceTimingRequest) returns (GetSourceTimingResponse);
@@ -22,9 +22,9 @@ message AddObserverRequest{}
 message CollectRequest {
   string table_name = 1;
   string partition_name = 2;
-  // unique identifier for collection execution this will be used as base for the filename fo the resultiung JSONL files
+  // unique identifier for collection execution this will be used as base for the filename for the resulting JSONL files
   string execution_id = 3;
-  //  dest path for json`l files
+  //  dest path for jsonl files
   string output_path= 4;
   // the source to use (with raw config)
   ConfigData source_data = 5;
@@ -121,6 +121,7 @@ message Event {
     EventArtifactDiscovered artifact_discovered_event = 6;
     EventArtifactDownloaded artifact_downloaded_event = 7;
     EventArtifactExtracted artifact_extracted_event = 8;
+    EventSourceComplete source_complete_event = 9;
   }
 }
 
@@ -157,10 +158,49 @@ message EventComplete {
 }
 
 
-message EventArtifactDiscovered{}
-message EventArtifactDownloaded{}
-message EventArtifactExtracted{}
+message EventSourceComplete {
+  string execution_id = 1;
+  repeated Timing timing = 5;
+  string error = 6;
+}
 
+
+message EventArtifactDiscovered{
+  string execution_id = 1;
+  ArtifactInfo artifact_info = 2;
+}
+
+message EventArtifactDownloaded{
+  string execution_id = 1;
+  ArtifactInfo artifact_info = 2;
+  bytes collection_state = 3;
+}
+
+message EventArtifactExtracted{
+  string execution_id = 1;
+  ArtifactInfo artifact_info = 2;
+}
+
+// ArtifactInfo is a message representing artifact metadata.
+message ArtifactInfo {
+  // The name of the artifact.
+  string name = 1;
+
+  // The original name of the artifact.
+  string original_name = 2;
+
+  // TODO KAI source enrichment???
+
+  // The index of the artifact.
+  string index = 3;
+
+  // The timestamp associated with the artifact.
+  google.protobuf.Timestamp timestamp = 4;
+
+  // Properties related to the artifact.
+  map<string, string> properties = 5;
+
+}
 
 message Timing{
   string operation = 1;
@@ -194,19 +234,46 @@ message NetAddr {
 }
 
 // source functions
-message InitRequest{
+message InitSourceRequest{
   // the source to use (with raw config)
-  ConfigData source_config = 4;
+  ConfigData source_data = 3;
+  // the source format
+  ConfigData source_format = 4;
   // the raw hcl of the connection
-  ConfigData connection_config = 5;
+  ConfigData connection_data = 5;
+  // the default config for the source
+  ArtifactSourceConfig default_config = 6;
+  // this is json encoded data that represents the state of the collection, i.e. what data has been collected
+  // this is used to resume a collection
+  bytes collection_state = 7;
+
+}
+
+// ArtifactSourceConfigBase is a configuration message for an artifact source.
+message ArtifactSourceConfig {
+  // File layout grok string defining the file layout and allowing metadata extraction.
+  string file_layout = 1;
+
+  // Grok patterns to add to the grok parser used to parse the layout.
+  map<string, string> patterns = 2;
+
+  // List of filters to apply to the path segments.
+  // Note: each filter must refer to a single property only.
+  repeated string filters = 3;
 
 
 }
+
 message InitResponse{}
 
-message CloseSourceRequest{}
+message CloseSourceRequest{  }
+
 message CloseSourceResponse{}
-message SourceCollectRequest{}
+
+message SourceCollectRequest{
+  // unique identifier for collection execution
+  string execution_id = 1;
+}
 message SourceCollectResponse{}
 message GetSourceTimingRequest{}
 

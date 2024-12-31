@@ -91,6 +91,6 @@ func (c *ConfigDataImpl) AsProto() *proto.ConfigData {
 	return &proto.ConfigData{
 		Hcl:    c.Hcl,
 		Range:  proto.RangeToProto(c.Range),
-		Target: c.Id,
+		Target: fmt.Sprintf("%s.%s", c.ConfigType, c.Id),
 	}
 }

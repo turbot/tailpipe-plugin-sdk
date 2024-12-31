@@ -17,10 +17,9 @@ type ArtifactSource interface {
 
 	DiscoverArtifacts(ctx context.Context) error
 	DownloadArtifact(context.Context, *types.ArtifactInfo) error
-}
 
-// ArtifactRowSourceOptionHandler is implemented by ArtifactSource implementations to support RowSourceOptions
-type ArtifactRowSourceOptionHandler interface {
+	// functions to support RowSourceOptions
+
 	SetExtractor(extractor Extractor)
 	SetLoader(loader artifact_loader.Loader)
 	SetRowPerLine(b bool)

@@ -8,6 +8,22 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// PluginSourceWrapperIdentifier is the source name for the plugin source wrapper
+const PluginSourceWrapperIdentifier = "plugin_source_wrapper"
+
+func WithPluginReattach(sourcePlugin *types.SourcePluginReattach) RowSourceOption {
+	return func(source RowSource) error {
+		// define interface implemented by the plugin source wrapper
+		type PluginSourceWrapper interface {
+			SetPlugin(sourcePlugin *types.SourcePluginReattach) error
+		}
+		if w, ok := source.(PluginSourceWrapper); ok {
+			return w.SetPlugin(sourcePlugin)
+		}
+		return nil
+	}
+}
+
 // RegisterRowSource registers a row source type
 // this is called from the package init function of the table implementation
 func RegisterRowSource[T RowSource]() {
@@ -45,17 +61,14 @@ func (b *RowSourceFactory) registerRowSource(ctor func() RowSource) {
 func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *types.SourceConfigData, connectionData *types.ConnectionConfigData, sourceOpts ...RowSourceOption) (RowSource, error) {
 
 	var source RowSource
-	// TODO #pluginsource circular ref - artifact soure must register ctor
-	//var err error
+	sourceType := sourceConfigData.Type
 	// if a reattach config is provided, we need to create a wrapper source which will handle the reattach
-	//if sourceConfigData.ReattachConfig != nil {
-	//	source, err = artifact_source.NewPluginSourceWrapper(sourceConfigData.ReattachConfig)
-	//	if err != nil {
-	//		return nil, fmt.Errorf("failed to create plugin source wrapper: %w", err)
-	//	}
-	//} else {
-	// look for a constructor for the source
-	ctor, ok := b.sourceFuncs[sourceConfigData.Type]
+	if sourceConfigData.ReattachConfig != nil {
+		sourceType = PluginSourceWrapperIdentifier
+		sourceOpts = append(sourceOpts, WithPluginReattach(sourceConfigData.ReattachConfig))
+	}
+	//look for a constructor for the source
+	ctor, ok := b.sourceFuncs[sourceType]
 	if !ok {
 		return nil, fmt.Errorf("source not registered: %s", sourceConfigData.Type)
 	}
@@ -68,7 +81,7 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *t
 		return nil, fmt.Errorf("source implementation must embed row_source.RowSourceImpl")
 	}
 	base.RegisterSource(source)
-	//}
+
 	// initialise the source, passing ourselves as source_factory
 	if err := source.Init(ctx, sourceConfigData, connectionData, sourceOpts...); err != nil {
 		return nil, fmt.Errorf("failed to initialise source: %w", err)

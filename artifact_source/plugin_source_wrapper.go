@@ -4,101 +4,121 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
+
 	"github.com/turbot/go-kit/helpers"
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// an empty config implementation as we need to ste connection and config type for the PluginSourceWrapper
-// the config and conneciton will not be used
-
-type NilConfig struct{}
-
-func (n NilConfig) Validate() error {
-	return nil
+// register the source from the package init function
+func init() {
+	row_source.RegisterRowSource[*PluginSourceWrapper]()
 }
 
-func (n NilConfig) Identifier() string {
-	return "empty_config"
-}
-
-type NilArtifactSourceConfig struct{}
-
-func (n NilArtifactSourceConfig) Validate() error {
-	return nil
-}
-
-func (n NilArtifactSourceConfig) Identifier() string {
-	return "empty_artifact_source_config"
-}
-
-func (n NilArtifactSourceConfig) GetFileLayout() *string {
-	return nil
-}
-
-func (n NilArtifactSourceConfig) DefaultTo(_ artifact_source_config.ArtifactSourceConfig) {
-}
-
+// PluginSourceWrapper is an implementation of ArtifactSource which wraps a GRPC plugin which implements the source
+// all RowSource implementations delegate to the plugin, while the remainder of the ArtifactSource operations:
+// loading, extraction are handled by the base ArtifactSourceImpl
 type PluginSourceWrapper struct {
+	// NOTE: we are using the plugin source for ArtifactsSource operations (i.e. downloading the artifacts),
+	// the ArtifactSourceImpl handles the remaining operations (loading/extraction)
+	// We still need to parameterise the ArtifactSourceImpl, however we just pass empty config and connection -
+	// the implementation of the RowSource in the plugin will handle the config and connection
+	// (we pass the raw config and connection to the plugin)
 	ArtifactSourceImpl[*NilArtifactSourceConfig, *NilConfig]
-	client     *SourcePluginClient
+	client     *grpc.PluginClient
 	pluginName string
 	sourceType string
-	observer   observable.Observer
-}
-
-func NewPluginSourceWrapper(sourcePlugin *types.SourcePluginReattach) (row_source.RowSource, error) {
-	client, err := NewPluginClientFromReattach(sourcePlugin)
-	if err != nil {
-		return nil, err
-	}
-	s := &PluginSourceWrapper{
-		client:     client,
-		pluginName: sourcePlugin.Plugin,
-		sourceType: sourcePlugin.SourceType,
-	}
-
-	return s, nil
-}
-
-func (w *PluginSourceWrapper) AddObserver(o observable.Observer) error {
-	w.observer = o
-	eventStream, err := w.client.AddObserver()
-
-	if err != nil {
-		return err
-	}
-	// start a goroutine to read the eventStream and listen to file events
-	// this will loop until it hits an error or the stream is closed
-	go w.readSourceEvents(context.Background(), eventStream)
-
-	return nil
+	// raw collection state - we will pass this to the plugin and updated from the plugin
+	collectionStateJSON json.RawMessage
+	// wait group to wait for the external plugin source to complete
+	sourceWg    sync.WaitGroup
+	executionId string
 }
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
 func (w *PluginSourceWrapper) Init(ctx context.Context, configData types.ConfigData, connectionData types.ConfigData, opts ...row_source.RowSourceOption) error {
-	for _, opt := range opts {
-		err := opt(w)
-		if err != nil {
-			return err
-		}
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	w.executionId = executionId
+
+	// call base to, but pass empty config and connection
+	if err := w.ArtifactSourceImpl.Init(ctx, &types.ConfigDataImpl{}, &types.ConfigDataImpl{}, opts...); err != nil {
+		return err
 	}
 
-	return w.client.Init(ctx, configData, connectionData, opts...)
+	req := &proto.InitSourceRequest{
+		SourceData:      configData.AsProto(),
+		CollectionState: w.collectionStateJSON,
+	}
+	if !helpers.IsNil(connectionData) {
+		req.ConnectionData = connectionData.AsProto()
+	}
+	if w.defaultConfig != nil {
+		req.DefaultConfig = w.defaultConfig.AsProto()
+	}
+
+	_, err = w.client.InitSource(req)
+
+	return err
+}
+
+// SetPlugin sets the plugin client for the source
+// this is called from WithPluginReattach option
+func (w *PluginSourceWrapper) SetPlugin(sourcePlugin *types.SourcePluginReattach) error {
+	client, err := grpc.NewPluginClientFromReattach(sourcePlugin)
+	if err != nil {
+		return err
+	}
+	w.client = client
+	w.pluginName = sourcePlugin.Plugin
+	w.sourceType = sourcePlugin.SourceType
+	return nil
+}
+
+// AddObserver adds an observer to the source (overriding the base implementation)
+func (w *PluginSourceWrapper) AddObserver(o observable.Observer) error {
+	// use base implementation to add the observer
+	err := w.ArtifactSourceImpl.AddObserver(o)
+	if err != nil {
+		return err
+	}
+	// get the event stream from the plugin
+	eventStream, err := w.client.AddObserver()
+	if err != nil {
+		return err
+	}
+
+	// add the execution id to the context
+	ctx := context_values.WithExecutionId(context.Background(), w.executionId)
+
+	// start a goroutine to read the eventStream and listen to file events
+	// this will loop until it hits an error or the stream is closed
+	go w.readSourceEvents(ctx, eventStream)
+
+	return nil
 }
 
 // Identifier must return the source name
 func (w *PluginSourceWrapper) Identifier() string {
-	return w.sourceType
+	return row_source.PluginSourceWrapperIdentifier
 }
 
 // Description returns a human readable description of the source
 func (w *PluginSourceWrapper) Description() (string, error) {
+	// this may be called before client is set
+	if w.client == nil {
+		return "Plugin source wrapper", nil
+	}
+
 	res, err := w.client.Describe()
 	if err != nil {
 		return "", err
@@ -112,30 +132,58 @@ func (w *PluginSourceWrapper) Description() (string, error) {
 }
 
 func (w *PluginSourceWrapper) Close() error {
-	err := w.client.Close()
-	// TODO K correct?
-	w.client.client.Kill()
+	_, err := w.client.CloseSource()
+	w.client.Client.Kill()
 	return err
 }
 
 // Collect is called to start collecting data,
 func (w *PluginSourceWrapper) Collect(ctx context.Context) error {
-	return w.client.Collect(ctx)
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	// signal the wait group that the source is running
+	w.sourceWg.Add(1)
+
+	_, err = w.client.SourceCollect(
+		&proto.SourceCollectRequest{
+			ExecutionId: executionId,
+		},
+	)
+	if err != nil {
+		return err
+	}
+
+	// wait for the source to complete - this will be cleared by the event handler
+	// TODO timeout?
+	w.sourceWg.Wait()
+	// also wait for any artifact extractions to complete
+	w.artifactExtractWg.Wait()
+	return nil
 }
 
 // GetCollectionStateJSON returns the json serialised collection state data for the ongoing collection
 func (w *PluginSourceWrapper) GetCollectionStateJSON() (json.RawMessage, error) {
-	return w.client.GetCollectionStateJSON()
+	return w.collectionStateJSON, nil
 }
 
 // SetCollectionStateJSON unmarshalls the collection state data JSON into the target object
 func (w *PluginSourceWrapper) SetCollectionStateJSON(stateJSON json.RawMessage) error {
-	return w.client.SetCollectionStateJSON(stateJSON)
+	// just store the raw JSON - we will pass it to the plugin
+	w.collectionStateJSON = stateJSON
+	return nil
 }
 
 // GetTiming returns the timing for the source row collection
-func (w *PluginSourceWrapper) GetTiming() types.TimingCollection {
-	return w.client.GetTiming()
+func (w *PluginSourceWrapper) GetTiming() (types.TimingCollection, error) {
+	resp, err := w.client.GetSourceTiming()
+	if err != nil {
+		return types.TimingCollection{}, nil
+	}
+	return events.TimingCollectionFromProto(resp.Timing), nil
+
 }
 
 func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream proto.TailpipePlugin_AddObserverClient) {
@@ -168,31 +216,51 @@ func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream
 			return
 		case err := <-errChan:
 			if err != nil {
-				// TODO #error WHAT TO DO HERE? send error to observers
-
-				fmt.Printf("Error reading from plugin stream: %v\n", err)
+				w.NotifyError(ctx, w.executionId, fmt.Errorf("error reading from plugin stream: %v", err))
 				return
 			}
 		case protoEvent := <-pluginEventChan:
 			// convert the protobuff event to an observer event
 			// and send it to the observer
 			if protoEvent == nil {
-				// TODO #error unexpected - raise an error - send error to observers
+				w.NotifyError(ctx, w.executionId, fmt.Errorf("nil event received from plugin"))
 				return
 			}
-			err := w.observer.Notify(ctx, events.EventFromProto(protoEvent))
-			if err != nil {
-				fmt.Printf("Error notifying observer: %v\n", err)
-				// TODO #error WHAT TO DO HERE? send error to observers
-				continue
-			}
+
 			// TODO #error should we quit if we get an error event?
-			// if this is a completion event (or other error event???), stop polling
-			if protoEvent.GetCompleteEvent() != nil {
+
+			switch protoEvent.Event.(type) {
+			case *proto.Event_ArtifactDownloadedEvent:
+				// increment the wait group - this would normally be done in OnArtifactDiscovered
+				// but we are not calling that as the plugin source is doing the discovery and downloading
+				// We need to increment it here as OnArtifactDownloaded will decrement it
+				w.artifactExtractWg.Add(1)
+				// get artifact info from the event
+				artifactInfo := types.ArtifactInfoFromProto(protoEvent.GetArtifactDownloadedEvent().ArtifactInfo)
+				err := w.OnArtifactDownloaded(ctx, artifactInfo)
+				if err != nil {
+					w.NotifyError(ctx, w.executionId, err)
+				}
+
+			case *proto.Event_SourceCompleteEvent:
 				close(pluginEventChan)
+				// close wait group
+				w.sourceWg.Done()
 				return
+			default:
+				// pass all other events onwards
+				// convert to a observable event
+				ev, err := events.SourceEventFromProto(protoEvent)
+				if err != nil {
+					w.NotifyError(ctx, w.executionId, err)
+					continue
+				}
+				err = w.NotifyObservers(ctx, ev)
+				if err != nil {
+					w.NotifyError(ctx, w.executionId, err)
+					continue
+				}
 			}
 		}
 	}
-
 }

@@ -27,9 +27,10 @@ type TailpipePlugin interface {
 	// this is implemented by plugin.PluginImpl and should not be overridden
 	Collect(context.Context, *proto.CollectRequest) (*schema.RowSchema, error)
 
-	InitSource(context.Context) error
+	// Source functions - used when the plugin is acting as a Source only
+	InitSource(context.Context, *proto.InitSourceRequest) error
 	CloseSource(context.Context) error
-	SourceCollect(context.Context) error
+	SourceCollect(context.Context, *proto.SourceCollectRequest) error
 	GetSourceTiming(context.Context) (types.TimingCollection, error)
 
 	// Other interface functions

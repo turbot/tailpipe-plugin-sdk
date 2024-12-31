@@ -5,7 +5,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-type Completed struct {
+type Complete struct {
 	Base
 	ExecutionId   string
 	RowCount      int
@@ -14,8 +14,8 @@ type Completed struct {
 	Timing        types.TimingCollection
 }
 
-func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, timing types.TimingCollection, err error) *Completed {
-	return &Completed{
+func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, timing types.TimingCollection, err error) *Complete {
+	return &Complete{
 		ExecutionId:   executionId,
 		RowCount:      rowCount,
 		ChunksWritten: chunksWritten,
@@ -24,7 +24,7 @@ func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, timi
 	}
 }
 
-func (c *Completed) ToProto() *proto.Event {
+func (c *Complete) ToProto() *proto.Event {
 	errString := ""
 	if c.Err != nil {
 		errString = c.Err.Error()

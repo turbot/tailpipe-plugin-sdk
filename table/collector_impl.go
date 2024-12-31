@@ -135,7 +135,8 @@ func (c *CollectorImpl[R]) Collect(ctx context.Context) (int, int, error) {
 }
 
 // Notify implements observable.Observer
-// it handles all events which collectorFuncMap may receive (these will all come from the source)
+// it receives events from the source
+// it handles ONLY Row and Error events
 func (c *CollectorImpl[R]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	c.updateStatus(ctx, event)
@@ -153,12 +154,19 @@ func (c *CollectorImpl[R]) Notify(ctx context.Context, event events.Event) error
 		return c.NotifyObservers(context.Background(), e)
 	default:
 		// ignore
+		// TODO pass other events through to observers
+		// https://github.com/turbot/tailpipe-plugin-sdk/issues/24
+		// https://github.com/turbot/tailpipe-plugin-sdk/issues/10
 		return nil
 	}
 }
 
-func (c *CollectorImpl[R]) GetTiming() types.TimingCollection {
-	return append(c.source.GetTiming(), c.enrichTiming)
+func (c *CollectorImpl[R]) GetTiming() (types.TimingCollection, error) {
+	res, err := c.source.GetTiming()
+	if err != nil {
+		return types.TimingCollection{}, nil
+	}
+	return append(res, c.enrichTiming), nil
 }
 
 func (c *CollectorImpl[R]) initSource(ctx context.Context, sourceConfigData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
@@ -236,9 +244,6 @@ func (c *CollectorImpl[R]) getSourceMetadataMap() map[string]*SourceMetadata[R] 
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
 func (c *CollectorImpl[R]) updateStatus(ctx context.Context, e events.Event) {
-	c.statusLock.Lock()
-	defer c.statusLock.Unlock()
-
 	c.status.Update(e)
 
 	// send a status event periodically

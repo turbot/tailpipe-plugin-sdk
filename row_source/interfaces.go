@@ -42,7 +42,7 @@ type RowSource interface {
 	SetCollectionStateJSON(stateJSON json.RawMessage) error
 
 	// GetTiming returns the timing for the source row collection
-	GetTiming() types.TimingCollection
+	GetTiming() (types.TimingCollection, error)
 }
 
 // BaseSource registers the rowSource implementation with the base struct (_before_ calling Init)

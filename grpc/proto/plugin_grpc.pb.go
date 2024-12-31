@@ -35,7 +35,7 @@ type TailpipePluginClient interface {
 	Describe(ctx context.Context, in *DescribeRequest, opts ...grpc.CallOption) (*DescribeResponse, error)
 	AddObserver(ctx context.Context, in *AddObserverRequest, opts ...grpc.CallOption) (TailpipePlugin_AddObserverClient, error)
 	Collect(ctx context.Context, in *CollectRequest, opts ...grpc.CallOption) (*CollectResponse, error)
-	InitSource(ctx context.Context, in *InitRequest, opts ...grpc.CallOption) (*InitResponse, error)
+	InitSource(ctx context.Context, in *InitSourceRequest, opts ...grpc.CallOption) (*InitResponse, error)
 	CloseSource(ctx context.Context, in *CloseSourceRequest, opts ...grpc.CallOption) (*CloseSourceResponse, error)
 	SourceCollect(ctx context.Context, in *SourceCollectRequest, opts ...grpc.CallOption) (*SourceCollectResponse, error)
 	GetSourceTiming(ctx context.Context, in *GetSourceTimingRequest, opts ...grpc.CallOption) (*GetSourceTimingResponse, error)
@@ -99,7 +99,7 @@ func (c *tailpipePluginClient) Collect(ctx context.Context, in *CollectRequest, 
 	return out, nil
 }
 
-func (c *tailpipePluginClient) InitSource(ctx context.Context, in *InitRequest, opts ...grpc.CallOption) (*InitResponse, error) {
+func (c *tailpipePluginClient) InitSource(ctx context.Context, in *InitSourceRequest, opts ...grpc.CallOption) (*InitResponse, error) {
 	out := new(InitResponse)
 	err := c.cc.Invoke(ctx, TailpipePlugin_InitSource_FullMethodName, in, out, opts...)
 	if err != nil {
@@ -142,7 +142,7 @@ type TailpipePluginServer interface {
 	Describe(context.Context, *DescribeRequest) (*DescribeResponse, error)
 	AddObserver(*AddObserverRequest, TailpipePlugin_AddObserverServer) error
 	Collect(context.Context, *CollectRequest) (*CollectResponse, error)
-	InitSource(context.Context, *InitRequest) (*InitResponse, error)
+	InitSource(context.Context, *InitSourceRequest) (*InitResponse, error)
 	CloseSource(context.Context, *CloseSourceRequest) (*CloseSourceResponse, error)
 	SourceCollect(context.Context, *SourceCollectRequest) (*SourceCollectResponse, error)
 	GetSourceTiming(context.Context, *GetSourceTimingRequest) (*GetSourceTimingResponse, error)
@@ -162,7 +162,7 @@ func (UnimplementedTailpipePluginServer) AddObserver(*AddObserverRequest, Tailpi
 func (UnimplementedTailpipePluginServer) Collect(context.Context, *CollectRequest) (*CollectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Collect not implemented")
 }
-func (UnimplementedTailpipePluginServer) InitSource(context.Context, *InitRequest) (*InitResponse, error) {
+func (UnimplementedTailpipePluginServer) InitSource(context.Context, *InitSourceRequest) (*InitResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method InitSource not implemented")
 }
 func (UnimplementedTailpipePluginServer) CloseSource(context.Context, *CloseSourceRequest) (*CloseSourceResponse, error) {
@@ -245,7 +245,7 @@ func _TailpipePlugin_Collect_Handler(srv interface{}, ctx context.Context, dec f
 }
 
 func _TailpipePlugin_InitSource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InitRequest)
+	in := new(InitSourceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
@@ -257,7 +257,7 @@ func _TailpipePlugin_InitSource_Handler(srv interface{}, ctx context.Context, de
 		FullMethod: TailpipePlugin_InitSource_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TailpipePluginServer).InitSource(ctx, req.(*InitRequest))
+		return srv.(TailpipePluginServer).InitSource(ctx, req.(*InitSourceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }

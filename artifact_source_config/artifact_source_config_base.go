@@ -3,7 +3,9 @@ package artifact_source_config
 import (
 	"github.com/hashicorp/hcl/v2"
 	gokithelpers "github.com/turbot/go-kit/helpers"
+	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/pipe-fittings/filter"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
 type ArtifactSourceConfigBase struct {
@@ -69,5 +71,15 @@ func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactSourceConfig) {
 
 	if other.GetFileLayout() != nil && b.FileLayout == nil {
 		b.FileLayout = other.GetFileLayout()
+	}
+}
+
+// AsProto converts ArtifactSourceConfigBase to its Protobuf representation.
+// used to pass default config to an external-plugin source
+func (b *ArtifactSourceConfigBase) AsProto() *proto.ArtifactSourceConfig {
+	return &proto.ArtifactSourceConfig{
+		FileLayout: typehelpers.SafeString(b.FileLayout),
+		Patterns:   b.Patterns,
+		Filters:    b.Filters,
 	}
 }

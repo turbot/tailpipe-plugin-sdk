@@ -207,12 +207,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
 			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
-			// we failed to download artifact so decrement the wait group
-			a.artifactExtractWg.Done()
-			err := a.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
-			if err != nil {
-				slog.Error("Error notifying observers of download error", "download error", err, "notify error", err)
-			}
+			a.NotifyError(ctx, executionId, err)
 		}
 		// update the download active duration
 		a.DownloadTiming.UpdateActiveDuration(time.Since(downloadStart))
@@ -248,21 +243,19 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	// extract asynchronously
 	go func() {
 		extractStart := time.Now()
+
+		// load and extract the artifact
 		err := a.processArtifact(ctx, info, collectionState)
+
 		// update extract active duration
 		activeDuration := time.Since(extractStart)
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name, "duration (ms)", activeDuration.Milliseconds())
 		a.ExtractTiming.UpdateActiveDuration(activeDuration)
 
-		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name)
-
 		// close wait group whether there is an error or not
 		a.artifactExtractWg.Done()
 		if err != nil {
-			err := a.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
-			if err != nil {
-				slog.Error("Error notifying observers of extract error", "extract error", err, "notify error", err)
-			}
+			a.NotifyError(ctx, executionId, err)
 		}
 	}()
 
@@ -273,8 +266,8 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	return nil
 }
 
-func (a *ArtifactSourceImpl[S, T]) GetTiming() types.TimingCollection {
-	return types.TimingCollection{a.DiscoveryTiming, a.DownloadTiming, a.ExtractTiming}
+func (a *ArtifactSourceImpl[S, T]) GetTiming() (types.TimingCollection, error) {
+	return types.TimingCollection{a.DiscoveryTiming, a.DownloadTiming, a.ExtractTiming}, nil
 }
 
 // convert a downloaded artifact to a set of raw rows, with optional metadata
@@ -305,8 +298,12 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 
 	// range over the data channel and apply extractor if needed
 	for artifactData := range artifactChan {
+
 		// raise row events, sending collection state data
-		var notifyErrors []error
+		// we may have thousands of notify errors - just store the first one and the count
+		var notifyError error
+		notifyErrorCount := 0
+
 		// NOTE: if no metadata has been set on the row, use any metadata from the artifact
 		if artifactData.SourceEnrichment == nil {
 			artifactData.SourceEnrichment = info.SourceEnrichment
@@ -328,11 +325,16 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 			}
 
 			if err := a.OnRow(ctx, rawRow, collectionState); err != nil {
-				notifyErrors = append(notifyErrors, err)
+				// store the first error
+				if notifyError == nil {
+					notifyError = err
+				}
+				notifyErrorCount++
 			}
 		}
-		if len(notifyErrors) > 0 {
-			return fmt.Errorf("error notifying %d %s of row event: %w", len(notifyErrors), utils.Pluralize("observer", len(notifyErrors)), errors.Join(notifyErrors...))
+
+		if notifyErrorCount > 0 {
+			return fmt.Errorf("error notifying %d %s of row event: %w", notifyErrorCount, utils.Pluralize("observer", notifyErrorCount), notifyError)
 		}
 	}
 
@@ -359,7 +361,7 @@ func (a *ArtifactSourceImpl[S, T]) extractRowsFromArtifact(ctx context.Context, 
 		// just return the artifact data as a single row
 		return []*types.RowData{artifactData}, nil
 	}
-
+	// TODO #errors error here results in wg negative error
 	var res []*types.RowData
 	rows, err := a.extractor.Extract(ctx, artifactData.Data)
 	if err != nil {

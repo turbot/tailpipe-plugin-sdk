@@ -18,6 +18,7 @@ func TableFromProto(pt *proto.Table) *Table {
 	}
 }
 
+// CollectRequest is an sdk type which is mapped from the proto.CollectRequest
 type CollectRequest struct {
 	TableName     string
 	PartitionName string

@@ -9,7 +9,7 @@ import (
 // WithDefaultArtifactSourceConfig sets the default config, e.g. file layout, IF it has not been set from config
 func WithDefaultArtifactSourceConfig(config *artifact_source_config.ArtifactSourceConfigBase) row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
-		if a, ok := r.(ArtifactRowSourceOptionHandler); ok {
+		if a, ok := r.(ArtifactSource); ok {
 			a.SetDefaultConfig(config)
 		}
 		return nil
@@ -19,7 +19,7 @@ func WithDefaultArtifactSourceConfig(config *artifact_source_config.ArtifactSour
 // WithArtifactLoader is used to specify an artifact loader
 func WithArtifactLoader(loader artifact_loader.Loader) row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
-		if a, ok := r.(ArtifactRowSourceOptionHandler); ok {
+		if a, ok := r.(ArtifactSource); ok {
 			a.SetLoader(loader)
 		}
 		return nil
@@ -31,7 +31,7 @@ func WithArtifactLoader(loader artifact_loader.Loader) row_source.RowSourceOptio
 // (not this is in addition to the default extraction performed by the loaded)
 func WithArtifactExtractor(extractor Extractor) row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
-		if a, ok := r.(ArtifactRowSourceOptionHandler); ok {
+		if a, ok := r.(ArtifactSource); ok {
 			a.SetExtractor(extractor)
 		}
 		return nil
@@ -42,7 +42,7 @@ func WithArtifactExtractor(extractor Extractor) row_source.RowSourceOption {
 // it specifies that the row source should treat each line as a separate row
 func WithRowPerLine() row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
-		if a, ok := r.(ArtifactRowSourceOptionHandler); ok {
+		if a, ok := r.(ArtifactSource); ok {
 			a.SetRowPerLine(true)
 		}
 		return nil
@@ -53,7 +53,7 @@ func WithRowPerLine() row_source.RowSourceOption {
 // it specifies that the row source should skip the first row (header row).
 func WithSkipHeaderRow() row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
-		if a, ok := r.(ArtifactRowSourceOptionHandler); ok {
+		if a, ok := r.(ArtifactSource); ok {
 			a.SetSkipHeaderRow(true)
 		}
 		return nil

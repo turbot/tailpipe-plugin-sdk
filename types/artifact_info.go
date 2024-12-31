@@ -6,19 +6,22 @@ import (
 	"time"
 
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 type ArtifactInfo struct {
 	Name         string `json:"-"`
 	OriginalName string `json:"-"`
 
+	// TODO KAI figure this out - do we need to store the source enrichment here?
 	SourceEnrichment *schema.SourceEnrichment `json:"-"`
 
 	// collection state properties
 	Index     string    `json:"index,omitempty"`
 	Timestamp time.Time `json:"timestamp,omitempty"`
-	// TODO do we even need to store these
+	// TODO KAI do we even need to store these
 	Properties map[string]string `json:"-"`
 	// original properties - used to validate the granularity
 	originalProperties map[string]string
@@ -93,4 +96,24 @@ func (i *ArtifactInfo) SetPathProperties(properties map[string]string) error {
 	i.Timestamp = time.Date(year, time.Month(month), day, hour, minute, second, 0, time.UTC)
 
 	return nil
+}
+
+func (i *ArtifactInfo) ToProto() *proto.ArtifactInfo {
+	return &proto.ArtifactInfo{
+		Name:         i.Name,
+		OriginalName: i.OriginalName,
+		Index:        i.Index,
+		Timestamp:    timestamppb.New(i.Timestamp),
+		Properties:   i.Properties,
+	}
+}
+
+func ArtifactInfoFromProto(info *proto.ArtifactInfo) *ArtifactInfo {
+	return &ArtifactInfo{
+		Name:         info.Name,
+		OriginalName: info.OriginalName,
+		Index:        info.Index,
+		Timestamp:    info.Timestamp.AsTime(),
+		Properties:   info.Properties,
+	}
 }

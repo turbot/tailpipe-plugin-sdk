@@ -89,7 +89,7 @@ func (c *CommonFields) Validate() error {
 	errorMsg += invalidFieldsStr
 
 	if errorMsg != "" {
-		return fmt.Errorf("%s", errorMsg)
+		return fmt.Errorf("row validation failed: %s", errorMsg)
 	}
 	return nil
 }

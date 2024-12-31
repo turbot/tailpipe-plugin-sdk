@@ -6,6 +6,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
+// NOTE: Row DOES NOT implement ToProto - we do not send row events over protobuf - the volume of data is too high
+
 type Row struct {
 	Base
 	ExecutionId string
