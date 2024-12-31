@@ -280,12 +280,12 @@ func (c *CollectorImpl[R]) handleRowEvent(ctx context.Context, e *events.Row) er
 
 	// add table and partition to the enrichment fields
 
-	sourceMetadata := e.SourceMetadata
-	sourceMetadata.CommonFields.TpTable = c.req.TableName
-	sourceMetadata.CommonFields.TpPartition = c.req.PartitionName
+	sourceEnrichment := e.SourceEnrichment
+	sourceEnrichment.CommonFields.TpTable = c.req.TableName
+	sourceEnrichment.CommonFields.TpPartition = c.req.PartitionName
 
 	// enrich the row
-	enrichedRow, err := c.Table.EnrichRow(mappedRow, sourceMetadata)
+	enrichedRow, err := c.Table.EnrichRow(mappedRow, sourceEnrichment)
 	if err != nil {
 		return err
 	}

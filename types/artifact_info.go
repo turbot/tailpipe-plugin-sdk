@@ -15,7 +15,7 @@ type ArtifactInfo struct {
 	Name         string `json:"-"`
 	OriginalName string `json:"-"`
 
-	// TODO KAI figure this out - do we need to store the source enrichment here?
+	// enrichment values passed from the source to the collection to include in the enrichment process
 	SourceEnrichment *schema.SourceEnrichment `json:"-"`
 
 	// collection state properties
@@ -45,7 +45,8 @@ func (i *ArtifactInfo) GetOriginalProperties() map[string]string {
 	return i.originalProperties
 }
 
-// SetPathProperties sets the properties of the artifact which havbe been determined based on the path
+// TODO #metadata look at this
+// SetPathProperties sets the properties of the artifact which have been determined based on the path
 func (i *ArtifactInfo) SetPathProperties(properties map[string]string) error {
 	i.originalProperties = properties
 
@@ -100,20 +101,23 @@ func (i *ArtifactInfo) SetPathProperties(properties map[string]string) error {
 
 func (i *ArtifactInfo) ToProto() *proto.ArtifactInfo {
 	return &proto.ArtifactInfo{
-		Name:         i.Name,
-		OriginalName: i.OriginalName,
-		Index:        i.Index,
-		Timestamp:    timestamppb.New(i.Timestamp),
-		Properties:   i.Properties,
+		Name:             i.Name,
+		OriginalName:     i.OriginalName,
+		Index:            i.Index,
+		SourceEnrichment: i.SourceEnrichment.ToProto(),
+		Timestamp:        timestamppb.New(i.Timestamp),
+		Properties:       i.Properties,
 	}
 }
 
 func ArtifactInfoFromProto(info *proto.ArtifactInfo) *ArtifactInfo {
+	enrichment := schema.SourceEnrichmentFromProto(info.SourceEnrichment)
 	return &ArtifactInfo{
-		Name:         info.Name,
-		OriginalName: info.OriginalName,
-		Index:        info.Index,
-		Timestamp:    info.Timestamp.AsTime(),
-		Properties:   info.Properties,
+		Name:             info.Name,
+		OriginalName:     info.OriginalName,
+		Index:            info.Index,
+		Timestamp:        info.Timestamp.AsTime(),
+		SourceEnrichment: enrichment,
+		Properties:       info.Properties,
 	}
 }

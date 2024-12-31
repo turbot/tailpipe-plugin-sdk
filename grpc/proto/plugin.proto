@@ -189,16 +189,17 @@ message ArtifactInfo {
   // The original name of the artifact.
   string original_name = 2;
 
-  // TODO KAI source enrichment???
+  // Any enrichment fields provided by the source.
+  SourceEnrichment source_enrichment = 3;
 
   // The index of the artifact.
-  string index = 3;
+  string index = 4;
 
   // The timestamp associated with the artifact.
-  google.protobuf.Timestamp timestamp = 4;
+  google.protobuf.Timestamp timestamp = 5;
 
   // Properties related to the artifact.
-  map<string, string> properties = 5;
+  map<string, string> properties = 6;
 
 }
 
@@ -207,6 +208,11 @@ message Timing{
   google.protobuf.Timestamp start_time = 2;
   google.protobuf.Timestamp end_time = 3;
   google.protobuf.Duration active_duration = 4;
+}
+
+message SourceEnrichment{
+  map<string, string> common_fields = 1;
+  map<string, string> metadata = 2;
 }
 
 message SourceMetadata{

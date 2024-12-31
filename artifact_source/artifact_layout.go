@@ -10,14 +10,14 @@ import (
 // MetadataSatisfiesFilters checks if a path segment satisfies the given filters,
 // based on the file layout, which is a grok pattern
 // the grok pattern is assumed to start at the beginning of the path segment
-func MetadataSatisfiesFilters(metadata map[string][]byte, filters map[string]*filter.SqlFilter) bool {
+func MetadataSatisfiesFilters(metadata map[string]string, filters map[string]*filter.SqlFilter) bool {
 	// Validate metadata against filters
 	for key, value := range metadata {
 		// Check if a filter exists for this key
 		// NOTE: we assume each filter is for a single key
 		if f, exists := filters[key]; exists {
 			// Validate the filter against the extracted value
-			if !f.Satisfied(map[string]string{key: string(value)}) {
+			if !f.Satisfied(map[string]string{key: value}) {
 				return false
 			}
 		}

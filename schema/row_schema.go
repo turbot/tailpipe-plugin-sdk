@@ -49,6 +49,8 @@ func RowSchemaFromProto(p *proto.Schema) *RowSchema {
 	return res
 }
 
+// MapRow maps a row from a map of source fields to a map of target fields, applying the schema
+// and respecting the automap and exclude fields
 func (r *RowSchema) MapRow(rowMap map[string]string) (map[string]string, error) {
 	var res = make(map[string]string, len(r.Columns))
 

@@ -67,7 +67,7 @@ func (l *DynamicRow) Validate() error {
 
 func (l *DynamicRow) GetCommonFields() schema.CommonFields {
 	var res schema.CommonFields
-	res.InitialiseFromMap(l.Columns, &schema.RowSchema{})
+	res.InitialiseFromMap(l.Columns)
 	return res
 }
 
