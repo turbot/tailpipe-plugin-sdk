@@ -52,7 +52,7 @@ func (s *ArtifactCollectionState[T]) Init(config T) error {
 	fileLayout := config.GetFileLayout()
 	slog.Info(fmt.Sprintf("Initializing ArtifactCollectionState %p", s), "fileLayout", fileLayout)
 	// create a grok parser even if we do not have a file layout - we use it to check for initalized state
-	g := grok.New()
+	s.g = grok.New()
 
 	// if we do not have a file layout, we have nothing to do
 	if fileLayout == nil {
@@ -61,7 +61,7 @@ func (s *ArtifactCollectionState[T]) Init(config T) error {
 	}
 
 	// convert pattern to a grok parser
-	err := g.Compile(*fileLayout, true)
+	err := s.g.Compile(*fileLayout, true)
 	if err != nil {
 		return err
 	}
