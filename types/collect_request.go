@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"time"
 )
 
 type Table struct {
@@ -25,18 +26,17 @@ type CollectRequest struct {
 
 	// unique identifier for collection execution this will be used as base for the filename fo the resultiung JSONL files
 	ExecutionId string
-	// dest path for jsonl files
-	OutputPath string
+	// the parent folder for all collection related files (JSONL files, temp source files and collection state)
+	CollectionFolder string
 	// the source to use (with raw config)
 	SourceData *SourceConfigData
 	// the source format to use (with raw config)
 	SourceFormat *FormatConfigData
 	// the raw hcl of the connection
 	ConnectionData *ConnectionConfigData
-	// this is json encoded data that represents the state of the collection, i.e. what data has been collected
-	// this is used to resume a collection
-	CollectionState []byte
-
+	// the collection start time
+	From time.Time
+	// the custom table defintion, if specified
 	CustomTable *Table
 }
 
@@ -53,12 +53,12 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	sourceData.SetReattach(pr.SourcePlugin)
 
 	req := &CollectRequest{
-		TableName:       pr.TableName,
-		PartitionName:   pr.PartitionName,
-		ExecutionId:     pr.ExecutionId,
-		OutputPath:      pr.OutputPath,
-		SourceData:      sourceData,
-		CollectionState: pr.CollectionState,
+		TableName:        pr.TableName,
+		PartitionName:    pr.PartitionName,
+		ExecutionId:      pr.ExecutionId,
+		CollectionFolder: pr.CollectionFolder,
+		SourceData:       sourceData,
+		From:             pr.FromTime.AsTime(),
 	}
 
 	if pr.SourceFormat != nil {

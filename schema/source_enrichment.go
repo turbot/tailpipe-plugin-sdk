@@ -11,6 +11,15 @@ type SourceEnrichment struct {
 	CommonFields CommonFields
 }
 
+func NewSourceEnrichment(metadata map[string]string) *SourceEnrichment {
+	res := &SourceEnrichment{
+		Metadata: metadata,
+	}
+	// initialise common fields from metadata
+	res.CommonFields.InitialiseFromMap(metadata)
+	return res
+}
+
 func (s *SourceEnrichment) ToProto() *proto.SourceEnrichment {
 	// convert
 	return &proto.SourceEnrichment{

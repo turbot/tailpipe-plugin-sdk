@@ -14,6 +14,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // register the source from the package init function
@@ -34,7 +35,9 @@ type PluginSourceWrapper struct {
 	client     *grpc.PluginClient
 	pluginName string
 	sourceType string
-	// raw collection state - we will pass this to the plugin and updated from the plugin
+	// collection state path - we will pass this to the plugin
+	collectionStatePath string
+	// the collection state json returned by the plugin
 	collectionStateJSON json.RawMessage
 	// wait group to wait for the external plugin source to complete
 	sourceWg    sync.WaitGroup
@@ -43,7 +46,7 @@ type PluginSourceWrapper struct {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (w *PluginSourceWrapper) Init(ctx context.Context, configData types.ConfigData, connectionData types.ConfigData, opts ...row_source.RowSourceOption) error {
+func (w *PluginSourceWrapper) Init(ctx context.Context, params row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -51,16 +54,18 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, configData types.ConfigD
 	w.executionId = executionId
 
 	// call base to, but pass empty config and connection
-	if err := w.ArtifactSourceImpl.Init(ctx, &types.ConfigDataImpl{}, &types.ConfigDataImpl{}, opts...); err != nil {
+	if err := w.ArtifactSourceImpl.Init(ctx, params, opts...); err != nil {
 		return err
 	}
 
 	req := &proto.InitSourceRequest{
-		SourceData:      configData.AsProto(),
-		CollectionState: w.collectionStateJSON,
+		SourceData:          params.SourceConfigData.AsProto(),
+		CollectionStatePath: w.collectionStatePath,
+		FromTime:            timestamppb.New(w.FromTime),
+		CollectionDir:       params.CollectionDir,
 	}
-	if !helpers.IsNil(connectionData) {
-		req.ConnectionData = connectionData.AsProto()
+	if !helpers.IsNil(params.ConnectionData) {
+		req.ConnectionData = params.ConnectionData.AsProto()
 	}
 	if w.defaultConfig != nil {
 		req.DefaultConfig = w.defaultConfig.AsProto()
@@ -169,10 +174,10 @@ func (w *PluginSourceWrapper) GetCollectionStateJSON() (json.RawMessage, error) 
 	return w.collectionStateJSON, nil
 }
 
-// SetCollectionStateJSON unmarshalls the collection state data JSON into the target object
-func (w *PluginSourceWrapper) SetCollectionStateJSON(stateJSON json.RawMessage) error {
+// SetCollectionState stores the collection state path - this will be passed to the plugin
+func (w *PluginSourceWrapper) SetCollectionState(collectionStatePath string) error {
 	// just store the raw JSON - we will pass it to the plugin
-	w.collectionStateJSON = stateJSON
+	w.collectionStatePath = collectionStatePath
 	return nil
 }
 
@@ -235,6 +240,8 @@ func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream
 				// but we are not calling that as the plugin source is doing the discovery and downloading
 				// We need to increment it here as OnArtifactDownloaded will decrement it
 				w.artifactExtractWg.Add(1)
+				// set the collection state
+				w.collectionStateJSON = protoEvent.GetArtifactDownloadedEvent().CollectionState
 				// get artifact info from the event
 				artifactInfo := types.ArtifactInfoFromProto(protoEvent.GetArtifactDownloadedEvent().ArtifactInfo)
 				err := w.OnArtifactDownloaded(ctx, artifactInfo)

@@ -184,7 +184,7 @@ func (c *ArtifactConversionCollector[S]) GetTiming() (types.TimingCollection, er
 
 func (c *ArtifactConversionCollector[S]) initSource(ctx context.Context, configData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
 	requestedSource := configData.Type
-	// must be an srtifact source
+	// must be an artifact source
 	if !row_source.IsArtifactSource(requestedSource) {
 		return fmt.Errorf("source type %s is not an artifact source", requestedSource)
 	}
@@ -194,9 +194,16 @@ func (c *ArtifactConversionCollector[S]) initSource(ctx context.Context, configD
 	sourceMetadata := &SourceMetadata[*DynamicRow]{
 		SourceName: requestedSource,
 	}
+
+	// TODO KAI FIX ME
+	params := row_source.RowSourceParams{
+		SourceConfigData: configData,
+		ConnectionData:   connectionData,
+	}
+
 	// ask factory to create and initialise the source for us
 	// NOTE: we pass the original
-	source, err := row_source.Factory.GetRowSource(ctx, configData, connectionData, sourceMetadata.Options...)
+	source, err := row_source.Factory.GetRowSource(ctx, params, sourceMetadata.Options...)
 	if err != nil {
 		return err
 	}
@@ -270,6 +277,7 @@ func (c *ArtifactConversionCollector[S]) OnChunk(ctx context.Context, chunkNumbe
 	if err != nil {
 		return err
 	}
+	// TODO #collectionstate SAVE collection state???
 	// construct proto event
 	e := events.NewChunkEvent(executionId, chunkNumber, collectionState)
 

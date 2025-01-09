@@ -5,6 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/elastic/go-grok"
+	"github.com/turbot/pipe-fittings/filter"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"io/fs"
 	"log/slog"
 	"path/filepath"
 	"sync"
@@ -23,10 +27,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// TODO #config TMP https://github.com/turbot/tailpipe-plugin-sdk/issues/3
-const BaseTmpDir = "/tmp/tailpipe"
-
-// TODO #config configure https://github.com/turbot/tailpipe-plugin-sdk/issues/4
 const ArtifactSourceMaxConcurrency = 16
 
 // ArtifactSourceImpl is a [row_source.RowSource] that extracts rows from an 'artifact'
@@ -56,11 +56,15 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	SkipHeaderRow bool
 	Loader        artifact_loader.Loader
 
-	// TODO #config should this be in base - means the risk that a derived struct will not set it https://github.com/turbot/tailpipe-plugin-sdk/issues/3
+	// temporary directory for storing downloaded artifacts - this is initialised in the Init function
+	// to be a subdirectory of the collection directory
 	TmpDir string
 
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
+
+	// shadow the CollectionState property, but using ArtifactCollectionStateImpl
+	CollectionState collection_state.ArtifactCollectionState[S]
 
 	defaultConfig *artifact_source_config.ArtifactSourceConfigBase
 	// map of loaders created, keyed by identifier
@@ -85,17 +89,20 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	timingLock      sync.Mutex
 }
 
-func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, configData, connectionData types.ConfigData, opts ...row_source.RowSourceOption) error {
-	slog.Info("Initializing ArtifactSourceImpl", "configData", configData.GetHcl())
+func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
+	slog.Info("Initializing ArtifactSourceImpl", "configData", params.SourceConfigData.GetHcl())
 
 	// if no collection state func has been set by a derived struct,
 	// set it to the default for artifacts
 	if a.NewCollectionStateFunc == nil {
-		a.NewCollectionStateFunc = collection_state.NewArtifactCollectionState
+		a.NewCollectionStateFunc = collection_state.NewArtifactCollectionStateImpl
 	}
 
+	// set the temp directory
+	a.TmpDir = filepath.Join(params.CollectionDir, "artifacts")
+
 	// call base to apply options and parse config
-	if err := a.RowSourceImpl.Init(ctx, configData, connectionData, opts...); err != nil {
+	if err := a.RowSourceImpl.Init(ctx, params, opts...); err != nil {
 		slog.Warn("Initializing artifact_row_source.RowSourceImpl failed", "error", err)
 		return err
 	}
@@ -112,6 +119,13 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, configData, connect
 		return errors.New("ArtifactSourceImpl.Source must implement ArtifactSource")
 	}
 	a.Source = impl
+
+	// store the collection state as an ArtifactCollectionStateImpl
+	cs, ok := any(a.RowSourceImpl.CollectionState).(collection_state.ArtifactCollectionState[S])
+	if !ok {
+		return errors.New("ArtifactSourceImpl.CollectionState must implement ArtifactCollectionState")
+	}
+	a.CollectionState = cs
 
 	// setup rate limiter
 	a.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
@@ -187,12 +201,12 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	t := time.Now()
 
 	// rate limit the download
-	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.Name)
+	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.LocalName)
 	err = a.artifactDownloadLimiter.Wait(ctx)
 	if err != nil {
 		return fmt.Errorf("error acquiring rate limiter: %w", err)
 	}
-	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.Name)
+	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.LocalName)
 
 	// set the download start time if not already set
 	a.DownloadTiming.TryStart(constants.TimingDownload)
@@ -200,13 +214,13 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	go func() {
 		defer func() {
 			a.artifactDownloadLimiter.Release()
-			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
+			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.LocalName)
 		}()
 		downloadStart := time.Now()
 		// cast the source to an ArtifactSource and download the artifact
 		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
-			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
+			slog.Error("Error downloading artifact", "artifact", info.LocalName, "error", err)
 			a.NotifyError(ctx, executionId, err)
 		}
 		// update the download active duration
@@ -234,6 +248,11 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	// set the extract start time if not already set
 	a.ExtractTiming.TryStart(constants.TimingExtract)
 
+	// update the collection state
+	if err := a.CollectionState.OnCollected(info); err != nil {
+		return fmt.Errorf("error updating collection state: %w", err)
+	}
+
 	// serialise the collection state data so that we capture it at the time of the download of this artifact
 	collectionState, err := a.GetCollectionStateJSON()
 	if err != nil {
@@ -249,7 +268,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 
 		// update extract active duration
 		activeDuration := time.Since(extractStart)
-		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.Name, "duration (ms)", activeDuration.Milliseconds())
+		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.LocalName, "duration (ms)", activeDuration.Milliseconds())
 		a.ExtractTiming.UpdateActiveDuration(activeDuration)
 
 		// close wait group whether there is an error or not
@@ -274,7 +293,7 @@ func (a *ArtifactSourceImpl[S, T]) GetTiming() (types.TimingCollection, error) {
 // invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
 func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *types.ArtifactInfo, collectionState json.RawMessage) error {
-	slog.Debug("RowSourceImpl processArtifact", "artifact", info.Name)
+	slog.Debug("RowSourceImpl processArtifact", "artifact", info.LocalName)
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
@@ -296,6 +315,7 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 
 	count := 0
 
+	// the loader will return one more more data objects (depending on whether RowPerLine flag is set)
 	// range over the data channel and apply extractor if needed
 	for artifactData := range artifactChan {
 
@@ -304,10 +324,8 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		var notifyError error
 		notifyErrorCount := 0
 
-		// NOTE: if no metadata has been set on the row, use any metadata from the artifact
-		if artifactData.SourceEnrichment == nil {
-			artifactData.SourceEnrichment = info.SourceEnrichment
-		}
+		// add source enrichment from the artifacts to the artifact data
+		artifactData.SourceEnrichment = info.SourceEnrichment
 
 		// if an extractor was specified by the table, apply it
 		rawRaws, err := a.extractRowsFromArtifact(ctx, artifactData)
@@ -350,7 +368,7 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		count--
 	}
 
-	slog.Debug("RowSourceImpl processArtifact complete", "artifact", info.Name, "rows", count)
+	slog.Debug("RowSourceImpl processArtifact complete", "artifact", info.LocalName, "rows", count)
 	return nil
 }
 
@@ -390,7 +408,7 @@ func (a *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (arti
 	var key string
 	var ctor func() artifact_loader.Loader
 	// figure out which loader to use based on the file extension
-	switch filepath.Ext(info.Name) {
+	switch filepath.Ext(info.LocalName) {
 	case ".gz":
 		if a.RowPerLine {
 			key = artifact_loader.GzipRowLoaderIdentifier
@@ -449,4 +467,70 @@ func (a *ArtifactSourceImpl[S, T]) DiscoverArtifacts(ctx context.Context) error 
 
 func (a *ArtifactSourceImpl[S, T]) DownloadArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 	panic("DownloadArtifact must be implemented by the ArtifactSource implementation")
+}
+
+// WalkNode is called for each file or directory discovered by the file source - it is called as part of the folder
+// walking discovery algorithm
+func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath string, basePath string, layout *string, isDir bool, g *grok.Grok, filterMap map[string]*filter.SqlFilter) error {
+	// if we have a layout, check whether this path satisfies the layout and filters
+	var metadata map[string]string
+	var satisfied = true
+
+	if layout != nil {
+		// if we are a directory and we are not satisfied, skip the directory by returning fs.SkipDir
+		var match bool
+		var err error
+		match, metadata, err = GetPathMetadata(targetPath, basePath, layout, isDir, g)
+		if err != nil {
+			return err
+		}
+
+		// check if the path matches the layout and if so, are filters satisfied
+		satisfied = match && MetadataSatisfiesFilters(metadata, filterMap)
+	}
+
+	if isDir {
+		// if this is a directory and the pattern is satisfied, descend into the directory
+		// (we return nil to continue processing the directory)
+		if satisfied {
+			return nil
+		} else {
+			return fs.SkipDir
+		}
+	}
+
+	// so this is a file
+	// if the pattern is not satisfied, skip the file
+	if !satisfied {
+		return nil
+	}
+
+	// get the full path
+	absLocation, err := filepath.Abs(targetPath)
+	if err != nil {
+		return err
+	}
+
+	// populate enrichment that fields the source is aware of
+	// - in this case the source location
+	// add to metadata - Common fields will be populated from it
+	metadata["tp_source_location"] = absLocation
+	metadata["tp_source_type"] = a.Source.Identifier()
+
+	// build the source enrichment
+	sourceEnrichment := schema.NewSourceEnrichment(metadata)
+
+	// create an artifact info - this will parse the timestamp of the artifact from the source enrichment metadata
+	artifactInfo, err := types.NewArtifactInfo(targetPath, sourceEnrichment, a.CollectionState.GetGranularity())
+	if err != nil {
+		return err
+	}
+
+	// now check with the collection state if we should collect this artifact
+	if !a.CollectionState.ShouldCollect(artifactInfo) {
+		return nil
+	}
+
+	// notify observers of the discovered artifact
+	return a.OnArtifactDiscovered(ctx, artifactInfo)
 }

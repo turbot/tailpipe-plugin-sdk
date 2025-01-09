@@ -28,8 +28,8 @@ func (g GzipLoader) Identifier() string {
 // Load implements Loader
 // Extracts an object from a gzip file
 func (g GzipLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *types.RowData) error {
-	slog.Debug("GzipLoader Load", "path", info.Name)
-	inputPath := info.Name
+	slog.Debug("GzipLoader Load", "path", info.LocalName)
+	inputPath := info.LocalName
 	gzFile, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("error opening %s: %w", inputPath, err)
@@ -44,7 +44,7 @@ func (g GzipLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan
 
 	fileData, err := io.ReadAll(gzReader)
 	if err != nil {
-		return fmt.Errorf("error reading %s: %w", info.Name, err)
+		return fmt.Errorf("error reading %s: %w", info.LocalName, err)
 	}
 	go func() {
 		dataChan <- &types.RowData{
@@ -52,7 +52,7 @@ func (g GzipLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan
 		}
 		close(dataChan)
 
-		slog.Debug("GzipLoader Load complete", "path", info.Name)
+		slog.Debug("GzipLoader Load complete", "path", info.LocalName)
 	}()
 
 	return nil

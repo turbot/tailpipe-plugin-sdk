@@ -25,7 +25,7 @@ func (g FileRowLoader) Identifier() string {
 // Load implements Loader
 // Extracts an object from a  file
 func (g FileRowLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *types.RowData) error {
-	inputPath := info.Name
+	inputPath := info.LocalName
 	f, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("error opening %s: %w", inputPath, err)

@@ -2,7 +2,7 @@ package artifact_source_config
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	gokithelpers "github.com/turbot/go-kit/helpers"
+	"github.com/turbot/go-kit/helpers"
 	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/pipe-fittings/filter"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
@@ -18,19 +18,24 @@ type ArtifactSourceConfigBase struct {
 	// grok patterns to add to the grok parser used to parse the layout
 	Patterns map[string]string `hcl:"patterns,optional"`
 
+	// TODO SORT THIS NEEDED OR NOT>??>?
+	// list of filters to apply to the path segments
+	// note: each filter must refer to a single property only
+	// filters are ANDED together
+	//Filters []string `hcl:"filters,optional"`
+
 	// map of parsed filters, keyed by target property
 	FilterMap map[string]*filter.SqlFilter
 }
 
 func (b *ArtifactSourceConfigBase) Validate() error {
-	// #TODO https://github.com/turbot/tailpipe/issues/97
-	// once filters are pushed down from the CLI, we can populate the filter map
 	// parse filters and put into map keyed by property name
-	//filterMap, err := helpers.BuildFilterMap(b.Filters)
+	//filterMap, err := helpers2.BuildFilterMap(b.Filters)
 	//if err != nil {
 	//	return err
 	//}
-	//b.FilterMap = map[string]filterMap
+	//b.FilterMap = filterMap
+	//
 	//// validate the filters - if filters are set, file layout must be set
 	//if len(b.Filters) > 0 {
 	//	if b.FileLayout == nil {
@@ -38,7 +43,7 @@ func (b *ArtifactSourceConfigBase) Validate() error {
 	//	}
 	//
 	//	// validate all fields referred to in the filters exist in the filter layout
-	//	metadataProperties := gokithelpers.SliceToLookup(helpers.ExtractNamedGroupsFromGrok(*b.FileLayout))
+	//	metadataProperties := helpers.SliceToLookup(helpers2.ExtractNamedGroupsFromGrok(*b.FileLayout))
 	//	// we have already pulled out the property names in the map keys
 	//	for k := range b.FilterMap {
 	//		if _, ok := metadataProperties[k]; !ok {
@@ -47,8 +52,6 @@ func (b *ArtifactSourceConfigBase) Validate() error {
 	//	}
 	//}
 	//
-
-	b.FilterMap = map[string]*filter.SqlFilter{}
 	return nil
 }
 
@@ -65,7 +68,7 @@ func (b *ArtifactSourceConfigBase) GetPatterns() map[string]string {
 }
 
 func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactSourceConfig) {
-	if gokithelpers.IsNil(other) {
+	if helpers.IsNil(other) {
 		return
 	}
 

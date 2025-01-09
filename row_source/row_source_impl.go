@@ -5,10 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
+	"time"
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -35,6 +38,9 @@ type RowSourceImpl[S, T parse.Config] struct {
 	CollectionState collection_state.CollectionState[S]
 	// a function to create empty collection state data
 	NewCollectionStateFunc func() collection_state.CollectionState[S]
+	// the start time for the data collection
+	// NOTE: this will have been set via a RowSourceOption
+	FromTime time.Time
 }
 
 // RegisterSource is called by the source implementation to register itself with the base
@@ -45,7 +51,7 @@ func (r *RowSourceImpl[S, T]) RegisterSource(source RowSource) {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (r *RowSourceImpl[S, T]) Init(_ context.Context, configData, connectionData types.ConfigData, opts ...RowSourceOption) error {
+func (r *RowSourceImpl[S, T]) Init(_ context.Context, params RowSourceParams, opts ...RowSourceOption) error {
 	slog.Info(fmt.Sprintf("Initializing RowSourceImpl %p, impl %p", r, r.Source))
 
 	// apply options to the Source (as options will be dependent on the outer type)
@@ -55,17 +61,23 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, configData, connectionData
 		}
 	}
 
-	err := r.initialiseConfig(configData)
+	// if from is not set (either by explicitly passing is as an arg, or from teh collection state end time) set it now
+	// to the default (7 days
+	if r.FromTime.IsZero() {
+		r.FromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)
+	}
+
+	err := r.initialiseConfig(params.SourceConfigData)
 	if err != nil {
 		return err
 	}
 
-	err = r.initialiseConnection(connectionData)
+	err = r.initialiseConnection(params.ConnectionData)
 	if err != nil {
 		return err
 	}
 
-	// if no collection state has been se t already (by calling SetCollectionStateJSON) create empty collection state
+	// if no collection state has been set already (by calling SetCollectionState) create empty collection state
 	// TODO #design is it acceptable to have no collection state? we should put nil checks round access to it
 	if r.CollectionState == nil && r.NewCollectionStateFunc != nil {
 		slog.Info("Creating empty collection state")
@@ -148,24 +160,45 @@ func (r *RowSourceImpl[S, T]) GetCollectionStateJSON() (json.RawMessage, error) 
 	return json.Marshal(r.CollectionState)
 }
 
-// SetCollectionStateJSON unmarshalls the collection state data JSON into the target object
-func (r *RowSourceImpl[S, T]) SetCollectionStateJSON(collectionStateJSON json.RawMessage) error {
-	slog.Info("Setting collection state from JSON", "json", string(collectionStateJSON))
+// SetCollectionState loads the collection state json data from the given location
+func (r *RowSourceImpl[S, T]) SetCollectionState(collectionStatePath string) error {
+	slog.Info("Loading collection state from path", "path", collectionStatePath)
 
-	if len(collectionStateJSON) == 0 {
-		return nil
-	}
 	if r.NewCollectionStateFunc == nil {
 		return fmt.Errorf("RowSource implementation must pass CollectionState function to its base to create an empty collection state data struct")
 	}
 
 	target := r.NewCollectionStateFunc()
-	if err := json.Unmarshal(collectionStateJSON, target); err != nil {
-		return err
+
+	// check if there is a collection state file
+	if _, err := os.Stat(collectionStatePath); err == nil {
+		// load the collection state data from the given location
+		// Read the JSON data from the file at the given path
+		data, err := os.ReadFile(collectionStatePath)
+		if err != nil {
+			return fmt.Errorf("failed to read collection state file: %w", err)
+		}
+
+		// Unmarshal the JSON data into the target collection state
+		if err := json.Unmarshal(data, target); err != nil {
+			// TODO #errors maybe we should suppress the error and just log it, deleting the bad state file???
+			return fmt.Errorf("failed to unmarshal collection state JSON: %w", err)
+		}
+		r.CollectionState = target
+
+		// set the from time to the collection state's last time
+		// TODO think about artifacts end time - grnularity
+		r.FromTime = r.CollectionState.GetEndTime()
 	}
 
-	r.CollectionState = target
 	return nil
+}
+
+// SetFromTime sets the start time for the data collection
+func (r *RowSourceImpl[S, T]) SetFromTime(from time.Time) {
+	if !from.IsZero() {
+		r.FromTime = from
+	}
 }
 
 func (r *RowSourceImpl[S, T]) GetTiming() (types.TimingCollection, error) {

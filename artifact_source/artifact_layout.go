@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/elastic/go-grok"
 	"github.com/turbot/pipe-fittings/filter"
+	"path/filepath"
 	"strings"
 )
 
@@ -26,11 +27,48 @@ func MetadataSatisfiesFilters(metadata map[string]string, filters map[string]*fi
 	return true
 }
 
-// GetPathSegmentMetadata extracts metadata from a path segment
+// GetPathMetadata get the metadata from the given file path, based on the file layout
+// returns whether the path matches the layout pattern, and the medata map
+func GetPathMetadata(targetPath, basePath string, layout *string, isDir bool, g *grok.Grok) (bool, map[string]string, error) {
+	if layout == nil {
+		return false, nil, nil
+	}
+	// remove the base path from the path
+	relPath, err := filepath.Rel(basePath, targetPath)
+	if err != nil {
+		return false, nil, err
+	}
+
+	// if this is a directory, we just want to evaluate the pattern segments up to this directory
+	// so call getPathSegmentMetadata which trims the pattern to match the path length
+	var f func(g *grok.Grok, pathSegment, fileLayout string) (bool, map[string][]byte, error)
+	if isDir {
+		f = getPathSegmentMetadata
+	} else {
+		f = getPathLeafMetadata
+	}
+	match, metadata, err := f(g, relPath, *layout)
+	if err != nil {
+		return false, nil, err
+	}
+
+	// convert the metadata to a string map
+	return match, ByteMapToStringMap(metadata), nil
+}
+
+func ByteMapToStringMap(m map[string][]byte) map[string]string {
+	res := make(map[string]string, len(m))
+	for k, v := range m {
+		res[k] = string(v)
+	}
+	return res
+}
+
+// getPathSegmentMetadata extracts metadata from a path segment
 // based on the file layout, which is a grok pattern
 // the grok pattern is assumed to start at the beginning of the path segment
 // - it is trimmed to the length of the path segment
-func GetPathSegmentMetadata(g *grok.Grok, pathSegment, fileLayout string) (bool, map[string][]byte, error) {
+func getPathSegmentMetadata(g *grok.Grok, pathSegment, fileLayout string) (bool, map[string][]byte, error) {
 	// Split and truncate the file layout to match the path segment's length
 	pathParts := strings.Split(pathSegment, "/")
 	layoutParts := strings.Split(fileLayout, "/")
@@ -50,14 +88,14 @@ func GetPathSegmentMetadata(g *grok.Grok, pathSegment, fileLayout string) (bool,
 	fileLayout = strings.Join(layoutParts[:pathLength], "/")
 
 	// Extract metadata from the path segment
-	return GetPathMetadata(g, pathSegment, fileLayout)
+	return getPathLeafMetadata(g, pathSegment, fileLayout)
 
 }
 
-// GetPathMetadata extracts metadata from a path
+// getPathLeafMetadata extracts metadata from a path
 // based on the file layout, which is a grok pattern
 // the grok pattern is assumed to start at the beginning of the path segment
-func GetPathMetadata(g *grok.Grok, filepath string, layout string) (bool, map[string][]byte, error) {
+func getPathLeafMetadata(g *grok.Grok, filepath string, layout string) (bool, map[string][]byte, error) {
 	err := g.Compile(layout, true)
 	if err != nil {
 		return false, nil, err

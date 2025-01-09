@@ -24,23 +24,21 @@ message CollectRequest {
   string partition_name = 2;
   // unique identifier for collection execution this will be used as base for the filename for the resulting JSONL files
   string execution_id = 3;
-  //  dest path for jsonl files
-  string output_path= 4;
+  //  the root collection file path - used to build the jsonl path and temp path
+  string collection_temp_folder= 4;
+  string collection_state_folder = 5;
   // the source to use (with raw config)
-  ConfigData source_data = 5;
+  ConfigData source_data = 6;
   // the raw hcl of the connection
-  ConfigData connection_data = 6;
+  ConfigData connection_data = 7;
   // if this is custom table, Table contains the source format and table schema
-  Table custom_table = 7;
+  Table custom_table = 8;
   // the source format
   ConfigData source_format = 8;
   // optional: the reattach config to connect to the plugin providing the source
   SourcePluginReattach source_plugin = 9;
-
-
-  // this is json encoded data that represents the state of the collection, i.e. what data has been collected
-  // this is used to resume a collection
-  bytes collection_state = 10;
+  // the collection start time
+  google.protobuf.Timestamp from_time = 10;
 }
 
 message Table {
@@ -132,7 +130,6 @@ message EventStarted {
 message EventChunkWritten {
   string execution_id = 1;
   int32 chunk_number = 2;
-  bytes collection_state = 3;
 }
 
 message EventError {
@@ -183,24 +180,14 @@ message EventArtifactExtracted{
 
 // ArtifactInfo is a message representing artifact metadata.
 message ArtifactInfo {
-  // The name of the artifact.
-  string name = 1;
+  // The local path of the downloaded artifact.
+  string local_name = 1;
 
-  // The original name of the artifact.
+  // The original path of the artifact.
   string original_name = 2;
 
   // Any enrichment fields provided by the source.
   SourceEnrichment source_enrichment = 3;
-
-  // The index of the artifact.
-  string index = 4;
-
-  // The timestamp associated with the artifact.
-  google.protobuf.Timestamp timestamp = 5;
-
-  // Properties related to the artifact.
-  map<string, string> properties = 6;
-
 }
 
 message Timing{
@@ -251,8 +238,11 @@ message InitSourceRequest{
   ArtifactSourceConfig default_config = 6;
   // this is json encoded data that represents the state of the collection, i.e. what data has been collected
   // this is used to resume a collection
-  bytes collection_state = 7;
-
+  string collection_state_path = 7;
+  // the collection start time
+  google.protobuf.Timestamp from_time = 8;
+  // the collection directory
+  string collection_dir = 9;
 }
 
 // ArtifactSourceConfigBase is a configuration message for an artifact source.
@@ -262,6 +252,11 @@ message ArtifactSourceConfig {
 
   // Grok patterns to add to the grok parser used to parse the layout.
   map<string, string> patterns = 2;
+
+  // List of filters to apply to the path segments.
+  // Note: each filter must refer to a single property only.
+  repeated string filters = 3;
+
 
 }
 

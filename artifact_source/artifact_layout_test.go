@@ -200,9 +200,9 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 			var metadata map[string][]byte
 			var match bool
 			if tt.args.isFile {
-				match, metadata, err = GetPathMetadata(g, tt.args.pathSegment, tt.args.fileLayout)
+				match, metadata, err = getPathLeafMetadata(g, tt.args.pathSegment, tt.args.fileLayout)
 			} else {
-				match, metadata, err = GetPathSegmentMetadata(g, tt.args.pathSegment, tt.args.fileLayout)
+				match, metadata, err = getPathSegmentMetadata(g, tt.args.pathSegment, tt.args.fileLayout)
 			}
 			if err != nil {
 				t.Fatalf("failed to extract metadata: %v", err)

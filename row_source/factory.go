@@ -58,19 +58,18 @@ func (b *RowSourceFactory) registerRowSource(ctor func() RowSource) {
 // GetRowSource attempts to instantiate a row source, using the provided row source data
 // It will fail if the requested source type is not registered
 // Implements [plugin.SourceFactory]
-func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *types.SourceConfigData, connectionData *types.ConnectionConfigData, sourceOpts ...RowSourceOption) (RowSource, error) {
-
+func (b *RowSourceFactory) GetRowSource(ctx context.Context, params RowSourceParams, sourceOpts ...RowSourceOption) (RowSource, error) {
 	var source RowSource
-	sourceType := sourceConfigData.Type
+	sourceType := params.SourceConfigData.Type
 	// if a reattach config is provided, we need to create a wrapper source which will handle the reattach
-	if sourceConfigData.ReattachConfig != nil {
+	if params.SourceConfigData.ReattachConfig != nil {
 		sourceType = PluginSourceWrapperIdentifier
-		sourceOpts = append(sourceOpts, WithPluginReattach(sourceConfigData.ReattachConfig))
+		sourceOpts = append(sourceOpts, WithPluginReattach(params.SourceConfigData.ReattachConfig))
 	}
 	//look for a constructor for the source
 	ctor, ok := b.sourceFuncs[sourceType]
 	if !ok {
-		return nil, fmt.Errorf("source not registered: %s", sourceConfigData.Type)
+		return nil, fmt.Errorf("source not registered: %s", params.SourceConfigData.Type)
 	}
 	// create the source
 	source = ctor()
@@ -83,7 +82,7 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *t
 	base.RegisterSource(source)
 
 	// initialise the source, passing ourselves as source_factory
-	if err := source.Init(ctx, sourceConfigData, connectionData, sourceOpts...); err != nil {
+	if err := source.Init(ctx, params, sourceOpts...); err != nil {
 		return nil, fmt.Errorf("failed to initialise source: %w", err)
 	}
 	return source, nil

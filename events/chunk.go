@@ -25,9 +25,8 @@ func (r *Chunk) ToProto() *proto.Event {
 	return &proto.Event{
 		Event: &proto.Event_ChunkWrittenEvent{
 			ChunkWrittenEvent: &proto.EventChunkWritten{
-				ExecutionId:     r.ExecutionId,
-				ChunkNumber:     int32(r.ChunkNumber),
-				CollectionState: r.CollectionState,
+				ExecutionId: r.ExecutionId,
+				ChunkNumber: int32(r.ChunkNumber),
 			},
 		},
 	}

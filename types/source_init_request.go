@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"time"
 )
 
 // InitSourceRequest is an sdk type which is mapped from the proto.InitSourceRequest
@@ -14,7 +15,9 @@ type InitSourceRequest struct {
 	ConnectionData *ConnectionConfigData
 	// this is json encoded data that represents the state of the collection, i.e. what data has been collected
 	// this is used to resume a collection
-	CollectionState []byte
+	CollectionStatePath string
+	// the time to start collecting data from
+	FromTime time.Time
 }
 
 func InitSourceRequestFromProto(pr *proto.InitSourceRequest) (*InitSourceRequest, error) {
@@ -24,8 +27,9 @@ func InitSourceRequestFromProto(pr *proto.InitSourceRequest) (*InitSourceRequest
 	}
 
 	req := &InitSourceRequest{
-		SourceData:      sourceData,
-		CollectionState: pr.CollectionState,
+		SourceData:          sourceData,
+		CollectionStatePath: pr.CollectionStatePath,
+		FromTime:            pr.FromTime.AsTime(),
 	}
 
 	if pr.SourceFormat != nil {

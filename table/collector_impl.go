@@ -13,6 +13,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -67,7 +68,7 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 	c.req = req
 
 	slog.Info("CollectorImpl: Collect", "Table", c.Table.Identifier())
-	if err := c.initSource(ctx, req.SourceData, req.ConnectionData); err != nil {
+	if err := c.initSource(ctx, req); err != nil {
 		return err
 	}
 	slog.Info("Start collection")
@@ -76,8 +77,13 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 	c.rowBufferMap = make(map[string][]any)
 	c.rowCountMap = make(map[string]int)
 	c.chunkCountMap = make(map[string]int)
+	// get JSONL path
+	jsonPath, err := filepaths.EnsureJSONLPath(req.CollectionFolder)
+	if err != nil {
+		return fmt.Errorf("error getting JSONL path: %w", err)
+	}
 	// create writer
-	c.writer = NewJSONLWriter(req.OutputPath)
+	c.writer = NewJSONLWriter(jsonPath)
 
 	return nil
 }
@@ -106,7 +112,7 @@ func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
 
 // Collect executes the collection process. Tell our source to start collection
 func (c *CollectorImpl[R]) Collect(ctx context.Context) (int, int, error) {
-	// create empty status event#
+	// create empty status event
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
 
 	// tell our source to collect
@@ -169,16 +175,25 @@ func (c *CollectorImpl[R]) GetTiming() (types.TimingCollection, error) {
 	return append(res, c.enrichTiming), nil
 }
 
-func (c *CollectorImpl[R]) initSource(ctx context.Context, sourceConfigData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
+func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectRequest) error {
 	// get the source metadata for this source type
 	// (this returns an error if the source is not supported by the table)
-	sourceMetadata, err := c.getSourceMetadata(sourceConfigData)
+	sourceMetadata, err := c.getSourceMetadata(req.SourceData)
 	if err != nil {
 		return err
 	}
+
+	params := row_source.RowSourceParams{
+		SourceConfigData:    req.SourceData,
+		ConnectionData:      req.ConnectionData,
+		CollectionStatePath: filepaths.CollectionStatePath(req.CollectionFolder, req.TableName, req.PartitionName),
+		From:                req.From,
+		CollectionDir:       req.CollectionFolder,
+	}
+
 	// ask factory to create and initialise the source for us
 	// NOTE: we pass the original
-	source, err := row_source.Factory.GetRowSource(ctx, sourceConfigData, connectionData, sourceMetadata.Options...)
+	source, err := row_source.Factory.GetRowSource(ctx, params, sourceMetadata.Options...)
 	if err != nil {
 		return err
 	}
@@ -217,13 +232,6 @@ func (c *CollectorImpl[R]) getSourceMetadata(sourceConfig *types.SourceConfigDat
 		if !ok {
 			return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.Table.Identifier())
 		}
-	}
-
-	// so this source is supported
-
-	// If the request includes collection state, add it to the source options
-	if len(c.req.CollectionState) > 0 {
-		sourceMetadata.Options = append(sourceMetadata.Options, row_source.WithCollectionStateJSON(c.req.CollectionState))
 	}
 
 	return sourceMetadata, nil

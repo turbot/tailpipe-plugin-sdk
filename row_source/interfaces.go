@@ -2,8 +2,9 @@ package row_source
 
 import (
 	"context"
-	"encoding/json"
+	"time"
 
+	"encoding/json"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -22,7 +23,7 @@ type RowSource interface {
 
 	// Init is called when the row source is created
 	// it is responsible for parsing the source config and configuring the source
-	Init(context.Context, types.ConfigData, types.ConfigData, ...RowSourceOption) error
+	Init(context.Context, RowSourceParams, ...RowSourceOption) error
 
 	// Identifier must return the source name
 	Identifier() string
@@ -38,8 +39,10 @@ type RowSource interface {
 	// 	GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
 	GetCollectionStateJSON() (json.RawMessage, error)
 
-	// SetCollectionStateJSON unmarshalls the collection state data JSON into the target object
-	SetCollectionStateJSON(stateJSON json.RawMessage) error
+	// SetCollectionState loads the collection state json data from the given location
+	SetCollectionState(collectionStatePath string) error
+	// SetFromTime sets the start time for the data collection
+	SetFromTime(from time.Time)
 
 	// GetTiming returns the timing for the source row collection
 	GetTiming() (types.TimingCollection, error)

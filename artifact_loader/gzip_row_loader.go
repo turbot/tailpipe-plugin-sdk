@@ -28,7 +28,7 @@ func (g GzipRowLoader) Identifier() string {
 // Load implements Loader
 // Extracts an object from a gzip file
 func (g GzipRowLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *types.RowData) error {
-	inputPath := info.Name
+	inputPath := info.LocalName
 	gzFile, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("error opening %s: %w", inputPath, err)

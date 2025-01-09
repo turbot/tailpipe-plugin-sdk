@@ -3,8 +3,6 @@ package plugin
 import (
 	"context"
 	"fmt"
-	"log/slog"
-
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
@@ -15,6 +13,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"log/slog"
 )
 
 // PluginImpl should be created via NewPluginImpl method.
@@ -123,6 +122,8 @@ func (p *PluginImpl) Describe() (DescribeResponse, error) {
 }
 
 // InitSource is called to initialise the source when this plugin is being used as a source
+// It performs the same role as CollectorImpl.initSource for in-plugin sources
+// the flow for using a plugin from an external plugin is as follows:
 func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceRequest) error {
 	// ask factory to create and initialise the source for us
 	initSourceRequest, err := types.InitSourceRequestFromProto(req)
@@ -130,7 +131,15 @@ func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceReques
 		return err
 	}
 
-	source, err := row_source.Factory.GetRowSource(ctx, initSourceRequest.SourceData, initSourceRequest.ConnectionData)
+	params := row_source.RowSourceParams{
+		SourceConfigData:    initSourceRequest.SourceData,
+		ConnectionData:      initSourceRequest.ConnectionData,
+		CollectionStatePath: req.CollectionStatePath,
+		From:                req.FromTime.AsTime(),
+		CollectionDir:       req.CollectionDir,
+	}
+
+	source, err := row_source.Factory.GetRowSource(ctx, params)
 	if err != nil {
 		return err
 	}
