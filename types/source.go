@@ -12,6 +12,9 @@ type SourceConfigData struct {
 }
 
 func (d *SourceConfigData) SetReattach(pr *proto.SourcePluginReattach) {
+	if pr == nil {
+		return
+	}
 	d.ReattachConfig = ReattachFromProto(pr)
 }
 
