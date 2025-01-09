@@ -18,6 +18,7 @@ require (
 	github.com/stretchr/testify v1.9.0
 	github.com/turbot/go-kit v0.10.0-rc.0
 	github.com/turbot/pipe-fittings v1.4.1
+	github.com/turbot/steampipe-plugin-sdk/v5 v5.8.0
 	github.com/zclconf/go-cty v1.14.4
 	golang.org/x/exp v0.0.0-20240909161429-701f63a606c0
 	golang.org/x/sync v0.10.0
@@ -60,11 +61,14 @@ require (
 	github.com/bmatcuk/doublestar v1.3.4 // indirect
 	github.com/briandowns/spinner v1.23.0 // indirect
 	github.com/btubbs/datetime v0.1.1 // indirect
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/containerd/containerd v1.7.18 // indirect
 	github.com/containerd/errdefs v0.1.0 // indirect
 	github.com/containerd/log v0.1.0 // indirect
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
+	github.com/dgraph-io/ristretto v0.2.0 // indirect
+	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/fatih/color v1.17.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
@@ -132,6 +136,7 @@ require (
 	github.com/pelletier/go-toml/v2 v2.2.2 // indirect
 	github.com/pierrec/lz4/v4 v4.1.21 // indirect
 	github.com/pjbgf/sha1cd v0.3.0 // indirect
+	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/sagikazarmark/locafero v0.4.0 // indirect
@@ -153,7 +158,6 @@ require (
 	github.com/tkrajina/go-reflector v0.5.6 // indirect
 	github.com/turbot/pipes-sdk-go v0.9.1 // indirect
 	github.com/turbot/steampipe-plugin-code v0.7.0 // indirect
-	github.com/turbot/steampipe-plugin-sdk/v5 v5.8.0 // indirect
 	github.com/turbot/terraform-components v0.0.0-20231213122222-1f3526cab7a7 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
