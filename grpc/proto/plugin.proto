@@ -263,11 +263,6 @@ message ArtifactSourceConfig {
   // Grok patterns to add to the grok parser used to parse the layout.
   map<string, string> patterns = 2;
 
-  // List of filters to apply to the path segments.
-  // Note: each filter must refer to a single property only.
-  repeated string filters = 3;
-
-
 }
 
 message InitResponse{}

@@ -80,6 +80,5 @@ func (b *ArtifactSourceConfigBase) AsProto() *proto.ArtifactSourceConfig {
 	return &proto.ArtifactSourceConfig{
 		FileLayout: typehelpers.SafeString(b.FileLayout),
 		Patterns:   b.Patterns,
-		Filters:    b.Filters,
 	}
 }
