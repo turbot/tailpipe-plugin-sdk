@@ -10,7 +10,7 @@ import (
 	"github.com/turbot/pipe-fittings/error_helpers"
 	pf_parse "github.com/turbot/pipe-fittings/parse"
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
 	"log/slog"
@@ -18,7 +18,7 @@ import (
 
 // ParseConfig parses the HCL config and returns the struct
 // Config is an interface that all configuration structs must implement
-func ParseConfig[T Config](configData config_data.ConfigData) (T, error) {
+func ParseConfig[T Config](configData types.ConfigData) (T, error) {
 	// Create a new instance of the target struct
 	target := utils.InstanceOf[T]()
 	// verify this config is of correct type

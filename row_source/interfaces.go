@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -23,13 +22,13 @@ type RowSource interface {
 
 	// Init is called when the row source is created
 	// it is responsible for parsing the source config and configuring the source
-	Init(context.Context, config_data.ConfigData, config_data.ConfigData, ...RowSourceOption) error
+	Init(context.Context, types.ConfigData, types.ConfigData, ...RowSourceOption) error
 
 	// Identifier must return the source name
 	Identifier() string
 
 	// Description returns a human readable description of the source
-	Description() string
+	Description() (string, error)
 
 	Close() error
 
@@ -43,7 +42,7 @@ type RowSource interface {
 	SetCollectionStateJSON(stateJSON json.RawMessage) error
 
 	// GetTiming returns the timing for the source row collection
-	GetTiming() types.TimingCollection
+	GetTiming() (types.TimingCollection, error)
 }
 
 // BaseSource registers the rowSource implementation with the base struct (_before_ calling Init)

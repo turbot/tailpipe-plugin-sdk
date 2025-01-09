@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"log"
+	"log/slog"
 	"sync"
 
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -41,4 +42,11 @@ func (p *ObservableImpl) NotifyObservers(ctx context.Context, e events.Event) er
 	}
 
 	return errors.Join(notifyErrors...)
+}
+
+func (p *ObservableImpl) NotifyError(ctx context.Context, executionId string, err error) {
+	notifyErr := p.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
+	if notifyErr != nil {
+		slog.Error("error notifying observers of error", "error", notifyErr)
+	}
 }

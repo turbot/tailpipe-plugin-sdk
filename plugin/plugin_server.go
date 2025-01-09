@@ -2,7 +2,6 @@ package plugin
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 
@@ -23,22 +22,17 @@ type PluginServer struct {
 	impl TailpipePlugin
 }
 
-// ObserverWrapper mapsd between proto Observer and the plugin Observer
-type ObserverWrapper struct {
-	protoObserver proto.TailpipePlugin_AddObserverServer
-}
-
-// ctor
-func NewObserverWrapper(protoObserver proto.TailpipePlugin_AddObserverServer) ObserverWrapper {
-	return ObserverWrapper{protoObserver: protoObserver}
-}
-
-// Notify implements the Observer interface but sends to a proto stream
-func (o ObserverWrapper) Notify(c context.Context, e events.Event) error {
-	if p, ok := e.(events.ProtoEvent); ok {
-		return o.protoObserver.Send(p.ToProto())
+func NewPluginServer(opts *ServeOpts) (*PluginServer, error) {
+	// retrieve the plugin from the opts
+	p, err := opts.PluginFunc()
+	if err != nil {
+		return nil, err
 	}
-	return fmt.Errorf("event %v does not implement ProtoEvent", e)
+
+	s := &PluginServer{
+		impl: p,
+	}
+	return s, nil
 }
 
 func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer) error {
@@ -81,17 +75,41 @@ func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*
 	return resp, nil
 }
 
-func NewPluginServer(opts *ServeOpts) (*PluginServer, error) {
-	// retrieve the plugin from the opts
-	p, err := opts.PluginFunc()
+func (s PluginServer) InitSource(ctx context.Context, req *proto.InitSourceRequest) (*proto.InitResponse, error) {
+	err := s.impl.InitSource(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	s := &PluginServer{
-		impl: p,
+	return &proto.InitResponse{}, nil
+}
+
+func (s PluginServer) CloseSource(ctx context.Context, _ *proto.CloseSourceRequest) (*proto.CloseSourceResponse, error) {
+	err := s.impl.CloseSource(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return s, nil
+	return &proto.CloseSourceResponse{}, nil
+}
+
+func (s PluginServer) SourceCollect(ctx context.Context, req *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error) {
+	err := s.impl.SourceCollect(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.SourceCollectResponse{}, nil
+}
+
+func (s PluginServer) GetSourceTiming(ctx context.Context, _ *proto.GetSourceTimingRequest) (*proto.GetSourceTimingResponse, error) {
+	sourceTiming, err := s.impl.GetSourceTiming(ctx)
+	if err != nil {
+		return nil, err
+	}
+	// convert the response to proto
+	resp := &proto.GetSourceTimingResponse{
+		Timing: events.TimingCollectionToProto(sourceTiming),
+	}
+	return resp, nil
 }
 
 func (s PluginServer) Serve() error {

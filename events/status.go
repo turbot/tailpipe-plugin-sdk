@@ -2,16 +2,17 @@ package events
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"sync/atomic"
 )
 
 type Status struct {
 	Base
 	ExecutionId         string
-	ArtifactsDiscovered int
-	ArtifactsDownloaded int
-	ArtifactsExtracted  int
-	RowsEnriched        int
-	Errors              int
+	ArtifactsDiscovered int64
+	ArtifactsDownloaded int64
+	ArtifactsExtracted  int64
+	RowsEnriched        int64
+	Errors              int32
 }
 
 func NewStatusEvent(executionId string) *Status {
@@ -24,31 +25,28 @@ func (r *Status) ToProto() *proto.Event {
 	return &proto.Event{
 		Event: &proto.Event_StatusEvent{
 			StatusEvent: &proto.EventStatus{
-				ArtifactsDiscovered: int64(r.ArtifactsDiscovered),
-				ArtifactsDownloaded: int64(r.ArtifactsDownloaded),
-				ArtifactsExtracted:  int64(r.ArtifactsExtracted),
-				RowsEnriched:        int64(r.RowsEnriched),
-				Errors:              int32(r.Errors),
+				ArtifactsDiscovered: r.ArtifactsDiscovered,
+				ArtifactsDownloaded: r.ArtifactsDownloaded,
+				ArtifactsExtracted:  r.ArtifactsExtracted,
+				RowsEnriched:        r.RowsEnriched,
+				Errors:              r.Errors,
 			},
 		},
 	}
-
 }
 
 func (r *Status) Update(event Event) {
 	switch event.(type) {
 	case *ArtifactDiscovered:
-		r.ArtifactsDiscovered++
+		atomic.AddInt64(&r.ArtifactsDiscovered, 1)
 	case *ArtifactDownloaded:
-		r.ArtifactsDownloaded++
+		atomic.AddInt64(&r.ArtifactsDownloaded, 1)
 	case *ArtifactExtracted:
-		r.ArtifactsExtracted++
+		atomic.AddInt64(&r.ArtifactsExtracted, 1)
 	case *Error:
-		r.Errors++
+		atomic.AddInt32(&r.Errors, 1)
 	case *Row:
-		r.RowsEnriched++
-	case *Status:
-		r.Errors++
+		atomic.AddInt64(&r.RowsEnriched, 1)
 	}
 }
 

@@ -19,9 +19,13 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	TailpipePlugin_Describe_FullMethodName    = "/proto.TailpipePlugin/Describe"
-	TailpipePlugin_AddObserver_FullMethodName = "/proto.TailpipePlugin/AddObserver"
-	TailpipePlugin_Collect_FullMethodName     = "/proto.TailpipePlugin/Collect"
+	TailpipePlugin_Describe_FullMethodName        = "/proto.TailpipePlugin/Describe"
+	TailpipePlugin_AddObserver_FullMethodName     = "/proto.TailpipePlugin/AddObserver"
+	TailpipePlugin_Collect_FullMethodName         = "/proto.TailpipePlugin/Collect"
+	TailpipePlugin_InitSource_FullMethodName      = "/proto.TailpipePlugin/InitSource"
+	TailpipePlugin_CloseSource_FullMethodName     = "/proto.TailpipePlugin/CloseSource"
+	TailpipePlugin_SourceCollect_FullMethodName   = "/proto.TailpipePlugin/SourceCollect"
+	TailpipePlugin_GetSourceTiming_FullMethodName = "/proto.TailpipePlugin/GetSourceTiming"
 )
 
 // TailpipePluginClient is the client API for TailpipePlugin service.
@@ -31,6 +35,10 @@ type TailpipePluginClient interface {
 	Describe(ctx context.Context, in *DescribeRequest, opts ...grpc.CallOption) (*DescribeResponse, error)
 	AddObserver(ctx context.Context, in *AddObserverRequest, opts ...grpc.CallOption) (TailpipePlugin_AddObserverClient, error)
 	Collect(ctx context.Context, in *CollectRequest, opts ...grpc.CallOption) (*CollectResponse, error)
+	InitSource(ctx context.Context, in *InitSourceRequest, opts ...grpc.CallOption) (*InitResponse, error)
+	CloseSource(ctx context.Context, in *CloseSourceRequest, opts ...grpc.CallOption) (*CloseSourceResponse, error)
+	SourceCollect(ctx context.Context, in *SourceCollectRequest, opts ...grpc.CallOption) (*SourceCollectResponse, error)
+	GetSourceTiming(ctx context.Context, in *GetSourceTimingRequest, opts ...grpc.CallOption) (*GetSourceTimingResponse, error)
 }
 
 type tailpipePluginClient struct {
@@ -91,6 +99,42 @@ func (c *tailpipePluginClient) Collect(ctx context.Context, in *CollectRequest, 
 	return out, nil
 }
 
+func (c *tailpipePluginClient) InitSource(ctx context.Context, in *InitSourceRequest, opts ...grpc.CallOption) (*InitResponse, error) {
+	out := new(InitResponse)
+	err := c.cc.Invoke(ctx, TailpipePlugin_InitSource_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tailpipePluginClient) CloseSource(ctx context.Context, in *CloseSourceRequest, opts ...grpc.CallOption) (*CloseSourceResponse, error) {
+	out := new(CloseSourceResponse)
+	err := c.cc.Invoke(ctx, TailpipePlugin_CloseSource_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tailpipePluginClient) SourceCollect(ctx context.Context, in *SourceCollectRequest, opts ...grpc.CallOption) (*SourceCollectResponse, error) {
+	out := new(SourceCollectResponse)
+	err := c.cc.Invoke(ctx, TailpipePlugin_SourceCollect_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tailpipePluginClient) GetSourceTiming(ctx context.Context, in *GetSourceTimingRequest, opts ...grpc.CallOption) (*GetSourceTimingResponse, error) {
+	out := new(GetSourceTimingResponse)
+	err := c.cc.Invoke(ctx, TailpipePlugin_GetSourceTiming_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TailpipePluginServer is the server API for TailpipePlugin service.
 // All implementations must embed UnimplementedTailpipePluginServer
 // for forward compatibility
@@ -98,6 +142,10 @@ type TailpipePluginServer interface {
 	Describe(context.Context, *DescribeRequest) (*DescribeResponse, error)
 	AddObserver(*AddObserverRequest, TailpipePlugin_AddObserverServer) error
 	Collect(context.Context, *CollectRequest) (*CollectResponse, error)
+	InitSource(context.Context, *InitSourceRequest) (*InitResponse, error)
+	CloseSource(context.Context, *CloseSourceRequest) (*CloseSourceResponse, error)
+	SourceCollect(context.Context, *SourceCollectRequest) (*SourceCollectResponse, error)
+	GetSourceTiming(context.Context, *GetSourceTimingRequest) (*GetSourceTimingResponse, error)
 	mustEmbedUnimplementedTailpipePluginServer()
 }
 
@@ -113,6 +161,18 @@ func (UnimplementedTailpipePluginServer) AddObserver(*AddObserverRequest, Tailpi
 }
 func (UnimplementedTailpipePluginServer) Collect(context.Context, *CollectRequest) (*CollectResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Collect not implemented")
+}
+func (UnimplementedTailpipePluginServer) InitSource(context.Context, *InitSourceRequest) (*InitResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method InitSource not implemented")
+}
+func (UnimplementedTailpipePluginServer) CloseSource(context.Context, *CloseSourceRequest) (*CloseSourceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CloseSource not implemented")
+}
+func (UnimplementedTailpipePluginServer) SourceCollect(context.Context, *SourceCollectRequest) (*SourceCollectResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SourceCollect not implemented")
+}
+func (UnimplementedTailpipePluginServer) GetSourceTiming(context.Context, *GetSourceTimingRequest) (*GetSourceTimingResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSourceTiming not implemented")
 }
 func (UnimplementedTailpipePluginServer) mustEmbedUnimplementedTailpipePluginServer() {}
 
@@ -184,6 +244,78 @@ func _TailpipePlugin_Collect_Handler(srv interface{}, ctx context.Context, dec f
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TailpipePlugin_InitSource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(InitSourceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TailpipePluginServer).InitSource(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TailpipePlugin_InitSource_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TailpipePluginServer).InitSource(ctx, req.(*InitSourceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TailpipePlugin_CloseSource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CloseSourceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TailpipePluginServer).CloseSource(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TailpipePlugin_CloseSource_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TailpipePluginServer).CloseSource(ctx, req.(*CloseSourceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TailpipePlugin_SourceCollect_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SourceCollectRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TailpipePluginServer).SourceCollect(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TailpipePlugin_SourceCollect_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TailpipePluginServer).SourceCollect(ctx, req.(*SourceCollectRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TailpipePlugin_GetSourceTiming_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSourceTimingRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TailpipePluginServer).GetSourceTiming(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TailpipePlugin_GetSourceTiming_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TailpipePluginServer).GetSourceTiming(ctx, req.(*GetSourceTimingRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TailpipePlugin_ServiceDesc is the grpc.ServiceDesc for TailpipePlugin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -198,6 +330,22 @@ var TailpipePlugin_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Collect",
 			Handler:    _TailpipePlugin_Collect_Handler,
+		},
+		{
+			MethodName: "InitSource",
+			Handler:    _TailpipePlugin_InitSource_Handler,
+		},
+		{
+			MethodName: "CloseSource",
+			Handler:    _TailpipePlugin_CloseSource_Handler,
+		},
+		{
+			MethodName: "SourceCollect",
+			Handler:    _TailpipePlugin_SourceCollect_Handler,
+		},
+		{
+			MethodName: "GetSourceTiming",
+			Handler:    _TailpipePlugin_GetSourceTiming_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

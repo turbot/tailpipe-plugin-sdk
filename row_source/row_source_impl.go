@@ -9,7 +9,6 @@ import (
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -46,7 +45,7 @@ func (r *RowSourceImpl[S, T]) RegisterSource(source RowSource) {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (r *RowSourceImpl[S, T]) Init(ctx context.Context, configData, connectionData config_data.ConfigData, opts ...RowSourceOption) error {
+func (r *RowSourceImpl[S, T]) Init(_ context.Context, configData, connectionData types.ConfigData, opts ...RowSourceOption) error {
 	slog.Info(fmt.Sprintf("Initializing RowSourceImpl %p, impl %p", r, r.Source))
 
 	// apply options to the Source (as options will be dependent on the outer type)
@@ -76,7 +75,7 @@ func (r *RowSourceImpl[S, T]) Init(ctx context.Context, configData, connectionDa
 	return nil
 }
 
-func (r *RowSourceImpl[S, T]) initialiseConfig(configData config_data.ConfigData) error {
+func (r *RowSourceImpl[S, T]) initialiseConfig(configData types.ConfigData) error {
 	// default to empty config
 	c := utils.InstanceOf[S]()
 	// parse the config
@@ -95,7 +94,7 @@ func (r *RowSourceImpl[S, T]) initialiseConfig(configData config_data.ConfigData
 	return nil
 }
 
-func (r *RowSourceImpl[S, T]) initialiseConnection(connectionData config_data.ConfigData) error {
+func (r *RowSourceImpl[S, T]) initialiseConnection(connectionData types.ConfigData) error {
 	// default to empty connection
 	conn := utils.InstanceOf[T]()
 
@@ -169,12 +168,12 @@ func (r *RowSourceImpl[S, T]) SetCollectionStateJSON(collectionStateJSON json.Ra
 	return nil
 }
 
-func (r *RowSourceImpl[S, T]) GetTiming() types.TimingCollection {
+func (r *RowSourceImpl[S, T]) GetTiming() (types.TimingCollection, error) {
 	// TODO #observability implement default timing for custom row sourceFuncs
-	return types.TimingCollection{}
+	return types.TimingCollection{}, nil
 }
 
-func (*RowSourceImpl[S, T]) Description() string {
+func (*RowSourceImpl[S, T]) Description() (string, error) {
 	// override if you want to provide a description
-	return ""
+	return "", nil
 }

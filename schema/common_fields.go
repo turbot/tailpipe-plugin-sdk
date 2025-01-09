@@ -89,7 +89,7 @@ func (c *CommonFields) Validate() error {
 	errorMsg += invalidFieldsStr
 
 	if errorMsg != "" {
-		return fmt.Errorf("%s", errorMsg)
+		return fmt.Errorf("row validation failed: %s", errorMsg)
 	}
 	return nil
 }
@@ -100,89 +100,75 @@ func (c *CommonFields) GetCommonFields() CommonFields {
 	return *c
 }
 
-// InitialiseFromMap initializes a CommonFields struct using a source map and schema.
-func (c *CommonFields) InitialiseFromMap(source map[string]string, schema *RowSchema) {
+// InitialiseFromMap initializes a CommonFields struct using a source map
+func (c *CommonFields) InitialiseFromMap(source map[string]string) {
 	const timeFormat = time.RFC3339
 
-	columnMappings := schema.AsMap()
-
-	// Helper function to get the value from the source map based on schema mapping
-	getValue := func(fieldName string) (string, bool) {
-		sourceField := fieldName
-		if schemaField, ok := columnMappings[fieldName]; ok {
-			if schemaField.SourceName != "" {
-				sourceField = schemaField.SourceName
-			}
-		}
-		value, ok := source[sourceField]
-		return value, ok
-	}
-
 	// Mandatory fields
-	if value, ok := getValue("tp_id"); ok {
+	if value, ok := source["tp_id"]; ok {
 		c.TpID = value
 	}
-	if value, ok := getValue("tp_source_type"); ok {
+	if value, ok := source["tp_source_type"]; ok {
 		c.TpSourceType = value
 	}
-	if value, ok := getValue("tp_ingest_timestamp"); ok {
+	if value, ok := source["tp_ingest_timestamp"]; ok {
 		if t, err := time.Parse(timeFormat, value); err == nil {
 			c.TpIngestTimestamp = t
 		}
 	}
-	if value, ok := getValue("tp_timestamp"); ok {
+	if value, ok := source["tp_timestamp"]; ok {
 		if t, err := time.Parse(timeFormat, value); err == nil {
 			c.TpTimestamp = t
 		}
 	}
 
 	// Hive fields
-	if value, ok := getValue("tp_table"); ok {
+	if value, ok := source["tp_table"]; ok {
 		c.TpTable = value
 	}
-	if value, ok := getValue("tp_partition"); ok {
+	if value, ok := source["tp_partition"]; ok {
 		c.TpPartition = value
 	}
-	if value, ok := getValue("tp_index"); ok {
+	if value, ok := source["tp_index"]; ok {
 		c.TpIndex = value
 	}
-	if value, ok := getValue("tp_date"); ok {
+	if value, ok := source["tp_date"]; ok {
 		if t, err := time.Parse(timeFormat, value); err == nil {
 			c.TpDate = t
 		}
 	}
 
 	// Optional fields
-	if value, ok := getValue("tp_source_ip"); ok {
+	if value, ok := source["tp_source_ip"]; ok {
 		c.TpSourceIP = &value
 	}
-	if value, ok := getValue("tp_destination_ip"); ok {
+	if value, ok := source["tp_destination_ip"]; ok {
 		c.TpDestinationIP = &value
 	}
-	if value, ok := getValue("tp_source_name"); ok {
+	if value, ok := source["tp_source_name"]; ok {
 		c.TpSourceName = &value
 	}
-	if value, ok := getValue("tp_source_location"); ok {
+	if value, ok := source["tp_source_location"]; ok {
 		c.TpSourceLocation = &value
 	}
 
 	// Searchable fields (slices)
-	if value, ok := getValue("tp_akas"); ok {
+	if value, ok := source["tp_akas"]; ok {
 		c.TpAkas = strings.Split(value, ",")
 	}
-	if value, ok := getValue("tp_ips"); ok {
+	if value, ok := source["tp_ips"]; ok {
 		c.TpIps = strings.Split(value, ",")
 	}
-	if value, ok := getValue("tp_tags"); ok {
+	if value, ok := source["tp_tags"]; ok {
 		c.TpTags = strings.Split(value, ",")
 	}
-	if value, ok := getValue("tp_domains"); ok {
+	if value, ok := source["tp_domains"]; ok {
 		c.TpDomains = strings.Split(value, ",")
 	}
-	if value, ok := getValue("tp_emails"); ok {
+	if value, ok := source["tp_emails"]; ok {
 		c.TpEmails = strings.Split(value, ",")
 	}
-	if value, ok := getValue("tp_usernames"); ok {
+	if value, ok := source["tp_usernames"]; ok {
 		c.TpUsernames = strings.Split(value, ",")
 	}
 }

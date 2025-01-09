@@ -2,8 +2,6 @@ package types
 
 import (
 	"fmt"
-
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
@@ -20,6 +18,7 @@ func TableFromProto(pt *proto.Table) *Table {
 	}
 }
 
+// CollectRequest is an sdk type which is mapped from the proto.CollectRequest
 type CollectRequest struct {
 	TableName     string
 	PartitionName string
@@ -29,11 +28,11 @@ type CollectRequest struct {
 	// dest path for jsonl files
 	OutputPath string
 	// the source to use (with raw config)
-	SourceData *config_data.SourceConfigData
+	SourceData *SourceConfigData
 	// the source format to use (with raw config)
-	SourceFormat *config_data.FormatConfigData
+	SourceFormat *FormatConfigData
 	// the raw hcl of the connection
-	ConnectionData *config_data.ConnectionConfigData
+	ConnectionData *ConnectionConfigData
 	// this is json encoded data that represents the state of the collection, i.e. what data has been collected
 	// this is used to resume a collection
 	CollectionState []byte
@@ -45,10 +44,13 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	if pr.SourceData == nil {
 		return nil, fmt.Errorf("source data is required")
 	}
-	sourceData, err := config_data.DataFromProto[*config_data.SourceConfigData](pr.SourceData)
+	sourceData, err := DataFromProto[*SourceConfigData](pr.SourceData)
 	if err != nil {
 		return nil, err
 	}
+
+	// NOTE: add the (possibly nil) SourcePluginReattach to the source data
+	sourceData.SetReattach(pr.SourcePlugin)
 
 	req := &CollectRequest{
 		TableName:       pr.TableName,
@@ -60,7 +62,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	if pr.SourceFormat != nil {
-		sourceFormat, err := config_data.DataFromProto[*config_data.FormatConfigData](pr.SourceFormat)
+		sourceFormat, err := DataFromProto[*FormatConfigData](pr.SourceFormat)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +70,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	if pr.ConnectionData != nil {
-		connectionData, err := config_data.DataFromProto[*config_data.ConnectionConfigData](pr.ConnectionData)
+		connectionData, err := DataFromProto[*ConnectionConfigData](pr.ConnectionData)
 		if err != nil {
 			return nil, err
 		}

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -136,7 +135,8 @@ func (c *CollectorImpl[R]) Collect(ctx context.Context) (int, int, error) {
 }
 
 // Notify implements observable.Observer
-// it handles all events which collectorFuncMap may receive (these will all come from the source)
+// it receives events from the source
+// it handles ONLY Row and Error events
 func (c *CollectorImpl[R]) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	c.updateStatus(ctx, event)
@@ -154,26 +154,31 @@ func (c *CollectorImpl[R]) Notify(ctx context.Context, event events.Event) error
 		return c.NotifyObservers(context.Background(), e)
 	default:
 		// ignore
+		// TODO pass other events through to observers
+		// https://github.com/turbot/tailpipe-plugin-sdk/issues/24
+		// https://github.com/turbot/tailpipe-plugin-sdk/issues/10
 		return nil
 	}
 }
 
-func (c *CollectorImpl[R]) GetTiming() types.TimingCollection {
-	return append(c.source.GetTiming(), c.enrichTiming)
+func (c *CollectorImpl[R]) GetTiming() (types.TimingCollection, error) {
+	res, err := c.source.GetTiming()
+	if err != nil {
+		return types.TimingCollection{}, nil
+	}
+	return append(res, c.enrichTiming), nil
 }
 
-func (c *CollectorImpl[R]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
-	requestedSource := configData.Type
-
+func (c *CollectorImpl[R]) initSource(ctx context.Context, sourceConfigData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
 	// get the source metadata for this source type
 	// (this returns an error if the source is not supported by the table)
-	sourceMetadata, err := c.getSourceMetadata(requestedSource)
+	sourceMetadata, err := c.getSourceMetadata(sourceConfigData)
 	if err != nil {
 		return err
 	}
 	// ask factory to create and initialise the source for us
 	// NOTE: we pass the original
-	source, err := row_source.Factory.GetRowSource(ctx, configData, connectionData, sourceMetadata.Options...)
+	source, err := row_source.Factory.GetRowSource(ctx, sourceConfigData, connectionData, sourceMetadata.Options...)
 	if err != nil {
 		return err
 	}
@@ -189,10 +194,10 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, configData *config_da
 	return c.source.AddObserver(c)
 }
 
-func (c *CollectorImpl[R]) getSourceMetadata(requestedSource string) (sourceMetadata *SourceMetadata[R], err error) {
+func (c *CollectorImpl[R]) getSourceMetadata(sourceConfig *types.SourceConfigData) (sourceMetadata *SourceMetadata[R], err error) {
 	// get the supported sources for the table
 	supportedSourceMap := c.getSourceMetadataMap()
-
+	requestedSource := sourceConfig.Type
 	// validate the requested source type is supported by this table
 	sourceMetadata, ok := supportedSourceMap[requestedSource]
 	if !ok {
@@ -201,6 +206,8 @@ func (c *CollectorImpl[R]) getSourceMetadata(requestedSource string) (sourceMeta
 		// whereas the map will have an entry keyed by `artifact`
 
 		// is the requested source an artifact source?
+		// TODO #core how can we tell if any  given source is an artifact source?
+		// // we need to ask it - either via the local source or if it is tremote we can connect to it and ask
 		if row_source.IsArtifactSource(requestedSource) {
 			// check whether the supported sources map has an entry for 'artifact'
 			sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]
@@ -237,9 +244,6 @@ func (c *CollectorImpl[R]) getSourceMetadataMap() map[string]*SourceMetadata[R] 
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
 func (c *CollectorImpl[R]) updateStatus(ctx context.Context, e events.Event) {
-	c.statusLock.Lock()
-	defer c.statusLock.Unlock()
-
 	c.status.Update(e)
 
 	// send a status event periodically
@@ -276,12 +280,12 @@ func (c *CollectorImpl[R]) handleRowEvent(ctx context.Context, e *events.Row) er
 
 	// add table and partition to the enrichment fields
 
-	sourceMetadata := e.SourceMetadata
-	sourceMetadata.CommonFields.TpTable = c.req.TableName
-	sourceMetadata.CommonFields.TpPartition = c.req.PartitionName
+	sourceEnrichment := e.SourceEnrichment
+	sourceEnrichment.CommonFields.TpTable = c.req.TableName
+	sourceEnrichment.CommonFields.TpPartition = c.req.PartitionName
 
 	// enrich the row
-	enrichedRow, err := c.Table.EnrichRow(mappedRow, sourceMetadata)
+	enrichedRow, err := c.Table.EnrichRow(mappedRow, sourceEnrichment)
 	if err != nil {
 		return err
 	}

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
@@ -46,7 +45,7 @@ func (c *CollectorWithFormat[R, S]) Init(ctx context.Context, req *types.Collect
 	return c.CollectorImpl.Init(ctx, req)
 }
 
-func (c *CollectorWithFormat[R, S]) initialiseFormat(formatData config_data.ConfigData) error {
+func (c *CollectorWithFormat[R, S]) initialiseFormat(formatData types.ConfigData) error {
 	// default to empty format
 	format := utils.InstanceOf[S]()
 	if len(formatData.GetHcl()) > 0 {

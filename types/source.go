@@ -1,10 +1,18 @@
-package config_data
+package types
 
-import "github.com/hashicorp/hcl/v2"
+import (
+	"github.com/hashicorp/hcl/v2"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+)
 
 type SourceConfigData struct {
 	*ConfigDataImpl
-	Type string
+	Type           string
+	ReattachConfig *SourcePluginReattach
+}
+
+func (d *SourceConfigData) SetReattach(pr *proto.SourcePluginReattach) {
+	d.ReattachConfig = ReattachFromProto(pr)
 }
 
 func NewSourceConfigData(hcl []byte, decRange hcl.Range, sourceType string) *SourceConfigData {

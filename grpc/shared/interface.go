@@ -20,6 +20,10 @@ type TailpipePluginServer interface {
 	Describe() (*proto.DescribeResponse, error)
 	AddObserver(proto.TailpipePlugin_AddObserverServer) error
 	Collect(context.Context, *proto.CollectRequest) (*proto.CollectResponse, error)
+	InitSource(context.Context, *proto.InitSourceRequest) (*proto.InitResponse, error)
+	CloseSource(context.Context, *proto.CloseSourceRequest) (*proto.CloseSourceResponse, error)
+	SourceCollect(context.Context, *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error)
+	GetSourceTiming(context.Context, *proto.GetSourceTimingRequest) (*proto.GetSourceTimingResponse, error)
 }
 
 // TailpipePluginClient is the client interface that we're exposing as a plugin.
@@ -27,6 +31,10 @@ type TailpipePluginClient interface {
 	Describe() (*proto.DescribeResponse, error)
 	AddObserver() (proto.TailpipePlugin_AddObserverClient, error)
 	Collect(req *proto.CollectRequest) (*proto.CollectResponse, error)
+	InitSource(context.Context, *proto.InitSourceRequest) (*proto.InitResponse, error)
+	CloseSource(context.Context, *proto.CloseSourceRequest) (*proto.CloseSourceResponse, error)
+	SourceCollect(context.Context, *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error)
+	GetSourceTiming(context.Context, *proto.GetSourceTimingRequest) (*proto.GetSourceTimingResponse, error)
 }
 
 // TailpipeGRPCPlugin is the implementation of plugin.GRPCPlugin so we can serve/consume this.

@@ -11,7 +11,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
@@ -76,7 +75,7 @@ func (c *ArtifactConversionCollector[S]) GetSchema() (*schema.RowSchema, error) 
 	return row.ResolveSchema(c.req.CustomTable)
 }
 
-func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData config_data.ConfigData) error {
+func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData types.ConfigData) error {
 	// default to empty config
 	cfg := utils.InstanceOf[S]()
 
@@ -99,7 +98,7 @@ func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData config
 	return nil
 }
 
-func (c *ArtifactConversionCollector[S]) initialiseFormat(tableConfigData config_data.ConfigData) error {
+func (c *ArtifactConversionCollector[S]) initialiseFormat(tableConfigData types.ConfigData) error {
 	// default to empty config
 	cfg := utils.InstanceOf[S]()
 
@@ -174,11 +173,16 @@ func (c *ArtifactConversionCollector[S]) Notify(ctx context.Context, event event
 	}
 }
 
-func (c *ArtifactConversionCollector[S]) GetTiming() types.TimingCollection {
-	return append(c.source.GetTiming(), c.enrichTiming)
+func (c *ArtifactConversionCollector[S]) GetTiming() (types.TimingCollection, error) {
+	res, err := c.source.GetTiming()
+	if err != nil {
+		return types.TimingCollection{}, err
+	}
+
+	return append(res, c.enrichTiming), nil
 }
 
-func (c *ArtifactConversionCollector[S]) initSource(ctx context.Context, configData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData) error {
+func (c *ArtifactConversionCollector[S]) initSource(ctx context.Context, configData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
 	requestedSource := configData.Type
 	// must be an srtifact source
 	if !row_source.IsArtifactSource(requestedSource) {

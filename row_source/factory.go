@@ -4,9 +4,25 @@ import (
 	"context"
 	"fmt"
 	"github.com/turbot/pipe-fittings/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/config_data"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
+
+// PluginSourceWrapperIdentifier is the source name for the plugin source wrapper
+const PluginSourceWrapperIdentifier = "plugin_source_wrapper"
+
+func WithPluginReattach(sourcePlugin *types.SourcePluginReattach) RowSourceOption {
+	return func(source RowSource) error {
+		// define interface implemented by the plugin source wrapper
+		type PluginSourceWrapper interface {
+			SetPlugin(sourcePlugin *types.SourcePluginReattach) error
+		}
+		if w, ok := source.(PluginSourceWrapper); ok {
+			return w.SetPlugin(sourcePlugin)
+		}
+		return nil
+	}
+}
 
 // RegisterRowSource registers a row source type
 // this is called from the package init function of the table implementation
@@ -42,14 +58,22 @@ func (b *RowSourceFactory) registerRowSource(ctor func() RowSource) {
 // GetRowSource attempts to instantiate a row source, using the provided row source data
 // It will fail if the requested source type is not registered
 // Implements [plugin.SourceFactory]
-func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *config_data.SourceConfigData, connectionData *config_data.ConnectionConfigData, sourceOpts ...RowSourceOption) (RowSource, error) {
-	// look for a constructor for the source
-	ctor, ok := b.sourceFuncs[sourceConfigData.Type]
+func (b *RowSourceFactory) GetRowSource(ctx context.Context, sourceConfigData *types.SourceConfigData, connectionData *types.ConnectionConfigData, sourceOpts ...RowSourceOption) (RowSource, error) {
+
+	var source RowSource
+	sourceType := sourceConfigData.Type
+	// if a reattach config is provided, we need to create a wrapper source which will handle the reattach
+	if sourceConfigData.ReattachConfig != nil {
+		sourceType = PluginSourceWrapperIdentifier
+		sourceOpts = append(sourceOpts, WithPluginReattach(sourceConfigData.ReattachConfig))
+	}
+	//look for a constructor for the source
+	ctor, ok := b.sourceFuncs[sourceType]
 	if !ok {
 		return nil, fmt.Errorf("source not registered: %s", sourceConfigData.Type)
 	}
 	// create the source
-	source := ctor()
+	source = ctor()
 
 	// NOTE: register the rowSource implementation with the base struct (_before_ calling Init)
 	base, ok := source.(BaseSource)
@@ -69,16 +93,20 @@ func (b *RowSourceFactory) GetSources() map[string]func() RowSource {
 	return b.sourceFuncs
 }
 
-func (b *RowSourceFactory) DescribeSources() SourceMetadataMap {
+func (b *RowSourceFactory) DescribeSources() (SourceMetadataMap, error) {
 	var res = make(SourceMetadataMap)
 	for k, f := range b.sourceFuncs {
 		source := f()
+		desc, err := source.Description()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get source description: %w", err)
+		}
 		res[k] = &SourceMetadata{
 			Name:        source.Identifier(),
-			Description: source.Description(),
+			Description: desc,
 		}
 	}
-	return res
+	return res, nil
 }
 
 func IsArtifactSource(sourceType string) bool {
@@ -88,11 +116,15 @@ func IsArtifactSource(sourceType string) bool {
 	}
 
 	// TODO hack STRICTLY TEMPORARY https://github.com/turbot/tailpipe-plugin-sdk/issues/67
+
+	// TODO #core how can we tell if any given source is an artifact source?
+	// // we need to ask it - either via the local source or if it is tremote we can connect to it and ask
+
 	// we cannot reference artifact_source here as it would create a circular dependency
 	// for now use a map of known types
 	artifactSources := map[string]struct{}{
 		"aws_s3_bucket":      {},
-		"file_system":        {},
+		"file":               {},
 		"gcp_storage_bucket": {},
 	}
 	_, ok := artifactSources[sourceType]
