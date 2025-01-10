@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"os"
 	"time"
 
 	"github.com/turbot/go-kit/helpers"
@@ -82,9 +81,18 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params RowSourceParams, op
 	if r.CollectionState == nil && r.NewCollectionStateFunc != nil {
 		slog.Info("Creating empty collection state")
 		r.CollectionState = r.NewCollectionStateFunc()
+		// initialise the collection state
+		err = r.CollectionState.Init(r.Config, params.CollectionStatePath)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
+}
+
+func (r *RowSourceImpl[S, T]) SaveCollectionState() error {
+	return r.CollectionState.Save()
 }
 
 func (r *RowSourceImpl[S, T]) initialiseConfig(configData types.ConfigData) error {
@@ -158,40 +166,6 @@ func (r *RowSourceImpl[S, T]) GetCollectionStateJSON() (json.RawMessage, error) 
 		return nil, nil
 	}
 	return json.Marshal(r.CollectionState)
-}
-
-// SetCollectionState loads the collection state json data from the given location
-func (r *RowSourceImpl[S, T]) SetCollectionState(collectionStatePath string) error {
-	slog.Info("Loading collection state from path", "path", collectionStatePath)
-
-	if r.NewCollectionStateFunc == nil {
-		return fmt.Errorf("RowSource implementation must pass CollectionState function to its base to create an empty collection state data struct")
-	}
-
-	target := r.NewCollectionStateFunc()
-
-	// check if there is a collection state file
-	if _, err := os.Stat(collectionStatePath); err == nil {
-		// load the collection state data from the given location
-		// Read the JSON data from the file at the given path
-		data, err := os.ReadFile(collectionStatePath)
-		if err != nil {
-			return fmt.Errorf("failed to read collection state file: %w", err)
-		}
-
-		// Unmarshal the JSON data into the target collection state
-		if err := json.Unmarshal(data, target); err != nil {
-			// TODO #errors maybe we should suppress the error and just log it, deleting the bad state file???
-			return fmt.Errorf("failed to unmarshal collection state JSON: %w", err)
-		}
-		r.CollectionState = target
-
-		// set the from time to the collection state's last time
-		// TODO think about artifacts end time - grnularity
-		r.FromTime = r.CollectionState.GetEndTime()
-	}
-
-	return nil
 }
 
 // SetFromTime sets the start time for the data collection

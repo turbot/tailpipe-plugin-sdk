@@ -134,9 +134,9 @@ func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceReques
 	params := row_source.RowSourceParams{
 		SourceConfigData:    initSourceRequest.SourceData,
 		ConnectionData:      initSourceRequest.ConnectionData,
+		From:                initSourceRequest.FromTime,
+		CollectionTempDir:   req.CollectionTempDir,
 		CollectionStatePath: req.CollectionStatePath,
-		From:                req.FromTime.AsTime(),
-		CollectionTempDir:   req.CollectionDir,
 	}
 
 	source, err := row_source.Factory.GetRowSource(ctx, params)
@@ -162,6 +162,13 @@ func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceReques
 	p.source = as
 
 	return nil
+}
+
+func (p *PluginImpl) SaveCollectionState(_ context.Context) error {
+	if p.source == nil {
+		return fmt.Errorf("source not initialised")
+	}
+	return p.source.SaveCollectionState()
 }
 
 func (p *PluginImpl) CloseSource(_ context.Context) error {

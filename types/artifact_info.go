@@ -12,13 +12,15 @@ import (
 
 type ArtifactInfo struct {
 	// this is the original name of the artifact
-	OriginalName string `json:"-"`
+	OriginalName string `json:"original_name"`
 	// once an artifact is downloaded, this will have the local name
-	LocalName string `json:"-"`
+	// TODO look at local name usage - ensure it is only used to reference the downloaded file (e.g. S3 seems to be use this for the source name)
+	// when that is done, only set local name after download
+	LocalName string `json:"local_name"`
 
 	// enrichment values passed from the source to the collection to include in the enrichment process
 	SourceEnrichment *schema.SourceEnrichment `json:"-"`
-	Timestamp        time.Time                `json:"-"`
+	Timestamp        time.Time                `json:"timestamp"`
 }
 
 func NewArtifactInfo(path string, sourceEnrichment *schema.SourceEnrichment, granularity time.Duration) (*ArtifactInfo, error) {
@@ -37,6 +39,23 @@ func NewArtifactInfo(path string, sourceEnrichment *schema.SourceEnrichment, gra
 	}
 	res.Timestamp = timeStamp
 	return res, nil
+}
+
+func ArtifactInfoFromProto(info *proto.ArtifactInfo) *ArtifactInfo {
+	enrichment := schema.SourceEnrichmentFromProto(info.SourceEnrichment)
+	return &ArtifactInfo{
+		LocalName:        info.LocalName,
+		OriginalName:     info.OriginalName,
+		SourceEnrichment: enrichment,
+	}
+}
+
+func (a *ArtifactInfo) ToProto() *proto.ArtifactInfo {
+	return &proto.ArtifactInfo{
+		LocalName:        a.LocalName,
+		OriginalName:     a.OriginalName,
+		SourceEnrichment: a.SourceEnrichment.ToProto(),
+	}
 }
 
 // validate the artifact has all properties required to parse the timestamp based on the granularity
@@ -110,19 +129,13 @@ func (a *ArtifactInfo) parseArtifactTimestamp(granularity time.Duration) (time.T
 	return timestamp, nil
 
 }
-func (i *ArtifactInfo) ToProto() *proto.ArtifactInfo {
-	return &proto.ArtifactInfo{
-		LocalName:        i.LocalName,
-		OriginalName:     i.OriginalName,
-		SourceEnrichment: i.SourceEnrichment.ToProto(),
-	}
+
+// implement SourceItemMetadata
+
+func (a *ArtifactInfo) GetTimestamp() time.Time {
+	return a.Timestamp
 }
 
-func ArtifactInfoFromProto(info *proto.ArtifactInfo) *ArtifactInfo {
-	enrichment := schema.SourceEnrichmentFromProto(info.SourceEnrichment)
-	return &ArtifactInfo{
-		LocalName:        info.LocalName,
-		OriginalName:     info.OriginalName,
-		SourceEnrichment: enrichment,
-	}
+func (a *ArtifactInfo) Identifier() string {
+	return a.OriginalName
 }

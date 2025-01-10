@@ -69,9 +69,9 @@ func TestArtifactCollectionState_getGranularityFromMetadata(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			state := &ArtifactCollectionStateImpl[*artifact_source_config.ArtifactSourceConfigBase]{}
-			state.getGranularityFromMetadata(tt.args.fileLayout)
+			state.getGranularityFromFileLayout(tt.args.fileLayout)
 			if state.granularity != tt.expectedGranularity {
-				t.Errorf("getGranularityFromMetadata() granularity = %v, want %v", state.granularity, tt.expectedGranularity)
+				t.Errorf("getGranularityFromFileLayout() granularity = %v, want %v", state.granularity, tt.expectedGranularity)
 			}
 		})
 	}

@@ -33,14 +33,14 @@ type RowSource interface {
 
 	Close() error
 
+	SaveCollectionState() error
+
 	// Collect is called to start collecting data,
 	Collect(context.Context) error
 
 	// 	GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
 	GetCollectionStateJSON() (json.RawMessage, error)
 
-	// SetCollectionState loads the collection state json data from the given location
-	SetCollectionState(collectionStatePath string) error
 	// SetFromTime sets the start time for the data collection
 	SetFromTime(from time.Time)
 

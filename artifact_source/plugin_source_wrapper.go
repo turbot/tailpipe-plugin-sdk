@@ -35,8 +35,6 @@ type PluginSourceWrapper struct {
 	client     *grpc.PluginClient
 	pluginName string
 	sourceType string
-	// collection state path - we will pass this to the plugin
-	collectionStatePath string
 	// the collection state json returned by the plugin
 	collectionStateJSON json.RawMessage
 	// wait group to wait for the external plugin source to complete
@@ -54,9 +52,9 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params row_source.RowSou
 		}
 	}
 
-	// create a NilCollectionState - this will do nothing but is required to avoid
+	// create a NilArtifactCollectionState - this will do nothing but is required to avoid
 	// nil reference exceptions in ArtifactSourceImpl.OnArtifactDownloaded
-	w.CollectionState = &NilCollectionState{}
+	w.CollectionState = &NilArtifactCollectionState{}
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
@@ -76,9 +74,9 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params row_source.RowSou
 	// now call into the source plugin to initialise the source
 	req := &proto.InitSourceRequest{
 		SourceData:          params.SourceConfigData.AsProto(),
-		CollectionStatePath: w.collectionStatePath,
+		CollectionStatePath: params.CollectionStatePath,
 		FromTime:            timestamppb.New(w.FromTime),
-		CollectionDir:       params.CollectionTempDir,
+		CollectionTempDir:   params.CollectionTempDir,
 	}
 	if !helpers.IsNil(params.ConnectionData) {
 		req.ConnectionData = params.ConnectionData.AsProto()
@@ -89,6 +87,11 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params row_source.RowSou
 
 	_, err = w.client.InitSource(req)
 
+	return err
+}
+
+func (w *PluginSourceWrapper) SaveCollectionState() error {
+	_, err := w.client.SaveCollectionState()
 	return err
 }
 
@@ -188,13 +191,6 @@ func (w *PluginSourceWrapper) Collect(ctx context.Context) error {
 // GetCollectionStateJSON returns the json serialised collection state data for the ongoing collection
 func (w *PluginSourceWrapper) GetCollectionStateJSON() (json.RawMessage, error) {
 	return w.collectionStateJSON, nil
-}
-
-// SetCollectionState stores the collection state path - this will be passed to the plugin
-func (w *PluginSourceWrapper) SetCollectionState(collectionStatePath string) error {
-	// just store the raw JSON - we will pass it to the plugin
-	w.collectionStatePath = collectionStatePath
-	return nil
 }
 
 // GetTiming returns the timing for the source row collection

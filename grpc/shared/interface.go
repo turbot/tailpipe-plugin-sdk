@@ -20,8 +20,9 @@ type TailpipePluginServer interface {
 	Describe() (*proto.DescribeResponse, error)
 	AddObserver(proto.TailpipePlugin_AddObserverServer) error
 	Collect(context.Context, *proto.CollectRequest) (*proto.CollectResponse, error)
-	InitSource(context.Context, *proto.InitSourceRequest) (*proto.InitResponse, error)
-	CloseSource(context.Context, *proto.CloseSourceRequest) (*proto.CloseSourceResponse, error)
+	InitSource(context.Context, *proto.InitSourceRequest) (*proto.Empty, error)
+	SaveCollectionState(context.Context, *proto.Empty) (*proto.Empty, error)
+	CloseSource(context.Context, *proto.Empty) (*proto.Empty, error)
 	SourceCollect(context.Context, *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error)
 	GetSourceTiming(context.Context, *proto.GetSourceTimingRequest) (*proto.GetSourceTimingResponse, error)
 }
@@ -31,8 +32,9 @@ type TailpipePluginClient interface {
 	Describe() (*proto.DescribeResponse, error)
 	AddObserver() (proto.TailpipePlugin_AddObserverClient, error)
 	Collect(req *proto.CollectRequest) (*proto.CollectResponse, error)
-	InitSource(context.Context, *proto.InitSourceRequest) (*proto.InitResponse, error)
-	CloseSource(context.Context, *proto.CloseSourceRequest) (*proto.CloseSourceResponse, error)
+	InitSource(context.Context, *proto.InitSourceRequest) (*proto.Empty, error)
+	SaveCollectionState(context.Context, *proto.Empty) (*proto.Empty, error)
+	CloseSource(context.Context, *proto.Empty) (*proto.Empty, error)
 	SourceCollect(context.Context, *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error)
 	GetSourceTiming(context.Context, *proto.GetSourceTimingRequest) (*proto.GetSourceTimingResponse, error)
 }

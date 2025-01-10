@@ -63,8 +63,6 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, params RowSourcePar
 	// if a reattach config is provided, we need to create a wrapper source which will handle the reattach
 	if params.SourceConfigData.ReattachConfig != nil {
 		sourceType = PluginSourceWrapperIdentifier
-		// TODO put back??
-		//sourceOpts = append(sourceOpts, WithPluginReattach(params.SourceConfigData.ReattachConfig))
 	}
 	//look for a constructor for the source
 	ctor, ok := b.sourceFuncs[sourceType]

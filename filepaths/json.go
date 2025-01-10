@@ -27,5 +27,5 @@ func CollectionStatePath(collectionFolder string, table, partition string) strin
 	// the collection state is written to the workspace folder, i.e. the parent folder of the PID folder
 	baseDir := filepath.Dir(collectionFolder)
 	// return the path to the collection state file
-	return filepath.Join(baseDir, fmt.Sprintf("collection_state_%s.%s.json", table, partition))
+	return filepath.Join(baseDir, fmt.Sprintf("collection_state_%s_%s.json", table, partition))
 }

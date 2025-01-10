@@ -75,21 +75,29 @@ func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*
 	return resp, nil
 }
 
-func (s PluginServer) InitSource(ctx context.Context, req *proto.InitSourceRequest) (*proto.InitResponse, error) {
+func (s PluginServer) InitSource(ctx context.Context, req *proto.InitSourceRequest) (*proto.Empty, error) {
 	err := s.impl.InitSource(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	return &proto.InitResponse{}, nil
+	return &proto.Empty{}, nil
 }
 
-func (s PluginServer) CloseSource(ctx context.Context, _ *proto.CloseSourceRequest) (*proto.CloseSourceResponse, error) {
+func (s PluginServer) SaveCollectionState(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
+	err := s.impl.SaveCollectionState(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.Empty{}, nil
+}
+
+func (s PluginServer) CloseSource(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
 	err := s.impl.CloseSource(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return &proto.CloseSourceResponse{}, nil
+	return &proto.Empty{}, nil
 }
 
 func (s PluginServer) SourceCollect(ctx context.Context, req *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error) {

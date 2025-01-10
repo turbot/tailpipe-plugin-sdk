@@ -63,9 +63,6 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
 
-	// shadow the CollectionState property, but using ArtifactCollectionStateImpl
-	CollectionState collection_state.ArtifactCollectionState[S]
-
 	defaultConfig *artifact_source_config.ArtifactSourceConfigBase
 	// map of loaders created, keyed by identifier
 	// an optional extractor which the table may specify
@@ -120,21 +117,13 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params row_source.R
 	}
 	a.Source = impl
 
-	// store the collection state as an ArtifactCollectionStateImpl
-	cs, ok := any(a.RowSourceImpl.CollectionState).(collection_state.ArtifactCollectionState[S])
-	if !ok {
-		return errors.New("ArtifactSourceImpl.CollectionState must implement ArtifactCollectionState")
-	}
-	a.CollectionState = cs
-
 	// setup rate limiter
 	a.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
 		Name:           "artifact_load_limiter",
 		MaxConcurrency: ArtifactSourceMaxConcurrency,
 	})
 
-	// initialise the collection state
-	return a.CollectionState.Init(a.Config)
+	return nil
 }
 
 func (a *ArtifactSourceImpl[S, T]) SetLoader(loader artifact_loader.Loader) {
@@ -510,16 +499,10 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 
 	// so we are satisfied - determine whether we should collect this artifact
 
-	// get the full path
-	absLocation, err := filepath.Abs(targetPath)
-	if err != nil {
-		return err
-	}
-
 	// populate enrichment that fields the source is aware of
 	// - in this case the source location
 	// add to metadata - Common fields will be populated from it
-	metadata["tp_source_location"] = absLocation
+	metadata["tp_source_location"] = targetPath
 	metadata["tp_source_type"] = a.Source.Identifier()
 
 	// build the source enrichment

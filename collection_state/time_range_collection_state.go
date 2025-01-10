@@ -26,7 +26,7 @@ func NewCollectionStateTimeRange() *CollectionStateTimeRange {
 // - ContinuationToken is a string that can be used to continue the collection from the last known state.
 // - IsChronological is a boolean that indicates whether the collection is chronological or reverse-chronological.
 type TimeRangeCollectionState[T parse.Config] struct {
-	CollectionStateBase
+	CollectionStateImpl[T]
 	Ranges            []*CollectionStateTimeRange `json:"ranges"`
 	HasContinuation   bool                        `json:"has_continuation"`
 	ContinuationToken *string                     `json:"continuation_token,omitempty"`
@@ -42,9 +42,8 @@ func NewTimeRangeCollectionState[T parse.Config]() CollectionState[T] {
 }
 
 // Init initializes the collection state with the provided configuration
-func (s *TimeRangeCollectionState[T]) Init(config T) error {
-	// TODO: Init
-	return nil
+func (s *TimeRangeCollectionState[T]) Init(config T, path string) error {
+	return s.CollectionStateImpl.Init(config, path)
 }
 
 // StartCollection should be called at the beginning of a collection.

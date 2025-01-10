@@ -2,23 +2,25 @@ package collection_state
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"sync"
 	"time"
 )
 
+type SourceItemMetadata interface {
+	GetTimestamp() time.Time
+	Identifier() string
+}
+
 type CollectionState[T parse.Config] interface {
 	GetMut() *sync.RWMutex
 	IsEmpty() bool
-	Init(config T) error
+	Init(config T, path string) error
+	Save() error
+	SetJSONPath(path string)
 	GetStartTime() time.Time
 	GetEndTime() time.Time
 	SetEndTime(time.Time)
-}
-
-type ArtifactCollectionState[T parse.Config] interface {
-	CollectionState[T]
-	ShouldCollect(*types.ArtifactInfo) bool
-	OnCollected(*types.ArtifactInfo) error
+	ShouldCollect(SourceItemMetadata) bool
+	OnCollected(SourceItemMetadata) error
 	GetGranularity() time.Duration
 }

@@ -9,15 +9,17 @@ option go_package = ".;proto";
 
 service TailpipePlugin {
   rpc Describe(DescribeRequest) returns (DescribeResponse);
-  rpc AddObserver(AddObserverRequest) returns (stream Event);
+  rpc AddObserver(Empty) returns (stream Event);
   rpc Collect(CollectRequest) returns (CollectResponse);
-  rpc InitSource(InitSourceRequest) returns (InitResponse) ;
-  rpc CloseSource(CloseSourceRequest) returns (CloseSourceResponse);
+  rpc InitSource(InitSourceRequest) returns (Empty) ;
+  rpc CloseSource(Empty) returns (Empty);
+  rpc SaveCollectionState(Empty) returns (Empty);
   rpc SourceCollect(SourceCollectRequest) returns (SourceCollectResponse);
   rpc GetSourceTiming(GetSourceTimingRequest) returns (GetSourceTimingResponse);
 }
 
-message AddObserverRequest{}
+message Empty{}
+
 
 message CollectRequest {
   string table_name = 1;
@@ -161,7 +163,6 @@ message EventSourceComplete {
   string error = 6;
 }
 
-
 message EventArtifactDiscovered{
   string execution_id = 1;
   ArtifactInfo artifact_info = 2;
@@ -258,12 +259,6 @@ message ArtifactSourceConfig {
 
 
 }
-
-message InitResponse{}
-
-message CloseSourceRequest{  }
-
-message CloseSourceResponse{}
 
 message SourceCollectRequest{
   // unique identifier for collection execution

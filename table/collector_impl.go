@@ -410,10 +410,20 @@ func (c *CollectorImpl[R]) OnChunk(ctx context.Context, chunkNumber int, collect
 	if err != nil {
 		return err
 	}
+
 	// construct proto event
 	e := events.NewChunkEvent(executionId, chunkNumber, collectionState)
 
-	return c.NotifyObservers(ctx, e)
+	if err = c.NotifyObservers(ctx, e); err != nil {
+		return fmt.Errorf("error notifying observers of chunk: %w", err)
+	}
+
+	// TODO collection state should we save here???
+	// tell source to save collection state
+	if err := c.source.SaveCollectionState(); err != nil {
+		return fmt.Errorf("error saving collection state: %w", err)
+	}
+	return nil
 }
 
 func (c *CollectorImpl[R]) WriteRemainingRows(ctx context.Context, executionId string) (int, int, error) {
