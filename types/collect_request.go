@@ -26,8 +26,10 @@ type CollectRequest struct {
 
 	// unique identifier for collection execution this will be used as base for the filename fo the resultiung JSONL files
 	ExecutionId string
-	// the parent folder for all collection related files (JSONL files, temp source files and collection state)
-	CollectionFolder string
+	// the parent folder for all collection related files (JSONL files, temp source files)
+	CollectionTempDir string
+	// the folder containing collection state files (e.g. last collection time)
+	CollectionStateDir string
 	// the source to use (with raw config)
 	SourceData *SourceConfigData
 	// the source format to use (with raw config)
@@ -36,7 +38,7 @@ type CollectRequest struct {
 	ConnectionData *ConnectionConfigData
 	// the collection start time
 	From time.Time
-	// the custom table defintion, if specified
+	// the custom table definition, if specified
 	CustomTable *Table
 }
 
@@ -53,12 +55,13 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	sourceData.SetReattach(pr.SourcePlugin)
 
 	req := &CollectRequest{
-		TableName:        pr.TableName,
-		PartitionName:    pr.PartitionName,
-		ExecutionId:      pr.ExecutionId,
-		CollectionFolder: pr.CollectionFolder,
-		SourceData:       sourceData,
-		From:             pr.FromTime.AsTime(),
+		TableName:          pr.TableName,
+		PartitionName:      pr.PartitionName,
+		ExecutionId:        pr.ExecutionId,
+		CollectionTempDir:  pr.CollectionTempDir,
+		CollectionStateDir: pr.CollectionStateDir,
+		SourceData:         sourceData,
+		From:               pr.FromTime.AsTime(),
 	}
 
 	if pr.SourceFormat != nil {

@@ -136,7 +136,7 @@ func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceReques
 		ConnectionData:      initSourceRequest.ConnectionData,
 		CollectionStatePath: req.CollectionStatePath,
 		From:                req.FromTime.AsTime(),
-		CollectionDir:       req.CollectionDir,
+		CollectionTempDir:   req.CollectionDir,
 	}
 
 	source, err := row_source.Factory.GetRowSource(ctx, params)

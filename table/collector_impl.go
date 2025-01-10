@@ -78,7 +78,7 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 	c.rowCountMap = make(map[string]int)
 	c.chunkCountMap = make(map[string]int)
 	// get JSONL path
-	jsonPath, err := filepaths.EnsureJSONLPath(req.CollectionFolder)
+	jsonPath, err := filepaths.EnsureJSONLPath(req.CollectionTempDir)
 	if err != nil {
 		return fmt.Errorf("error getting JSONL path: %w", err)
 	}
@@ -183,12 +183,15 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 		return err
 	}
 
+	// build the collection state path
+	collectionStatePath := filepaths.CollectionStatePath(req.CollectionTempDir, req.TableName, req.PartitionName)
+
 	params := row_source.RowSourceParams{
 		SourceConfigData:    req.SourceData,
 		ConnectionData:      req.ConnectionData,
-		CollectionStatePath: filepaths.CollectionStatePath(req.CollectionFolder, req.TableName, req.PartitionName),
+		CollectionStatePath: collectionStatePath,
 		From:                req.From,
-		CollectionDir:       req.CollectionFolder,
+		CollectionTempDir:   req.CollectionTempDir,
 	}
 
 	// ask factory to create and initialise the source for us

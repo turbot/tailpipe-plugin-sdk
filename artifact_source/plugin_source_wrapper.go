@@ -47,22 +47,38 @@ type PluginSourceWrapper struct {
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
 func (w *PluginSourceWrapper) Init(ctx context.Context, params row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
+	// apply options
+	for _, opt := range opts {
+		if err := opt(w); err != nil {
+			return err
+		}
+	}
+
+	// create a NilCollectionState - this will do nothing but is required to avoid
+	// nil reference exceptions in ArtifactSourceImpl.OnArtifactDownloaded
+	w.CollectionState = &NilCollectionState{}
+
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
 	w.executionId = executionId
 
-	// call base to, but pass empty config and connection
-	if err := w.ArtifactSourceImpl.Init(ctx, params, opts...); err != nil {
+	// the source config data should contain a reattach config
+	if params.SourceConfigData.ReattachConfig == nil {
+		return fmt.Errorf("PluginSourceWrapper requires a reattach config")
+	}
+	// create the plugin client
+	err = w.SetPlugin(params.SourceConfigData.ReattachConfig)
+	if err != nil {
 		return err
 	}
-
+	// now call into the source plugin to initialise the source
 	req := &proto.InitSourceRequest{
 		SourceData:          params.SourceConfigData.AsProto(),
 		CollectionStatePath: w.collectionStatePath,
 		FromTime:            timestamppb.New(w.FromTime),
-		CollectionDir:       params.CollectionDir,
+		CollectionDir:       params.CollectionTempDir,
 	}
 	if !helpers.IsNil(params.ConnectionData) {
 		req.ConnectionData = params.ConnectionData.AsProto()

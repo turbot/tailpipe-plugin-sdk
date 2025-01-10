@@ -23,8 +23,12 @@ type ArtifactInfo struct {
 
 func NewArtifactInfo(path string, sourceEnrichment *schema.SourceEnrichment, granularity time.Duration) (*ArtifactInfo, error) {
 	res := &ArtifactInfo{
+		// original name is the source path of the artifact
+		OriginalName: path,
+		// local name will be updated to the local path of the artifact once downloaded
+		// (for file source this remains the same)
+		// TODO DO NOT SET UNTIL DOWNLOAD?
 		LocalName:        path,
-		OriginalName:     path,
 		SourceEnrichment: sourceEnrichment,
 	}
 	timeStamp, err := res.parseArtifactTimestamp(granularity)
@@ -40,14 +44,13 @@ func NewArtifactInfo(path string, sourceEnrichment *schema.SourceEnrichment, gra
 func (a *ArtifactInfo) parseArtifactTimestamp(granularity time.Duration) (time.Time, error) {
 	var timestamp time.Time
 	if granularity == 0 {
-		// TODO IS THIS SUPPORTED?
+		// TODO IS THIS SUPPORTED? I DON'T THINK SO -> error???
 		// no granularity set, so we are collecting everything
 		return timestamp, nil
 	}
 	var expectedKeys []string
 
 	switch {
-
 	case granularity < time.Minute:
 		// granularity < min - we expect year, month, day, hour, minute, second
 		expectedKeys = []string{constants.TemplateFieldYear, constants.TemplateFieldMonth, constants.TemplateFieldDay, constants.TemplateFieldHour, constants.TemplateFieldMinute, constants.TemplateFieldSecond}
@@ -94,7 +97,6 @@ func (a *ArtifactInfo) parseArtifactTimestamp(granularity time.Duration) (time.T
 	}
 
 	// build timestamp from the properties provided
-	// TODO #design what if not all were provided
 	timestamp = time.Date(
 		valueLookup[constants.TemplateFieldYear],
 		time.Month(valueLookup[constants.TemplateFieldMonth]),

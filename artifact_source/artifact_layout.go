@@ -27,9 +27,9 @@ func MetadataSatisfiesFilters(metadata map[string]string, filters map[string]*fi
 	return true
 }
 
-// GetPathMetadata get the metadata from the given file path, based on the file layout
+// getPathMetadata get the metadata from the given file path, based on the file layout
 // returns whether the path matches the layout pattern, and the medata map
-func GetPathMetadata(targetPath, basePath string, layout *string, isDir bool, g *grok.Grok) (bool, map[string]string, error) {
+func getPathMetadata(targetPath, basePath string, layout *string, isDir bool, g *grok.Grok) (bool, map[string]string, error) {
 	if layout == nil {
 		return false, nil, nil
 	}

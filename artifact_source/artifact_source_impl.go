@@ -5,15 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/elastic/go-grok"
-	"github.com/turbot/pipe-fittings/filter"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"io/fs"
 	"log/slog"
 	"path/filepath"
 	"sync"
 	"time"
 
+	"github.com/elastic/go-grok"
+	"github.com/turbot/pipe-fittings/filter"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
@@ -24,6 +23,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -58,7 +58,7 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 
 	// temporary directory for storing downloaded artifacts - this is initialised in the Init function
 	// to be a subdirectory of the collection directory
-	TmpDir string
+	TempDir string
 
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
@@ -99,7 +99,7 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params row_source.R
 	}
 
 	// set the temp directory
-	a.TmpDir = filepath.Join(params.CollectionDir, "artifacts")
+	a.TempDir = filepath.Join(params.CollectionTempDir, "artifacts")
 
 	// call base to apply options and parse config
 	if err := a.RowSourceImpl.Init(ctx, params, opts...); err != nil {
@@ -132,9 +132,6 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params row_source.R
 		Name:           "artifact_load_limiter",
 		MaxConcurrency: ArtifactSourceMaxConcurrency,
 	})
-
-	// create loader map
-	a.loaders = make(map[string]artifact_loader.Loader)
 
 	// initialise the collection state
 	return a.CollectionState.Init(a.Config)
@@ -405,6 +402,11 @@ func (a *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (arti
 		return a.Loader, nil
 	}
 
+	// create map if needed
+	if a.loaders == nil {
+		a.loaders = make(map[string]artifact_loader.Loader)
+	}
+
 	var key string
 	var ctor func() artifact_loader.Loader
 	// figure out which loader to use based on the file extension
@@ -480,7 +482,7 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 		// if we are a directory and we are not satisfied, skip the directory by returning fs.SkipDir
 		var match bool
 		var err error
-		match, metadata, err = GetPathMetadata(targetPath, basePath, layout, isDir, g)
+		match, metadata, err = getPathMetadata(targetPath, basePath, layout, isDir, g)
 		if err != nil {
 			return err
 		}
@@ -500,10 +502,13 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 	}
 
 	// so this is a file
+
 	// if the pattern is not satisfied, skip the file
 	if !satisfied {
 		return nil
 	}
+
+	// so we are satisfied - determine whether we should collect this artifact
 
 	// get the full path
 	absLocation, err := filepath.Abs(targetPath)
@@ -528,9 +533,10 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 
 	// now check with the collection state if we should collect this artifact
 	if !a.CollectionState.ShouldCollect(artifactInfo) {
+		// do not collect - just return
 		return nil
 	}
 
-	// notify observers of the discovered artifact
+	// so we SHOULD collect -  notify observers of the discovered artifact
 	return a.OnArtifactDiscovered(ctx, artifactInfo)
 }

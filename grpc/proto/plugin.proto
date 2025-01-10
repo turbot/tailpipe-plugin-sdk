@@ -25,8 +25,8 @@ message CollectRequest {
   // unique identifier for collection execution this will be used as base for the filename for the resulting JSONL files
   string execution_id = 3;
   //  the root collection file path - used to build the jsonl path and temp path
-  string collection_temp_folder= 4;
-  string collection_state_folder = 5;
+  string collection_temp_dir= 4;
+  string collection_state_dir = 5;
   // the source to use (with raw config)
   ConfigData source_data = 6;
   // the raw hcl of the connection
@@ -34,11 +34,11 @@ message CollectRequest {
   // if this is custom table, Table contains the source format and table schema
   Table custom_table = 8;
   // the source format
-  ConfigData source_format = 8;
+  ConfigData source_format = 9;
   // optional: the reattach config to connect to the plugin providing the source
-  SourcePluginReattach source_plugin = 9;
+  SourcePluginReattach source_plugin = 10;
   // the collection start time
-  google.protobuf.Timestamp from_time = 10;
+  google.protobuf.Timestamp from_time = 11;
 }
 
 message Table {
@@ -236,13 +236,12 @@ message InitSourceRequest{
   ConfigData connection_data = 5;
   // the default config for the source
   ArtifactSourceConfig default_config = 6;
-  // this is json encoded data that represents the state of the collection, i.e. what data has been collected
-  // this is used to resume a collection
-  string collection_state_path = 7;
   // the collection start time
-  google.protobuf.Timestamp from_time = 8;
-  // the collection directory
-  string collection_dir = 9;
+  google.protobuf.Timestamp from_time = 7;
+  // the collection temporary directory
+  string collection_temp_dir = 8;
+  // the path to the collection state file
+  string collection_state_path = 9;
 }
 
 // ArtifactSourceConfigBase is a configuration message for an artifact source.

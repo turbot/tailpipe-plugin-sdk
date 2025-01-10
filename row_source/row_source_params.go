@@ -10,5 +10,5 @@ type RowSourceParams struct {
 	ConnectionData      *types.ConnectionConfigData
 	CollectionStatePath string
 	From                time.Time
-	CollectionDir       string
+	CollectionTempDir   string
 }
