@@ -100,15 +100,15 @@ func (s PluginServer) CloseSource(ctx context.Context, _ *proto.Empty) (*proto.E
 	return &proto.Empty{}, nil
 }
 
-func (s PluginServer) SourceCollect(ctx context.Context, req *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error) {
+func (s PluginServer) SourceCollect(ctx context.Context, req *proto.SourceCollectRequest) (*proto.Empty, error) {
 	err := s.impl.SourceCollect(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	return &proto.SourceCollectResponse{}, nil
+	return &proto.Empty{}, nil
 }
 
-func (s PluginServer) GetSourceTiming(ctx context.Context, _ *proto.GetSourceTimingRequest) (*proto.GetSourceTimingResponse, error) {
+func (s PluginServer) GetSourceTiming(ctx context.Context, _ *proto.Empty) (*proto.GetSourceTimingResponse, error) {
 	sourceTiming, err := s.impl.GetSourceTiming(ctx)
 	if err != nil {
 		return nil, err

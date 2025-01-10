@@ -14,8 +14,8 @@ service TailpipePlugin {
   rpc InitSource(InitSourceRequest) returns (Empty) ;
   rpc CloseSource(Empty) returns (Empty);
   rpc SaveCollectionState(Empty) returns (Empty);
-  rpc SourceCollect(SourceCollectRequest) returns (SourceCollectResponse);
-  rpc GetSourceTiming(GetSourceTimingRequest) returns (GetSourceTimingResponse);
+  rpc SourceCollect(SourceCollectRequest) returns (Empty);
+  rpc GetSourceTiming(Empty) returns (GetSourceTimingResponse);
 }
 
 message Empty{}
@@ -229,20 +229,23 @@ message NetAddr {
 
 // source functions
 message InitSourceRequest{
-  // the source to use (with raw config)
-  ConfigData source_data = 3;
-  // the source format
-  ConfigData source_format = 4;
-  // the raw hcl of the connection
-  ConfigData connection_data = 5;
   // the default config for the source
-  ArtifactSourceConfig default_config = 6;
+  ArtifactSourceConfig default_config = 1;
+  // params to use for the source
+  row_source_params source_params = 2;
+}
+
+message row_source_params{
+  // the source to use (with raw config)
+  ConfigData source_data = 1;
+  // the raw hcl of the connection
+  ConfigData connection_data = 2;
   // the collection start time
-  google.protobuf.Timestamp from_time = 7;
+  google.protobuf.Timestamp from_time = 3;
   // the collection temporary directory
-  string collection_temp_dir = 8;
+  string collection_temp_dir = 4;
   // the path to the collection state file
-  string collection_state_path = 9;
+  string collection_state_path = 5;
 }
 
 // ArtifactSourceConfigBase is a configuration message for an artifact source.
@@ -264,8 +267,6 @@ message SourceCollectRequest{
   // unique identifier for collection execution
   string execution_id = 1;
 }
-message SourceCollectResponse{}
-message GetSourceTimingRequest{}
 
 message GetSourceTimingResponse{
   repeated Timing timing = 1;

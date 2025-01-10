@@ -14,7 +14,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 // register the source from the package init function
@@ -44,7 +43,7 @@ type PluginSourceWrapper struct {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (w *PluginSourceWrapper) Init(ctx context.Context, params row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
+func (w *PluginSourceWrapper) Init(ctx context.Context, params *row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
 	// apply options
 	for _, opt := range opts {
 		if err := opt(w); err != nil {
@@ -73,14 +72,9 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params row_source.RowSou
 	}
 	// now call into the source plugin to initialise the source
 	req := &proto.InitSourceRequest{
-		SourceData:          params.SourceConfigData.AsProto(),
-		CollectionStatePath: params.CollectionStatePath,
-		FromTime:            timestamppb.New(w.FromTime),
-		CollectionTempDir:   params.CollectionTempDir,
+		SourceParams: params.AsProto(),
 	}
-	if !helpers.IsNil(params.ConnectionData) {
-		req.ConnectionData = params.ConnectionData.AsProto()
-	}
+
 	if w.defaultConfig != nil {
 		req.DefaultConfig = w.defaultConfig.AsProto()
 	}

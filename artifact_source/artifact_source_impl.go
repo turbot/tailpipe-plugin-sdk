@@ -86,7 +86,7 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	timingLock      sync.Mutex
 }
 
-func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
+func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing ArtifactSourceImpl", "configData", params.SourceConfigData.GetHcl())
 
 	// if no collection state func has been set by a derived struct,

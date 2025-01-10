@@ -46,7 +46,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	if pr.SourceData == nil {
 		return nil, fmt.Errorf("source data is required")
 	}
-	sourceData, err := DataFromProto[*SourceConfigData](pr.SourceData)
+	sourceData, err := ConfigDataFromProto[*SourceConfigData](pr.SourceData)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	if pr.SourceFormat != nil {
-		sourceFormat, err := DataFromProto[*FormatConfigData](pr.SourceFormat)
+		sourceFormat, err := ConfigDataFromProto[*FormatConfigData](pr.SourceFormat)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +73,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	if pr.ConnectionData != nil {
-		connectionData, err := DataFromProto[*ConnectionConfigData](pr.ConnectionData)
+		connectionData, err := ConfigDataFromProto[*ConnectionConfigData](pr.ConnectionData)
 		if err != nil {
 			return nil, err
 		}

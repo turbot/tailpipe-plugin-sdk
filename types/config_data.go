@@ -50,7 +50,7 @@ func (c *ConfigDataImpl) GetConfigType() string {
 	return c.ConfigType
 }
 
-func DataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
+func ConfigDataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 	/* the target field is the name ofd the target - this will be either:
 	- a source: source.<source_type>
 	- a partition: partition.<table>.<partition_name>

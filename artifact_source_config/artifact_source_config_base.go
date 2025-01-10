@@ -5,6 +5,7 @@ import (
 	"github.com/turbot/go-kit/helpers"
 	typehelpers "github.com/turbot/go-kit/types"
 	"github.com/turbot/pipe-fittings/filter"
+	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -83,5 +84,12 @@ func (b *ArtifactSourceConfigBase) AsProto() *proto.ArtifactSourceConfig {
 	return &proto.ArtifactSourceConfig{
 		FileLayout: typehelpers.SafeString(b.FileLayout),
 		Patterns:   b.Patterns,
+	}
+}
+
+func ArtifactSourceConfigBaseFromProto(pb *proto.ArtifactSourceConfig) *ArtifactSourceConfigBase {
+	return &ArtifactSourceConfigBase{
+		FileLayout: utils.ToPointer(pb.FileLayout),
+		Patterns:   pb.Patterns,
 	}
 }

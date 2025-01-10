@@ -126,20 +126,12 @@ func (p *PluginImpl) Describe() (DescribeResponse, error) {
 // the flow for using a plugin from an external plugin is as follows:
 func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceRequest) error {
 	// ask factory to create and initialise the source for us
-	initSourceRequest, err := types.InitSourceRequestFromProto(req)
+	initSourceRequest, err := artifact_source.InitSourceRequestFromProto(req)
 	if err != nil {
 		return err
 	}
 
-	params := row_source.RowSourceParams{
-		SourceConfigData:    initSourceRequest.SourceData,
-		ConnectionData:      initSourceRequest.ConnectionData,
-		From:                initSourceRequest.FromTime,
-		CollectionTempDir:   req.CollectionTempDir,
-		CollectionStatePath: req.CollectionStatePath,
-	}
-
-	source, err := row_source.Factory.GetRowSource(ctx, params)
+	source, err := row_source.Factory.GetRowSource(ctx, initSourceRequest.SourceParams)
 	if err != nil {
 		return err
 	}

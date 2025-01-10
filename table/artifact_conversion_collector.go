@@ -196,7 +196,7 @@ func (c *ArtifactConversionCollector[S]) initSource(ctx context.Context, configD
 	}
 
 	// TODO KAI FIX ME
-	params := row_source.RowSourceParams{
+	params := &row_source.RowSourceParams{
 		SourceConfigData: configData,
 		ConnectionData:   connectionData,
 	}
