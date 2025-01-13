@@ -37,7 +37,6 @@ type RowSourceImpl[S, T parse.Config] struct {
 	// a function to create empty collection state data
 	NewCollectionStateFunc func() collection_state.CollectionState[S]
 	// the start time for the data collection
-	// NOTE: this will have been set via a RowSourceOption
 	FromTime time.Time
 }
 
@@ -58,6 +57,9 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 			return err
 		}
 	}
+
+	// set the from time
+	r.FromTime = params.From
 
 	// if from is not set (either by explicitly passing is as an arg, or from teh collection state end time) set it now
 	// to the default (7 days

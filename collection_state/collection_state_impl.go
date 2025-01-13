@@ -10,8 +10,6 @@ import (
 	"time"
 )
 
-// TODO refactor as propert base for API and artifactr colleciton state
-
 type CollectionStateImpl[T config.Config] struct {
 	Mut sync.RWMutex `json:"-"`
 	// the time range of the data in the bucket

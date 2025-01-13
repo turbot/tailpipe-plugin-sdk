@@ -2,7 +2,6 @@ package artifact_source
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -34,8 +33,6 @@ type PluginSourceWrapper struct {
 	client     *grpc.PluginClient
 	pluginName string
 	sourceType string
-	// the collection state json returned by the plugin
-	collectionStateJSON json.RawMessage
 	// wait group to wait for the external plugin source to complete
 	sourceWg    sync.WaitGroup
 	executionId string
@@ -182,11 +179,6 @@ func (w *PluginSourceWrapper) Collect(ctx context.Context) error {
 	return nil
 }
 
-// GetCollectionStateJSON returns the json serialised collection state data for the ongoing collection
-func (w *PluginSourceWrapper) GetCollectionStateJSON() (json.RawMessage, error) {
-	return w.collectionStateJSON, nil
-}
-
 // GetTiming returns the timing for the source row collection
 func (w *PluginSourceWrapper) GetTiming() (types.TimingCollection, error) {
 	resp, err := w.client.GetSourceTiming()
@@ -246,8 +238,6 @@ func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream
 				// but we are not calling that as the plugin source is doing the discovery and downloading
 				// We need to increment it here as OnArtifactDownloaded will decrement it
 				w.artifactExtractWg.Add(1)
-				// set the collection state
-				w.collectionStateJSON = protoEvent.GetArtifactDownloadedEvent().CollectionState
 				// get artifact info from the event
 				artifactInfo := types.ArtifactInfoFromProto(protoEvent.GetArtifactDownloadedEvent().ArtifactInfo)
 				err := w.OnArtifactDownloaded(ctx, artifactInfo)

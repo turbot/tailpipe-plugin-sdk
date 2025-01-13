@@ -15,8 +15,8 @@ var (
 	endFeb2024   = time.Date(2024, 2, 29, 23, 59, 59, 999999, time.UTC)
 )
 
-func singleRangeState() *TimeRangeCollectionState[parse.Config] {
-	return &TimeRangeCollectionState[parse.Config]{
+func singleRangeState() *DeprecatedTimeRangeCollectionState[parse.Config] {
+	return &DeprecatedTimeRangeCollectionState[parse.Config]{
 		Ranges: []*CollectionStateTimeRange{
 			{
 				StartTime:        start2023,
@@ -28,8 +28,8 @@ func singleRangeState() *TimeRangeCollectionState[parse.Config] {
 	}
 }
 
-func multiRangeState() *TimeRangeCollectionState[parse.Config] {
-	return &TimeRangeCollectionState[parse.Config]{
+func multiRangeState() *DeprecatedTimeRangeCollectionState[parse.Config] {
+	return &DeprecatedTimeRangeCollectionState[parse.Config]{
 		Ranges: []*CollectionStateTimeRange{
 			{
 				StartTime:        start2023,
@@ -50,13 +50,13 @@ func multiRangeState() *TimeRangeCollectionState[parse.Config] {
 func TestTimeRangeCollectionState_IsEmpty(t *testing.T) {
 	type testCase[T parse.Config] struct {
 		name string
-		s    *TimeRangeCollectionState[T]
+		s    *DeprecatedTimeRangeCollectionState[T]
 		want bool
 	}
 	tests := []testCase[parse.Config]{
 		{
 			name: "Returns true when no ranges exist",
-			s:    &TimeRangeCollectionState[parse.Config]{},
+			s:    &DeprecatedTimeRangeCollectionState[parse.Config]{},
 			want: true,
 		},
 		{
@@ -79,7 +79,7 @@ func TestTimeRangeCollectionState_ShouldCollectRow(t *testing.T) {
 	}
 	type testCase[T parse.Config] struct {
 		name string
-		s    *TimeRangeCollectionState[T]
+		s    *DeprecatedTimeRangeCollectionState[T]
 		args args
 		want bool
 	}
@@ -130,7 +130,7 @@ func TestTimeRangeCollectionState_Upsert(t *testing.T) {
 	}
 	type testCase[T parse.Config] struct {
 		name                 string
-		s                    *TimeRangeCollectionState[T]
+		s                    *DeprecatedTimeRangeCollectionState[T]
 		initialCurrentRange  *CollectionStateTimeRange
 		args                 args
 		expectedCurrentRange *CollectionStateTimeRange
@@ -138,7 +138,7 @@ func TestTimeRangeCollectionState_Upsert(t *testing.T) {
 	tests := []testCase[parse.Config]{
 		{
 			name:                "Sets all fields when currentRange is empty",
-			s:                   &TimeRangeCollectionState[parse.Config]{},
+			s:                   &DeprecatedTimeRangeCollectionState[parse.Config]{},
 			args:                args{ts: start2023, key: "1", meta: nil},
 			initialCurrentRange: NewCollectionStateTimeRange(),
 			expectedCurrentRange: &CollectionStateTimeRange{
@@ -214,7 +214,7 @@ func TestTimeRangeCollectionState_StartCollection(t *testing.T) {
 	}
 	type testCase[T parse.Config] struct {
 		name                 string
-		s                    *TimeRangeCollectionState[T]
+		s                    *DeprecatedTimeRangeCollectionState[T]
 		args                 args
 		expectedCount        int
 		expectedMergeRange   *CollectionStateTimeRange
@@ -223,7 +223,7 @@ func TestTimeRangeCollectionState_StartCollection(t *testing.T) {
 	tests := []testCase[parse.Config]{
 		{
 			name:               "Adds new range when no ranges exist",
-			s:                  &TimeRangeCollectionState[parse.Config]{},
+			s:                  &DeprecatedTimeRangeCollectionState[parse.Config]{},
 			args:               args{IsChronological: false, HasContinuation: false},
 			expectedCount:      1,
 			expectedMergeRange: nil,
@@ -275,12 +275,12 @@ func TestTimeRangeCollectionState_StartCollection(t *testing.T) {
 func TestTimeRangeCollectionState_EndCollection(t *testing.T) {
 	type testCase[T parse.Config] struct {
 		name string
-		s    *TimeRangeCollectionState[T]
+		s    *DeprecatedTimeRangeCollectionState[T]
 	}
 	tests := []testCase[parse.Config]{
 		{
 			name: "Returns without error when mergeRange is nil",
-			s:    &TimeRangeCollectionState[parse.Config]{},
+			s:    &DeprecatedTimeRangeCollectionState[parse.Config]{},
 		},
 		// TODO: #test add test for ensuring currentRange is merged with mergeRange
 	}
@@ -294,13 +294,13 @@ func TestTimeRangeCollectionState_EndCollection(t *testing.T) {
 func TestTimeRangeCollectionState_GetLatestEndTime(t *testing.T) {
 	type testCase[T parse.Config] struct {
 		name string
-		s    *TimeRangeCollectionState[T]
+		s    *DeprecatedTimeRangeCollectionState[T]
 		want *time.Time
 	}
 	tests := []testCase[parse.Config]{
 		{
 			name: "Returns nil when no ranges exist",
-			s:    &TimeRangeCollectionState[parse.Config]{},
+			s:    &DeprecatedTimeRangeCollectionState[parse.Config]{},
 			want: nil,
 		},
 		{
@@ -325,13 +325,13 @@ func TestTimeRangeCollectionState_GetLatestEndTime(t *testing.T) {
 func TestTimeRangeCollectionState_GetEarliestStartTime(t *testing.T) {
 	type testCase[T parse.Config] struct {
 		name string
-		s    *TimeRangeCollectionState[T]
+		s    *DeprecatedTimeRangeCollectionState[T]
 		want *time.Time
 	}
 	tests := []testCase[parse.Config]{
 		{
 			name: "Returns nil when no ranges exist",
-			s:    &TimeRangeCollectionState[parse.Config]{},
+			s:    &DeprecatedTimeRangeCollectionState[parse.Config]{},
 			want: nil,
 		},
 		{
@@ -355,14 +355,14 @@ func TestTimeRangeCollectionState_GetEarliestStartTime(t *testing.T) {
 func TestTimeRangeCollectionState_mergeRanges(t *testing.T) {
 	type testCase[T parse.Config] struct {
 		name          string
-		s             *TimeRangeCollectionState[T]
+		s             *DeprecatedTimeRangeCollectionState[T]
 		want          []*CollectionStateTimeRange
 		expectedCount int
 	}
 	tests := []testCase[parse.Config]{
 		{
 			name:          "returns empty when no ranges exist",
-			s:             &TimeRangeCollectionState[parse.Config]{},
+			s:             &DeprecatedTimeRangeCollectionState[parse.Config]{},
 			want:          []*CollectionStateTimeRange(nil),
 			expectedCount: 0,
 		},

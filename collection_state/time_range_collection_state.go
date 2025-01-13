@@ -1,235 +1,143 @@
 package collection_state
 
 import (
+	"log/slog"
+	"sync"
 	"time"
-
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 )
 
-type CollectionStateTimeRange struct {
-	StartTime        time.Time      `json:"start_time,omitempty"`
-	EndTime          time.Time      `json:"end_time,omitempty"`
-	StartIdentifiers map[string]any `json:"start_identifiers,omitempty"`
-	EndIdentifiers   map[string]any `json:"end_identifiers,omitempty"`
+type TimeRangeCollectionState struct {
+	Mut sync.RWMutex `json:"-"`
+
+	// the time range of the data
+	StartTime time.Time `json:"start_time,omitempty"`
+	EndTime   time.Time `json:"end_time,omitempty"`
+
+	// for end boundary (i.e. the end granularity) we store the metadata
+	// whenever the end time changes, we must clear the map
+	EndObjects map[string]struct{} `json:"end_objects,omitempty"`
+
+	// the granularity of the file naming scheme - so we must keep track of object metadata
+	// this will depend on the template used to name the files
+	Granularity time.Duration `json:"granularity,omitempty"`
 }
 
-func NewCollectionStateTimeRange() *CollectionStateTimeRange {
-	return &CollectionStateTimeRange{
-		StartIdentifiers: make(map[string]any),
-		EndIdentifiers:   make(map[string]any),
+func NewTimeRangeCollectionState(granularity time.Duration) *TimeRangeCollectionState {
+	return &TimeRangeCollectionState{
+		EndObjects:  make(map[string]struct{}),
+		Granularity: granularity,
 	}
 }
 
-// TimeRangeCollectionState is a collection state that tracks time ranges of collected data from contiguous and non-contiguous sources.
-// - Ranges are defined by a start time and an end time. Each range has start and end identifiers to track boundary results.
-// - HasContinuation is a boolean that indicates whether the collection has a continuation token or can be continued from DateTime information in Ranges.
-// - ContinuationToken is a string that can be used to continue the collection from the last known state.
-// - IsChronological is a boolean that indicates whether the collection is chronological or reverse-chronological.
-type TimeRangeCollectionState[T parse.Config] struct {
-	CollectionStateImpl[T]
-	Ranges            []*CollectionStateTimeRange `json:"ranges"`
-	HasContinuation   bool                        `json:"has_continuation"`
-	ContinuationToken *string                     `json:"continuation_token,omitempty"`
-	// TODO: #collectionState - should this be an enum rather than a bool?
-	IsChronological bool `json:"is_chronological"`
-
-	currentRange *CollectionStateTimeRange
-	mergeRange   *CollectionStateTimeRange
+func (s *TimeRangeCollectionState) IsEmpty() bool {
+	return s.StartTime.IsZero()
 }
 
-func NewTimeRangeCollectionState[T parse.Config]() CollectionState[T] {
-	return &TimeRangeCollectionState[T]{}
-}
+// ShouldCollect returns whether the object should be collected
+func (s *TimeRangeCollectionState) ShouldCollect(m SourceItemMetadata) bool {
+	timestamp := m.GetTimestamp()
 
-// Init initializes the collection state with the provided configuration
-func (s *TimeRangeCollectionState[T]) Init(config T, path string) error {
-	return s.CollectionStateImpl.Init(config, path)
-}
-
-// StartCollection should be called at the beginning of a collection.
-// It sets a currentRange for the collection and optionally a mergeRange based on existing ranges and configuration.
-func (s *TimeRangeCollectionState[T]) StartCollection() {
-	// short-circuit: if we have no ranges, create a new range for currentRange
-	if len(s.Ranges) == 0 {
-		s.currentRange = s.addNewRange()
-		return
+	// if we do not have a granularity set, that means the template does not provide any timing information
+	// - we use start objects to track everythinbg
+	if s.Granularity == 0 {
+		// if we do not have a granularity we only use the start map
+		return !s.endObjectsContain(m)
 	}
 
-	// If we are reverse-chronological, we need to set mergeRange to latest range and create a new range for currentRange
-	if !s.IsChronological {
-		s.mergeRange = s.getLatestRange()
-		s.currentRange = s.addNewRange()
-		return
+	// if the time is between the start and end time (inclusive) we should NOT collect
+	// (as have already collected it- assuming consistent artifact ordering)
+	if timestamp.Compare(s.StartTime) >= 0 && timestamp.Compare(s.EndTime) <= 0 {
+		return false
 	}
 
-	if s.HasContinuation {
-		// chronological with continuation, currentRange should be the latest range
-		s.currentRange = s.getLatestRange()
-	} else {
-		// chronological without continuation, currentRange should be the earliest range
-		s.currentRange = s.getEarliestRange()
-	}
-}
-
-// EndCollection should be called only in the event of successful completion of a collection
-func (s *TimeRangeCollectionState[T]) EndCollection() {
-	// merge ranges
-	s.Ranges = s.mergeRanges()
-}
-
-// IsEmpty returns true if there are no ranges in the collection state
-func (s *TimeRangeCollectionState[T]) IsEmpty() bool {
-	return len(s.Ranges) == 0
-}
-
-// ShouldCollectRow returns true if the row should be collected based on the time and provided key identifier
-func (s *TimeRangeCollectionState[T]) ShouldCollectRow(ts time.Time, key string) bool {
-	for _, r := range s.Ranges {
-		// inside an existing range, not a boundary
-		if ts.After(r.StartTime) && ts.Before(r.EndTime) {
-			return false
-		}
-
-		// at the start boundary of an existing range
-		if ts.Equal(r.StartTime) {
-			// check if we have key in start identifiers
-			if _, exists := r.StartIdentifiers[key]; exists {
-				return false
-			} else {
-				return true
-			}
-		}
-
-		// at the end boundary of an existing range
-		if ts.Equal(r.EndTime) {
-			// check if we have key in end identifiers
-			if _, exists := r.EndIdentifiers[key]; exists {
-				return false
-			} else {
-				return true
-			}
-		}
+	// if the timer is <= the end time + granularity, we must check if we have already collected it
+	// (as we have reached the limit of the granularity)
+	if timestamp.Compare(s.EndTime.Add(s.Granularity)) <= 0 {
+		return !s.endObjectsContain(m)
 	}
 
+	// so it before the current start time or after the current end time - we should collect
 	return true
 }
 
-// Upsert sets or updates the current time range based on the timestamp and key identifier
-func (s *TimeRangeCollectionState[T]) Upsert(ts time.Time, key string, meta any) {
-	if meta == nil {
-		meta = struct{}{}
+// OnCollected is called when an object has been collected - update the end time and end objects if needed
+// Note: the object name is the full path to the object
+func (s *TimeRangeCollectionState) OnCollected(metadata SourceItemMetadata) error {
+	s.Mut.Lock()
+	defer s.Mut.Unlock()
+
+	itemTimestamp := metadata.GetTimestamp()
+
+	// if start time is not set, set it now
+	if s.StartTime.IsZero() {
+		s.StartTime = itemTimestamp
 	}
 
-	if s.currentRange.StartTime.IsZero() || ts.Before(s.currentRange.StartTime) {
-		s.currentRange.StartTime = ts
-		s.currentRange.StartIdentifiers = make(map[string]any) // clear start identifiers
-		s.currentRange.StartIdentifiers[key] = meta
+	// if this timestamp is BEFORE the start time, we must be recollecting with an earlier styart time
+	// - clear collection state
+	// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
+	if itemTimestamp.Before(s.StartTime) {
+		s.StartTime = itemTimestamp
+		// clear end time - it will be set by the logic below
+		s.EndTime = time.Time{}
 	}
 
-	if s.currentRange.EndTime.IsZero() || ts.After(s.currentRange.EndTime) {
-		s.currentRange.EndTime = ts
-		s.currentRange.EndIdentifiers = make(map[string]any) // clear end identifiers
-		s.currentRange.EndIdentifiers[key] = meta
-	}
-
-	if s.currentRange.StartTime.Equal(ts) {
-		s.currentRange.StartIdentifiers[key] = meta
-	}
-
-	if s.currentRange.EndTime.Equal(ts) {
-		s.currentRange.EndIdentifiers[key] = meta
-	}
-}
-
-func (s *TimeRangeCollectionState[T]) addNewRange() *CollectionStateTimeRange {
-	r := NewCollectionStateTimeRange()
-	s.Ranges = append(s.Ranges, r)
-
-	return r
-}
-
-func (s *TimeRangeCollectionState[T]) getEarliestRange() *CollectionStateTimeRange {
-	if len(s.Ranges) == 0 {
+	// if we do not have a granularity set, that means the template does not provide any timing information
+	// - we must collect everything
+	if s.Granularity == 0 {
+		s.EndObjects[metadata.Identifier()] = struct{}{}
 		return nil
 	}
 
-	if len(s.Ranges) == 1 {
-		return s.Ranges[0]
-	}
-
-	earliestRange := s.Ranges[0]
-	for _, r := range s.Ranges[1:] {
-		if r.StartTime.Before(earliestRange.StartTime) {
-			earliestRange = r
-		}
-	}
-
-	return earliestRange
-}
-
-func (s *TimeRangeCollectionState[T]) getLatestRange() *CollectionStateTimeRange {
-	if len(s.Ranges) == 0 {
+	// if the timestamp is before the CURRENT end time, then there is an issue
+	// - the end time represents the time which we THOUGHT we had collected all data up to
+	// this may indicate that the granularity for the sourcre has been set incorrectly
+	// (as well as representing the granularity of the time we can deduce from the object name, the granularity also
+	// represents the maximum lateness in reporting that we expect from a source.
+	// Thus if an API may report log entries up[ to 1 hour late, the granularity should be set to 1 hour
+	// If it is set to 1 hour but then reports an entry 2 hours late, thids condition would occur
+	if itemTimestamp.Before(s.EndTime) {
+		// TODO perhaps we should just update the granularity?
+		slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate an incorrect granularity setting", "granularity", s.Granularity, "item timestamp", itemTimestamp, "collection state end time", s.EndTime)
 		return nil
 	}
 
-	if len(s.Ranges) == 1 {
-		return s.Ranges[0]
+	// update our end times as needed
+	// NOTE: the end time are adjusted by the granularity
+	// i.e if the granularity is 1 hour, and the artifact time is 12:00:00,
+	// we are sure we have collected ALL data up to 11:00
+	// the end time will be 11:00:00,
+	endTime := itemTimestamp.Add(-s.Granularity)
+	if endTime.After(s.EndTime) || s.EndTime.IsZero() {
+		s.SetEndTime(endTime)
 	}
 
-	latestRange := s.Ranges[0]
-	for _, r := range s.Ranges[1:] {
-		if r.EndTime.After(latestRange.EndTime) {
-			latestRange = r
-		}
-	}
+	// add the object to the end map
+	s.EndObjects[metadata.Identifier()] = struct{}{}
 
-	return latestRange
+	return nil
 }
 
-// GetLatestEndTime returns the end time of the latest range in the collection state
-func (s *TimeRangeCollectionState[T]) GetLatestEndTime() *time.Time {
-	if len(s.Ranges) == 0 {
-		return nil
-	}
-
-	return &s.getLatestRange().EndTime
+// SetEndTime overrides the base implementation to also clear the end objects
+func (s *TimeRangeCollectionState) SetEndTime(t time.Time) {
+	s.EndTime = t
+	// clear the end map
+	s.EndObjects = make(map[string]struct{})
 }
 
-// GetEarliestStartTime returns the start time of the earliest range in the collection state
-func (s *TimeRangeCollectionState[T]) GetEarliestStartTime() *time.Time {
-	if len(s.Ranges) == 0 {
-		return nil
-	}
-
-	return &s.getEarliestRange().StartTime
+func (s *TimeRangeCollectionState) GetStartTime() time.Time {
+	return s.StartTime
 }
 
-func (s *TimeRangeCollectionState[T]) mergeRanges() []*CollectionStateTimeRange {
-	// short-circuit if we have no mergeRange
-	if s.mergeRange == nil {
-		return s.Ranges
-	}
-
-	// short-circuit if we obtained no new items to currentRange
-	if s.currentRange.StartTime.IsZero() || s.currentRange.EndTime.IsZero() {
-		return s.Ranges
-	}
-
-	// build ranges excluding currentRange and mergeRange
-	var existingOtherRanges []*CollectionStateTimeRange
-	for _, r := range s.Ranges {
-		if r != s.currentRange && r != s.mergeRange {
-			existingOtherRanges = append(existingOtherRanges, r)
-		}
-	}
-
-	mergedRange := NewCollectionStateTimeRange()
-	mergedRange.StartTime = s.mergeRange.StartTime
-	mergedRange.EndTime = s.currentRange.EndTime
-	mergedRange.StartIdentifiers = s.mergeRange.StartIdentifiers
-	mergedRange.EndIdentifiers = s.currentRange.EndIdentifiers
-
-	return append(existingOtherRanges, mergedRange)
+func (s *TimeRangeCollectionState) GetEndTime() time.Time {
+	// i.e. the last time period we are sure we have ALL data for
+	return s.EndTime
 }
 
-// TODO: #collectionState - do we need GetLatestStartTime / GetEarliestEndTime?
+func (s *TimeRangeCollectionState) endObjectsContain(m SourceItemMetadata) bool {
+	s.Mut.RLock()
+	defer s.Mut.RUnlock()
+
+	_, ok := s.EndObjects[m.Identifier()]
+	return ok
+}
