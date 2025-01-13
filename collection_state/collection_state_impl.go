@@ -11,6 +11,7 @@ import (
 )
 
 // TODO refactor as propert base for API and artifactr colleciton state
+
 type CollectionStateImpl[T config.Config] struct {
 	Mut sync.RWMutex `json:"-"`
 	// the time range of the data in the bucket
@@ -21,14 +22,14 @@ type CollectionStateImpl[T config.Config] struct {
 	// each time the end time changes, we must clear the map
 	EndObjects map[string]struct{} `json:"end_objects,omitempty"`
 
+	// the granularity of the file naming scheme - so we must keep track of object metadata
+	// this will depend on the template used to name the files
+	Granularity time.Duration `json:"granularity,omitempty"`
+
 	//HasContinuation   bool                        `json:"has_continuation"`
 	//ContinuationToken *string                     `json:"continuation_token,omitempty"`
 	//
 	//IsChronological bool `json:"is_chronological"`
-
-	// the granularity of the file naming scheme - so we must keep track of object metadata
-	// this will depend on the template used to name the files
-	granularity time.Duration
 
 	// path to the serialised collection state JSON
 	jsonPath         string
@@ -58,11 +59,7 @@ func (s *CollectionStateImpl[T]) Init(_ T, path string) error {
 
 func (s *CollectionStateImpl[T]) SetGranularity(granularity time.Duration) {
 	// TODO split into concept of accuracy AND granularity (better names)
-	s.granularity = granularity
-}
-
-func (s *CollectionStateImpl[T]) RegisterPath(path string, metadata map[string]string) {
-	// TODO - REMOVE FROM BASE IF
+	s.Granularity = granularity
 }
 
 func (s *CollectionStateImpl[T]) Save() error {
@@ -71,7 +68,6 @@ func (s *CollectionStateImpl[T]) Save() error {
 
 	// if the last save time is after the last modified time, then we have nothing to do
 	if s.lastSaveTime.After(s.lastModifiedTime) {
-		slog.Debug("collection state has not been modified since last save")
 		// nothing to do
 		return nil
 	}
@@ -102,7 +98,7 @@ func (s *CollectionStateImpl[T]) SetJSONPath(jsonPath string) {
 }
 
 func (s *CollectionStateImpl[T]) GetGranularity() time.Duration {
-	return s.granularity
+	return s.Granularity
 }
 
 func (s *CollectionStateImpl[T]) IsEmpty() bool {
@@ -115,7 +111,7 @@ func (s *CollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) bool {
 
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we use start objects to track everythinbg
-	if s.granularity == 0 {
+	if s.Granularity == 0 {
 		// if we do not have a granularity we only use the start map
 		return !s.endObjectsContain(m)
 	}
@@ -128,7 +124,7 @@ func (s *CollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) bool {
 
 	// if the timer is <= the end time + granularity, we must check if we have already collected it
 	// (as we have reached the limit of the granularity)
-	if timestamp.Compare(s.EndTime.Add(s.granularity)) <= 0 {
+	if timestamp.Compare(s.EndTime.Add(s.Granularity)) <= 0 {
 		return !s.endObjectsContain(m)
 	}
 
@@ -163,7 +159,7 @@ func (s *CollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata) error 
 
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we must collect everything
-	if s.granularity == 0 {
+	if s.Granularity == 0 {
 		s.EndObjects[metadata.Identifier()] = struct{}{}
 		return nil
 	}
@@ -177,7 +173,7 @@ func (s *CollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata) error 
 	// If it is set to 1 hour but then reports an entry 2 hours late, thids condition would occur
 	if itemTimestamp.Before(s.EndTime) {
 		// TODO perhaps we should just update the granularity?
-		slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate an incorrect granularity setting", "granularity", s.granularity, "item timestamp", itemTimestamp, "collection state end time", s.EndTime)
+		slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate an incorrect granularity setting", "granularity", s.Granularity, "item timestamp", itemTimestamp, "collection state end time", s.EndTime)
 		return nil
 	}
 
@@ -186,7 +182,7 @@ func (s *CollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata) error 
 	// i.e if the granularity is 1 hour, and the artifact time is 12:00:00,
 	// we are sure we have collected ALL data up to 11:00
 	// the end time will be 11:00:00,
-	endTime := itemTimestamp.Add(-s.granularity)
+	endTime := itemTimestamp.Add(-s.Granularity)
 	if endTime.After(s.EndTime) || s.EndTime.IsZero() {
 		s.SetEndTime(endTime)
 	}

@@ -102,7 +102,7 @@ package artifact_source_config
 //	}
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
-//			b := &ArtifactSourceConfigBase{
+//			b := &ArtifactSourceConfigImpl{
 //				Remain:     tt.fields.Remain,
 //				FileLayout: tt.fields.FileLayout,
 //				Filters:    tt.fields.Filters,

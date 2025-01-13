@@ -64,7 +64,10 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
 
-	defaultConfig *artifact_source_config.ArtifactSourceConfigBase
+	// shadow the CollectionState property, but using ArtifactCollectionStateImpl
+	CollectionState collection_state.ArtifactCollectionState[S]
+
+	defaultConfig *artifact_source_config.ArtifactSourceConfigImpl
 	// map of loaders created, keyed by identifier
 	// an optional extractor which the table may specify
 	extractor Extractor
@@ -111,12 +114,19 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	// apply default artifact config (this handles null default)
 	a.Config.DefaultTo(a.defaultConfig)
 
-	// store RowSourceImpl.Source as an ArtifactSource
+	// store RowSourceImpl.Source as an ArtifactSource (shadow the base Source property)
 	impl, ok := a.RowSourceImpl.Source.(ArtifactSource)
 	if !ok {
 		return errors.New("ArtifactSourceImpl.Source must implement ArtifactSource")
 	}
 	a.Source = impl
+
+	// store the collection state as an ArtifactCollectionState (shadow the base CollectionState property)
+	cs, ok := any(a.RowSourceImpl.CollectionState).(collection_state.ArtifactCollectionState[S])
+	if !ok {
+		return errors.New("ArtifactSourceImpl.CollectionState must implement ArtifactCollectionState")
+	}
+	a.CollectionState = cs
 
 	// set the granularity
 	a.CollectionState.SetGranularity(getGranularityFromFileLayout(a.Config.GetFileLayout()))
@@ -130,54 +140,19 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	return nil
 }
 
-// the 'granularity' means what it the shortest period we can determine that an artifact comes from based on its filename
-// e.g., if the filename contains {year}/{month}/{day}/{hour}/{minute}, the granularity is 1 minute
-// if the filename contains {year}/{month}/{day}/{hour}, the granularity is 1 hour
-// NOTE: we traverse the time properties from largest to smallest
-func getGranularityFromFileLayout(fileLayout *string) time.Duration {
-	if fileLayout == nil {
-		return 0
-	}
-
-	// get the named capture groups from the regex
-	captureGroups := helpers.ExtractNamedGroupsFromGrok(*fileLayout)
-	propertyLookup := utils.SliceToLookup(captureGroups)
-
-	slog.Info("getGranularityFromFileLayout", "capture groups", captureGroups, "keys", maps.Keys(propertyLookup))
-
-	// check year/month/day/hour/minute/second
-	if _, ok := propertyLookup[constants.TemplateFieldYear]; ok {
-		if _, ok := propertyLookup[constants.TemplateFieldMonth]; ok {
-			if _, ok := propertyLookup[constants.TemplateFieldDay]; ok {
-				if _, ok := propertyLookup[constants.TemplateFieldHour]; ok {
-					if _, ok := propertyLookup[constants.TemplateFieldMinute]; ok {
-						if _, ok := propertyLookup[constants.TemplateFieldSecond]; ok {
-							return time.Second
-						}
-						return time.Minute
-					}
-					return time.Hour
-				}
-				return time.Hour * 24
-			}
-			return time.Hour * 24 * 30
-		}
-		return time.Hour * 24 * 365
-	}
-
-	return 0
-}
-
 func (a *ArtifactSourceImpl[S, T]) SetLoader(loader artifact_loader.Loader) {
 	a.Loader = loader
 }
+
+// options functions
 
 // SetExtractor sets the extractor function for the source
 func (a *ArtifactSourceImpl[S, T]) SetExtractor(extractor Extractor) {
 	a.extractor = extractor
 }
 
-func (a *ArtifactSourceImpl[S, T]) SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase) {
+// SetDefaultConfig sets the default config for the source
+func (a *ArtifactSourceImpl[S, T]) SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigImpl) {
 	a.defaultConfig = config
 }
 
@@ -521,7 +496,6 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 		// (we return nil to continue processing the directory)
 		if satisfied {
 			// register this directory with the collection state - it will use the metadata to identify trunks
-			// TODO KAI HACK go back to storing ArtifactCollectionState and make RegisterPath an artifact collection state function
 			a.CollectionState.RegisterPath(targetPath, metadata)
 			return nil
 		} else {
@@ -561,4 +535,44 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 
 	// so we SHOULD collect -  notify observers of the discovered artifact
 	return a.OnArtifactDiscovered(ctx, artifactInfo)
+}
+
+// getGranularityFromFileLayout is a helper function to determine the granularity of the collection state based on the file layout
+//
+// the 'granularity' means what it the shortest period we can determine that an artifact comes from based on its filename
+// e.g., if the filename contains {year}/{month}/{day}/{hour}/{minute}, the granularity is 1 minute
+// if the filename contains {year}/{month}/{day}/{hour}, the granularity is 1 hour
+// NOTE: we traverse the time properties from largest to smallest
+func getGranularityFromFileLayout(fileLayout *string) time.Duration {
+	if fileLayout == nil {
+		return 0
+	}
+
+	// get the named capture groups from the regex
+	captureGroups := helpers.ExtractNamedGroupsFromGrok(*fileLayout)
+	propertyLookup := utils.SliceToLookup(captureGroups)
+
+	slog.Info("getGranularityFromFileLayout", "capture groups", captureGroups, "keys", maps.Keys(propertyLookup))
+
+	// check year/month/day/hour/minute/second
+	if _, ok := propertyLookup[constants.TemplateFieldYear]; ok {
+		if _, ok := propertyLookup[constants.TemplateFieldMonth]; ok {
+			if _, ok := propertyLookup[constants.TemplateFieldDay]; ok {
+				if _, ok := propertyLookup[constants.TemplateFieldHour]; ok {
+					if _, ok := propertyLookup[constants.TemplateFieldMinute]; ok {
+						if _, ok := propertyLookup[constants.TemplateFieldSecond]; ok {
+							return time.Second
+						}
+						return time.Minute
+					}
+					return time.Hour
+				}
+				return time.Hour * 24
+			}
+			return time.Hour * 24 * 30
+		}
+		return time.Hour * 24 * 365
+	}
+
+	return 0
 }

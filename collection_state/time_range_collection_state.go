@@ -41,10 +41,6 @@ func NewTimeRangeCollectionState[T parse.Config]() CollectionState[T] {
 	return &TimeRangeCollectionState[T]{}
 }
 
-func (s *TimeRangeCollectionState[T]) RegisterPath(path string, metadata map[string]string) {
-	// TODO remove need for this - put in artifact IF only?
-}
-
 // Init initializes the collection state with the provided configuration
 func (s *TimeRangeCollectionState[T]) Init(config T, path string) error {
 	return s.CollectionStateImpl.Init(config, path)

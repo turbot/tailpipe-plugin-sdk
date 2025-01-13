@@ -9,7 +9,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
-type ArtifactSourceConfigBase struct {
+type ArtifactSourceConfigImpl struct {
 	// required to allow partial decoding
 	Remain hcl.Body `hcl:",remain" json:"-"`
 
@@ -29,7 +29,7 @@ type ArtifactSourceConfigBase struct {
 	FilterMap map[string]*filter.SqlFilter
 }
 
-func (b *ArtifactSourceConfigBase) Validate() error {
+func (b *ArtifactSourceConfigImpl) Validate() error {
 	// parse filters and put into map keyed by property name
 	//filterMap, err := helpers2.BuildFilterMap(b.Filters)
 	//if err != nil {
@@ -56,19 +56,19 @@ func (b *ArtifactSourceConfigBase) Validate() error {
 	return nil
 }
 
-func (b *ArtifactSourceConfigBase) Identifier() string {
+func (b *ArtifactSourceConfigImpl) Identifier() string {
 	return "artifact_source"
 }
 
-func (b *ArtifactSourceConfigBase) GetFileLayout() *string {
+func (b *ArtifactSourceConfigImpl) GetFileLayout() *string {
 	return b.FileLayout
 }
 
-func (b *ArtifactSourceConfigBase) GetPatterns() map[string]string {
+func (b *ArtifactSourceConfigImpl) GetPatterns() map[string]string {
 	return b.Patterns
 }
 
-func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactSourceConfig) {
+func (b *ArtifactSourceConfigImpl) DefaultTo(other ArtifactSourceConfig) {
 	if helpers.IsNil(other) {
 		return
 	}
@@ -78,17 +78,17 @@ func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactSourceConfig) {
 	}
 }
 
-// AsProto converts ArtifactSourceConfigBase to its Protobuf representation.
+// AsProto converts ArtifactSourceConfigImpl to its Protobuf representation.
 // used to pass default config to an external-plugin source
-func (b *ArtifactSourceConfigBase) AsProto() *proto.ArtifactSourceConfig {
+func (b *ArtifactSourceConfigImpl) AsProto() *proto.ArtifactSourceConfig {
 	return &proto.ArtifactSourceConfig{
 		FileLayout: typehelpers.SafeString(b.FileLayout),
 		Patterns:   b.Patterns,
 	}
 }
 
-func ArtifactSourceConfigBaseFromProto(pb *proto.ArtifactSourceConfig) *ArtifactSourceConfigBase {
-	return &ArtifactSourceConfigBase{
+func ArtifactSourceConfigBaseFromProto(pb *proto.ArtifactSourceConfig) *ArtifactSourceConfigImpl {
+	return &ArtifactSourceConfigImpl{
 		FileLayout: utils.ToPointer(pb.FileLayout),
 		Patterns:   pb.Patterns,
 	}

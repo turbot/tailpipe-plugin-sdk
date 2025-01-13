@@ -21,13 +21,20 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	mut sync.RWMutex
 
 	// map of trunk paths to collection state for that trunk
-	// TODO comment to define trunk
-	trunkStates map[string]*CollectionStateImpl[T]
+	// a trunk is a path segment that does not contain any time metadata
+	// for example if the path is s3://bucket/folder1/folder2/2021/01/01/file.txt then the trunk is s3://bucket/folder1/folder2
+	TrunkStates map[string]*CollectionStateImpl[T] `json:"trunk_states,omitempty"`
+
+	// the file layout - if this changes, that invalidates the collection state
+	// TODO validate has not changed/serialise?
+	FileLayout string `json:"file_layout,omitempty"`
+
 	// map of object identifier to collection state which contains the object
 	// used to store the collection state for each object between the ShouldCollect call and the OnCollected call
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
 	objectStateMap map[string]*CollectionStateImpl[T]
 
+	// TODO do we need to serialise this - it will alsways be set by the source - we could just use to validate pattern has not changed??
 	granularity time.Duration
 
 	// path to the serialised collection state JSON
@@ -41,11 +48,14 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 
 func NewArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
 	return &ArtifactCollectionStateImpl[T]{
-		trunkStates:    make(map[string]*CollectionStateImpl[T]),
+		TrunkStates:    make(map[string]*CollectionStateImpl[T]),
 		objectStateMap: make(map[string]*CollectionStateImpl[T]),
 	}
 }
 
+// RegisterPath registers a path with the collection state - we determine whether this is a potential trunk
+// (i.e. a path segment with no time metadata for which we need to track collection state separately)
+// and if so, add it to the map of trunk states
 func (s *ArtifactCollectionStateImpl[T]) RegisterPath(path string, metadata map[string]string) {
 	// if this a trunk (i.e. there is no time component)
 	// if so, add an entry in the trunk states map
@@ -53,14 +63,32 @@ func (s *ArtifactCollectionStateImpl[T]) RegisterPath(path string, metadata map[
 		return
 	}
 
+	// do we already have a trunk that covers this path?
+	var trunksToDelete []string
+	for t := range s.TrunkStates {
+		// if an existing trunk has this path as a prefix, we have nothing to do
+		if strings.HasPrefix(t, path) {
+			return
+		}
+		// if this path is a prefix of an existing trunk, we should delete the existing trunk
+		if strings.HasPrefix(path, t) {
+			trunksToDelete = append(trunksToDelete, t)
+		}
+	}
+	// delete the shorter trunks
+	for _, t := range trunksToDelete {
+		delete(s.TrunkStates, t)
+	}
+
 	// so there is no time metadata, this is a (potential) trunk
 	// add the path to the trunk states
-	if _, ok := s.trunkStates[path]; !ok {
+	if _, ok := s.TrunkStates[path]; !ok {
 		// add nil for now as a placeholder - we will instantiate when/if we find a file in this folder
-		s.trunkStates[path] = nil
+		s.TrunkStates[path] = nil
 	}
 }
 
+// Init sets the filepath of the collection state and loads the state from the file if it exists
 func (s *ArtifactCollectionStateImpl[T]) Init(_ T, path string) error {
 	s.jsonPath = path
 
@@ -80,12 +108,7 @@ func (s *ArtifactCollectionStateImpl[T]) Init(_ T, path string) error {
 	return nil
 }
 
-func (s *ArtifactCollectionStateImpl[T]) SetGranularity(granularity time.Duration) {
-	s.granularity = granularity
-}
-
-// ShouldCollect returns whether the object should be collected
-// TODO return error as well
+// ShouldCollect returns whether the object should be collected, based on the time metadata in the object
 func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) bool {
 	s.mut.Lock()
 	defer s.mut.Unlock()
@@ -96,34 +119,27 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) boo
 	// find all matching trunks and choose the longest
 	var trunkPath string
 	var collectionState *CollectionStateImpl[T]
-	var trunksToDelete []string
-	for t, trunkState := range s.trunkStates {
-		if strings.HasPrefix(itemPath, t) && len(t) > len(trunkPath) {
-			if len(trunkPath) > 0 {
-				// we have found a longer trunk, so we should delete the shorter trunk
-				trunksToDelete = append(trunksToDelete, trunkPath)
-			}
 
+	for t, trunkState := range s.TrunkStates {
+		if strings.HasPrefix(itemPath, t) && len(t) > len(trunkPath) {
 			trunkPath = t
 			collectionState = trunkState
 		}
 	}
-	// delete the shorter trunks
-	for _, t := range trunksToDelete {
-		delete(s.trunkStates, t)
-	}
 
 	// we should always have a trunk state
 	if len(trunkPath) == 0 {
-		// TODO return error as well
-		slog.Error("No trunk state found for item", "item", itemPath)
+		slog.Error("No trunk state found for item - not collectiong", "item", itemPath)
 		return false
 	}
 	if collectionState == nil {
 		// create a new collection state for this trunk
-		// TODO split up CollectionStateImpl to to TimeRange and Base - just use timerange here
-		collectionState = &CollectionStateImpl[T]{}
-		s.trunkStates[trunkPath] = collectionState
+		// TODO FACTOR OUT TYPE
+		collectionState = &CollectionStateImpl[T]{
+			EndObjects:  make(map[string]struct{}),
+			Granularity: s.granularity,
+		}
+		s.TrunkStates[trunkPath] = collectionState
 	}
 
 	// ask the collection state if we should collect this object
@@ -136,10 +152,15 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) boo
 	return res
 }
 
+// OnCollected is called when an object has been collected - update our end time and end objects if needed
 func (s *ArtifactCollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
+	// store modified time to ensure we save the state
+	s.lastModifiedTime = time.Now()
+
+	slog.Info("OnCollected", "metadata", metadata, "lastModifiedTime", s.lastModifiedTime)
 	// we should have stored a collection state mapping for this object
 	collectionState, ok := s.objectStateMap[metadata.Identifier()]
 	if !ok {
@@ -151,16 +172,21 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata
 	return collectionState.OnCollected(metadata)
 }
 
+// Save serialises the collection state to a JSON file
 func (s *ArtifactCollectionStateImpl[T]) Save() error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
+	slog.Info("Saving collection state", "lastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime)
+
 	// if the last save time is after the last modified time, then we have nothing to do
 	if s.lastSaveTime.After(s.lastModifiedTime) {
-		slog.Debug("collection state has not been modified since last save")
+		slog.Info("collection state has not been modified since last save")
 		// nothing to do
 		return nil
 	}
+
+	slog.Info("We are actually saving the collection state")
 
 	jsonBytes, err := json.Marshal(s)
 	if err != nil {
@@ -183,12 +209,20 @@ func (s *ArtifactCollectionStateImpl[T]) Save() error {
 	return nil
 }
 
+// SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
+// granularity of the time metadata it contains
+func (s *ArtifactCollectionStateImpl[T]) SetGranularity(granularity time.Duration) {
+	s.granularity = granularity
+}
+
+// GetGranularity returns the granularity of the collection state
 func (s *ArtifactCollectionStateImpl[T]) GetGranularity() time.Duration {
 	return s.granularity
 }
 
+// IsEmpty returns whether the collection state is empty
 func (s *ArtifactCollectionStateImpl[T]) IsEmpty() bool {
-	for _, trunkState := range s.trunkStates {
+	for _, trunkState := range s.TrunkStates {
 		if trunkState != nil {
 			return false
 		}
@@ -196,6 +230,7 @@ func (s *ArtifactCollectionStateImpl[T]) IsEmpty() bool {
 	return true
 }
 
+// helper to determine if the metadata contains any time metadata
 func (s *ArtifactCollectionStateImpl[T]) containsTimeMetadata(metadata map[string]string) bool {
 	// check for any time metadata
 	timeFields := []string{

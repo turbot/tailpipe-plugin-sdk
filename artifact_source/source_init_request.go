@@ -12,7 +12,7 @@ type InitSourceRequest struct {
 	// the source format to use (with raw config)
 	SourceFormat  *types.FormatConfigData
 	SourceParams  *row_source.RowSourceParams
-	DefaultConfig *artifact_source_config.ArtifactSourceConfigBase
+	DefaultConfig *artifact_source_config.ArtifactSourceConfigImpl
 }
 
 func InitSourceRequestFromProto(pr *proto.InitSourceRequest) (*InitSourceRequest, error) {

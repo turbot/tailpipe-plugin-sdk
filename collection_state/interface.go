@@ -10,18 +10,17 @@ type SourceItemMetadata interface {
 	Identifier() string
 }
 
-// TODO KAI ADD ARTIFACT IF
 type CollectionState[T parse.Config] interface {
 	IsEmpty() bool
 	Init(config T, path string) error
 	Save() error
 	SetGranularity(time.Duration)
-	//SetJSONPath(path string)
-	//GetStartTime() time.Time
-	//GetEndTime() time.Time
-	//SetEndTime(time.Time)
 	ShouldCollect(SourceItemMetadata) bool
 	OnCollected(SourceItemMetadata) error
 	GetGranularity() time.Duration
+}
+
+type ArtifactCollectionState[T parse.Config] interface {
+	CollectionState[T]
 	RegisterPath(path string, metadata map[string]string)
 }
