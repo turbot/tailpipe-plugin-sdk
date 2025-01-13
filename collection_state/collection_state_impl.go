@@ -10,6 +10,7 @@ import (
 	"time"
 )
 
+// TODO refactor as propert base for API and artifactr colleciton state
 type CollectionStateImpl[T config.Config] struct {
 	Mut sync.RWMutex `json:"-"`
 	// the time range of the data in the bucket
@@ -55,8 +56,13 @@ func (s *CollectionStateImpl[T]) Init(_ T, path string) error {
 	return nil
 }
 
-func (s *CollectionStateImpl[T]) GetMut() *sync.RWMutex {
-	return &s.Mut
+func (s *CollectionStateImpl[T]) SetGranularity(granularity time.Duration) {
+	// TODO split into concept of accuracy AND granularity (better names)
+	s.granularity = granularity
+}
+
+func (s *CollectionStateImpl[T]) RegisterPath(path string, metadata map[string]string) {
+	// TODO - REMOVE FROM BASE IF
 }
 
 func (s *CollectionStateImpl[T]) Save() error {

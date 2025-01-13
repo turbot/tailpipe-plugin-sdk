@@ -9,7 +9,7 @@ func ExtractNamedGroupsFromGrok(grokPattern string) []string {
 	matches := re.FindAllStringSubmatch(grokPattern, -1)
 
 	// Collect all group names
-	groupNames := []string{}
+	var groupNames []string
 	for _, match := range matches {
 		if len(match) > 1 {
 			groupNames = append(groupNames, match[1])

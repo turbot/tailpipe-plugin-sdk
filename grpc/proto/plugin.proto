@@ -171,7 +171,6 @@ message EventArtifactDiscovered{
 message EventArtifactDownloaded{
   string execution_id = 1;
   ArtifactInfo artifact_info = 2;
-  bytes collection_state = 3;
 }
 
 message EventArtifactExtracted{

@@ -1,8 +1,6 @@
 package events
 
 import (
-	"encoding/json"
-
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
@@ -15,7 +13,6 @@ type Row struct {
 	// enrichment values passed from the source to the collection to include in the enrichment process
 	SourceEnrichment schema.SourceEnrichment
 	Row              any
-	CollectionState  json.RawMessage
 }
 
 type RowEventOption func(*Row)
@@ -27,11 +24,10 @@ func WithSourceEnrichment(sourceMetadata *schema.SourceEnrichment) RowEventOptio
 		}
 	}
 }
-func NewRowEvent(executionId string, row any, paging json.RawMessage, opts ...RowEventOption) *Row {
+func NewRowEvent(executionId string, row any, opts ...RowEventOption) *Row {
 	r := &Row{
 		ExecutionId:      executionId,
 		Row:              row,
-		CollectionState:  paging,
 		SourceEnrichment: schema.SourceEnrichment{},
 	}
 	for _, opt := range opts {

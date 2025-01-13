@@ -1,8 +1,6 @@
 package events
 
 import (
-	"encoding/json"
-
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -40,16 +38,14 @@ func ArtifactDiscoveredFromProto(e *proto.Event) Event {
 
 type ArtifactDownloaded struct {
 	Base
-	ExecutionId     string
-	Info            *types.ArtifactInfo
-	CollectionState json.RawMessage
+	ExecutionId string
+	Info        *types.ArtifactInfo
 }
 
-func NewArtifactDownloadedEvent(executionId string, info *types.ArtifactInfo, collectionState json.RawMessage) *ArtifactDownloaded {
+func NewArtifactDownloadedEvent(executionId string, info *types.ArtifactInfo) *ArtifactDownloaded {
 	return &ArtifactDownloaded{
-		ExecutionId:     executionId,
-		Info:            info,
-		CollectionState: collectionState,
+		ExecutionId: executionId,
+		Info:        info,
 	}
 }
 
@@ -57,9 +53,8 @@ func (c *ArtifactDownloaded) ToProto() *proto.Event {
 	return &proto.Event{
 		Event: &proto.Event_ArtifactDownloadedEvent{
 			ArtifactDownloadedEvent: &proto.EventArtifactDownloaded{
-				ExecutionId:     c.ExecutionId,
-				ArtifactInfo:    c.Info.ToProto(),
-				CollectionState: c.CollectionState,
+				ExecutionId:  c.ExecutionId,
+				ArtifactInfo: c.Info.ToProto(),
 			},
 		},
 	}
@@ -67,9 +62,8 @@ func (c *ArtifactDownloaded) ToProto() *proto.Event {
 
 func ArtifactDownloadedFromProto(e *proto.Event) Event {
 	return &ArtifactDownloaded{
-		ExecutionId:     e.GetArtifactDownloadedEvent().ExecutionId,
-		Info:            types.ArtifactInfoFromProto(e.GetArtifactDownloadedEvent().ArtifactInfo),
-		CollectionState: e.GetArtifactDownloadedEvent().CollectionState,
+		ExecutionId: e.GetArtifactDownloadedEvent().ExecutionId,
+		Info:        types.ArtifactInfoFromProto(e.GetArtifactDownloadedEvent().ArtifactInfo),
 	}
 }
 

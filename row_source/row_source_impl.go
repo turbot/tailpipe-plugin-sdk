@@ -2,7 +2,6 @@ package row_source
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"time"
@@ -146,26 +145,12 @@ func (r *RowSourceImpl[S, T]) Close() error {
 
 // OnRow raise an [events.Row] event, which is handled by the table.
 // It is called by the row source when it has a row to send
-func (r *RowSourceImpl[S, T]) OnRow(ctx context.Context, row *types.RowData, collectionState json.RawMessage) error {
+func (r *RowSourceImpl[S, T]) OnRow(ctx context.Context, row *types.RowData) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
-	return r.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, collectionState, events.WithSourceEnrichment(row.SourceEnrichment)))
-}
-
-// GetCollectionStateJSON marshals the collection state data into JSON
-func (r *RowSourceImpl[S, T]) GetCollectionStateJSON() (json.RawMessage, error) {
-	if r.CollectionState == nil {
-		return nil, nil
-	}
-	mut := r.CollectionState.GetMut()
-	mut.RLock()
-	defer mut.RUnlock()
-	if r.CollectionState.IsEmpty() {
-		return nil, nil
-	}
-	return json.Marshal(r.CollectionState)
+	return r.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, events.WithSourceEnrichment(row.SourceEnrichment)))
 }
 
 // SetFromTime sets the start time for the data collection

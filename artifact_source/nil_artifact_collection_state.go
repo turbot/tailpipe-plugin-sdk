@@ -15,6 +15,9 @@ func (*NilArtifactCollectionState) Init(_ *NilArtifactSourceConfig, _ string) er
 	return nil
 }
 
+func (s *NilArtifactCollectionState) RegisterPath(_ string, _ map[string]string) {
+}
+
 func (*NilArtifactCollectionState) ShouldCollect(_ collection_state.SourceItemMetadata) bool {
 	return false
 }

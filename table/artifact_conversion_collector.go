@@ -279,7 +279,7 @@ func (c *ArtifactConversionCollector[S]) OnChunk(ctx context.Context, chunkNumbe
 	}
 	// TODO #collectionstate SAVE collection state???
 	// construct proto event
-	e := events.NewChunkEvent(executionId, chunkNumber, collectionState)
+	e := events.NewChunkEvent(executionId, chunkNumber)
 
 	return c.NotifyObservers(ctx, e)
 }

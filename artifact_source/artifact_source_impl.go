@@ -2,7 +2,6 @@ package artifact_source
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -20,11 +19,13 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"golang.org/x/exp/maps"
 )
 
 const ArtifactSourceMaxConcurrency = 16
@@ -107,7 +108,7 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	slog.Info("Initialized artifact_row_source.RowSourceImpl", "config", a.Config)
 	slog.Info("Default to default config", "defaultConfig", a.defaultConfig)
 
-	// apply default config (this handles null default)
+	// apply default artifact config (this handles null default)
 	a.Config.DefaultTo(a.defaultConfig)
 
 	// store RowSourceImpl.Source as an ArtifactSource
@@ -117,6 +118,9 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	}
 	a.Source = impl
 
+	// set the granularity
+	a.CollectionState.SetGranularity(getGranularityFromFileLayout(a.Config.GetFileLayout()))
+
 	// setup rate limiter
 	a.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
 		Name:           "artifact_load_limiter",
@@ -124,6 +128,44 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	})
 
 	return nil
+}
+
+// the 'granularity' means what it the shortest period we can determine that an artifact comes from based on its filename
+// e.g., if the filename contains {year}/{month}/{day}/{hour}/{minute}, the granularity is 1 minute
+// if the filename contains {year}/{month}/{day}/{hour}, the granularity is 1 hour
+// NOTE: we traverse the time properties from largest to smallest
+func getGranularityFromFileLayout(fileLayout *string) time.Duration {
+	if fileLayout == nil {
+		return 0
+	}
+
+	// get the named capture groups from the regex
+	captureGroups := helpers.ExtractNamedGroupsFromGrok(*fileLayout)
+	propertyLookup := utils.SliceToLookup(captureGroups)
+
+	slog.Info("getGranularityFromFileLayout", "capture groups", captureGroups, "keys", maps.Keys(propertyLookup))
+
+	// check year/month/day/hour/minute/second
+	if _, ok := propertyLookup[constants.TemplateFieldYear]; ok {
+		if _, ok := propertyLookup[constants.TemplateFieldMonth]; ok {
+			if _, ok := propertyLookup[constants.TemplateFieldDay]; ok {
+				if _, ok := propertyLookup[constants.TemplateFieldHour]; ok {
+					if _, ok := propertyLookup[constants.TemplateFieldMinute]; ok {
+						if _, ok := propertyLookup[constants.TemplateFieldSecond]; ok {
+							return time.Second
+						}
+						return time.Minute
+					}
+					return time.Hour
+				}
+				return time.Hour * 24
+			}
+			return time.Hour * 24 * 30
+		}
+		return time.Hour * 24 * 365
+	}
+
+	return 0
 }
 
 func (a *ArtifactSourceImpl[S, T]) SetLoader(loader artifact_loader.Loader) {
@@ -239,18 +281,12 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 		return fmt.Errorf("error updating collection state: %w", err)
 	}
 
-	// serialise the collection state data so that we capture it at the time of the download of this artifact
-	collectionState, err := a.GetCollectionStateJSON()
-	if err != nil {
-		return fmt.Errorf("error serialising collection state data: %w", err)
-	}
-
 	// extract asynchronously
 	go func() {
 		extractStart := time.Now()
 
 		// load and extract the artifact
-		err := a.processArtifact(ctx, info, collectionState)
+		err := a.processArtifact(ctx, info)
 
 		// update extract active duration
 		activeDuration := time.Since(extractStart)
@@ -265,7 +301,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	}()
 
 	// notify observers of download
-	if err := a.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info, collectionState)); err != nil {
+	if err := a.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info)); err != nil {
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil
@@ -278,7 +314,7 @@ func (a *ArtifactSourceImpl[S, T]) GetTiming() (types.TimingCollection, error) {
 // convert a downloaded artifact to a set of raw rows, with optional metadata
 // invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
-func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *types.ArtifactInfo, collectionState json.RawMessage) error {
+func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *types.ArtifactInfo) error {
 	slog.Debug("RowSourceImpl processArtifact", "artifact", info.LocalName)
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
@@ -328,7 +364,7 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 				continue
 			}
 
-			if err := a.OnRow(ctx, rawRow, collectionState); err != nil {
+			if err := a.OnRow(ctx, rawRow); err != nil {
 				// store the first error
 				if notifyError == nil {
 					notifyError = err
@@ -484,6 +520,9 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 		// if this is a directory and the pattern is satisfied, descend into the directory
 		// (we return nil to continue processing the directory)
 		if satisfied {
+			// register this directory with the collection state - it will use the metadata to identify trunks
+			// TODO KAI HACK go back to storing ArtifactCollectionState and make RegisterPath an artifact collection state function
+			a.CollectionState.RegisterPath(targetPath, metadata)
 			return nil
 		} else {
 			return fs.SkipDir

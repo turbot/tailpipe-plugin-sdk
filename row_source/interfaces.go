@@ -4,7 +4,6 @@ import (
 	"context"
 	"time"
 
-	"encoding/json"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -37,9 +36,6 @@ type RowSource interface {
 
 	// Collect is called to start collecting data,
 	Collect(context.Context) error
-
-	// 	GetCollectionStateJSON() (json.RawMessage, error) returns the json serialised collection state data for the ongoing collection
-	GetCollectionStateJSON() (json.RawMessage, error)
 
 	// SetFromTime sets the start time for the data collection
 	SetFromTime(from time.Time)

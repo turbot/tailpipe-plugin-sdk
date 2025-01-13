@@ -1,22 +1,19 @@
 package events
 
 import (
-	"encoding/json"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
 type Chunk struct {
 	Base
-	ExecutionId     string
-	ChunkNumber     int
-	CollectionState json.RawMessage
+	ExecutionId string
+	ChunkNumber int
 }
 
-func NewChunkEvent(executionId string, chunkNumber int, collectionState json.RawMessage) *Chunk {
+func NewChunkEvent(executionId string, chunkNumber int) *Chunk {
 	return &Chunk{
-		ExecutionId:     executionId,
-		ChunkNumber:     chunkNumber,
-		CollectionState: collectionState,
+		ExecutionId: executionId,
+		ChunkNumber: chunkNumber,
 	}
 }
 

@@ -2,7 +2,6 @@ package table
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -276,7 +275,7 @@ func (c *CollectorImpl[R]) handleRowEvent(ctx context.Context, e *events.Row) er
 	// when all rows, a null row will be sent - DO NOT try to enrich this!
 	if e.Row == nil {
 		// notify of nil row
-		return c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, nil, e.CollectionState))
+		return c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, nil))
 	}
 
 	// put data into an array as that is what mappers expect
@@ -310,7 +309,7 @@ func (c *CollectorImpl[R]) handleRowEvent(ctx context.Context, e *events.Row) er
 	c.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
 
 	// buffer the enriched row and write to JSON file if buffer is full
-	return c.onRowEnriched(ctx, enrichedRow, e.CollectionState)
+	return c.onRowEnriched(ctx, enrichedRow)
 }
 
 // mapRow applies any configured mappers to the raw rows
@@ -337,7 +336,7 @@ func (c *CollectorImpl[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
 }
 
 // onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full
-func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R, collectionState json.RawMessage) error {
+func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -365,14 +364,14 @@ func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R, collectionS
 	c.rowBufferLock.Unlock()
 
 	if numRowsToWrite := len(rowsToWrite); numRowsToWrite > 0 {
-		return c.writeChunk(ctx, rowCount, rowsToWrite, collectionState)
+		return c.writeChunk(ctx, rowCount, rowsToWrite)
 	}
 
 	return nil
 }
 
 // writeChunk writes a chunk of rows to a JSONL file
-func (c *CollectorImpl[R]) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
+func (c *CollectorImpl[R]) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -400,19 +399,19 @@ func (c *CollectorImpl[R]) writeChunk(ctx context.Context, rowCount int, rowsToW
 	c.rowBufferLock.Unlock()
 
 	// notify observers, passing the collection state data
-	return c.OnChunk(ctx, chunkNumber, collectionState)
+	return c.OnChunk(ctx, chunkNumber)
 }
 
 // OnChunk is called by the we have written a chunk of enriched rows to a [JSONL/CSV] file
 // notify observers of the chunk
-func (c *CollectorImpl[R]) OnChunk(ctx context.Context, chunkNumber int, collectionState json.RawMessage) error {
+func (c *CollectorImpl[R]) OnChunk(ctx context.Context, chunkNumber int) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
 
 	// construct proto event
-	e := events.NewChunkEvent(executionId, chunkNumber, collectionState)
+	e := events.NewChunkEvent(executionId, chunkNumber)
 
 	if err = c.NotifyObservers(ctx, e); err != nil {
 		return fmt.Errorf("error notifying observers of chunk: %w", err)
@@ -427,11 +426,6 @@ func (c *CollectorImpl[R]) OnChunk(ctx context.Context, chunkNumber int, collect
 }
 
 func (c *CollectorImpl[R]) WriteRemainingRows(ctx context.Context, executionId string) (int, int, error) {
-	collectionState, err := c.source.GetCollectionStateJSON()
-	if err != nil {
-		return 0, 0, fmt.Errorf("error getting collection state: %w", err)
-	}
-
 	// get row count and the rows in the buffers
 	c.rowBufferLock.Lock()
 	rowCount := c.rowCountMap[executionId]
@@ -444,7 +438,7 @@ func (c *CollectorImpl[R]) WriteRemainingRows(ctx context.Context, executionId s
 
 	// tell our write to write any remaining rows
 	if len(rowsToWrite) > 0 {
-		if err := c.writeChunk(ctx, rowCount, rowsToWrite, collectionState); err != nil {
+		if err := c.writeChunk(ctx, rowCount, rowsToWrite); err != nil {
 			slog.Error("failed to write final chunk", "error", err)
 			return 0, 0, fmt.Errorf("failed to write final chunk: %w", err)
 		}
