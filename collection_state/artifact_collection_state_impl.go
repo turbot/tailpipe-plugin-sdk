@@ -170,7 +170,7 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata
 	// we should have stored a collection state mapping for this object
 	collectionState, ok := s.objectStateMap[metadata.Identifier()]
 	if !ok {
-		return fmt.Errorf("no collection state mapping found for item - this should have been set in ShouldCollect", "item", metadata.Identifier())
+		return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", metadata.Identifier())
 	}
 	// clear the mapping
 	delete(s.objectStateMap, metadata.Identifier())

@@ -4,7 +4,6 @@ import (
 	"github.com/hashicorp/hcl/v2"
 	"github.com/turbot/go-kit/helpers"
 	typehelpers "github.com/turbot/go-kit/types"
-	"github.com/turbot/pipe-fittings/filter"
 	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
@@ -18,15 +17,6 @@ type ArtifactSourceConfigImpl struct {
 
 	// grok patterns to add to the grok parser used to parse the layout
 	Patterns map[string]string `hcl:"patterns,optional"`
-
-	// TODO SORT THIS NEEDED OR NOT>??>?
-	// list of filters to apply to the path segments
-	// note: each filter must refer to a single property only
-	// filters are ANDED together
-	//Filters []string `hcl:"filters,optional"`
-
-	// map of parsed filters, keyed by target property
-	FilterMap map[string]*filter.SqlFilter
 }
 
 func (b *ArtifactSourceConfigImpl) Validate() error {

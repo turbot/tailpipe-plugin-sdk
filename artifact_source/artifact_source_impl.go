@@ -527,6 +527,13 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 		return err
 	}
 
+	// if we have a from time, check if the artifact is newer than the from time
+	if !a.FromTime.IsZero() {
+		if artifactInfo.Timestamp.Compare(a.FromTime) < 0 {
+			return nil
+		}
+	}
+
 	// now check with the collection state if we should collect this artifact
 	if !a.CollectionState.ShouldCollect(artifactInfo) {
 		// do not collect - just return
