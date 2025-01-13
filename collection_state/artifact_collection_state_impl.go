@@ -146,12 +146,15 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) boo
 	if collectionState == nil {
 		// create a new collection state for this trunk
 		collectionState = NewTimeRangeCollectionState(s.granularity)
+		// write it back
+		s.TrunkStates[trunkPath] = collectionState
 	}
 
 	// ask the collection state if we should collect this object
 	res := collectionState.ShouldCollect(m)
 
 	// now we have figured out which collection state to use, store that mapping for use in OnCollected
+	// - we need to know which collection state to update when we collect the object
 	if res {
 		s.objectStateMap[itemPath] = collectionState
 	}
