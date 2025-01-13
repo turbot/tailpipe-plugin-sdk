@@ -52,7 +52,9 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	// NOTE: add the (possibly nil) SourcePluginReattach to the source data
-	sourceData.SetReattach(pr.SourcePlugin)
+	if pr.SourcePlugin != nil {
+		sourceData.SetReattach(pr.SourcePlugin)
+	}
 
 	req := &CollectRequest{
 		TableName:          pr.TableName,
