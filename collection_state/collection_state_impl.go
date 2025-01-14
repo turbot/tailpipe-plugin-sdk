@@ -104,14 +104,13 @@ func (s *CollectionStateImpl[T]) IsEmpty() bool {
 }
 
 // ShouldCollect returns whether the object should be collected
-func (s *CollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) bool {
-	timestamp := m.GetTimestamp()
+func (s *CollectionStateImpl[T]) ShouldCollect(id string, timestamp time.Time) bool {
 
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we use start objects to track everythinbg
 	if s.Granularity == 0 {
 		// if we do not have a granularity we only use the start map
-		return !s.endObjectsContain(m)
+		return !s.endObjectsContain(id)
 	}
 
 	// if the time is between the start and end time (inclusive) we should NOT collect
@@ -123,7 +122,7 @@ func (s *CollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) bool {
 	// if the timer is <= the end time + granularity, we must check if we have already collected it
 	// (as we have reached the limit of the granularity)
 	if timestamp.Compare(s.EndTime.Add(s.Granularity)) <= 0 {
-		return !s.endObjectsContain(m)
+		return !s.endObjectsContain(id)
 	}
 
 	// so it before the current start time or after the current end time - we should collect
@@ -132,14 +131,12 @@ func (s *CollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) bool {
 
 // OnCollected is called when an object has been collected - update the end time and end objects if needed
 // Note: the object name is the full path to the object
-func (s *CollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata) error {
+func (s *CollectionStateImpl[T]) OnCollected(id string, itemTimestamp time.Time) error {
 	s.Mut.Lock()
 	defer s.Mut.Unlock()
 
 	// store modified time
 	s.lastModifiedTime = time.Now()
-
-	itemTimestamp := metadata.GetTimestamp()
 
 	// if start time is not set, set it now
 	if s.StartTime.IsZero() {
@@ -158,7 +155,7 @@ func (s *CollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata) error 
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we must collect everything
 	if s.Granularity == 0 {
-		s.EndObjects[metadata.Identifier()] = struct{}{}
+		s.EndObjects[id] = struct{}{}
 		return nil
 	}
 
@@ -186,7 +183,7 @@ func (s *CollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata) error 
 	}
 
 	// add the object to the end map
-	s.EndObjects[metadata.Identifier()] = struct{}{}
+	s.EndObjects[id] = struct{}{}
 
 	return nil
 }
@@ -207,10 +204,10 @@ func (s *CollectionStateImpl[T]) GetEndTime() time.Time {
 	return s.EndTime
 }
 
-func (s *CollectionStateImpl[T]) endObjectsContain(m SourceItemMetadata) bool {
+func (s *CollectionStateImpl[T]) endObjectsContain(id string) bool {
 	s.Mut.RLock()
 	defer s.Mut.RUnlock()
 
-	_, ok := s.EndObjects[m.Identifier()]
+	_, ok := s.EndObjects[id]
 	return ok
 }

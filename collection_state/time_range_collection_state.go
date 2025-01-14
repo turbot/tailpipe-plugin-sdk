@@ -49,22 +49,22 @@ func (s *TimeRangeCollectionState[T]) Init(_ T, path string) error {
 }
 
 // ShouldCollect returns whether the object should be collected, based on the time metadata in the object
-func (s *TimeRangeCollectionState[T]) ShouldCollect(m SourceItemMetadata) bool {
+func (s *TimeRangeCollectionState[T]) ShouldCollect(id string, timestamp time.Time) bool {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
-	return s.TimeRangeCollectionStateImpl.ShouldCollect(m)
+	return s.TimeRangeCollectionStateImpl.ShouldCollect(id, timestamp)
 }
 
 // OnCollected is called when an object has been collected - update our end time and end objects if needed
-func (s *TimeRangeCollectionState[T]) OnCollected(metadata SourceItemMetadata) error {
+func (s *TimeRangeCollectionState[T]) OnCollected(id string, timestamp time.Time) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
 	// store modified time to ensure we save the state
 	s.lastModifiedTime = time.Now()
 
-	return s.TimeRangeCollectionStateImpl.OnCollected(metadata)
+	return s.TimeRangeCollectionStateImpl.OnCollected(id, timestamp)
 }
 
 // Save serialises the collection state to a JSON file

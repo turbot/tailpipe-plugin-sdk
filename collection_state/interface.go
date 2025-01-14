@@ -5,18 +5,13 @@ import (
 	"time"
 )
 
-type SourceItemMetadata interface {
-	GetTimestamp() time.Time
-	Identifier() string
-}
-
 type CollectionState[T parse.Config] interface {
 	IsEmpty() bool
 	Init(config T, path string) error
 	Save() error
 	SetGranularity(time.Duration)
-	ShouldCollect(SourceItemMetadata) bool
-	OnCollected(SourceItemMetadata) error
+	ShouldCollect(id string, timestamp time.Time) bool
+	OnCollected(id string, timestamp time.Time) error
 	GetGranularity() time.Duration
 }
 

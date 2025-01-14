@@ -33,14 +33,13 @@ func (s *TimeRangeCollectionStateImpl) IsEmpty() bool {
 }
 
 // ShouldCollect returns whether the object should be collected
-func (s *TimeRangeCollectionStateImpl) ShouldCollect(m SourceItemMetadata) bool {
-	timestamp := m.GetTimestamp()
+func (s *TimeRangeCollectionStateImpl) ShouldCollect(id string, timestamp time.Time) bool {
 
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we use start objects to track everythinbg
 	if s.Granularity == 0 {
 		// if we do not have a granularity we only use the start map
-		return !s.endObjectsContain(m)
+		return !s.endObjectsContain(id)
 	}
 
 	// if the time is between the start and end time (inclusive) we should NOT collect
@@ -52,7 +51,7 @@ func (s *TimeRangeCollectionStateImpl) ShouldCollect(m SourceItemMetadata) bool 
 	// if the timer is <= the end time + granularity, we must check if we have already collected it
 	// (as we have reached the limit of the granularity)
 	if timestamp.Compare(s.EndTime.Add(s.Granularity)) <= 0 {
-		return !s.endObjectsContain(m)
+		return !s.endObjectsContain(id)
 	}
 
 	// so it before the current start time or after the current end time - we should collect
@@ -61,19 +60,18 @@ func (s *TimeRangeCollectionStateImpl) ShouldCollect(m SourceItemMetadata) bool 
 
 // OnCollected is called when an object has been collected - update the end time and end objects if needed
 // Note: the object name is the full path to the object
-func (s *TimeRangeCollectionStateImpl) OnCollected(metadata SourceItemMetadata) error {
-	itemTimestamp := metadata.GetTimestamp()
+func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Time) error {
 
 	// if start time is not set, set it now
 	if s.StartTime.IsZero() {
-		s.StartTime = itemTimestamp
+		s.StartTime = timestamp
 	}
 
 	// if this timestamp is BEFORE the start time, we must be recollecting with an earlier styart time
 	// - clear collection state
 	// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
-	if itemTimestamp.Before(s.StartTime) {
-		s.StartTime = itemTimestamp
+	if timestamp.Before(s.StartTime) {
+		s.StartTime = timestamp
 		// clear end time - it will be set by the logic below
 		s.EndTime = time.Time{}
 	}
@@ -81,7 +79,7 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(metadata SourceItemMetadata) 
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we must collect everything
 	if s.Granularity == 0 {
-		s.EndObjects[metadata.Identifier()] = struct{}{}
+		s.EndObjects[id] = struct{}{}
 		return nil
 	}
 
@@ -92,9 +90,9 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(metadata SourceItemMetadata) 
 	// represents the maximum lateness in reporting that we expect from a source.
 	// Thus if an API may report log entries up[ to 1 hour late, the granularity should be set to 1 hour
 	// If it is set to 1 hour but then reports an entry 2 hours late, thids condition would occur
-	if itemTimestamp.Before(s.EndTime) {
+	if timestamp.Before(s.EndTime) {
 		// TODO perhaps we should just update the granularity?
-		slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate an incorrect granularity setting", "granularity", s.Granularity, "item timestamp", itemTimestamp, "collection state end time", s.EndTime)
+		slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate an incorrect granularity setting", "granularity", s.Granularity, "item timestamp", timestamp, "collection state end time", s.EndTime)
 		return nil
 	}
 
@@ -103,13 +101,13 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(metadata SourceItemMetadata) 
 	// i.e if the granularity is 1 hour, and the artifact time is 12:00:00,
 	// we are sure we have collected ALL data up to 11:00
 	// the end time will be 11:00:00,
-	endTime := itemTimestamp.Add(-s.Granularity)
+	endTime := timestamp.Add(-s.Granularity)
 	if endTime.After(s.EndTime) || s.EndTime.IsZero() {
 		s.SetEndTime(endTime)
 	}
 
 	// add the object to the end map
-	s.EndObjects[metadata.Identifier()] = struct{}{}
+	s.EndObjects[id] = struct{}{}
 
 	return nil
 }
@@ -141,7 +139,7 @@ func (s *TimeRangeCollectionStateImpl) GetGranularity() time.Duration {
 	return s.Granularity
 }
 
-func (s *TimeRangeCollectionStateImpl) endObjectsContain(m SourceItemMetadata) bool {
-	_, ok := s.EndObjects[m.Identifier()]
+func (s *TimeRangeCollectionStateImpl) endObjectsContain(id string) bool {
+	_, ok := s.EndObjects[id]
 	return ok
 }

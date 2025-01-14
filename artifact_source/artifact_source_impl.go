@@ -251,7 +251,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	a.ExtractTiming.TryStart(constants.TimingExtract)
 
 	// update the collection state
-	if err := a.CollectionState.OnCollected(info); err != nil {
+	if err := a.CollectionState.OnCollected(info.Identifier(), info.Timestamp); err != nil {
 		return fmt.Errorf("error updating collection state: %w", err)
 	}
 
@@ -540,7 +540,7 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 	}
 
 	// now check with the collection state if we should collect this artifact
-	if !a.CollectionState.ShouldCollect(artifactInfo) {
+	if !a.CollectionState.ShouldCollect(artifactInfo.Identifier(), artifactInfo.Timestamp) {
 		// do not collect - just return
 		return nil
 	}

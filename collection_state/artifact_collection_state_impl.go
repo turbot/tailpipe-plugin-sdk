@@ -121,12 +121,12 @@ func (s *ArtifactCollectionStateImpl[T]) RegisterPath(path string, metadata map[
 }
 
 // ShouldCollect returns whether the object should be collected, based on the time metadata in the object
-func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) bool {
+func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time.Time) bool {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
 	// find the trunk state for this object
-	itemPath := m.Identifier()
+	itemPath := id
 
 	// find all matching trunks and choose the longest
 	var trunkPath string
@@ -155,7 +155,7 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) boo
 	}
 
 	// ask the collection state if we should collect this object
-	res := collectionState.ShouldCollect(m)
+	res := collectionState.ShouldCollect(id, timestamp)
 
 	// now we have figured out which collection state to use, store that mapping for use in OnCollected
 	// - we need to know which collection state to update when we collect the object
@@ -166,23 +166,23 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) boo
 }
 
 // OnCollected is called when an object has been collected - update our end time and end objects if needed
-func (s *ArtifactCollectionStateImpl[T]) OnCollected(metadata SourceItemMetadata) error {
+func (s *ArtifactCollectionStateImpl[T]) OnCollected(id string, timestamp time.Time) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
 	// store modified time to ensure we save the state
 	s.lastModifiedTime = time.Now()
 
-	slog.Info("OnCollected", "metadata", metadata, "lastModifiedTime", s.lastModifiedTime)
+	slog.Info("OnCollected", "id", id, "timestamp", timestamp, "lastModifiedTime", s.lastModifiedTime)
 	// we should have stored a collection state mapping for this object
-	collectionState, ok := s.objectStateMap[metadata.Identifier()]
+	collectionState, ok := s.objectStateMap[id]
 	if !ok {
-		return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", metadata.Identifier())
+		return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", id)
 	}
 	// clear the mapping
-	delete(s.objectStateMap, metadata.Identifier())
+	delete(s.objectStateMap, id)
 
-	return collectionState.OnCollected(metadata)
+	return collectionState.OnCollected(id, timestamp)
 }
 
 // Save serialises the collection state to a JSON file
