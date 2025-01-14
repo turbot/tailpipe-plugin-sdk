@@ -18,12 +18,10 @@ import (
 // return the start time and the end time for the data downloaded
 
 type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] struct {
-	mut sync.RWMutex
-
 	// map of trunk paths to collection state for that trunk
 	// a trunk is a path segment that does not contain any time metadata
 	// for example if the path is s3://bucket/folder1/folder2/2021/01/01/file.txt then the trunk is s3://bucket/folder1/folder2
-	TrunkStates map[string]*TimeRangeCollectionState `json:"trunk_states,omitempty"`
+	TrunkStates map[string]*TimeRangeCollectionStateImpl `json:"trunk_states,omitempty"`
 
 	// the file layout - if this changes, that invalidates the collection state
 	// TODO validate has not changed/serialise?
@@ -32,9 +30,9 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	// map of object identifier to collection state which contains the object
 	// used to store the collection state for each object between the ShouldCollect call and the OnCollected call
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
-	objectStateMap map[string]*TimeRangeCollectionState
+	objectStateMap map[string]*TimeRangeCollectionStateImpl
 
-	// TODO do we need to serialise this - it will alsways be set by the source - we could just use to validate pattern has not changed??
+	// TODO do we need to serialise this - it will always be set by the source - we could just use to validate pattern has not changed??
 	granularity time.Duration
 
 	// path to the serialised collection state JSON
@@ -42,14 +40,17 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	lastModifiedTime time.Time
 	lastSaveTime     time.Time
 
+	mut *sync.RWMutex
+
 	// the grok parser
 	g *grok.Grok
 }
 
 func NewArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
 	return &ArtifactCollectionStateImpl[T]{
-		TrunkStates:    make(map[string]*TimeRangeCollectionState),
-		objectStateMap: make(map[string]*TimeRangeCollectionState),
+		TrunkStates:    make(map[string]*TimeRangeCollectionStateImpl),
+		objectStateMap: make(map[string]*TimeRangeCollectionStateImpl),
+		mut:            &sync.RWMutex{},
 	}
 }
 
@@ -129,7 +130,7 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) boo
 
 	// find all matching trunks and choose the longest
 	var trunkPath string
-	var collectionState *TimeRangeCollectionState
+	var collectionState *TimeRangeCollectionStateImpl
 
 	for t, trunkState := range s.TrunkStates {
 		if strings.HasPrefix(itemPath, t) && len(t) > len(trunkPath) {
@@ -145,7 +146,7 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) boo
 	}
 	if collectionState == nil {
 		// create a new collection state for this trunk
-		collectionState = NewTimeRangeCollectionState(s.granularity)
+		collectionState = NewTimeRangeCollectionStateImpl(s.granularity)
 		// write it back
 		s.TrunkStates[trunkPath] = collectionState
 	}
