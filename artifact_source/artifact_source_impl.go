@@ -477,7 +477,8 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 	var metadata map[string]string
 	var satisfied = true
 
-	// LAYOUT IS REQUIRED (may be deafaulted if not provided)
+	// TODO KAI refactor to make clearer
+	// LAYOUT IS REQUIRED (may be defaulted if not provided)
 	if layout != nil {
 		// if we are a directory and we are not satisfied, skip the directory by returning fs.SkipDir
 		var match bool

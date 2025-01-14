@@ -10,19 +10,6 @@ import (
 // PluginSourceWrapperIdentifier is the source name for the plugin source wrapper
 const PluginSourceWrapperIdentifier = "plugin_source_wrapper"
 
-//func WithPluginReattach(sourcePlugin *types.SourcePluginReattach) RowSourceOption {
-//	return func(source RowSource) error {
-//		// define interface implemented by the plugin source wrapper
-//		type PluginSourceWrapper interface {
-//			SetPlugin(sourcePlugin *types.SourcePluginReattach) error
-//		}
-//		if w, ok := source.(PluginSourceWrapper); ok {
-//			return w.SetPlugin(sourcePlugin)
-//		}
-//		return nil
-//	}
-//}
-
 // RegisterRowSource registers a row source type
 // this is called from the package init function of the table implementation
 func RegisterRowSource[T RowSource]() {

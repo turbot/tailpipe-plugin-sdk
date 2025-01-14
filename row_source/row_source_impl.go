@@ -58,13 +58,16 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 		}
 	}
 
-	// TODO if there is no from time set, read it from collection state
-
 	// set the from time
 	r.FromTime = params.From
-
+	// // if no from time was passed, set it to the end time of the collection state
 	if r.FromTime.IsZero() {
 		r.FromTime = r.CollectionState.GetEndTime()
+	} else {
+		// TODO KAI update collection state based on from time
+		// -- if from time is before collection state start time, clear colleciton state
+		// -- if from time is during collection state, update end time to the from tiume
+		// -- if from time is after collection state end time, clear collection state (???
 	}
 
 	// if from is not set (either by explicitly passing is as an arg, or from the collection state end time) set it now

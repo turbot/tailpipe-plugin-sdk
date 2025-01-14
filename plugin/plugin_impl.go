@@ -3,6 +3,8 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"log/slog"
+
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
@@ -13,7 +15,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"log/slog"
 )
 
 // PluginImpl should be created via NewPluginImpl method.
