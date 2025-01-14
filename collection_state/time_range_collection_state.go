@@ -21,7 +21,7 @@ type TimeRangeCollectionState[T parse.Config] struct {
 	mut *sync.RWMutex
 }
 
-func NewTimeRangeCollectionState[T parse.Config](granularity time.Duration) *TimeRangeCollectionState[T] {
+func NewTimeRangeCollectionState[T parse.Config](granularity time.Duration) CollectionState[T] {
 	s := NewTimeRangeCollectionStateImpl(granularity)
 	return &TimeRangeCollectionState[T]{
 		TimeRangeCollectionStateImpl: *s,
@@ -65,6 +65,17 @@ func (s *TimeRangeCollectionState[T]) OnCollected(metadata SourceItemMetadata) e
 	s.lastModifiedTime = time.Now()
 
 	return s.TimeRangeCollectionStateImpl.OnCollected(metadata)
+}
+
+// SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
+// granularity of the time metadata it contains
+func (s *TimeRangeCollectionState[T]) SetGranularity(granularity time.Duration) {
+	s.Granularity = granularity
+}
+
+// GetGranularity returns the granularity of the collection state
+func (s *TimeRangeCollectionState[T]) GetGranularity() time.Duration {
+	return s.Granularity
 }
 
 // Save serialises the collection state to a JSON file
