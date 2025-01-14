@@ -2,13 +2,13 @@ package artifact_source_config
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	gokithelpers "github.com/turbot/go-kit/helpers"
+	"github.com/turbot/go-kit/helpers"
 	typehelpers "github.com/turbot/go-kit/types"
-	"github.com/turbot/pipe-fittings/filter"
+	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
-type ArtifactSourceConfigBase struct {
+type ArtifactSourceConfigImpl struct {
 	// required to allow partial decoding
 	Remain hcl.Body `hcl:",remain" json:"-"`
 
@@ -17,20 +17,16 @@ type ArtifactSourceConfigBase struct {
 
 	// grok patterns to add to the grok parser used to parse the layout
 	Patterns map[string]string `hcl:"patterns,optional"`
-
-	// map of parsed filters, keyed by target property
-	FilterMap map[string]*filter.SqlFilter
 }
 
-func (b *ArtifactSourceConfigBase) Validate() error {
-	// #TODO https://github.com/turbot/tailpipe/issues/97
-	// once filters are pushed down from the CLI, we can populate the filter map
+func (b *ArtifactSourceConfigImpl) Validate() error {
 	// parse filters and put into map keyed by property name
-	//filterMap, err := helpers.BuildFilterMap(b.Filters)
+	//filterMap, err := helpers2.BuildFilterMap(b.Filters)
 	//if err != nil {
 	//	return err
 	//}
-	//b.FilterMap = map[string]filterMap
+	//b.FilterMap = filterMap
+	//
 	//// validate the filters - if filters are set, file layout must be set
 	//if len(b.Filters) > 0 {
 	//	if b.FileLayout == nil {
@@ -38,7 +34,7 @@ func (b *ArtifactSourceConfigBase) Validate() error {
 	//	}
 	//
 	//	// validate all fields referred to in the filters exist in the filter layout
-	//	metadataProperties := gokithelpers.SliceToLookup(helpers.ExtractNamedGroupsFromGrok(*b.FileLayout))
+	//	metadataProperties := helpers.SliceToLookup(helpers2.ExtractNamedGroupsFromGrok(*b.FileLayout))
 	//	// we have already pulled out the property names in the map keys
 	//	for k := range b.FilterMap {
 	//		if _, ok := metadataProperties[k]; !ok {
@@ -47,25 +43,23 @@ func (b *ArtifactSourceConfigBase) Validate() error {
 	//	}
 	//}
 	//
-
-	b.FilterMap = map[string]*filter.SqlFilter{}
 	return nil
 }
 
-func (b *ArtifactSourceConfigBase) Identifier() string {
+func (b *ArtifactSourceConfigImpl) Identifier() string {
 	return "artifact_source"
 }
 
-func (b *ArtifactSourceConfigBase) GetFileLayout() *string {
+func (b *ArtifactSourceConfigImpl) GetFileLayout() *string {
 	return b.FileLayout
 }
 
-func (b *ArtifactSourceConfigBase) GetPatterns() map[string]string {
+func (b *ArtifactSourceConfigImpl) GetPatterns() map[string]string {
 	return b.Patterns
 }
 
-func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactSourceConfig) {
-	if gokithelpers.IsNil(other) {
+func (b *ArtifactSourceConfigImpl) DefaultTo(other ArtifactSourceConfig) {
+	if helpers.IsNil(other) {
 		return
 	}
 
@@ -74,11 +68,18 @@ func (b *ArtifactSourceConfigBase) DefaultTo(other ArtifactSourceConfig) {
 	}
 }
 
-// AsProto converts ArtifactSourceConfigBase to its Protobuf representation.
+// AsProto converts ArtifactSourceConfigImpl to its Protobuf representation.
 // used to pass default config to an external-plugin source
-func (b *ArtifactSourceConfigBase) AsProto() *proto.ArtifactSourceConfig {
+func (b *ArtifactSourceConfigImpl) AsProto() *proto.ArtifactSourceConfig {
 	return &proto.ArtifactSourceConfig{
 		FileLayout: typehelpers.SafeString(b.FileLayout),
 		Patterns:   b.Patterns,
+	}
+}
+
+func ArtifactSourceConfigBaseFromProto(pb *proto.ArtifactSourceConfig) *ArtifactSourceConfigImpl {
+	return &ArtifactSourceConfigImpl{
+		FileLayout: utils.ToPointer(pb.FileLayout),
+		Patterns:   pb.Patterns,
 	}
 }

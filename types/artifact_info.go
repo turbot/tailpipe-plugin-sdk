@@ -1,123 +1,141 @@
 package types
 
 import (
-	"log/slog"
-	"strconv"
-	"time"
-
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"log/slog"
+	"strconv"
+	"time"
 )
 
 type ArtifactInfo struct {
-	Name         string `json:"-"`
-	OriginalName string `json:"-"`
+	// this is the original name of the artifact
+	OriginalName string `json:"original_name"`
+	// once an artifact is downloaded, this will have the local name
+	// TODO look at local name usage - ensure it is only used to reference the downloaded file (e.g. S3 seems to be use this for the source name)
+	// when that is done, only set local name after download
+	LocalName string `json:"local_name"`
 
 	// enrichment values passed from the source to the collection to include in the enrichment process
 	SourceEnrichment *schema.SourceEnrichment `json:"-"`
-
-	// collection state properties
-	Index     string    `json:"index,omitempty"`
-	Timestamp time.Time `json:"timestamp,omitempty"`
-	// TODO KAI do we even need to store these
-	Properties map[string]string `json:"-"`
-	// original properties - used to validate the granularity
-	originalProperties map[string]string
+	Timestamp        time.Time                `json:"timestamp"`
 }
 
-func NewArtifactInfo(path string, opts ...ArtifactInfoOpts) *ArtifactInfo {
+func NewArtifactInfo(path string, sourceEnrichment *schema.SourceEnrichment, granularity time.Duration) (*ArtifactInfo, error) {
 	res := &ArtifactInfo{
-		Name:               path,
-		OriginalName:       path,
-		Properties:         make(map[string]string),
-		originalProperties: make(map[string]string),
+		// original name is the source path of the artifact
+		OriginalName: path,
+		// local name will be updated to the local path of the artifact once downloaded
+		// (for file source this remains the same)
+		// TODO DO NOT SET UNTIL DOWNLOAD?
+		LocalName:        path,
+		SourceEnrichment: sourceEnrichment,
 	}
-
-	for _, opt := range opts {
-		opt(res)
+	timeStamp, err := res.parseArtifactTimestamp(granularity)
+	if err != nil {
+		return nil, err
 	}
-	return res
-}
-
-func (i *ArtifactInfo) GetOriginalProperties() map[string]string {
-	return i.originalProperties
-}
-
-// TODO #metadata look at this
-// SetPathProperties sets the properties of the artifact which have been determined based on the path
-func (i *ArtifactInfo) SetPathProperties(properties map[string]string) error {
-	i.originalProperties = properties
-
-	var year, month, day, hour, minute, second int
-	var err error
-
-	for k, v := range properties {
-		switch k {
-		case constants.TemplateFieldIndex:
-			i.Index = v
-		case constants.TemplateFieldYear:
-			if year, err = strconv.Atoi(v); err != nil {
-				slog.Error("error parsing year %s: %v", v, err)
-				return err
-			}
-		case constants.TemplateFieldMonth:
-			if month, err = strconv.Atoi(v); err != nil {
-				slog.Error("error parsing month %s: %v", v, err)
-				return err
-			}
-		case constants.TemplateFieldDay:
-			if day, err = strconv.Atoi(v); err != nil {
-				slog.Error("error parsing day %s: %v", v, err)
-				return err
-			}
-		case constants.TemplateFieldHour:
-			if hour, err = strconv.Atoi(v); err != nil {
-				slog.Error("error parsing hour %s: %v", v, err)
-				return err
-			}
-		case constants.TemplateFieldMinute:
-			if minute, err = strconv.Atoi(v); err != nil {
-				slog.Error("error parsing minute %s: %v", v, err)
-				return err
-			}
-		case constants.TemplateFieldSecond:
-			if second, err = strconv.Atoi(v); err != nil {
-				slog.Error("error parsing second %s: %v", v, err)
-				return err
-			}
-		default:
-			i.Properties[k] = v
-		}
-	}
-
-	// build timestamp from the properties provided
-	// TODO #design what if not all were provided
-	i.Timestamp = time.Date(year, time.Month(month), day, hour, minute, second, 0, time.UTC)
-
-	return nil
-}
-
-func (i *ArtifactInfo) ToProto() *proto.ArtifactInfo {
-	return &proto.ArtifactInfo{
-		Name:             i.Name,
-		OriginalName:     i.OriginalName,
-		Index:            i.Index,
-		SourceEnrichment: i.SourceEnrichment.ToProto(),
-		Timestamp:        timestamppb.New(i.Timestamp),
-		Properties:       i.Properties,
-	}
+	res.Timestamp = timeStamp
+	return res, nil
 }
 
 func ArtifactInfoFromProto(info *proto.ArtifactInfo) *ArtifactInfo {
 	enrichment := schema.SourceEnrichmentFromProto(info.SourceEnrichment)
 	return &ArtifactInfo{
-		Name:             info.Name,
+		LocalName:        info.LocalName,
 		OriginalName:     info.OriginalName,
-		Index:            info.Index,
-		Timestamp:        info.Timestamp.AsTime(),
 		SourceEnrichment: enrichment,
-		Properties:       info.Properties,
 	}
+}
+
+func (a *ArtifactInfo) ToProto() *proto.ArtifactInfo {
+	return &proto.ArtifactInfo{
+		LocalName:        a.LocalName,
+		OriginalName:     a.OriginalName,
+		SourceEnrichment: a.SourceEnrichment.ToProto(),
+	}
+}
+
+// validate the artifact has all properties required to parse the timestamp based on the granularity
+// then parse the timestamp and return it
+func (a *ArtifactInfo) parseArtifactTimestamp(granularity time.Duration) (time.Time, error) {
+	var timestamp time.Time
+	if granularity == 0 {
+		// TODO IS THIS SUPPORTED? I DON'T THINK SO -> error???
+		// no granularity set, so we are collecting everything
+		return timestamp, nil
+	}
+	var expectedKeys []string
+
+	switch {
+	case granularity < time.Minute:
+		// granularity < min - we expect year, month, day, hour, minute, second
+		expectedKeys = []string{constants.TemplateFieldYear, constants.TemplateFieldMonth, constants.TemplateFieldDay, constants.TemplateFieldHour, constants.TemplateFieldMinute, constants.TemplateFieldSecond}
+	case granularity < time.Hour:
+		// granularity < hour - we expect year, month, day, hour, minute
+		expectedKeys = []string{constants.TemplateFieldYear, constants.TemplateFieldMonth, constants.TemplateFieldDay, constants.TemplateFieldHour, constants.TemplateFieldMinute}
+	case granularity < time.Hour*24:
+		// granularity < day - we expect year, month, day, hour
+		expectedKeys = []string{constants.TemplateFieldYear, constants.TemplateFieldMonth, constants.TemplateFieldDay, constants.TemplateFieldHour}
+	case granularity < time.Hour*24*30:
+		// granularity < month - we expect year, month, day
+		expectedKeys = []string{constants.TemplateFieldYear, constants.TemplateFieldMonth, constants.TemplateFieldDay}
+	case granularity < time.Hour*24*365:
+		// granularity < year - we expect year, month
+		expectedKeys = []string{constants.TemplateFieldYear, constants.TemplateFieldMonth}
+	default:
+		// granularity >= year - we expect year
+		expectedKeys = []string{constants.TemplateFieldYear}
+	}
+
+	// define a map of values - we will populate values determined by the granularity
+	valueLookup := map[string]int{
+		constants.TemplateFieldYear:   0,
+		constants.TemplateFieldMonth:  0,
+		constants.TemplateFieldDay:    0,
+		constants.TemplateFieldHour:   0,
+		constants.TemplateFieldMinute: 0,
+		constants.TemplateFieldSecond: 0,
+	}
+
+	// now verify that we have all the expected keys and parse the value
+	for _, key := range expectedKeys {
+		if _, ok := a.SourceEnrichment.Metadata[key]; !ok {
+			slog.Warn("parseArtifactTimestamp: missing key", "granularity", granularity, "key", key)
+			return timestamp, fmt.Errorf("missing key %s", key)
+		}
+		valString := a.SourceEnrichment.Metadata[key]
+		val, err := strconv.Atoi(valString)
+		if err != nil {
+			return timestamp, fmt.Errorf("error parsing %s from '%s': %v", key, valString, err)
+		}
+		// populate the value in the map
+		valueLookup[key] = val
+	}
+
+	// build timestamp from the properties provided
+	timestamp = time.Date(
+		valueLookup[constants.TemplateFieldYear],
+		time.Month(valueLookup[constants.TemplateFieldMonth]),
+		valueLookup[constants.TemplateFieldDay],
+		valueLookup[constants.TemplateFieldHour],
+		valueLookup[constants.TemplateFieldMinute],
+		valueLookup[constants.TemplateFieldSecond],
+		0,
+		time.UTC)
+
+	return timestamp, nil
+
+}
+
+// implement SourceItemMetadata
+
+func (a *ArtifactInfo) GetTimestamp() time.Time {
+	return a.Timestamp
+}
+
+func (a *ArtifactInfo) Identifier() string {
+	return a.OriginalName
 }

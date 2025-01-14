@@ -9,38 +9,38 @@ option go_package = ".;proto";
 
 service TailpipePlugin {
   rpc Describe(DescribeRequest) returns (DescribeResponse);
-  rpc AddObserver(AddObserverRequest) returns (stream Event);
+  rpc AddObserver(Empty) returns (stream Event);
   rpc Collect(CollectRequest) returns (CollectResponse);
-  rpc InitSource(InitSourceRequest) returns (InitResponse) ;
-  rpc CloseSource(CloseSourceRequest) returns (CloseSourceResponse);
-  rpc SourceCollect(SourceCollectRequest) returns (SourceCollectResponse);
-  rpc GetSourceTiming(GetSourceTimingRequest) returns (GetSourceTimingResponse);
+  rpc InitSource(InitSourceRequest) returns (Empty) ;
+  rpc CloseSource(Empty) returns (Empty);
+  rpc SaveCollectionState(Empty) returns (Empty);
+  rpc SourceCollect(SourceCollectRequest) returns (Empty);
+  rpc GetSourceTiming(Empty) returns (GetSourceTimingResponse);
 }
 
-message AddObserverRequest{}
+message Empty{}
+
 
 message CollectRequest {
   string table_name = 1;
   string partition_name = 2;
   // unique identifier for collection execution this will be used as base for the filename for the resulting JSONL files
   string execution_id = 3;
-  //  dest path for jsonl files
-  string output_path= 4;
+  //  the root collection file path - used to build the jsonl path and temp path
+  string collection_temp_dir= 4;
+  string collection_state_dir = 5;
   // the source to use (with raw config)
-  ConfigData source_data = 5;
+  ConfigData source_data = 6;
   // the raw hcl of the connection
-  ConfigData connection_data = 6;
+  ConfigData connection_data = 7;
   // if this is custom table, Table contains the source format and table schema
-  Table custom_table = 7;
+  Table custom_table = 8;
   // the source format
-  ConfigData source_format = 8;
+  ConfigData source_format = 9;
   // optional: the reattach config to connect to the plugin providing the source
-  SourcePluginReattach source_plugin = 9;
-
-
-  // this is json encoded data that represents the state of the collection, i.e. what data has been collected
-  // this is used to resume a collection
-  bytes collection_state = 10;
+  SourcePluginReattach source_plugin = 10;
+  // the collection start time
+  google.protobuf.Timestamp from_time = 11;
 }
 
 message Table {
@@ -132,7 +132,6 @@ message EventStarted {
 message EventChunkWritten {
   string execution_id = 1;
   int32 chunk_number = 2;
-  bytes collection_state = 3;
 }
 
 message EventError {
@@ -164,7 +163,6 @@ message EventSourceComplete {
   string error = 6;
 }
 
-
 message EventArtifactDiscovered{
   string execution_id = 1;
   ArtifactInfo artifact_info = 2;
@@ -173,7 +171,6 @@ message EventArtifactDiscovered{
 message EventArtifactDownloaded{
   string execution_id = 1;
   ArtifactInfo artifact_info = 2;
-  bytes collection_state = 3;
 }
 
 message EventArtifactExtracted{
@@ -183,24 +180,14 @@ message EventArtifactExtracted{
 
 // ArtifactInfo is a message representing artifact metadata.
 message ArtifactInfo {
-  // The name of the artifact.
-  string name = 1;
+  // The local path of the downloaded artifact.
+  string local_name = 1;
 
-  // The original name of the artifact.
+  // The original path of the artifact.
   string original_name = 2;
 
   // Any enrichment fields provided by the source.
   SourceEnrichment source_enrichment = 3;
-
-  // The index of the artifact.
-  string index = 4;
-
-  // The timestamp associated with the artifact.
-  google.protobuf.Timestamp timestamp = 5;
-
-  // Properties related to the artifact.
-  map<string, string> properties = 6;
-
 }
 
 message Timing{
@@ -241,18 +228,23 @@ message NetAddr {
 
 // source functions
 message InitSourceRequest{
-  // the source to use (with raw config)
-  ConfigData source_data = 3;
-  // the source format
-  ConfigData source_format = 4;
-  // the raw hcl of the connection
-  ConfigData connection_data = 5;
   // the default config for the source
-  ArtifactSourceConfig default_config = 6;
-  // this is json encoded data that represents the state of the collection, i.e. what data has been collected
-  // this is used to resume a collection
-  bytes collection_state = 7;
+  ArtifactSourceConfig default_config = 1;
+  // params to use for the source
+  row_source_params source_params = 2;
+}
 
+message row_source_params{
+  // the source to use (with raw config)
+  ConfigData source_data = 1;
+  // the raw hcl of the connection
+  ConfigData connection_data = 2;
+  // the collection start time
+  google.protobuf.Timestamp from_time = 3;
+  // the collection temporary directory
+  string collection_temp_dir = 4;
+  // the path to the collection state file
+  string collection_state_path = 5;
 }
 
 // ArtifactSourceConfigBase is a configuration message for an artifact source.
@@ -263,20 +255,17 @@ message ArtifactSourceConfig {
   // Grok patterns to add to the grok parser used to parse the layout.
   map<string, string> patterns = 2;
 
+  // List of filters to apply to the path segments.
+  // Note: each filter must refer to a single property only.
+  repeated string filters = 3;
+
+
 }
-
-message InitResponse{}
-
-message CloseSourceRequest{  }
-
-message CloseSourceResponse{}
 
 message SourceCollectRequest{
   // unique identifier for collection execution
   string execution_id = 1;
 }
-message SourceCollectResponse{}
-message GetSourceTimingRequest{}
 
 message GetSourceTimingResponse{
   repeated Timing timing = 1;

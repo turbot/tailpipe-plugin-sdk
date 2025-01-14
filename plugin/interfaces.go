@@ -28,8 +28,10 @@ type TailpipePlugin interface {
 	Collect(context.Context, *proto.CollectRequest) (*schema.RowSchema, error)
 
 	// Source functions - used when the plugin is acting as a Source only
+
 	InitSource(context.Context, *proto.InitSourceRequest) error
 	CloseSource(context.Context) error
+	SaveCollectionState(context.Context) error
 	SourceCollect(context.Context, *proto.SourceCollectRequest) error
 	GetSourceTiming(context.Context) (types.TimingCollection, error)
 

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"time"
 )
 
 type Table struct {
@@ -25,18 +26,19 @@ type CollectRequest struct {
 
 	// unique identifier for collection execution this will be used as base for the filename fo the resultiung JSONL files
 	ExecutionId string
-	// dest path for jsonl files
-	OutputPath string
+	// the parent folder for all collection related files (JSONL files, temp source files)
+	CollectionTempDir string
+	// the folder containing collection state files (e.g. last collection time)
+	CollectionStateDir string
 	// the source to use (with raw config)
 	SourceData *SourceConfigData
 	// the source format to use (with raw config)
 	SourceFormat *FormatConfigData
 	// the raw hcl of the connection
 	ConnectionData *ConnectionConfigData
-	// this is json encoded data that represents the state of the collection, i.e. what data has been collected
-	// this is used to resume a collection
-	CollectionState []byte
-
+	// the collection start time
+	From time.Time
+	// the custom table definition, if specified
 	CustomTable *Table
 }
 
@@ -44,25 +46,28 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	if pr.SourceData == nil {
 		return nil, fmt.Errorf("source data is required")
 	}
-	sourceData, err := DataFromProto[*SourceConfigData](pr.SourceData)
+	sourceData, err := ConfigDataFromProto[*SourceConfigData](pr.SourceData)
 	if err != nil {
 		return nil, err
 	}
 
 	// NOTE: add the (possibly nil) SourcePluginReattach to the source data
-	sourceData.SetReattach(pr.SourcePlugin)
+	if pr.SourcePlugin != nil {
+		sourceData.SetReattach(pr.SourcePlugin)
+	}
 
 	req := &CollectRequest{
-		TableName:       pr.TableName,
-		PartitionName:   pr.PartitionName,
-		ExecutionId:     pr.ExecutionId,
-		OutputPath:      pr.OutputPath,
-		SourceData:      sourceData,
-		CollectionState: pr.CollectionState,
+		TableName:          pr.TableName,
+		PartitionName:      pr.PartitionName,
+		ExecutionId:        pr.ExecutionId,
+		CollectionTempDir:  pr.CollectionTempDir,
+		CollectionStateDir: pr.CollectionStateDir,
+		SourceData:         sourceData,
+		From:               pr.FromTime.AsTime(),
 	}
 
 	if pr.SourceFormat != nil {
-		sourceFormat, err := DataFromProto[*FormatConfigData](pr.SourceFormat)
+		sourceFormat, err := ConfigDataFromProto[*FormatConfigData](pr.SourceFormat)
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +75,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	if pr.ConnectionData != nil {
-		connectionData, err := DataFromProto[*ConnectionConfigData](pr.ConnectionData)
+		connectionData, err := ConfigDataFromProto[*ConnectionConfigData](pr.ConnectionData)
 		if err != nil {
 			return nil, err
 		}

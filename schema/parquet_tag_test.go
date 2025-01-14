@@ -19,18 +19,18 @@ func TestParseParquetTag(t *testing.T) {
 		{
 			name: "success",
 			args: args{
-				tag: "name=foo,type=string",
+				tag: "name=foo,type=varchar",
 			},
 			want: &ParquetTag{
 				Name: "foo",
-				Type: "string",
+				Type: "varchar",
 			},
 			wantErr: false,
 		},
 		{
 			name: "Extra comma",
 			args: args{
-				tag: "name=foo,type=string,",
+				tag: "name=foo,type=varchar,",
 			},
 			want:    nil,
 			wantErr: true,
@@ -38,7 +38,7 @@ func TestParseParquetTag(t *testing.T) {
 		{
 			name: "Extra comma and space",
 			args: args{
-				tag: "name=foo,type=string, ",
+				tag: "name=foo,type=varchar, ",
 			},
 			want:    nil,
 			wantErr: true,
@@ -56,16 +56,18 @@ func TestParseParquetTag(t *testing.T) {
 			args: args{
 				tag: "name=foo",
 			},
-			want:    nil,
-			wantErr: true,
+			want: &ParquetTag{
+				Name: "foo",
+			},
 		},
 		{
 			name: "missing name",
 			args: args{
-				tag: "type=string",
+				tag: "type=varchar",
 			},
-			want:    nil,
-			wantErr: true,
+			want: &ParquetTag{
+				Type: "varchar",
+			},
 		},
 		{
 			name: "missing name and type",
@@ -78,7 +80,7 @@ func TestParseParquetTag(t *testing.T) {
 		{
 			name: "unrecognized tag",
 			args: args{
-				tag: "foo=bar,type=string",
+				tag: "foo=bar,type=varchar",
 			},
 			want:    nil,
 			wantErr: true,
@@ -94,33 +96,33 @@ func TestParseParquetTag(t *testing.T) {
 		{
 			name: "spaces in tag",
 			args: args{
-				tag: "name=foo, type=string",
+				tag: "name=foo, type=varchar",
 			},
 			want: &ParquetTag{
 				Name: "foo",
-				Type: "string",
+				Type: "varchar",
 			},
 			wantErr: false,
 		},
 		{
 			name: "spaces in kv pair",
 			args: args{
-				tag: "name= foo, type =string",
+				tag: "name= foo, type =varchar",
 			},
 			want: &ParquetTag{
 				Name: "foo",
-				Type: "string",
+				Type: "varchar",
 			},
 			wantErr: false,
 		},
 		{
 			name: "spaces in kv pair and tag",
 			args: args{
-				tag: "name= foo, type =string ",
+				tag: "name= foo, type =varchar ",
 			},
 			want: &ParquetTag{
 				Name: "foo",
-				Type: "string",
+				Type: "varchar",
 			},
 			wantErr: false,
 		},

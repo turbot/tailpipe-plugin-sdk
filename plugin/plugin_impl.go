@@ -123,14 +123,16 @@ func (p *PluginImpl) Describe() (DescribeResponse, error) {
 }
 
 // InitSource is called to initialise the source when this plugin is being used as a source
+// It performs the same role as CollectorImpl.initSource for in-plugin sources
+// the flow for using a plugin from an external plugin is as follows:
 func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceRequest) error {
 	// ask factory to create and initialise the source for us
-	initSourceRequest, err := types.InitSourceRequestFromProto(req)
+	// convert the proto request to our internal type
+	initSourceRequest, err := artifact_source.InitSourceRequestFromProto(req)
 	if err != nil {
 		return err
 	}
-
-	source, err := row_source.Factory.GetRowSource(ctx, initSourceRequest.SourceData, initSourceRequest.ConnectionData)
+	source, err := row_source.Factory.GetRowSource(ctx, initSourceRequest.SourceParams)
 	if err != nil {
 		return err
 	}
@@ -153,6 +155,13 @@ func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceReques
 	p.source = as
 
 	return nil
+}
+
+func (p *PluginImpl) SaveCollectionState(_ context.Context) error {
+	if p.source == nil {
+		return fmt.Errorf("source not initialised")
+	}
+	return p.source.SaveCollectionState()
 }
 
 func (p *PluginImpl) CloseSource(_ context.Context) error {

@@ -2,7 +2,6 @@ package table
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -13,6 +12,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -67,7 +67,7 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 	c.req = req
 
 	slog.Info("CollectorImpl: Collect", "Table", c.Table.Identifier())
-	if err := c.initSource(ctx, req.SourceData, req.ConnectionData); err != nil {
+	if err := c.initSource(ctx, req); err != nil {
 		return err
 	}
 	slog.Info("Start collection")
@@ -76,8 +76,13 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 	c.rowBufferMap = make(map[string][]any)
 	c.rowCountMap = make(map[string]int)
 	c.chunkCountMap = make(map[string]int)
+	// get JSONL path
+	jsonPath, err := filepaths.EnsureJSONLPath(req.CollectionTempDir)
+	if err != nil {
+		return fmt.Errorf("error getting JSONL path: %w", err)
+	}
 	// create writer
-	c.writer = NewJSONLWriter(req.OutputPath)
+	c.writer = NewJSONLWriter(jsonPath)
 
 	return nil
 }
@@ -106,7 +111,7 @@ func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
 
 // Collect executes the collection process. Tell our source to start collection
 func (c *CollectorImpl[R]) Collect(ctx context.Context) (int, int, error) {
-	// create empty status event#
+	// create empty status event
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
 
 	// tell our source to collect
@@ -169,16 +174,28 @@ func (c *CollectorImpl[R]) GetTiming() (types.TimingCollection, error) {
 	return append(res, c.enrichTiming), nil
 }
 
-func (c *CollectorImpl[R]) initSource(ctx context.Context, sourceConfigData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
+func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectRequest) error {
 	// get the source metadata for this source type
 	// (this returns an error if the source is not supported by the table)
-	sourceMetadata, err := c.getSourceMetadata(sourceConfigData)
+	sourceMetadata, err := c.getSourceMetadata(req.SourceData)
 	if err != nil {
 		return err
 	}
+
+	// build the collection state path
+	collectionStatePath := filepaths.CollectionStatePath(req.CollectionTempDir, req.TableName, req.PartitionName)
+
+	params := &row_source.RowSourceParams{
+		SourceConfigData:    req.SourceData,
+		ConnectionData:      req.ConnectionData,
+		CollectionStatePath: collectionStatePath,
+		From:                req.From,
+		CollectionTempDir:   req.CollectionTempDir,
+	}
+
 	// ask factory to create and initialise the source for us
 	// NOTE: we pass the original
-	source, err := row_source.Factory.GetRowSource(ctx, sourceConfigData, connectionData, sourceMetadata.Options...)
+	source, err := row_source.Factory.GetRowSource(ctx, params, sourceMetadata.Options...)
 	if err != nil {
 		return err
 	}
@@ -217,13 +234,6 @@ func (c *CollectorImpl[R]) getSourceMetadata(sourceConfig *types.SourceConfigDat
 		if !ok {
 			return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.Table.Identifier())
 		}
-	}
-
-	// so this source is supported
-
-	// If the request includes collection state, add it to the source options
-	if len(c.req.CollectionState) > 0 {
-		sourceMetadata.Options = append(sourceMetadata.Options, row_source.WithCollectionStateJSON(c.req.CollectionState))
 	}
 
 	return sourceMetadata, nil
@@ -265,7 +275,7 @@ func (c *CollectorImpl[R]) handleRowEvent(ctx context.Context, e *events.Row) er
 	// when all rows, a null row will be sent - DO NOT try to enrich this!
 	if e.Row == nil {
 		// notify of nil row
-		return c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, nil, e.CollectionState))
+		return c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, nil))
 	}
 
 	// put data into an array as that is what mappers expect
@@ -299,7 +309,7 @@ func (c *CollectorImpl[R]) handleRowEvent(ctx context.Context, e *events.Row) er
 	c.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
 
 	// buffer the enriched row and write to JSON file if buffer is full
-	return c.onRowEnriched(ctx, enrichedRow, e.CollectionState)
+	return c.onRowEnriched(ctx, enrichedRow)
 }
 
 // mapRow applies any configured mappers to the raw rows
@@ -326,7 +336,7 @@ func (c *CollectorImpl[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
 }
 
 // onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full
-func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R, collectionState json.RawMessage) error {
+func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -354,14 +364,14 @@ func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R, collectionS
 	c.rowBufferLock.Unlock()
 
 	if numRowsToWrite := len(rowsToWrite); numRowsToWrite > 0 {
-		return c.writeChunk(ctx, rowCount, rowsToWrite, collectionState)
+		return c.writeChunk(ctx, rowCount, rowsToWrite)
 	}
 
 	return nil
 }
 
 // writeChunk writes a chunk of rows to a JSONL file
-func (c *CollectorImpl[R]) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any, collectionState json.RawMessage) error {
+func (c *CollectorImpl[R]) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -389,28 +399,33 @@ func (c *CollectorImpl[R]) writeChunk(ctx context.Context, rowCount int, rowsToW
 	c.rowBufferLock.Unlock()
 
 	// notify observers, passing the collection state data
-	return c.OnChunk(ctx, chunkNumber, collectionState)
+	return c.OnChunk(ctx, chunkNumber)
 }
 
 // OnChunk is called by the we have written a chunk of enriched rows to a [JSONL/CSV] file
 // notify observers of the chunk
-func (c *CollectorImpl[R]) OnChunk(ctx context.Context, chunkNumber int, collectionState json.RawMessage) error {
+func (c *CollectorImpl[R]) OnChunk(ctx context.Context, chunkNumber int) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
-	// construct proto event
-	e := events.NewChunkEvent(executionId, chunkNumber, collectionState)
 
-	return c.NotifyObservers(ctx, e)
+	// construct proto event
+	e := events.NewChunkEvent(executionId, chunkNumber)
+
+	if err = c.NotifyObservers(ctx, e); err != nil {
+		return fmt.Errorf("error notifying observers of chunk: %w", err)
+	}
+
+	// TODO collection state should we save here???
+	// tell source to save collection state
+	if err := c.source.SaveCollectionState(); err != nil {
+		return fmt.Errorf("error saving collection state: %w", err)
+	}
+	return nil
 }
 
 func (c *CollectorImpl[R]) WriteRemainingRows(ctx context.Context, executionId string) (int, int, error) {
-	collectionState, err := c.source.GetCollectionStateJSON()
-	if err != nil {
-		return 0, 0, fmt.Errorf("error getting collection state: %w", err)
-	}
-
 	// get row count and the rows in the buffers
 	c.rowBufferLock.Lock()
 	rowCount := c.rowCountMap[executionId]
@@ -423,7 +438,7 @@ func (c *CollectorImpl[R]) WriteRemainingRows(ctx context.Context, executionId s
 
 	// tell our write to write any remaining rows
 	if len(rowsToWrite) > 0 {
-		if err := c.writeChunk(ctx, rowCount, rowsToWrite, collectionState); err != nil {
+		if err := c.writeChunk(ctx, rowCount, rowsToWrite); err != nil {
 			slog.Error("failed to write final chunk", "error", err)
 			return 0, 0, fmt.Errorf("failed to write final chunk: %w", err)
 		}

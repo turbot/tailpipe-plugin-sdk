@@ -1,236 +1,105 @@
 package collection_state
 
 import (
-	"time"
-
+	"encoding/json"
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"log/slog"
+	"os"
+	"sync"
+	"time"
 )
 
-type CollectionStateTimeRange struct {
-	StartTime        time.Time      `json:"start_time,omitempty"`
-	EndTime          time.Time      `json:"end_time,omitempty"`
-	StartIdentifiers map[string]any `json:"start_identifiers,omitempty"`
-	EndIdentifiers   map[string]any `json:"end_identifiers,omitempty"`
-}
-
-func NewCollectionStateTimeRange() *CollectionStateTimeRange {
-	return &CollectionStateTimeRange{
-		StartIdentifiers: make(map[string]any),
-		EndIdentifiers:   make(map[string]any),
-	}
-}
-
-// TimeRangeCollectionState is a collection state that tracks time ranges of collected data from contiguous and non-contiguous sources.
-// - Ranges are defined by a start time and an end time. Each range has start and end identifiers to track boundary results.
-// - HasContinuation is a boolean that indicates whether the collection has a continuation token or can be continued from DateTime information in Ranges.
-// - ContinuationToken is a string that can be used to continue the collection from the last known state.
-// - IsChronological is a boolean that indicates whether the collection is chronological or reverse-chronological.
 type TimeRangeCollectionState[T parse.Config] struct {
-	CollectionStateBase
-	Ranges            []*CollectionStateTimeRange `json:"ranges"`
-	HasContinuation   bool                        `json:"has_continuation"`
-	ContinuationToken *string                     `json:"continuation_token,omitempty"`
-	// TODO: #collectionState - should this be an enum rather than a bool?
-	IsChronological bool `json:"is_chronological"`
+	TimeRangeCollectionStateImpl
 
-	currentRange *CollectionStateTimeRange
-	mergeRange   *CollectionStateTimeRange
+	// path to the serialised collection state JSON
+	jsonPath         string
+	lastModifiedTime time.Time
+	lastSaveTime     time.Time
+
+	mut *sync.RWMutex
 }
 
 func NewTimeRangeCollectionState[T parse.Config]() CollectionState[T] {
-	return &TimeRangeCollectionState[T]{}
+	s := NewTimeRangeCollectionStateImpl()
+	return &TimeRangeCollectionState[T]{
+		TimeRangeCollectionStateImpl: *s,
+	}
 }
 
-// Init initializes the collection state with the provided configuration
-func (s *TimeRangeCollectionState[T]) Init(config T) error {
-	// TODO: Init
+// Init sets the filepath of the collection state and loads the state from the file if it exists
+func (s *TimeRangeCollectionState[T]) Init(_ T, path string) error {
+	s.jsonPath = path
+
+	// if there is a file at the path, load it
+	if _, err := os.Stat(path); err == nil {
+		// TODO #err should we just warn and delete/rename the file
+		// read the file
+		jsonBytes, err := os.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read collection state file: %w", err)
+		}
+		err = json.Unmarshal(jsonBytes, s)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal collection state file: %w", err)
+		}
+	}
 	return nil
 }
 
-// StartCollection should be called at the beginning of a collection.
-// It sets a currentRange for the collection and optionally a mergeRange based on existing ranges and configuration.
-func (s *TimeRangeCollectionState[T]) StartCollection() {
-	// short-circuit: if we have no ranges, create a new range for currentRange
-	if len(s.Ranges) == 0 {
-		s.currentRange = s.addNewRange()
-		return
-	}
+// ShouldCollect returns whether the object should be collected, based on the time metadata in the object
+func (s *TimeRangeCollectionState[T]) ShouldCollect(id string, timestamp time.Time) bool {
+	s.mut.Lock()
+	defer s.mut.Unlock()
 
-	// If we are reverse-chronological, we need to set mergeRange to latest range and create a new range for currentRange
-	if !s.IsChronological {
-		s.mergeRange = s.getLatestRange()
-		s.currentRange = s.addNewRange()
-		return
-	}
-
-	if s.HasContinuation {
-		// chronological with continuation, currentRange should be the latest range
-		s.currentRange = s.getLatestRange()
-	} else {
-		// chronological without continuation, currentRange should be the earliest range
-		s.currentRange = s.getEarliestRange()
-	}
+	return s.TimeRangeCollectionStateImpl.ShouldCollect(id, timestamp)
 }
 
-// EndCollection should be called only in the event of successful completion of a collection
-func (s *TimeRangeCollectionState[T]) EndCollection() {
-	// merge ranges
-	s.Ranges = s.mergeRanges()
+// OnCollected is called when an object has been collected - update our end time and end objects if needed
+func (s *TimeRangeCollectionState[T]) OnCollected(id string, timestamp time.Time) error {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
+	// store modified time to ensure we save the state
+	s.lastModifiedTime = time.Now()
+
+	return s.TimeRangeCollectionStateImpl.OnCollected(id, timestamp)
 }
 
-// IsEmpty returns true if there are no ranges in the collection state
-func (s *TimeRangeCollectionState[T]) IsEmpty() bool {
-	return len(s.Ranges) == 0
-}
+// Save serialises the collection state to a JSON file
+func (s *TimeRangeCollectionState[T]) Save() error {
+	s.mut.Lock()
+	defer s.mut.Unlock()
 
-// ShouldCollectRow returns true if the row should be collected based on the time and provided key identifier
-func (s *TimeRangeCollectionState[T]) ShouldCollectRow(ts time.Time, key string) bool {
-	for _, r := range s.Ranges {
-		// inside an existing range, not a boundary
-		if ts.After(r.StartTime) && ts.Before(r.EndTime) {
-			return false
-		}
+	slog.Info("Saving collection state", "lastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime)
 
-		// at the start boundary of an existing range
-		if ts.Equal(r.StartTime) {
-			// check if we have key in start identifiers
-			if _, exists := r.StartIdentifiers[key]; exists {
-				return false
-			} else {
-				return true
-			}
-		}
-
-		// at the end boundary of an existing range
-		if ts.Equal(r.EndTime) {
-			// check if we have key in end identifiers
-			if _, exists := r.EndIdentifiers[key]; exists {
-				return false
-			} else {
-				return true
-			}
-		}
-	}
-
-	return true
-}
-
-// Upsert sets or updates the current time range based on the timestamp and key identifier
-func (s *TimeRangeCollectionState[T]) Upsert(ts time.Time, key string, meta any) {
-	if meta == nil {
-		meta = struct{}{}
-	}
-
-	if s.currentRange.StartTime.IsZero() || ts.Before(s.currentRange.StartTime) {
-		s.currentRange.StartTime = ts
-		s.currentRange.StartIdentifiers = make(map[string]any) // clear start identifiers
-		s.currentRange.StartIdentifiers[key] = meta
-	}
-
-	if s.currentRange.EndTime.IsZero() || ts.After(s.currentRange.EndTime) {
-		s.currentRange.EndTime = ts
-		s.currentRange.EndIdentifiers = make(map[string]any) // clear end identifiers
-		s.currentRange.EndIdentifiers[key] = meta
-	}
-
-	if s.currentRange.StartTime.Equal(ts) {
-		s.currentRange.StartIdentifiers[key] = meta
-	}
-
-	if s.currentRange.EndTime.Equal(ts) {
-		s.currentRange.EndIdentifiers[key] = meta
-	}
-}
-
-func (s *TimeRangeCollectionState[T]) addNewRange() *CollectionStateTimeRange {
-	r := NewCollectionStateTimeRange()
-	s.Ranges = append(s.Ranges, r)
-
-	return r
-}
-
-func (s *TimeRangeCollectionState[T]) getEarliestRange() *CollectionStateTimeRange {
-	if len(s.Ranges) == 0 {
+	// if the last save time is after the last modified time, then we have nothing to do
+	if s.lastSaveTime.After(s.lastModifiedTime) {
+		slog.Info("collection state has not been modified since last save")
+		// nothing to do
 		return nil
 	}
 
-	if len(s.Ranges) == 1 {
-		return s.Ranges[0]
+	slog.Info("We are actually saving the collection state")
+
+	jsonBytes, err := json.Marshal(s)
+	if err != nil {
+		return err
+	}
+	// ensure the target file path is valid
+	if s.jsonPath == "" {
+		return fmt.Errorf("collection state path is not set")
 	}
 
-	earliestRange := s.Ranges[0]
-	for _, r := range s.Ranges[1:] {
-		if r.StartTime.Before(earliestRange.StartTime) {
-			earliestRange = r
-		}
+	// write the JSON data to the file, overwriting any existing data
+	err = os.WriteFile(s.jsonPath, jsonBytes, 0644)
+	if err != nil {
+		return fmt.Errorf("failed to write collection state to file: %w", err)
 	}
 
-	return earliestRange
+	// update the last save time
+	s.lastSaveTime = time.Now()
+
+	return nil
 }
-
-func (s *TimeRangeCollectionState[T]) getLatestRange() *CollectionStateTimeRange {
-	if len(s.Ranges) == 0 {
-		return nil
-	}
-
-	if len(s.Ranges) == 1 {
-		return s.Ranges[0]
-	}
-
-	latestRange := s.Ranges[0]
-	for _, r := range s.Ranges[1:] {
-		if r.EndTime.After(latestRange.EndTime) {
-			latestRange = r
-		}
-	}
-
-	return latestRange
-}
-
-// GetLatestEndTime returns the end time of the latest range in the collection state
-func (s *TimeRangeCollectionState[T]) GetLatestEndTime() *time.Time {
-	if len(s.Ranges) == 0 {
-		return nil
-	}
-
-	return &s.getLatestRange().EndTime
-}
-
-// GetEarliestStartTime returns the start time of the earliest range in the collection state
-func (s *TimeRangeCollectionState[T]) GetEarliestStartTime() *time.Time {
-	if len(s.Ranges) == 0 {
-		return nil
-	}
-
-	return &s.getEarliestRange().StartTime
-}
-
-func (s *TimeRangeCollectionState[T]) mergeRanges() []*CollectionStateTimeRange {
-	// short-circuit if we have no mergeRange
-	if s.mergeRange == nil {
-		return s.Ranges
-	}
-
-	// short-circuit if we obtained no new items to currentRange
-	if s.currentRange.StartTime.IsZero() || s.currentRange.EndTime.IsZero() {
-		return s.Ranges
-	}
-
-	// build ranges excluding currentRange and mergeRange
-	var existingOtherRanges []*CollectionStateTimeRange
-	for _, r := range s.Ranges {
-		if r != s.currentRange && r != s.mergeRange {
-			existingOtherRanges = append(existingOtherRanges, r)
-		}
-	}
-
-	mergedRange := NewCollectionStateTimeRange()
-	mergedRange.StartTime = s.mergeRange.StartTime
-	mergedRange.EndTime = s.currentRange.EndTime
-	mergedRange.StartIdentifiers = s.mergeRange.StartIdentifiers
-	mergedRange.EndIdentifiers = s.currentRange.EndIdentifiers
-
-	return append(existingOtherRanges, mergedRange)
-}
-
-// TODO: #collectionState - do we need GetLatestStartTime / GetEarliestEndTime?

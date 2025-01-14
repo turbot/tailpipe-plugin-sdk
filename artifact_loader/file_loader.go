@@ -25,7 +25,7 @@ func (g FileLoader) Identifier() string {
 // Load implements [Loader]
 // Extracts an object from a  file
 func (g FileLoader) Load(_ context.Context, info *types.ArtifactInfo, dataChan chan *types.RowData) error {
-	inputPath := info.Name
+	inputPath := info.LocalName
 	f, err := os.Open(inputPath)
 	if err != nil {
 		return fmt.Errorf("error opening %s: %w", inputPath, err)
@@ -34,7 +34,7 @@ func (g FileLoader) Load(_ context.Context, info *types.ArtifactInfo, dataChan c
 
 	fileData, err := io.ReadAll(f)
 	if err != nil {
-		return fmt.Errorf("error reading %s: %w", info.Name, err)
+		return fmt.Errorf("error reading %s: %w", info.LocalName, err)
 	}
 
 	go func() {

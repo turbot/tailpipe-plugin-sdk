@@ -10,7 +10,7 @@ import (
 type TailpipePluginClientWrapper struct{ client proto.TailpipePluginClient }
 
 func (c TailpipePluginClientWrapper) AddObserver() (proto.TailpipePlugin_AddObserverClient, error) {
-	return c.client.AddObserver(context.Background(), &proto.AddObserverRequest{})
+	return c.client.AddObserver(context.Background(), &proto.Empty{})
 }
 func (c TailpipePluginClientWrapper) Collect(req *proto.CollectRequest) (*proto.CollectResponse, error) {
 	return c.client.Collect(context.Background(), req)
@@ -20,20 +20,24 @@ func (c TailpipePluginClientWrapper) Describe() (*proto.DescribeResponse, error)
 	return c.client.Describe(context.Background(), &proto.DescribeRequest{})
 }
 
-func (c TailpipePluginClientWrapper) InitSource(req *proto.InitSourceRequest) (*proto.InitResponse, error) {
+func (c TailpipePluginClientWrapper) InitSource(req *proto.InitSourceRequest) (*proto.Empty, error) {
 	return c.client.InitSource(context.Background(), req)
 }
 
-func (c TailpipePluginClientWrapper) CloseSource() (*proto.CloseSourceResponse, error) {
-	return c.client.CloseSource(context.Background(), &proto.CloseSourceRequest{})
+func (c TailpipePluginClientWrapper) SaveCollectionState() (*proto.Empty, error) {
+	return c.client.SaveCollectionState(context.Background(), &proto.Empty{})
 }
 
-func (c TailpipePluginClientWrapper) SourceCollect(req *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error) {
+func (c TailpipePluginClientWrapper) CloseSource() (*proto.Empty, error) {
+	return c.client.CloseSource(context.Background(), &proto.Empty{})
+}
+
+func (c TailpipePluginClientWrapper) SourceCollect(req *proto.SourceCollectRequest) (*proto.Empty, error) {
 	return c.client.SourceCollect(context.Background(), req)
 }
 
 func (c TailpipePluginClientWrapper) GetSourceTiming() (*proto.GetSourceTimingResponse, error) {
-	return c.client.GetSourceTiming(context.Background(), &proto.GetSourceTimingRequest{})
+	return c.client.GetSourceTiming(context.Background(), &proto.Empty{})
 }
 
 // TailpipePluginServerWrapper is the gRPC server that TailpipePluginClient talks to.
@@ -43,7 +47,7 @@ type TailpipePluginServerWrapper struct {
 	Impl TailpipePluginServer
 }
 
-func (s TailpipePluginServerWrapper) AddObserver(_ *proto.AddObserverRequest, server proto.TailpipePlugin_AddObserverServer) error {
+func (s TailpipePluginServerWrapper) AddObserver(_ *proto.Empty, server proto.TailpipePlugin_AddObserverServer) error {
 	return s.Impl.AddObserver(server)
 }
 
@@ -63,18 +67,22 @@ func (s TailpipePluginServerWrapper) Describe(_ context.Context, _ *proto.Descri
 	return s.Impl.Describe()
 }
 
-func (s TailpipePluginServerWrapper) InitSource(_ context.Context, req *proto.InitSourceRequest) (*proto.InitResponse, error) {
+func (s TailpipePluginServerWrapper) InitSource(_ context.Context, req *proto.InitSourceRequest) (*proto.Empty, error) {
 	return s.Impl.InitSource(context.Background(), req)
 }
 
-func (s TailpipePluginServerWrapper) CloseSource(_ context.Context, req *proto.CloseSourceRequest) (*proto.CloseSourceResponse, error) {
+func (s TailpipePluginServerWrapper) SaveCollectionState(_ context.Context, req *proto.Empty) (*proto.Empty, error) {
+	return s.Impl.SaveCollectionState(context.Background(), req)
+}
+
+func (s TailpipePluginServerWrapper) CloseSource(_ context.Context, req *proto.Empty) (*proto.Empty, error) {
 	return s.Impl.CloseSource(context.Background(), req)
 }
 
-func (s TailpipePluginServerWrapper) SourceCollect(_ context.Context, req *proto.SourceCollectRequest) (*proto.SourceCollectResponse, error) {
+func (s TailpipePluginServerWrapper) SourceCollect(_ context.Context, req *proto.SourceCollectRequest) (*proto.Empty, error) {
 	return s.Impl.SourceCollect(context.Background(), req)
 }
 
-func (s TailpipePluginServerWrapper) GetSourceTiming(_ context.Context, req *proto.GetSourceTimingRequest) (*proto.GetSourceTimingResponse, error) {
+func (s TailpipePluginServerWrapper) GetSourceTiming(_ context.Context, req *proto.Empty) (*proto.GetSourceTimingResponse, error) {
 	return s.Impl.GetSourceTiming(context.Background(), req)
 }

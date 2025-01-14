@@ -136,7 +136,7 @@ func TestCsvToJsonQuery(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := GetReadCsvChunkQueryFormat(tt.args.sourceFile, tt.args.destFile, tt.args.mappings, tt.args.opts...); got != tt.want {
+			if got := GetReadCsvChunkQueryFormat(tt.args.sourceFile, tt.args.opts...); got != tt.want {
 				t.Errorf("GetReadCsvChunkQueryFormat() = %v, want %v", got, tt.want)
 			}
 		})

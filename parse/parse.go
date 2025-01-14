@@ -18,7 +18,7 @@ import (
 
 // ParseConfig parses the HCL config and returns the struct
 // Config is an interface that all configuration structs must implement
-func ParseConfig[T Config](configData types.ConfigData) (T, error) {
+func ParseConfig[T types.Config](configData types.ConfigData) (T, error) {
 	// Create a new instance of the target struct
 	target := utils.InstanceOf[T]()
 	// verify this config is of correct type

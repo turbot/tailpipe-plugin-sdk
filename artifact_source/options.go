@@ -7,7 +7,9 @@ import (
 )
 
 // WithDefaultArtifactSourceConfig sets the default config, e.g. file layout, IF it has not been set from config
-func WithDefaultArtifactSourceConfig(config *artifact_source_config.ArtifactSourceConfigBase) row_source.RowSourceOption {
+// NOTE: in contrast to the artifact config passed to the source from the CLI which is raw HCL which must be parsed,
+// the default artifact source config is a ArtifactSourceConfigImpl struct which is populated by the table to set defaults
+func WithDefaultArtifactSourceConfig(config *artifact_source_config.ArtifactSourceConfigImpl) row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
 		if a, ok := r.(ArtifactSource); ok {
 			a.SetDefaultConfig(config)

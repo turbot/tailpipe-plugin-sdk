@@ -2,7 +2,6 @@ package artifact_source
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sync"
 
@@ -34,8 +33,6 @@ type PluginSourceWrapper struct {
 	client     *grpc.PluginClient
 	pluginName string
 	sourceType string
-	// raw collection state - we will pass this to the plugin and updated from the plugin
-	collectionStateJSON json.RawMessage
 	// wait group to wait for the external plugin source to complete
 	sourceWg    sync.WaitGroup
 	executionId string
@@ -43,31 +40,49 @@ type PluginSourceWrapper struct {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
-func (w *PluginSourceWrapper) Init(ctx context.Context, configData types.ConfigData, connectionData types.ConfigData, opts ...row_source.RowSourceOption) error {
+func (w *PluginSourceWrapper) Init(ctx context.Context, params *row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
+	// apply options
+	for _, opt := range opts {
+		if err := opt(w); err != nil {
+			return err
+		}
+	}
+
+	// create a NilArtifactCollectionState - this will do nothing but is required to avoid
+	// nil reference exceptions in ArtifactSourceImpl.OnArtifactDownloaded
+	w.CollectionState = &NilArtifactCollectionState{}
+
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
 	w.executionId = executionId
 
-	// call base to, but pass empty config and connection
-	if err := w.ArtifactSourceImpl.Init(ctx, &types.ConfigDataImpl{}, &types.ConfigDataImpl{}, opts...); err != nil {
+	// the source config data should contain a reattach config
+	if params.SourceConfigData.ReattachConfig == nil {
+		return fmt.Errorf("PluginSourceWrapper requires a reattach config")
+	}
+	// create the plugin client
+	err = w.SetPlugin(params.SourceConfigData.ReattachConfig)
+	if err != nil {
 		return err
 	}
-
+	// now call into the source plugin to initialise the source
 	req := &proto.InitSourceRequest{
-		SourceData:      configData.AsProto(),
-		CollectionState: w.collectionStateJSON,
+		SourceParams: params.AsProto(),
 	}
-	if !helpers.IsNil(connectionData) {
-		req.ConnectionData = connectionData.AsProto()
-	}
+
 	if w.defaultConfig != nil {
 		req.DefaultConfig = w.defaultConfig.AsProto()
 	}
 
 	_, err = w.client.InitSource(req)
 
+	return err
+}
+
+func (w *PluginSourceWrapper) SaveCollectionState() error {
+	_, err := w.client.SaveCollectionState()
 	return err
 }
 
@@ -161,18 +176,6 @@ func (w *PluginSourceWrapper) Collect(ctx context.Context) error {
 	w.sourceWg.Wait()
 	// also wait for any artifact extractions to complete
 	w.artifactExtractWg.Wait()
-	return nil
-}
-
-// GetCollectionStateJSON returns the json serialised collection state data for the ongoing collection
-func (w *PluginSourceWrapper) GetCollectionStateJSON() (json.RawMessage, error) {
-	return w.collectionStateJSON, nil
-}
-
-// SetCollectionStateJSON unmarshalls the collection state data JSON into the target object
-func (w *PluginSourceWrapper) SetCollectionStateJSON(stateJSON json.RawMessage) error {
-	// just store the raw JSON - we will pass it to the plugin
-	w.collectionStateJSON = stateJSON
 	return nil
 }
 

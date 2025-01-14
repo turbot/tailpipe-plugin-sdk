@@ -173,7 +173,7 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 
 		// Invalid path, negative case
 		{
-			name: "org1_account1 - full path, doesn't match pattern",
+			name: "org1_account1 - full path, missing segments should fail",
 			args: args{
 				pathSegment: strings.Join(org1_account1, "/"),
 				fileLayout:  pattern,
@@ -200,9 +200,9 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 			var metadata map[string][]byte
 			var match bool
 			if tt.args.isFile {
-				match, metadata, err = GetPathMetadata(g, tt.args.pathSegment, tt.args.fileLayout)
+				match, metadata, err = getPathLeafMetadata(g, tt.args.pathSegment, tt.args.fileLayout)
 			} else {
-				match, metadata, err = GetPathSegmentMetadata(g, tt.args.pathSegment, tt.args.fileLayout)
+				match, metadata, err = getPathSegmentMetadata(g, tt.args.pathSegment, tt.args.fileLayout)
 			}
 			if err != nil {
 				t.Fatalf("failed to extract metadata: %v", err)
@@ -221,7 +221,7 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 			}
 			// if we have metadata and filters, check if the metadata satisfies the filters
 			if len(metadata) > 0 {
-				if got := MetadataSatisfiesFilters(metadata, filters); got != tt.wantMatch {
+				if got := MetadataSatisfiesFilters(ByteMapToStringMap(metadata), filters); got != tt.wantMatch {
 					t.Errorf("MetadataSatisfiesFilters() = %v, wantMatch %v", got, tt.wantMatch)
 				}
 			}

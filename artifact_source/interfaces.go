@@ -24,7 +24,7 @@ type ArtifactSource interface {
 	SetLoader(loader artifact_loader.Loader)
 	SetRowPerLine(b bool)
 	SetSkipHeaderRow(b bool)
-	SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigBase)
+	SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigImpl)
 }
 
 // Extractor is an interface which provides a method for extracting rows from an artifact
