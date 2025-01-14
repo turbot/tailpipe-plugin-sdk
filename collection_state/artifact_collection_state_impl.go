@@ -146,7 +146,10 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(m SourceItemMetadata) boo
 	}
 	if collectionState == nil {
 		// create a new collection state for this trunk
-		collectionState = NewTimeRangeCollectionStateImpl(s.granularity)
+		collectionState = NewTimeRangeCollectionStateImpl()
+		// set the granularity
+		collectionState.SetGranularity(s.granularity)
+
 		// write it back
 		s.TrunkStates[trunkPath] = collectionState
 	}

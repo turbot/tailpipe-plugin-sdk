@@ -22,10 +22,9 @@ type TimeRangeCollectionStateImpl struct {
 	Granularity time.Duration `json:"granularity,omitempty"`
 }
 
-func NewTimeRangeCollectionStateImpl(granularity time.Duration) *TimeRangeCollectionStateImpl {
+func NewTimeRangeCollectionStateImpl() *TimeRangeCollectionStateImpl {
 	return &TimeRangeCollectionStateImpl{
-		EndObjects:  make(map[string]struct{}),
-		Granularity: granularity,
+		EndObjects: make(map[string]struct{}),
 	}
 }
 
@@ -129,6 +128,17 @@ func (s *TimeRangeCollectionStateImpl) GetStartTime() time.Time {
 func (s *TimeRangeCollectionStateImpl) GetEndTime() time.Time {
 	// i.e. the last time period we are sure we have ALL data for
 	return s.EndTime
+}
+
+// SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
+// granularity of the time metadata it contains
+func (s *TimeRangeCollectionStateImpl) SetGranularity(granularity time.Duration) {
+	s.Granularity = granularity
+}
+
+// GetGranularity returns the granularity of the collection state
+func (s *TimeRangeCollectionStateImpl) GetGranularity() time.Duration {
+	return s.Granularity
 }
 
 func (s *TimeRangeCollectionStateImpl) endObjectsContain(m SourceItemMetadata) bool {
