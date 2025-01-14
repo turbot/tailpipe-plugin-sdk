@@ -58,10 +58,16 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 		}
 	}
 
+	// TODO if there is no from time set, read it from collection state
+
 	// set the from time
 	r.FromTime = params.From
 
-	// if from is not set (either by explicitly passing is as an arg, or from teh collection state end time) set it now
+	if r.FromTime.IsZero() {
+		r.FromTime = r.CollectionState.GetEndTime()
+	}
+
+	// if from is not set (either by explicitly passing is as an arg, or from the collection state end time) set it now
 	// to the default (7 days
 	if r.FromTime.IsZero() {
 		r.FromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)

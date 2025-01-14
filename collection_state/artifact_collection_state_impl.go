@@ -85,6 +85,23 @@ func (s *ArtifactCollectionStateImpl[T]) GetGranularity() time.Duration {
 	return s.granularity
 }
 
+func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
+	// find the earliest end time of all the trunk states
+	var endTime time.Time
+	for _, trunkState := range s.TrunkStates {
+		if trunkState == nil {
+			continue
+		}
+		if trunkState.GetEndTime().IsZero() {
+			continue
+		}
+		if endTime.IsZero() || trunkState.GetEndTime().Before(endTime) {
+			endTime = trunkState.GetEndTime()
+		}
+	}
+	return endTime
+}
+
 // RegisterPath registers a path with the collection state - we determine whether this is a potential trunk
 // (i.e. a path segment with no time metadata for which we need to track collection state separately)
 // and if so, add it to the map of trunk states

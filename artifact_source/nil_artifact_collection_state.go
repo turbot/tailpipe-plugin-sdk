@@ -9,6 +9,10 @@ import (
 type NilArtifactCollectionState struct {
 }
 
+func (s *NilArtifactCollectionState) GetEndTime() time.Time {
+	return time.Time{}
+}
+
 func (*NilArtifactCollectionState) Init(_ *NilArtifactSourceConfig, _ string) error {
 	return nil
 }

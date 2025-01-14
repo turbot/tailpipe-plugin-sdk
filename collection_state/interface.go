@@ -13,6 +13,7 @@ type CollectionState[T parse.Config] interface {
 	ShouldCollect(id string, timestamp time.Time) bool
 	OnCollected(id string, timestamp time.Time) error
 	GetGranularity() time.Duration
+	GetEndTime() time.Time
 }
 
 type ArtifactCollectionState[T parse.Config] interface {
