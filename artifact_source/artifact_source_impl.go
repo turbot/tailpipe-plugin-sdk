@@ -7,7 +7,6 @@ import (
 	"io/fs"
 	"log/slog"
 	"path/filepath"
-	"strconv"
 	"sync"
 	"time"
 
@@ -479,6 +478,7 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 	var metadata map[string]string
 	var satisfied = true
 
+	// LAYOUT IS REQUIRED (may be deafaulted if not provided)
 	if layout != nil {
 		// if we are a directory and we are not satisfied, skip the directory by returning fs.SkipDir
 		var match bool
@@ -493,7 +493,7 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 
 		// if we have a from time, check whether that excludes this directory
 		if satisfied && isDir && !a.FromTime.IsZero() {
-			satisfied = a.dirSatisfiesFromTime(targetPath, metadata)
+			satisfied = dirSatisfiesFromTime(a.FromTime, metadata)
 		}
 	}
 
@@ -548,74 +548,6 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 
 	// so we SHOULD collect -  notify observers of the discovered artifact
 	return a.OnArtifactDiscovered(ctx, artifactInfo)
-}
-
-func (a *ArtifactSourceImpl[S, T]) dirSatisfiesFromTime(path string, metadata map[string]string) bool {
-	var parsedStringLessThanValue = func(fieldName, valStr string, target int) bool {
-		val, err := strconv.Atoi(valStr)
-		if err != nil {
-			// if we cannot parse the day, we cannot deduce whether this directory is before the from time
-			slog.Warn(fmt.Sprintf("Error parsing %s from path", fieldName), "path", path, "field", valStr, "error", err)
-			return false
-		}
-
-		return val < target
-	}
-
-	yearStr, ok := metadata[constants.TemplateFieldYear]
-	if !ok {
-		// there is no year - we cannot deduce whether this directory is before the from time
-		return true
-	}
-	if parsedStringLessThanValue(constants.TemplateFieldYear, yearStr, a.FromTime.Year()) {
-		return false
-	}
-
-	monthStr, ok := metadata[constants.TemplateFieldMonth]
-	if !ok {
-		// no month field - based on what we know, DO NOT exclude this directory
-		return true
-	}
-	if parsedStringLessThanValue(constants.TemplateFieldMonth, monthStr, int(a.FromTime.Month())) {
-		return false
-	}
-
-	dayStr, ok := metadata[constants.TemplateFieldDay]
-	if !ok {
-		// no date field - based on what we know, DO NOT exclude this directory
-		return true
-	}
-
-	if parsedStringLessThanValue(constants.TemplateFieldDay, dayStr, a.FromTime.Day()) {
-		return false
-	}
-	hourStr, ok := metadata[constants.TemplateFieldHour]
-	if !ok {
-		// no hour field - based on what we know, DO NOT exclude this directory
-		return true
-	}
-	if parsedStringLessThanValue(constants.TemplateFieldHour, hourStr, a.FromTime.Hour()) {
-		return false
-	}
-
-	minuteStr, ok := metadata[constants.TemplateFieldMinute]
-	if !ok {
-		// no minute field - based on what we know, DO NOT exclude this directory
-		return true
-	}
-	if parsedStringLessThanValue(constants.TemplateFieldMinute, minuteStr, a.FromTime.Minute()) {
-		return false
-	}
-	secondStr, ok := metadata[constants.TemplateFieldSecond]
-	if !ok {
-		// no second field - based on what we know, DO NOT exclude this directory
-		return true
-	}
-	if parsedStringLessThanValue(constants.TemplateFieldSecond, secondStr, a.FromTime.Second()) {
-		return false
-	}
-
-	return true
 }
 
 // getGranularityFromFileLayout is a helper function to determine the granularity of the collection state based on the file layout
