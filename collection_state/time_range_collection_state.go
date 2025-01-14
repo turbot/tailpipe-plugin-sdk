@@ -25,6 +25,7 @@ func NewTimeRangeCollectionState[T parse.Config]() CollectionState[T] {
 	s := NewTimeRangeCollectionStateImpl()
 	return &TimeRangeCollectionState[T]{
 		TimeRangeCollectionStateImpl: *s,
+		mut:                          &sync.RWMutex{},
 	}
 }
 
