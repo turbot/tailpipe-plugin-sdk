@@ -533,8 +533,8 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 		return err
 	}
 
-	// if we have a from time, check if the artifact is newer than the from time
-	if !a.FromTime.IsZero() {
+	// if the artifact has a timestamp, and  we have a from time, check if the artifact is newer than the from time
+	if !artifactInfo.Timestamp.IsZero() && !a.FromTime.IsZero() {
 		if artifactInfo.Timestamp.Compare(a.FromTime) < 0 {
 			return nil
 		}
