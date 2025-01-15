@@ -47,6 +47,8 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params *row_source.RowSo
 			return err
 		}
 	}
+	// remember to create the base mutex
+	w.ArtifactSourceImpl.timingLock = &sync.Mutex{}
 
 	// create a NilArtifactCollectionState - this will do nothing but is required to avoid
 	// nil reference exceptions in ArtifactSourceImpl.OnArtifactDownloaded
@@ -76,9 +78,17 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params *row_source.RowSo
 		req.DefaultConfig = w.defaultConfig.AsProto()
 	}
 
-	_, err = w.client.InitSource(req)
+	resp, err := w.client.InitSource(req)
+	if err != nil {
+		return err
+	}
+	// set the from time
+	fromTime := row_source.ResolvedFromTimeFromProto(resp.FromTime)
 
-	return err
+	w.FromTime = fromTime.Time
+	w.FromTimeSource = fromTime.Source
+
+	return nil
 }
 
 func (w *PluginSourceWrapper) SaveCollectionState() error {

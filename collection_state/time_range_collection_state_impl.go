@@ -12,8 +12,8 @@ import (
 type TimeRangeCollectionStateImpl struct {
 	// the time range of the data
 	// the time of the earliest entry in the data
-	FirstEntryTime time.Time `json:"first_entry_time,omitempty"`
-	LastEntryTime  time.Time `json:"last_entry_time,omitempty"`
+	StartTime     time.Time `json:"first_entry_time,omitempty"`
+	LastEntryTime time.Time `json:"last_entry_time,omitempty"`
 	// the time we are sure we have collected all data up to - this is (LastEntryTime - granularity)
 	EndTime time.Time `json:"end_time,omitempty"`
 
@@ -36,7 +36,7 @@ func NewTimeRangeCollectionStateImpl() *TimeRangeCollectionStateImpl {
 }
 
 func (s *TimeRangeCollectionStateImpl) IsEmpty() bool {
-	return s.FirstEntryTime.IsZero()
+	return s.StartTime.IsZero()
 }
 
 // ShouldCollect returns whether the object should be collected
@@ -51,7 +51,7 @@ func (s *TimeRangeCollectionStateImpl) ShouldCollect(id string, timestamp time.T
 
 	// if the time is between the start and end time (inclusive) we should NOT collect
 	// (as have already collected it- assuming consistent artifact ordering)
-	if timestamp.Compare(s.FirstEntryTime) >= 0 && timestamp.Compare(s.EndTime) <= 0 {
+	if timestamp.Compare(s.StartTime) >= 0 && timestamp.Compare(s.EndTime) <= 0 {
 		return false
 	}
 
@@ -85,10 +85,10 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 	// - clear collection state
 	// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
 	// TODO THIS MAY NOT BE NEEDED IF SOURCE HANDLES EARLIER 'FROM' TIMES
-	if timestamp.Before(s.FirstEntryTime) {
-		s.FirstEntryTime = timestamp
+	if timestamp.Before(s.StartTime) {
+		s.StartTime = timestamp
 		// clear the last entry time as we have a new start time
-		s.SetLastEntryTime(timestamp)
+		s.setLastEntryTime(timestamp)
 		// store the end objects
 		s.EndObjects[id] = timestamp
 		// and return
@@ -96,8 +96,8 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 	}
 
 	// if start time is not set, set it now
-	if s.FirstEntryTime.IsZero() {
-		s.FirstEntryTime = timestamp
+	if s.StartTime.IsZero() {
+		s.StartTime = timestamp
 	}
 
 	// if the timestamp is before the CURRENT end time, then there is an issue
@@ -117,7 +117,7 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 	// if the timestamp is after the last entry time, update the last entry time
 	// this may also update the end time
 	if timestamp.After(s.LastEntryTime) {
-		s.SetLastEntryTime(timestamp)
+		s.setLastEntryTime(timestamp)
 	}
 
 	// if the timestamp is after the end time, it must be in the granularity boundary zone
@@ -129,17 +129,39 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 	return nil
 }
 
-func (s *TimeRangeCollectionStateImpl) SetLastEntryTime(timestamp time.Time) {
+// setLastEntryTime sets the last entry time. It also updates the end time if needed
+// the end time is the time up to which we are sure we have collected all data, i.e. the last entry time - granularity
+func (s *TimeRangeCollectionStateImpl) setLastEntryTime(timestamp time.Time) {
 	s.LastEntryTime = timestamp
 
-	// update our end times as needed
+	// sets the end time for the collection state. If the new end time is AFTER the current end time,
+	// we update the end time and identifu any objects that are now INSIDE the end time and remove from the end objects map
 	// NOTE: the end time are adjusted by the granularity
 	// i.e if the granularity is 1 hour, and the artifact time is 12:00:00,
 	// we are sure we have collected ALL data up to 11:00 so the end time will be 11:00:00,
 	newEndTime := timestamp.Add(-s.Granularity)
 
-	// update the end time if needed
-	if newEndTime.After(s.EndTime) || s.EndTime.IsZero() {
+	switch {
+	case newEndTime.Equal(s.EndTime):
+		// no change
+		return
+	case newEndTime.Before(s.EndTime):
+		// if the new end time is before the current end time, this must be beacuse a from parameter was passed
+		// to force recollection of earlier data - so we must clear the end objects and set the new end time
+		// if the new end time is before the start time, just clear the collection state (this should not happen)
+		if newEndTime.Before(s.StartTime) {
+			s.Clear()
+			return
+		}
+
+		// set the end time
+		s.EndTime = newEndTime
+		// clear the end objects
+		s.EndObjects = make(map[string]time.Time)
+	case newEndTime.After(s.EndTime), s.EndTime.IsZero():
+		// if the new end time is after the current end time, update the end time and remove any end objects
+		// which are no longer in the boundary zone
+
 		// set the end time
 		s.EndTime = newEndTime
 		// update the end objects - remove any objects which are now INSIDE the end time
@@ -157,8 +179,14 @@ func (s *TimeRangeCollectionStateImpl) SetLastEntryTime(timestamp time.Time) {
 	}
 }
 
+// SetEndTime sets the end time for the collection state
+func (s *TimeRangeCollectionStateImpl) SetEndTime(newEndTime time.Time) {
+	// we actually just set the last entry time adjusting for granularity - this will set the end time for us
+	s.setLastEntryTime(newEndTime.Add(s.Granularity))
+}
+
 func (s *TimeRangeCollectionStateImpl) GetStartTime() time.Time {
-	return s.FirstEntryTime
+	return s.StartTime
 }
 
 func (s *TimeRangeCollectionStateImpl) GetEndTime() time.Time {
@@ -180,4 +208,13 @@ func (s *TimeRangeCollectionStateImpl) GetGranularity() time.Duration {
 func (s *TimeRangeCollectionStateImpl) endObjectsContain(id string) bool {
 	_, ok := s.EndObjects[id]
 	return ok
+}
+
+func (s *TimeRangeCollectionStateImpl) Clear() {
+	// clear the times
+	s.StartTime = time.Time{}
+	s.LastEntryTime = time.Time{}
+	s.EndTime = time.Time{}
+	// clear the map
+	s.EndObjects = make(map[string]time.Time)
 }

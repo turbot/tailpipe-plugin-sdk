@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type CollectionStateImpl[T config.Config] struct {
+type CollectionStateImplDeprecated[T config.Config] struct {
 	Mut sync.RWMutex `json:"-"`
 	// the time range of the data in the bucket
 	StartTime time.Time `json:"start_time,omitempty"`
@@ -36,7 +36,7 @@ type CollectionStateImpl[T config.Config] struct {
 }
 
 // Init sets the filepath of the collection state and loads the state from the file if it exists
-func (s *CollectionStateImpl[T]) Init(_ T, path string) error {
+func (s *CollectionStateImplDeprecated[T]) Init(_ T, path string) error {
 	s.jsonPath = path
 
 	// if there is a file at the path, load it
@@ -45,22 +45,22 @@ func (s *CollectionStateImpl[T]) Init(_ T, path string) error {
 		// read the file
 		jsonBytes, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("failed to read collection state file: %w", err)
+			return fmt.Errorf("failed to read collection state file '%s': %w", path, err)
 		}
 		err = json.Unmarshal(jsonBytes, s)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal collection state file: %w", err)
+			return fmt.Errorf("failed to unmarshal collection state file '%s': %w", path, err)
 		}
 	}
 	return nil
 }
 
-func (s *CollectionStateImpl[T]) SetGranularity(granularity time.Duration) {
+func (s *CollectionStateImplDeprecated[T]) SetGranularity(granularity time.Duration) {
 	// TODO split into concept of accuracy AND granularity (better names)
 	s.Granularity = granularity
 }
 
-func (s *CollectionStateImpl[T]) Save() error {
+func (s *CollectionStateImplDeprecated[T]) Save() error {
 	s.Mut.Lock()
 	defer s.Mut.Unlock()
 
@@ -91,20 +91,20 @@ func (s *CollectionStateImpl[T]) Save() error {
 	return nil
 }
 
-func (s *CollectionStateImpl[T]) SetJSONPath(jsonPath string) {
+func (s *CollectionStateImplDeprecated[T]) SetJSONPath(jsonPath string) {
 	s.jsonPath = jsonPath
 }
 
-func (s *CollectionStateImpl[T]) GetGranularity() time.Duration {
+func (s *CollectionStateImplDeprecated[T]) GetGranularity() time.Duration {
 	return s.Granularity
 }
 
-func (s *CollectionStateImpl[T]) IsEmpty() bool {
+func (s *CollectionStateImplDeprecated[T]) IsEmpty() bool {
 	return s.StartTime.IsZero()
 }
 
 // ShouldCollect returns whether the object should be collected
-func (s *CollectionStateImpl[T]) ShouldCollect(id string, timestamp time.Time) bool {
+func (s *CollectionStateImplDeprecated[T]) ShouldCollect(id string, timestamp time.Time) bool {
 
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we use start objects to track everythinbg
@@ -131,7 +131,7 @@ func (s *CollectionStateImpl[T]) ShouldCollect(id string, timestamp time.Time) b
 
 // OnCollected is called when an object has been collected - update the end time and end objects if needed
 // Note: the object name is the full path to the object
-func (s *CollectionStateImpl[T]) OnCollected(id string, itemTimestamp time.Time) error {
+func (s *CollectionStateImplDeprecated[T]) OnCollected(id string, itemTimestamp time.Time) error {
 	s.Mut.Lock()
 	defer s.Mut.Unlock()
 
@@ -189,22 +189,22 @@ func (s *CollectionStateImpl[T]) OnCollected(id string, itemTimestamp time.Time)
 }
 
 // SetEndTime overrides the base implementation to also clear the end objects
-func (s *CollectionStateImpl[T]) SetEndTime(t time.Time) {
+func (s *CollectionStateImplDeprecated[T]) SetEndTime(t time.Time) {
 	s.EndTime = t
 	// clear the end map
 	s.EndObjects = make(map[string]struct{})
 }
 
-func (s *CollectionStateImpl[T]) GetStartTime() time.Time {
+func (s *CollectionStateImplDeprecated[T]) GetStartTime() time.Time {
 	return s.StartTime
 }
 
-func (s *CollectionStateImpl[T]) GetEndTime() time.Time {
+func (s *CollectionStateImplDeprecated[T]) GetEndTime() time.Time {
 	// i.e. the last time period we are sure we have ALL data for
 	return s.EndTime
 }
 
-func (s *CollectionStateImpl[T]) endObjectsContain(id string) bool {
+func (s *CollectionStateImplDeprecated[T]) endObjectsContain(id string) bool {
 	s.Mut.RLock()
 	defer s.Mut.RUnlock()
 

@@ -11,7 +11,7 @@ service TailpipePlugin {
   rpc Describe(DescribeRequest) returns (DescribeResponse);
   rpc AddObserver(Empty) returns (stream Event);
   rpc Collect(CollectRequest) returns (CollectResponse);
-  rpc InitSource(InitSourceRequest) returns (Empty) ;
+  rpc InitSource(InitSourceRequest) returns (InitSourceResponse); ;
   rpc CloseSource(Empty) returns (Empty);
   rpc SaveCollectionState(Empty) returns (Empty);
   rpc SourceCollect(SourceCollectRequest) returns (Empty);
@@ -64,8 +64,15 @@ message CollectResponse {
 
   // partition schema
   Schema schema = 2;
+
+  // resolved from time
+  ResolvedFromTime from_time = 3;
 }
 
+message ResolvedFromTime {
+  google.protobuf.Timestamp from_time = 1;
+  string source = 2;
+}
 // schema
 message Schema {
   // Map of source field name to column name and type
@@ -232,6 +239,12 @@ message InitSourceRequest{
   ArtifactSourceConfig default_config = 1;
   // params to use for the source
   row_source_params source_params = 2;
+}
+
+
+message InitSourceResponse {
+  // resolved from time
+  ResolvedFromTime from_time = 1;
 }
 
 message row_source_params{

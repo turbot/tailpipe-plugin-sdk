@@ -70,6 +70,7 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 	if err := c.initSource(ctx, req); err != nil {
 		return err
 	}
+
 	slog.Info("Start collection")
 
 	// if the plugin overrides this function it must call the base implementation
@@ -107,6 +108,11 @@ func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
 
 	// otherwise, return the schema from the row struct
 	return schema.SchemaFromStruct(rowStruct)
+}
+
+// GetFromTime returns the 'resolved' from time of the source
+func (c *CollectorImpl[S]) GetFromTime() *row_source.ResolvedFromTime {
+	return c.source.GetFromTime()
 }
 
 // Collect executes the collection process. Tell our source to start collection

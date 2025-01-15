@@ -7,7 +7,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"io/ioutil"
-	"log"
 )
 
 // PluginClient is the client object used by clients of the plugin
@@ -39,7 +38,6 @@ func NewPluginClient(client *plugin.Client, pluginName string) (*PluginClient, e
 }
 
 func NewPluginClientFromReattach(sourcePlugin *types.SourcePluginReattach) (*PluginClient, error) {
-	log.Printf("[TRACE] NewPluginClientFromReattach for plugin %s", sourcePlugin.Plugin)
 	// create the plugin map
 	pluginMap := map[string]plugin.Plugin{
 		sourcePlugin.Plugin: &shared.TailpipeGRPCPlugin{},

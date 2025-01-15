@@ -13,8 +13,8 @@ type Timing struct {
 	ActiveDuration time.Duration
 
 	Threads int
-	// TODO avoid copying
-	mut sync.Mutex
+
+	mut *sync.Mutex
 }
 
 // TryStart checks if start time has not been set and if so, set now
@@ -22,6 +22,7 @@ type Timing struct {
 func (t *Timing) TryStart(operation string) {
 	// check if start time is unset
 	if t.Start.IsZero() {
+		t.mut = &sync.Mutex{}
 		t.Start = time.Now()
 		t.Operation = operation
 	}

@@ -38,6 +38,8 @@ type RowSourceImpl[S, T parse.Config] struct {
 	NewCollectionStateFunc func() collection_state.CollectionState[S]
 	// the start time for the data collection
 	FromTime time.Time
+	// how was from time set (config, collection state, default)
+	FromTimeSource string
 }
 
 // RegisterSource is called by the source implementation to register itself with the base
@@ -78,28 +80,58 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	if err != nil {
 		return err
 	}
+	// populate the from time, applying the from time passed in the params
+	// and falling back to the collection state/default value if needed
+	r.setFromTime(params)
 
-	// set the from time
-	r.FromTime = params.From
-	// // if no from time was passed, set it to the end time of the collection state
-	if r.FromTime.IsZero() {
-		if r.CollectionState != nil {
-			r.FromTime = r.CollectionState.GetEndTime()
+	return nil
+}
+
+func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
+	if !params.From.IsZero() {
+		r.FromTime = params.From
+		r.FromTimeSource = "using --from argument"
+
+		slog.Info("Setting from time from --from argument", "from", r.FromTime)
+
+		if !r.CollectionState.IsEmpty() {
+			// if from time is before collection state start time, clear collection state
+			// if from time is after collection state end time, clear collection state
+			// if from time is during collection state, update end time to the from tiume
+
+			slog.Info("Updating collection state for new from time", "from time", r.FromTime, "collection state start time", r.CollectionState.GetStartTime(), "collection state end time", r.CollectionState.GetEndTime())
+
+			if r.FromTime.After(r.CollectionState.GetStartTime()) && r.FromTime.Before(r.CollectionState.GetEndTime()) {
+				// if the from time is after the start time (i.e. within the collected time range), update the end time
+				slog.Info("Moving collection state end time to new 'from' time", "collection state end time", r.CollectionState.GetEndTime(), "new from time", r.FromTime)
+				r.CollectionState.SetEndTime(r.FromTime)
+			} else {
+				// if the from time is NOT within the existing collection state
+				// we treat this as a new collection so clear the collection state
+				slog.Info("New from time is non-contiguous with data already collected - clearing collection state")
+				r.CollectionState.Clear()
+			}
 		}
-	} else {
-		// TODO KAI update collection state based on from time
-		// -- if from time is before collection state start time, clear colleciton state
-		// -- if from time is during collection state, update end time to the from tiume
-		// -- if from time is after collection state end time, clear collection state (???
+		return
 	}
+	// if no from time was passed, set it to the end time of the collection state
+	if !r.CollectionState.IsEmpty() {
+		t := r.CollectionState.GetEndTime()
+		if !t.IsZero() {
+			slog.Info("Setting from time from collection state end time", "end time", t)
+			r.FromTime = t
+			r.FromTimeSource = "continuing from data already collected"
+			return
+		}
+	}
+
+	slog.Info("Setting from time to default", "default", constants.DefaultInitialCollectionPeriod)
 
 	// if from is not set (either by explicitly passing is as an arg, or from the collection state end time) set it now
 	// to the default (7 days
-	if r.FromTime.IsZero() {
-		r.FromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)
-	}
+	r.FromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)
+	r.FromTimeSource = fmt.Sprintf("initial collection defaulting to %d days", int(constants.DefaultInitialCollectionPeriod.Hours()/24))
 
-	return nil
 }
 
 func (r *RowSourceImpl[S, T]) SaveCollectionState() error {
@@ -169,6 +201,15 @@ func (r *RowSourceImpl[S, T]) OnRow(ctx context.Context, row *types.RowData) err
 func (r *RowSourceImpl[S, T]) SetFromTime(from time.Time) {
 	if !from.IsZero() {
 		r.FromTime = from
+	}
+}
+
+// GetFromTime returns the start time for the data collection, including the source of the from time
+// (config, collection state or default)
+func (r *RowSourceImpl[S, T]) GetFromTime() *ResolvedFromTime {
+	return &ResolvedFromTime{
+		Time:   r.FromTime,
+		Source: r.FromTimeSource,
 	}
 }
 

@@ -75,6 +75,10 @@ func (c *ArtifactConversionCollector[S]) GetSchema() (*schema.RowSchema, error) 
 	return row.ResolveSchema(c.req.CustomTable)
 }
 
+func (c *ArtifactConversionCollector[S]) GetFromTime() *row_source.ResolvedFromTime {
+	return c.source.GetFromTime()
+}
+
 func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData types.ConfigData) error {
 	// default to empty config
 	cfg := utils.InstanceOf[S]()

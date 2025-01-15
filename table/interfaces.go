@@ -5,6 +5,7 @@ import (
 
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -37,6 +38,7 @@ type Collector interface {
 	Identifier() string
 	Collect(context.Context) (int, int, error)
 	GetSchema() (*schema.RowSchema, error)
+	GetFromTime() *row_source.ResolvedFromTime
 }
 
 type MapOption[R types.RowStruct] func(Mapper[R])

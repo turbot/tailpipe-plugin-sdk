@@ -42,6 +42,10 @@ type RowSource interface {
 
 	// GetTiming returns the timing for the source row collection
 	GetTiming() (types.TimingCollection, error)
+
+	// GetFromTime returns the start time for the data collection, including the source of the from time
+	// (config, collection state or default)
+	GetFromTime() *ResolvedFromTime
 }
 
 // BaseSource registers the rowSource implementation with the base struct (_before_ calling Init)

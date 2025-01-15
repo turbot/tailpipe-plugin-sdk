@@ -20,7 +20,7 @@ type TailpipePluginServer interface {
 	Describe() (*proto.DescribeResponse, error)
 	AddObserver(proto.TailpipePlugin_AddObserverServer) error
 	Collect(context.Context, *proto.CollectRequest) (*proto.CollectResponse, error)
-	InitSource(context.Context, *proto.InitSourceRequest) (*proto.Empty, error)
+	InitSource(context.Context, *proto.InitSourceRequest) (*proto.InitSourceResponse, error)
 	SaveCollectionState(context.Context, *proto.Empty) (*proto.Empty, error)
 	CloseSource(context.Context, *proto.Empty) (*proto.Empty, error)
 	SourceCollect(context.Context, *proto.SourceCollectRequest) (*proto.Empty, error)
@@ -32,7 +32,7 @@ type TailpipePluginClient interface {
 	Describe() (*proto.DescribeResponse, error)
 	AddObserver() (proto.TailpipePlugin_AddObserverClient, error)
 	Collect(req *proto.CollectRequest) (*proto.CollectResponse, error)
-	InitSource(context.Context, *proto.InitSourceRequest) (*proto.Empty, error)
+	InitSource(context.Context, *proto.InitSourceRequest) (*proto.InitSourceResponse, error)
 	SaveCollectionState(context.Context, *proto.Empty) (*proto.Empty, error)
 	CloseSource(context.Context, *proto.Empty) (*proto.Empty, error)
 	SourceCollect(context.Context, *proto.SourceCollectRequest) (*proto.Empty, error)

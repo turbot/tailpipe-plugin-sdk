@@ -63,7 +63,7 @@ func (s PluginServer) Describe() (*proto.DescribeResponse, error) {
 }
 
 func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*proto.CollectResponse, error) {
-	schema, err := s.impl.Collect(ctx, req)
+	fromTime, schema, err := s.impl.Collect(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -71,17 +71,20 @@ func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*
 	var resp = &proto.CollectResponse{
 		ExecutionId: req.ExecutionId,
 		Schema:      schema.ToProto(),
+		FromTime:    fromTime.ToProto(),
 	}
 	return resp, nil
 }
 
-func (s PluginServer) InitSource(ctx context.Context, req *proto.InitSourceRequest) (*proto.Empty, error) {
-	err := s.impl.InitSource(ctx, req)
+func (s PluginServer) InitSource(ctx context.Context, req *proto.InitSourceRequest) (*proto.InitSourceResponse, error) {
+	fromTime, err := s.impl.InitSource(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 
-	return &proto.Empty{}, nil
+	return &proto.InitSourceResponse{
+		FromTime: fromTime.ToProto(),
+	}, nil
 }
 
 func (s PluginServer) SaveCollectionState(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {

@@ -3,7 +3,6 @@ package observable
 import (
 	"context"
 	"errors"
-	"log"
 	"log/slog"
 	"sync"
 
@@ -21,7 +20,6 @@ type ObservableImpl struct {
 }
 
 func (p *ObservableImpl) AddObserver(o Observer) error {
-	log.Println("[INFO] AddObserver")
 	// add to list of Observers
 	p.observerLock.Lock()
 	p.Observers = append(p.Observers, o)

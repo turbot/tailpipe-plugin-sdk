@@ -86,11 +86,14 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	DiscoveryTiming types.Timing
 	DownloadTiming  types.Timing
 	ExtractTiming   types.Timing
-	timingLock      sync.Mutex
+
+	timingLock *sync.Mutex
 }
 
 func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing ArtifactSourceImpl", "configData", params.SourceConfigData.GetHcl())
+
+	a.timingLock = &sync.Mutex{}
 
 	// if no collection state func has been set by a derived struct,
 	// set it to the default for artifacts

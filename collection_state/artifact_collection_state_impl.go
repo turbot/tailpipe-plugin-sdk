@@ -64,11 +64,11 @@ func (s *ArtifactCollectionStateImpl[T]) Init(_ T, path string) error {
 		// read the file
 		jsonBytes, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("failed to read collection state file: %w", err)
+			return fmt.Errorf("failed to read collection state file '%s': %w", path, err)
 		}
 		err = json.Unmarshal(jsonBytes, s)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal collection state file: %w", err)
+			return fmt.Errorf("failed to unmarshal collection state file '%s': %w", path, err)
 		}
 	}
 	return nil
@@ -83,6 +83,24 @@ func (s *ArtifactCollectionStateImpl[T]) SetGranularity(granularity time.Duratio
 // GetGranularity returns the granularity of the collection state
 func (s *ArtifactCollectionStateImpl[T]) GetGranularity() time.Duration {
 	return s.granularity
+}
+
+func (s *ArtifactCollectionStateImpl[T]) GetStartTime() time.Time {
+	// find the latest start time of all the trunk states
+	var startTime time.Time
+	for _, trunkState := range s.TrunkStates {
+		if trunkState == nil {
+			continue
+		}
+		s := trunkState.GetStartTime()
+		if s.IsZero() {
+			continue
+		}
+		if startTime.IsZero() || s.After(startTime) {
+			startTime = s
+		}
+	}
+	return startTime
 }
 
 func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
@@ -100,6 +118,25 @@ func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
 		}
 	}
 	return endTime
+}
+
+// SetEndTime sets the end time for the collection state - update all trunk states
+// This is called when we are using the --from flag to force recollection
+func (s *ArtifactCollectionStateImpl[T]) SetEndTime(newEndTime time.Time) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
+	for _, s := range s.TrunkStates {
+		// to work with granularity, we actually set the last entry time - this will set the end time for us
+		s.SetEndTime(newEndTime)
+	}
+}
+
+func (s *ArtifactCollectionStateImpl[T]) Clear() {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	// cleat the map
+	s.TrunkStates = make(map[string]*TimeRangeCollectionStateImpl)
 }
 
 // RegisterPath registers a path with the collection state - we determine whether this is a potential trunk

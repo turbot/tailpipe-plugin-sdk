@@ -39,11 +39,11 @@ func (s *TimeRangeCollectionState[T]) Init(_ T, path string) error {
 		// read the file
 		jsonBytes, err := os.ReadFile(path)
 		if err != nil {
-			return fmt.Errorf("failed to read collection state file: %w", err)
+			return fmt.Errorf("failed to read collection state file '%s': %w", path, err)
 		}
 		err = json.Unmarshal(jsonBytes, s)
 		if err != nil {
-			return fmt.Errorf("failed to unmarshal collection state file: %w", err)
+			return fmt.Errorf("failed to unmarshal collection state file '%s': %w", path, err)
 		}
 	}
 	return nil
@@ -68,21 +68,34 @@ func (s *TimeRangeCollectionState[T]) OnCollected(id string, timestamp time.Time
 	return s.TimeRangeCollectionStateImpl.OnCollected(id, timestamp)
 }
 
+// SetEndTime sets the end time for the collection state
+// It may be called to set the end time to earlier than the current end time if a --from flag is used to force recollection
+func (s *TimeRangeCollectionState[T]) SetEndTime(newEndTime time.Time) {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+
+	s.TimeRangeCollectionStateImpl.SetEndTime(newEndTime)
+}
+
+func (s *TimeRangeCollectionState[T]) Clear() {
+	s.mut.Lock()
+	defer s.mut.Unlock()
+	s.TimeRangeCollectionStateImpl.Clear()
+}
+
 // Save serialises the collection state to a JSON file
 func (s *TimeRangeCollectionState[T]) Save() error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
-	slog.Info("Saving collection state", "lastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime)
-
 	// if the last save time is after the last modified time, then we have nothing to do
 	if s.lastSaveTime.After(s.lastModifiedTime) {
-		slog.Info("collection state has not been modified since last save")
+		slog.Debug("collection state has not been modified since last save")
 		// nothing to do
 		return nil
 	}
 
-	slog.Info("We are actually saving the collection state")
+	slog.Info("Saving collection state", "lastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime)
 
 	jsonBytes, err := json.Marshal(s)
 	if err != nil {

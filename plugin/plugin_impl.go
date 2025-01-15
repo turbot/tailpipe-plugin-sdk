@@ -52,9 +52,7 @@ func (p *PluginImpl) initialized() bool {
 	return table.Factory.Initialized()
 }
 
-func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*schema.RowSchema, error) {
-	slog.Info("Collect")
-
+func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.RowSchema, error) {
 	// create context containing execution id
 	ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
 
@@ -63,25 +61,28 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 	if err != nil {
 		slog.Error("CollectRequestFromProto failed", "error", err)
 
-		return nil, err
+		return nil, nil, err
 	}
 
 	// ask the factory to create the collector
 	// - this will configure the requested source
 	collector, err := table.Factory.GetCollector(collectRequest)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// initialise the collector
 	if err := collector.Init(ctx, collectRequest); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
+
+	// ask thge collector for the from time - it will ask its souirce
+	fromTime := collector.GetFromTime()
 
 	// add ourselves as an observer
 	if err := collector.AddObserver(p); err != nil {
 		slog.Error("add observer error", "error", err)
-		return nil, err
+		return nil, nil, err
 	}
 
 	// signal we have started
@@ -103,7 +104,11 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*s
 	}()
 
 	// return the schema (if available - this may be nil for dynamic tables, in which case the CLI will infer the schema)
-	return collector.GetSchema()
+	s, err := collector.GetSchema()
+	if err != nil {
+		return nil, nil, err
+	}
+	return fromTime, s, nil
 }
 
 // Describe implements TailpipePlugin
@@ -125,22 +130,22 @@ func (p *PluginImpl) Describe() (DescribeResponse, error) {
 // InitSource is called to initialise the source when this plugin is being used as a source
 // It performs the same role as CollectorImpl.initSource for in-plugin sources
 // the flow for using a plugin from an external plugin is as follows:
-func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceRequest) error {
+func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceRequest) (*row_source.ResolvedFromTime, error) {
 	// ask factory to create and initialise the source for us
 	// convert the proto request to our internal type
 	initSourceRequest, err := artifact_source.InitSourceRequestFromProto(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	source, err := row_source.Factory.GetRowSource(ctx, initSourceRequest.SourceParams)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// this must be an artifact source
 	as, ok := source.(artifact_source.ArtifactSource)
 	if !ok {
-		return fmt.Errorf("source is not an artifact source")
+		return nil, fmt.Errorf("source is not an artifact source")
 	}
 
 	// set the loader to a null loader to avoid this plugin instance loading/processing the downloaded artifacts
@@ -150,11 +155,11 @@ func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceReques
 	// add ourselves as observer to the source
 	err = as.AddObserver(p)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	p.source = as
 
-	return nil
+	return p.source.GetFromTime(), nil
 }
 
 func (p *PluginImpl) SaveCollectionState(_ context.Context) error {

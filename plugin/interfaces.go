@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -25,11 +26,11 @@ type TailpipePlugin interface {
 
 	// Collect is called to start a collection run
 	// this is implemented by plugin.PluginImpl and should not be overridden
-	Collect(context.Context, *proto.CollectRequest) (*schema.RowSchema, error)
+	Collect(context.Context, *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.RowSchema, error)
 
 	// Source functions - used when the plugin is acting as a Source only
 
-	InitSource(context.Context, *proto.InitSourceRequest) error
+	InitSource(context.Context, *proto.InitSourceRequest) (*row_source.ResolvedFromTime, error)
 	CloseSource(context.Context) error
 	SaveCollectionState(context.Context) error
 	SourceCollect(context.Context, *proto.SourceCollectRequest) error
