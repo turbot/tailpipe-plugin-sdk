@@ -227,29 +227,31 @@ func (c *CommonFields) AsMap() map[string]string {
 	return result
 }
 
-// CommonFieldNameMap is a lookup of all the common field names
-var CommonFieldNameMap = map[string]struct{}{
-	"tp_id":               {},
-	"tp_source_type":      {},
-	"tp_ingest_timestamp": {},
-	"tp_timestamp":        {},
-	"tp_table":            {},
-	"tp_partition":        {},
-	"tp_index":            {},
-	"tp_date":             {},
-	"tp_source_ip":        {},
-	"tp_destination_ip":   {},
-	"tp_source_name":      {},
-	"tp_source_location":  {},
-	"tp_akas":             {},
-	"tp_ips":              {},
-	"tp_tags":             {},
-	"tp_domains":          {},
-	"tp_emails":           {},
-	"tp_usernames":        {},
+// TODO improve these descriptions https://github.com/turbot/tailpipe-plugin-sdk/issues/83
+func CommonFieldsColumnDescriptions() map[string]string {
+	return map[string]string{
+		"tp_id":               "The unique identifier for the row",
+		"tp_source_type":      "The type of source that generated the row",
+		"tp_ingest_timestamp": "The time the row was ingested into the system",
+		"tp_timestamp":        "The time the row was generated",
+		"tp_table":            "The table name",
+		"tp_partition":        "The partition name",
+		"tp_index":            "The index name",
+		"tp_date":             "The date",
+		"tp_source_ip":        "The source IP address",
+		"tp_destination_ip":   "The destination IP address",
+		"tp_source_name":      "The source name",
+		"tp_source_location":  "The source location",
+		"tp_akas":             "The AKAs",
+		"tp_ips":              "The IPs",
+		"tp_tags":             "The tags",
+		"tp_domains":          "The domains",
+		"tp_emails":           "The emails",
+		"tp_usernames":        "The usernames",
+	}
 }
 
 func IsCommonField(name string) bool {
-	_, ok := CommonFieldNameMap[name]
+	_, ok := CommonFieldsColumnDescriptions()[name]
 	return ok
 }

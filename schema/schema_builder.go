@@ -3,6 +3,7 @@ package schema
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"reflect"
 	"strings"
 	"time"
@@ -36,6 +37,22 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
 	}
 	// just use the column names from the struct, do not automap source fields
 	res.AutoMapSourceFields = false
+
+	// set the column descriptions
+	commonFieldDescriptions := CommonFieldsColumnDescriptions()
+	// if the struct implements GetColumnDescriptions, use this to populate the column descriptions
+	if desc, ok := s.(GetColumnDescriptions); ok {
+		columnDescriptions := desc.GetColumnDescriptions()
+		// add in common field descriptions
+		maps.Copy(columnDescriptions, commonFieldDescriptions)
+
+		for _, c := range res.Columns {
+			if desc, ok := columnDescriptions[c.ColumnName]; ok {
+				c.Description = desc
+			}
+		}
+	}
+
 	return res, nil
 }
 

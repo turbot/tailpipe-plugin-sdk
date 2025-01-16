@@ -81,6 +81,8 @@ message Schema {
   bool automap_source_fields = 2;
   // should we exclude any source fields from the output (only applicable if automap_source_fields is true)
   repeated string exclude_source_fields = 3;
+  // table description
+  string description = 4;
 }
 
 message ColumnSchema {
@@ -92,6 +94,8 @@ message ColumnSchema {
   string column_name = 3;
   // child fields (for a struct)
   repeated ColumnSchema child_fields = 4;
+  // column description
+  string description = 5;
 }
 
 message ConfigData {

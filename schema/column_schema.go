@@ -23,13 +23,16 @@ type ColumnSchema struct {
 	Type string `json:"type"`
 	// for struct and struct[]
 	StructFields []*ColumnSchema `json:"struct_fields,omitempty"`
+	// the column description (optional)
+	Description string `json:"description,omitempty"`
 }
 
 func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 	p := &proto.ColumnSchema{
-		SourceName: c.SourceName,
-		ColumnName: c.ColumnName,
-		Type:       c.Type,
+		SourceName:  c.SourceName,
+		ColumnName:  c.ColumnName,
+		Type:        c.Type,
+		Description: c.Description,
 	}
 	for _, child := range c.StructFields {
 		p.ChildFields = append(p.ChildFields, child.toProto())
@@ -48,7 +51,6 @@ func (c *ColumnSchema) FullType() string {
 }
 
 func (c *ColumnSchema) structDef() string {
-	//STRUCT(StructStringField VARCHAR, StructIntField INTEGER)[]
 	var str strings.Builder
 	str.WriteString("STRUCT(")
 	for i, column := range c.StructFields {
@@ -65,9 +67,10 @@ func (c *ColumnSchema) structDef() string {
 // ColumnFromProto creates a new ColumnSchema from proto
 func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
 	c := &ColumnSchema{
-		SourceName: p.SourceName,
-		ColumnName: p.ColumnName,
-		Type:       p.Type,
+		SourceName:  p.SourceName,
+		ColumnName:  p.ColumnName,
+		Type:        p.Type,
+		Description: p.Description,
 	}
 	for _, child := range p.ChildFields {
 		c.StructFields = append(c.StructFields, ColumnFromProto(child))

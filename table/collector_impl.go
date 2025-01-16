@@ -107,7 +107,16 @@ func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
 	}
 
 	// otherwise, return the schema from the row struct
-	return schema.SchemaFromStruct(rowStruct)
+	s, err := schema.SchemaFromStruct(rowStruct)
+	if err != nil {
+		return nil, fmt.Errorf("error getting schema from struct: %w", err)
+	}
+
+	// if the table implements GetDescription, use this to populate the table description
+	if getDesc, ok := c.Table.(schema.GetDescription); ok {
+		s.Description = getDesc.GetDescription()
+	}
+	return s, nil
 }
 
 // GetFromTime returns the 'resolved' from time of the source

@@ -13,6 +13,8 @@ type RowSchema struct {
 	AutoMapSourceFields bool `json:"automap_source_fields"`
 	// should we exclude any source fields from the output (only applicable if automap_source_fields is true)
 	ExcludeSourceFields []string `json:"exclude_source_fields"`
+	// the table description (optional)
+	Description string `json:"description,omitempty"`
 }
 
 func (r *RowSchema) ToProto() *proto.Schema {
@@ -20,6 +22,7 @@ func (r *RowSchema) ToProto() *proto.Schema {
 		Columns:             make([]*proto.ColumnSchema, len(r.Columns)),
 		AutomapSourceFields: r.AutoMapSourceFields,
 		ExcludeSourceFields: r.ExcludeSourceFields,
+		Description:         r.Description,
 	}
 
 	for i, c := range r.Columns {
@@ -42,6 +45,7 @@ func RowSchemaFromProto(p *proto.Schema) *RowSchema {
 		Columns:             make([]*ColumnSchema, 0, len(p.Columns)),
 		AutoMapSourceFields: p.AutomapSourceFields,
 		ExcludeSourceFields: p.ExcludeSourceFields,
+		Description:         p.Description,
 	}
 	for _, c := range p.Columns {
 		res.Columns = append(res.Columns, ColumnFromProto(c))
