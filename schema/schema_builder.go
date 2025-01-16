@@ -39,12 +39,14 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
 	res.AutoMapSourceFields = false
 
 	// set the column descriptions
-	commonFieldDescriptions := CommonFieldsColumnDescriptions()
+	defaultCommonFieldDescriptions := DefaultCommonFieldDescriptions()
 	// if the struct implements GetColumnDescriptions, use this to populate the column descriptions
 	if desc, ok := s.(GetColumnDescriptions); ok {
-		columnDescriptions := desc.GetColumnDescriptions()
-		// add in common field descriptions
-		maps.Copy(columnDescriptions, commonFieldDescriptions)
+		// merge the default common field descriptions with column descriptions from the struct
+		// NOTE: the struct descriptions will overwrite the default descriptions - it may use this to override
+		// the descriptions for the common fields
+		columnDescriptions := defaultCommonFieldDescriptions
+		maps.Copy(columnDescriptions, desc.GetColumnDescriptions())
 
 		for _, c := range res.Columns {
 			if desc, ok := columnDescriptions[c.ColumnName]; ok {

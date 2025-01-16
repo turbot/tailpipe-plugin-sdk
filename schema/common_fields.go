@@ -228,7 +228,7 @@ func (c *CommonFields) AsMap() map[string]string {
 }
 
 // TODO improve these descriptions https://github.com/turbot/tailpipe-plugin-sdk/issues/83
-func CommonFieldsColumnDescriptions() map[string]string {
+func DefaultCommonFieldDescriptions() map[string]string {
 	return map[string]string{
 		"tp_id":               "The unique identifier for the row",
 		"tp_source_type":      "The type of source that generated the row",
@@ -252,6 +252,6 @@ func CommonFieldsColumnDescriptions() map[string]string {
 }
 
 func IsCommonField(name string) bool {
-	_, ok := CommonFieldsColumnDescriptions()[name]
+	_, ok := DefaultCommonFieldDescriptions()[name]
 	return ok
 }
