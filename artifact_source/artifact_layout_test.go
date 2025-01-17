@@ -3,6 +3,7 @@ package artifact_source
 import (
 	"github.com/elastic/go-grok"
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -221,11 +222,67 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 			}
 			// if we have metadata and filters, check if the metadata satisfies the filters
 			if len(metadata) > 0 {
-				if got := MetadataSatisfiesFilters(ByteMapToStringMap(metadata), filters); got != tt.wantMatch {
-					t.Errorf("MetadataSatisfiesFilters() = %v, wantMatch %v", got, tt.wantMatch)
+				if got := metadataSatisfiesFilters(ByteMapToStringMap(metadata), filters); got != tt.wantMatch {
+					t.Errorf("metadataSatisfiesFilters() = %v, wantMatch %v", got, tt.wantMatch)
 				}
 			}
 
+		})
+	}
+}
+func Test_expandPatternIntoOptionalAlternatives(t *testing.T) {
+	type args struct {
+		pattern string
+	}
+	tests := []struct {
+		name string
+		args args
+		want []string
+	}{
+		{
+			name: "AWSLogs with one optional segment",
+			args: args{
+				pattern: "AWSLogs/(%{WORD:org}/)?%{WORD:account_id}/Cloud/%{NOTSPACE:file_name}.%{WORD:ext}",
+			},
+			want: []string{
+				"AWSLogs/%{WORD:org}/%{WORD:account_id}/Cloud/%{NOTSPACE:file_name}.%{WORD:ext}",
+				"AWSLogs/%{WORD:account_id}/Cloud/%{NOTSPACE:file_name}.%{WORD:ext}",
+			},
+		},
+		{
+			name: "GCPLogs with two optional segments",
+			args: args{
+				pattern: "GCPLogs/(%{WORD:project_id}/)?(%{WORD:zone}/)?Instances/%{NOTSPACE:instance_id}.%{WORD:ext}",
+			},
+			want: []string{
+				"GCPLogs/%{WORD:project_id}/%{WORD:zone}/Instances/%{NOTSPACE:instance_id}.%{WORD:ext}",
+				"GCPLogs/%{WORD:project_id}/Instances/%{NOTSPACE:instance_id}.%{WORD:ext}",
+				"GCPLogs/%{WORD:zone}/Instances/%{NOTSPACE:instance_id}.%{WORD:ext}",
+				"GCPLogs/Instances/%{NOTSPACE:instance_id}.%{WORD:ext}",
+			},
+		},
+		{
+			name: "Logs with three optional segments",
+			args: args{
+				pattern: "Logs/(%{WORD:tenant_id}/)?(%{WORD:service}/)?(%{WORD:log_type}/)?%{NOTSPACE:log_name}.%{WORD:ext}",
+			},
+			want: []string{
+				"Logs/%{WORD:tenant_id}/%{WORD:service}/%{WORD:log_type}/%{NOTSPACE:log_name}.%{WORD:ext}",
+				"Logs/%{WORD:tenant_id}/%{WORD:service}/%{NOTSPACE:log_name}.%{WORD:ext}",
+				"Logs/%{WORD:tenant_id}/%{WORD:log_type}/%{NOTSPACE:log_name}.%{WORD:ext}",
+				"Logs/%{WORD:tenant_id}/%{NOTSPACE:log_name}.%{WORD:ext}",
+				"Logs/%{WORD:service}/%{WORD:log_type}/%{NOTSPACE:log_name}.%{WORD:ext}",
+				"Logs/%{WORD:service}/%{NOTSPACE:log_name}.%{WORD:ext}",
+				"Logs/%{WORD:log_type}/%{NOTSPACE:log_name}.%{WORD:ext}",
+				"Logs/%{NOTSPACE:log_name}.%{WORD:ext}",
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ExpandPatternIntoOptionalAlternatives(tt.args.pattern); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("ExpandPatternIntoOptionalAlternatives() = %v, want %v", got, tt.want)
+			}
 		})
 	}
 }

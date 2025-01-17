@@ -475,45 +475,51 @@ func (a *ArtifactSourceImpl[S, T]) DownloadArtifact(ctx context.Context, info *t
 
 // WalkNode is called for each file or directory discovered by the file source - it is called as part of the folder
 // walking discovery algorithm
-func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath string, basePath string, layout *string, isDir bool, g *grok.Grok, filterMap map[string]*filter.SqlFilter) error {
-	// if we have a layout, check whether this path satisfies the layout and filters
-	var metadata map[string]string
-	var satisfied = true
-
-	// TODO KAI refactor to make clearer
-	// LAYOUT IS REQUIRED (may be defaulted if not provided)
-	if layout != nil {
-		// if we are a directory and we are not satisfied, skip the directory by returning fs.SkipDir
-		var match bool
-		var err error
-		match, metadata, err = getPathMetadata(targetPath, basePath, layout, isDir, g)
-		if err != nil {
-			return err
-		}
-
-		// check if the path matches the layout and if so, are filters satisfied
-		satisfied = match && MetadataSatisfiesFilters(metadata, filterMap)
-
-		// if we have a from time, check whether that excludes this directory
-		if satisfied && isDir && !a.FromTime.IsZero() {
-			satisfied = dirSatisfiesFromTime(a.FromTime, metadata)
-		}
+func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath string, basePath string, layouts []string, isDir bool, g *grok.Grok, filterMap map[string]*filter.SqlFilter) error {
+	metadata, satisfied, err := a.getMetadataAndApplyFilters(targetPath, basePath, layouts, isDir, g, filterMap)
+	if err != nil {
+		return err
 	}
 
 	if isDir {
-		// if this is a directory and the pattern is satisfied, descend into the directory
-		// (we return nil to continue processing the directory)
-		if satisfied {
-			// register this directory with the collection state - it will use the metadata to identify trunks
-			a.CollectionState.RegisterPath(targetPath, metadata)
-			return nil
-		} else {
-			return fs.SkipDir
-		}
+		return a.walkDirNode(targetPath, metadata, satisfied)
 	}
 
 	// so this is a file
+	return a.walkFileNode(ctx, targetPath, satisfied, metadata)
+}
 
+func (a *ArtifactSourceImpl[S, T]) getMetadataAndApplyFilters(targetPath string, basePath string, layouts []string, isDir bool, g *grok.Grok, filterMap map[string]*filter.SqlFilter) (map[string]string, bool, error) {
+	// if the original file layout had any optional segments, we will have expanded them into multiple potential layouts
+	// try each one and use the first one which matches
+	var match bool
+	var metadata map[string]string
+	var err error
+	for _, layout := range layouts {
+		// if we have a layout, check whether this path satisfies the layout and filters
+
+		// if we are a directory and we are not satisfied, skip the directory by returning fs.SkipDir
+		match, metadata, err = getPathMetadata(targetPath, basePath, layout, isDir, g)
+		if err != nil {
+			return nil, false, err
+		}
+		if match {
+			break
+		}
+	}
+
+	// check if the path matches the layout and if so, are filters satisfied
+	satisfied := match && metadataSatisfiesFilters(metadata, filterMap)
+
+	// if we have a from time, check whether that excludes this directory
+	if satisfied && isDir && !a.FromTime.IsZero() {
+		satisfied = dirSatisfiesFromTime(a.FromTime, metadata)
+	}
+
+	return metadata, satisfied, nil
+}
+
+func (a *ArtifactSourceImpl[S, T]) walkFileNode(ctx context.Context, targetPath string, satisfied bool, metadata map[string]string) error {
 	// if the pattern is not satisfied, skip the file
 	if !satisfied {
 		return nil
@@ -551,4 +557,16 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 
 	// so we SHOULD collect -  notify observers of the discovered artifact
 	return a.OnArtifactDiscovered(ctx, artifactInfo)
+}
+
+func (a *ArtifactSourceImpl[S, T]) walkDirNode(targetPath string, metadata map[string]string, satisfied bool) error {
+	// if this is a directory and the pattern is satisfied, descend into the directory
+	// (we return nil to continue processing the directory)
+	if satisfied {
+		// register this directory with the collection state - it will use the metadata to identify trunks
+		a.CollectionState.RegisterPath(targetPath, metadata)
+		return nil
+	}
+
+	return fs.SkipDir
 }

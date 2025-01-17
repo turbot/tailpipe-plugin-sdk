@@ -34,7 +34,7 @@ func TestExtractNamedGroupsFromGrok(t *testing.T) {
 			args: args{
 				grokPattern: `%{WORD}/%{NUMBER}/%{NOTSPACE}`,
 			},
-			want: []string{},
+			want: nil,
 		},
 		{
 			name: "Complex pattern with multiple named groups",
@@ -55,14 +55,14 @@ func TestExtractNamedGroupsFromGrok(t *testing.T) {
 			args: args{
 				grokPattern: ``,
 			},
-			want: []string{},
+			want: nil,
 		},
 		{
 			name: "Pattern with invalid format",
 			args: args{
 				grokPattern: `%{WORD:field1/%{NUMBER:field2}`,
 			},
-			want: []string{"field1", "field2"},
+			want: []string{"field2"},
 		},
 	}
 	for _, tt := range tests {

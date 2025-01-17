@@ -4,14 +4,64 @@ import (
 	"fmt"
 	"github.com/elastic/go-grok"
 	"github.com/turbot/pipe-fittings/filter"
+	"log/slog"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
-// MetadataSatisfiesFilters checks if a path segment satisfies the given filters,
+func ByteMapToStringMap(m map[string][]byte) map[string]string {
+	res := make(map[string]string, len(m))
+	for k, v := range m {
+		res[k] = string(v)
+	}
+	return res
+}
+
+func ExpandPatternIntoOptionalAlternatives(pattern string) []string {
+	var res []string
+
+	// Regular expression to match optional segments (e.g., "(%{WORD:org}/)?")
+	re := regexp.MustCompile(`\((.+?)\)\?`)
+	// If there are no optional segments, return the pattern as-is
+	if !re.MatchString(pattern) {
+		return []string{pattern}
+	}
+
+	// Recursive function to generate all permutations
+	var generate func(string) []string
+	generate = func(currentPattern string) []string {
+		// Find the first optional segment
+		match := re.FindStringSubmatch(currentPattern)
+		if match == nil {
+			return []string{currentPattern}
+		}
+
+		// Extract the optional segment and the full match
+		fullMatch := match[0]       // The full "(%{WORD:org}/)?"
+		optionalSegment := match[1] // The content inside "(...)"
+
+		// Replace only the first occurrence of the optional segment
+		withSegment := strings.Replace(currentPattern, fullMatch, optionalSegment, 1)
+		withoutSegment := strings.Replace(currentPattern, fullMatch, "", 1)
+
+		// Recursively generate for the remaining optional segments
+		return append(
+			generate(withSegment),
+			generate(withoutSegment)...,
+		)
+	}
+
+	// Start generating permutations
+	res = generate(pattern)
+
+	return res
+}
+
+// metadataSatisfiesFilters checks if a path segment satisfies the given filters,
 // based on the file layout, which is a grok pattern
 // the grok pattern is assumed to start at the beginning of the path segment
-func MetadataSatisfiesFilters(metadata map[string]string, filters map[string]*filter.SqlFilter) bool {
+func metadataSatisfiesFilters(metadata map[string]string, filters map[string]*filter.SqlFilter) bool {
 	// Validate metadata against filters
 	for key, value := range metadata {
 		// Check if a filter exists for this key
@@ -29,10 +79,7 @@ func MetadataSatisfiesFilters(metadata map[string]string, filters map[string]*fi
 
 // getPathMetadata get the metadata from the given file path, based on the file layout
 // returns whether the path matches the layout pattern, and the medata map
-func getPathMetadata(targetPath, basePath string, layout *string, isDir bool, g *grok.Grok) (bool, map[string]string, error) {
-	if layout == nil {
-		return false, nil, nil
-	}
+func getPathMetadata(targetPath, basePath string, layout string, isDir bool, g *grok.Grok) (bool, map[string]string, error) {
 	// remove the base path from the path
 	relPath, err := filepath.Rel(basePath, targetPath)
 	if err != nil {
@@ -41,13 +88,13 @@ func getPathMetadata(targetPath, basePath string, layout *string, isDir bool, g 
 
 	// if this is a directory, we just want to evaluate the pattern segments up to this directory
 	// so call getPathSegmentMetadata which trims the pattern to match the path length
-	var f func(g *grok.Grok, pathSegment, fileLayout string) (bool, map[string][]byte, error)
+	var getMetadataFunc func(g *grok.Grok, pathSegment, fileLayout string) (bool, map[string][]byte, error)
 	if isDir {
-		f = getPathSegmentMetadata
+		getMetadataFunc = getPathSegmentMetadata
 	} else {
-		f = getPathLeafMetadata
+		getMetadataFunc = getPathLeafMetadata
 	}
-	match, metadata, err := f(g, relPath, *layout)
+	match, metadata, err := getMetadataFunc(g, relPath, layout)
 	if err != nil {
 		return false, nil, err
 	}
@@ -56,15 +103,7 @@ func getPathMetadata(targetPath, basePath string, layout *string, isDir bool, g 
 	return match, ByteMapToStringMap(metadata), nil
 }
 
-func ByteMapToStringMap(m map[string][]byte) map[string]string {
-	res := make(map[string]string, len(m))
-	for k, v := range m {
-		res[k] = string(v)
-	}
-	return res
-}
-
-// getPathSegmentMetadata extracts metadata from a path segment
+// getPathSegmentMetadata extracts metadata from a path segment (i.e. a folder)
 // based on the file layout, which is a grok pattern
 // the grok pattern is assumed to start at the beginning of the path segment
 // - it is trimmed to the length of the path segment
@@ -74,22 +113,51 @@ func getPathSegmentMetadata(g *grok.Grok, pathSegment, fileLayout string) (bool,
 	layoutParts := strings.Split(fileLayout, "/")
 	pathLength := len(pathParts)
 
-	if pathLength > len(layoutParts) {
-		// The layout doesn't match the path length
-		return false, nil, fmt.Errorf("path segment length exceeds layout length")
-	}
-
 	// if the path part is empty or is ".", it must be the first segment, do not try to match
 	if pathParts[0] == "" || pathParts[0] == "." {
 		// marks as matching
 		return true, nil, nil
 	}
-	// Reconstruct the layout to match the path segment length
-	fileLayout = strings.Join(layoutParts[:pathLength], "/")
+
+	// if the path segment is longer than the layout-1, the need to check if the penultimate segment is a wildcard
+	// for example "AWSLogs/%{WORD:org}/%{DATA}/%{WORD}.log"
+	// or "AWSLogs/%{WORD:org}/%{DATA}"
+	// in these case DATA is a wildcard which may cover multiple path segments
+	// to check if this is the case, we need to check if either of the final 2 layout segments is a wildcard
+	if pathLength > (len(layoutParts) - 1) {
+		// if the penultimate segment is a wildcard, just use the layout up to that segment
+		if isWildcard(layoutParts[len(layoutParts)-2]) {
+			// so the penultimate segment is a wildcard - trim the layout to make this the final segment
+			// (i.e. trim off the filename portion)
+			fileLayout = strings.Join(layoutParts[:len(layoutParts)-1], "/")
+		} else if isWildcard(layoutParts[len(layoutParts)-1]) {
+			// the other wildcoard option we support if is the final segment is a wildcard,
+			// in which case wee just use the full pattern
+			slog.Info("pattern has wildcard at end - use full pattern")
+		} else {
+			// The layout doesn't match the path length and there is NO wildcard ast the end
+			return false, nil, fmt.Errorf("path segment length exceeds layout length")
+		}
+	} else {
+		// So the layout is longer than the path segment - just trim the layout to match the path segment length
+		// Reconstruct the layout to match the path segment length
+		// (NOTE: add the trailing slash to ensure we match the full segment)
+		fileLayout = strings.Join(layoutParts[:pathLength], "/")
+	}
+
+	// Add a trailing slash to the path segment AND the pattern to ensure we match the full segment
+	pathSegment = pathSegment + "/"
+	fileLayout = fileLayout + "/"
+	// this covers the case where the pattern is "/foo/AWS" and the path is "/foo/AWSLogs" which should fail
+	// but will pass without the trailing slashes
 
 	// Extract metadata from the path segment
 	return getPathLeafMetadata(g, pathSegment, fileLayout)
 
+}
+
+func isWildcard(s string) bool {
+	return strings.Contains(s, "{DATA") || strings.Contains(s, "{GREEDYDATA") || strings.Contains(s, "{NOTSPACE")
 }
 
 // getPathLeafMetadata extracts metadata from a path
