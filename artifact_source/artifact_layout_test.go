@@ -230,6 +230,7 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 		})
 	}
 }
+
 func Test_expandPatternIntoOptionalAlternatives(t *testing.T) {
 	type args struct {
 		pattern string

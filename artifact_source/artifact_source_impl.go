@@ -476,6 +476,7 @@ func (a *ArtifactSourceImpl[S, T]) DownloadArtifact(ctx context.Context, info *t
 // WalkNode is called for each file or directory discovered by the file source - it is called as part of the folder
 // walking discovery algorithm
 func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath string, basePath string, layouts []string, isDir bool, g *grok.Grok, filterMap map[string]*filter.SqlFilter) error {
+	// apply the file layout pattern and filters to determine whether this path matches, and iff so, extract metadata
 	metadata, satisfied, err := a.getMetadataAndApplyFilters(targetPath, basePath, layouts, isDir, g, filterMap)
 	if err != nil {
 		return err
@@ -496,7 +497,7 @@ func (a *ArtifactSourceImpl[S, T]) getMetadataAndApplyFilters(targetPath string,
 	var metadata map[string]string
 	var err error
 	for _, layout := range layouts {
-		// if we have a layout, check whether this path satisfies the layout and filters
+		// check whether this path satisfies the layout and filters
 
 		// if we are a directory and we are not satisfied, skip the directory by returning fs.SkipDir
 		match, metadata, err = getPathMetadata(targetPath, basePath, layout, isDir, g)
