@@ -49,19 +49,6 @@ func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer)
 	return stream.Context().Err()
 }
 
-// Describe returns the schema for the plugin
-func (s PluginServer) Describe() (*proto.DescribeResponse, error) {
-	describeResponse, err := s.impl.Describe()
-	if err != nil {
-		return nil, err
-	}
-
-	// convert the response to proto
-	resp := describeResponse.ToProto()
-
-	return resp, nil
-}
-
 func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*proto.CollectResponse, error) {
 	fromTime, schema, err := s.impl.Collect(ctx, req)
 	if err != nil {
@@ -74,6 +61,24 @@ func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*
 		FromTime:    fromTime.ToProto(),
 	}
 	return resp, nil
+}
+
+// Describe returns the schema for the plugin
+func (s PluginServer) Describe(_ context.Context) (*proto.DescribeResponse, error) {
+	describeResponse, err := s.impl.Describe()
+	if err != nil {
+		return nil, err
+	}
+
+	// convert the response to proto
+	resp := describeResponse.ToProto()
+
+	return resp, nil
+}
+
+func (s PluginServer) UpdateCollectionState(ctx context.Context, req *proto.CollectRequest) (*proto.Empty, error) {
+	err := s.impl.UpdateCollectionState(ctx, req)
+	return &proto.Empty{}, err
 }
 
 func (s PluginServer) InitSource(ctx context.Context, req *proto.InitSourceRequest) (*proto.InitSourceResponse, error) {

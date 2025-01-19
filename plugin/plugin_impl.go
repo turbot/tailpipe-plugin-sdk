@@ -127,6 +127,27 @@ func (p *PluginImpl) Describe() (DescribeResponse, error) {
 	}, nil
 }
 
+func (p *PluginImpl) UpdateCollectionState(ctx context.Context, req *proto.CollectRequest) error {
+
+	collectRequest, err := types.CollectRequestFromProto(req)
+	if err != nil {
+		return err
+	}
+	// ask the factory to create the collector
+	// - this will configure the requested source
+	collector, err := table.Factory.GetCollector(collectRequest)
+	if err != nil {
+		return err
+	}
+
+	// initialise the collector
+	if err := collector.Init(ctx, collectRequest); err != nil {
+		return err
+	}
+
+	return collector.UpdateCollectionState(ctx, collectRequest)
+}
+
 // InitSource is called to initialise the source when this plugin is being used as a source
 // It performs the same role as CollectorImpl.initSource for in-plugin sources
 // the flow for using a plugin from an external plugin is as follows:

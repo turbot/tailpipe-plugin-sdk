@@ -5,7 +5,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
-// TailpipePluginClientWrapper is an implementation of TailpipePlugin that talks over GRPC.
+// TailpipePluginClientWrapper is an implementation of TailpipePluginClient that talks over GRPC.
 type TailpipePluginClientWrapper struct{ client proto.TailpipePluginClient }
 
 func (c TailpipePluginClientWrapper) AddObserver() (proto.TailpipePlugin_AddObserverClient, error) {
@@ -17,6 +17,10 @@ func (c TailpipePluginClientWrapper) Collect(req *proto.CollectRequest) (*proto.
 
 func (c TailpipePluginClientWrapper) Describe() (*proto.DescribeResponse, error) {
 	return c.client.Describe(context.Background(), &proto.DescribeRequest{})
+}
+
+func (c TailpipePluginClientWrapper) UpdateCollectionState(req *proto.CollectRequest) (*proto.Empty, error) {
+	return c.client.UpdateCollectionState(context.Background(), req)
 }
 
 func (c TailpipePluginClientWrapper) InitSource(req *proto.InitSourceRequest) (*proto.InitSourceResponse, error) {
@@ -61,7 +65,11 @@ func (s TailpipePluginServerWrapper) Collect(_ context.Context, req *proto.Colle
 }
 
 func (s TailpipePluginServerWrapper) Describe(_ context.Context, _ *proto.DescribeRequest) (*proto.DescribeResponse, error) {
-	return s.Impl.Describe()
+	return s.Impl.Describe(context.Background())
+}
+
+func (s TailpipePluginServerWrapper) UpdateCollectionState(_ context.Context, req *proto.CollectRequest) (*proto.Empty, error) {
+	return s.Impl.UpdateCollectionState(context.Background(), req)
 }
 
 func (s TailpipePluginServerWrapper) InitSource(_ context.Context, req *proto.InitSourceRequest) (*proto.InitSourceResponse, error) {
