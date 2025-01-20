@@ -61,12 +61,14 @@ func (r *Status) Update(event Event) {
 		atomic.AddInt64(&r.ArtifactsDownloadedBytes, t.Info.Size)
 	case *ArtifactExtracted:
 		atomic.AddInt64(&r.ArtifactsExtracted, 1)
-		atomic.AddInt64(&r.RowsReceived, t.RowsExtracted)
+	case *RowExtracted:
+		atomic.AddInt64(&r.RowsReceived, 1)
 	case *Error:
 		atomic.AddInt64(&r.Errors, 1)
-	case *Row:
-		atomic.AddInt64(&r.RowsEnriched, 1)
 	}
+}
+func (r *Status) OnRowEnriched() {
+	atomic.AddInt64(&r.RowsEnriched, 1)
 }
 
 func (r *Status) Equals(status *Status) bool {

@@ -6,7 +6,7 @@ import (
 
 // NOTE: Row DOES NOT implement ToProto - we do not send row events over protobuf - the volume of data is too high
 
-type Row struct {
+type RowExtracted struct {
 	Base
 	ExecutionId string
 
@@ -15,23 +15,11 @@ type Row struct {
 	Row              any
 }
 
-type RowEventOption func(*Row)
-
-func WithSourceEnrichment(sourceMetadata *schema.SourceEnrichment) RowEventOption {
-	return func(r *Row) {
-		if sourceMetadata != nil {
-			r.SourceEnrichment = *sourceMetadata
-		}
-	}
-}
-func NewRowEvent(executionId string, row any, opts ...RowEventOption) *Row {
-	r := &Row{
+func NewRowExtractedEvent(executionId string, row any, SourceEnrichmens schema.SourceEnrichment) *RowExtracted {
+	r := &RowExtracted{
 		ExecutionId:      executionId,
 		Row:              row,
-		SourceEnrichment: schema.SourceEnrichment{},
-	}
-	for _, opt := range opts {
-		opt(r)
+		SourceEnrichment: SourceEnrichmens,
 	}
 
 	return r

@@ -71,16 +71,14 @@ func ArtifactDownloadedFromProto(e *proto.Event) Event {
 // (but not yet processed it into rows)
 type ArtifactExtracted struct {
 	Base
-	ExecutionId   string
-	Info          *types.DownloadedArtifactInfo
-	RowsExtracted int64
+	ExecutionId string
+	Info        *types.DownloadedArtifactInfo
 }
 
 func NewArtifactExtractedEvent(executionId string, info *types.DownloadedArtifactInfo, rowsExtracted int64) *ArtifactExtracted {
 	return &ArtifactExtracted{
-		ExecutionId:   executionId,
-		Info:          info,
-		RowsExtracted: rowsExtracted,
+		ExecutionId: executionId,
+		Info:        info,
 	}
 }
 
