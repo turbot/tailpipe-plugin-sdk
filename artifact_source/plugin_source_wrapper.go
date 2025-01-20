@@ -249,7 +249,7 @@ func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream
 				// We need to increment it here as OnArtifactDownloaded will decrement it
 				w.artifactExtractWg.Add(1)
 				// get artifact info from the event
-				artifactInfo := types.ArtifactInfoFromProto(protoEvent.GetArtifactDownloadedEvent().ArtifactInfo)
+				artifactInfo := types.DownloadedArtifactInfoFromProto(protoEvent.GetArtifactDownloadedEvent().ArtifactInfo)
 				err := w.OnArtifactDownloaded(ctx, artifactInfo)
 				if err != nil {
 					w.NotifyError(ctx, w.executionId, err)

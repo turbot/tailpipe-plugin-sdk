@@ -151,11 +151,15 @@ message EventError {
 }
 
 message EventStatus {
-  int64 artifacts_discovered = 1;
-  int64 artifacts_downloaded = 2;
-  int64 artifacts_extracted = 3;
-  int64 rows_enriched = 4;
-  int32 errors = 5;
+  string latest_artifact_path = 1;
+  int64 artifacts_discovered = 2;
+  int64 artifacts_downloaded = 3;
+  int64 artifacts_downloaded_bytes = 4;
+  int64 artifacts_extracted = 5;
+  int64 artifact_errors = 6;
+  int64 rows_received = 7;
+  int64 rows_enriched = 8;
+  int64 errors = 9;
 }
 
 message EventComplete {
@@ -181,12 +185,13 @@ message EventArtifactDiscovered{
 
 message EventArtifactDownloaded{
   string execution_id = 1;
-  ArtifactInfo artifact_info = 2;
+  DownloadedArtifactInfo artifact_info = 2;
+  int64 size = 3;
 }
 
 message EventArtifactExtracted{
   string execution_id = 1;
-  ArtifactInfo artifact_info = 2;
+  DownloadedArtifactInfo artifact_info = 2;
 }
 
 // ArtifactInfo is a message representing artifact metadata.
@@ -200,6 +205,21 @@ message ArtifactInfo {
   // Any enrichment fields provided by the source.
   SourceEnrichment source_enrichment = 3;
 }
+
+// ArtifactInfo is a message representing artifact metadata.
+message DownloadedArtifactInfo {
+  // The local path of the downloaded artifact.
+  string local_name = 1;
+
+  // The original path of the artifact.
+  string original_name = 2;
+
+  // Any enrichment fields provided by the source.
+  SourceEnrichment source_enrichment = 3;
+
+  int64 size = 4;
+}
+
 
 message Timing{
   string operation = 1;

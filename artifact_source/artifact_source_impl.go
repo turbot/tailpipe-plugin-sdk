@@ -206,12 +206,12 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	t := time.Now()
 
 	// rate limit the download
-	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.LocalName)
+	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.Name)
 	err = a.artifactDownloadLimiter.Wait(ctx)
 	if err != nil {
 		return fmt.Errorf("error acquiring rate limiter: %w", err)
 	}
-	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.LocalName)
+	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.Name)
 
 	// set the download start time if not already set
 	a.DownloadTiming.TryStart(constants.TimingDownload)
@@ -219,13 +219,13 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	go func() {
 		defer func() {
 			a.artifactDownloadLimiter.Release()
-			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.LocalName)
+			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
 		}()
 		downloadStart := time.Now()
 		// cast the source to an ArtifactSource and download the artifact
 		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
-			slog.Error("Error downloading artifact", "artifact", info.LocalName, "error", err)
+			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
 			a.NotifyError(ctx, executionId, err)
 		}
 		// update the download active duration
@@ -239,7 +239,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	return nil
 }
 
-func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, info *types.ArtifactInfo) error {
+func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, info *types.DownloadedArtifactInfo) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -291,7 +291,7 @@ func (a *ArtifactSourceImpl[S, T]) GetTiming() (types.TimingCollection, error) {
 // convert a downloaded artifact to a set of raw rows, with optional metadata
 // invoke the artifact loader and any configured mappers to convert the artifact to 'raw' rows,
 // which are streamed to the enricher
-func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *types.ArtifactInfo) error {
+func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *types.DownloadedArtifactInfo) error {
 	slog.Debug("RowSourceImpl processArtifact", "artifact", info.LocalName)
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
@@ -312,7 +312,7 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		return fmt.Errorf("error extracting artifact: %w", err)
 	}
 
-	count := 0
+	var count int64 = 0
 
 	// the loader will return one more more data objects (depending on whether RowPerLine flag is set)
 	// range over the data channel and apply extractor if needed
@@ -357,7 +357,7 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 
 	// notify observers of extraction (if any rows were extracted)
 	if count > 0 {
-		if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info)); err != nil {
+		if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info, count)); err != nil {
 			return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
 		}
 	}
@@ -398,7 +398,7 @@ func (a *ArtifactSourceImpl[S, T]) extractRowsFromArtifact(ctx context.Context, 
 // resolveLoader resolves the loader to use for the artifact
 // - if a loader has been specified, just use that
 // - otherwise create a default loader based on the extension
-func (a *ArtifactSourceImpl[S, T]) resolveLoader(info *types.ArtifactInfo) (artifact_loader.Loader, error) {
+func (a *ArtifactSourceImpl[S, T]) resolveLoader(info *types.DownloadedArtifactInfo) (artifact_loader.Loader, error) {
 	// a loader was specified when creating the row source - use that
 	if a.Loader != nil {
 		return a.Loader, nil
