@@ -197,13 +197,10 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 		return err
 	}
 
-	// build the collection state path
-	collectionStatePath := filepaths.CollectionStatePath(req.CollectionTempDir, req.TableName, req.PartitionName)
-
 	params := &row_source.RowSourceParams{
 		SourceConfigData:    req.SourceData,
 		ConnectionData:      req.ConnectionData,
-		CollectionStatePath: collectionStatePath,
+		CollectionStatePath: req.CollectionStatePath,
 		From:                req.From,
 		CollectionTempDir:   req.CollectionTempDir,
 	}

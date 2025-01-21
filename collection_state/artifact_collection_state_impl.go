@@ -23,10 +23,6 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	// for example if the path is s3://bucket/folder1/folder2/2021/01/01/file.txt then the trunk is s3://bucket/folder1/folder2
 	TrunkStates map[string]*TimeRangeCollectionStateImpl `json:"trunk_states,omitempty"`
 
-	// the file layout - if this changes, that invalidates the collection state
-	// TODO validate has not changed/serialise?
-	FileLayout string `json:"file_layout,omitempty"`
-
 	// map of object identifier to collection state which contains the object
 	// used to store the collection state for each object between the ShouldCollect call and the OnCollected call
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
@@ -244,16 +240,13 @@ func (s *ArtifactCollectionStateImpl[T]) Save() error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
-	slog.Info("Saving collection state", "lastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime)
-
 	// if the last save time is after the last modified time, then we have nothing to do
 	if s.lastSaveTime.After(s.lastModifiedTime) {
 		slog.Info("collection state has not been modified since last save")
 		// nothing to do
 		return nil
 	}
-
-	slog.Info("We are actually saving the collection state")
+	slog.Info("Saving collection state", "lastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime, "jsonPath", s.jsonPath)
 
 	jsonBytes, err := json.Marshal(s)
 	if err != nil {

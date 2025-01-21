@@ -10,28 +10,12 @@ func dirSatisfiesFromTime(fromTime time.Time, metadata map[string]string) bool {
 	// this is similar to ArtifactInfo.parseArtifactTimestamp except we do not return an error if we have a missing key
 
 	// define a map of values - we will populate values determined by the granularity
-	valueLookup := map[string]int{
-		constants.TemplateFieldYear:   0,
-		constants.TemplateFieldMonth:  0,
-		constants.TemplateFieldDay:    0,
-		constants.TemplateFieldHour:   0,
-		constants.TemplateFieldMinute: 0,
-		constants.TemplateFieldSecond: 0,
-	}
+	valueLookup := newTimeMap()
+	fromMap := timeToMap(fromTime)
+	truncatedFromMap := newTimeMap()
 
 	// we check each time unit in turn to see if we have metadata for it
 	expectedKeys := []string{constants.TemplateFieldYear, constants.TemplateFieldMonth, constants.TemplateFieldDay, constants.TemplateFieldHour, constants.TemplateFieldMinute, constants.TemplateFieldSecond}
-
-	// as we do so, we determine the granularty of the timestamp we build - we use this to truncate the fromTime for comparison
-	var granularity = time.Second
-	granularities := map[string]time.Duration{
-		constants.TemplateFieldYear:   time.Hour * 24 * 365,
-		constants.TemplateFieldMonth:  time.Hour * 24 * 30,
-		constants.TemplateFieldDay:    time.Hour * 24,
-		constants.TemplateFieldHour:   time.Hour,
-		constants.TemplateFieldMinute: time.Minute,
-		constants.TemplateFieldSecond: time.Second,
-	}
 
 	for _, key := range expectedKeys {
 		if _, ok := metadata[key]; !ok {
@@ -49,20 +33,38 @@ func dirSatisfiesFromTime(fromTime time.Time, metadata map[string]string) bool {
 			return false
 		}
 		valueLookup[key] = val
-		granularity = granularities[key]
+		truncatedFromMap[key] = fromMap[key]
 	}
 	// build timestamp from the properties provided
-	timestamp := time.Date(
-		valueLookup[constants.TemplateFieldYear],
-		time.Month(valueLookup[constants.TemplateFieldMonth]),
-		valueLookup[constants.TemplateFieldDay],
-		valueLookup[constants.TemplateFieldHour],
-		valueLookup[constants.TemplateFieldMinute],
-		valueLookup[constants.TemplateFieldSecond],
-		0,
-		time.UTC)
+	timestamp := timeFromMap(valueLookup)
+	truncatedFromTime := timeFromMap(truncatedFromMap)
 
-	// truncate the fromTime to the granularity of the timestamp
-	truncatedFromTime := fromTime.Truncate(granularity)
 	return timestamp.Compare(truncatedFromTime) >= 0
+}
+
+type timeMap map[string]int
+
+func newTimeMap() timeMap {
+	return timeToMap(time.Time{})
+}
+
+func timeToMap(t time.Time) map[string]int {
+	return map[string]int{
+		constants.TemplateFieldYear:   t.Year(),
+		constants.TemplateFieldMonth:  int(t.Month()),
+		constants.TemplateFieldDay:    t.Day(),
+		constants.TemplateFieldHour:   t.Hour(),
+		constants.TemplateFieldMinute: t.Minute(),
+		constants.TemplateFieldSecond: t.Second(),
+	}
+}
+
+func timeFromMap(valueLookup map[string]int) time.Time {
+	y := valueLookup[constants.TemplateFieldYear]
+	m := time.Month(valueLookup[constants.TemplateFieldMonth])
+	d := valueLookup[constants.TemplateFieldDay]
+	h := valueLookup[constants.TemplateFieldHour]
+	minute := valueLookup[constants.TemplateFieldMinute]
+	s := valueLookup[constants.TemplateFieldSecond]
+	return time.Date(y, m, d, h, minute, s, 0, time.UTC)
 }

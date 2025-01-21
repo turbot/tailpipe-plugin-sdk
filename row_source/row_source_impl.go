@@ -89,29 +89,10 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 
 func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 	if !params.From.IsZero() {
+		// just set the collection state end time
 		r.FromTime = params.From
 		r.FromTimeSource = "using --from argument"
-
-		slog.Info("Setting from time from --from argument", "from", r.FromTime)
-
-		if !r.CollectionState.IsEmpty() {
-			// if from time is before collection state start time, clear collection state
-			// if from time is after collection state end time, clear collection state
-			// if from time is during collection state, update end time to the from tiume
-
-			slog.Info("Updating collection state for new from time", "from time", r.FromTime, "collection state start time", r.CollectionState.GetStartTime(), "collection state end time", r.CollectionState.GetEndTime())
-
-			if r.FromTime.After(r.CollectionState.GetStartTime()) && r.FromTime.Before(r.CollectionState.GetEndTime()) {
-				// if the from time is after the start time (i.e. within the collected time range), update the end time
-				slog.Info("Moving collection state end time to new 'from' time", "collection state end time", r.CollectionState.GetEndTime(), "new from time", r.FromTime)
-				r.CollectionState.SetEndTime(r.FromTime)
-			} else {
-				// if the from time is NOT within the existing collection state
-				// we treat this as a new collection so clear the collection state
-				slog.Info("New from time is non-contiguous with data already collected - clearing collection state")
-				r.CollectionState.Clear()
-			}
-		}
+		r.CollectionState.SetEndTime(params.From)
 		return
 	}
 	// if no from time was passed, set it to the end time of the collection state

@@ -28,8 +28,8 @@ type CollectRequest struct {
 	ExecutionId string
 	// the parent folder for all collection related files (JSONL files, temp source files)
 	CollectionTempDir string
-	// the folder containing collection state files (e.g. last collection time)
-	CollectionStateDir string
+	// the filepath for the collection state json file
+	CollectionStatePath string
 	// the source to use (with raw config)
 	SourceData *SourceConfigData
 	// the source format to use (with raw config)
@@ -57,13 +57,13 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	req := &CollectRequest{
-		TableName:          pr.TableName,
-		PartitionName:      pr.PartitionName,
-		ExecutionId:        pr.ExecutionId,
-		CollectionTempDir:  pr.CollectionTempDir,
-		CollectionStateDir: pr.CollectionStateDir,
-		SourceData:         sourceData,
-		From:               pr.FromTime.AsTime(),
+		TableName:           pr.TableName,
+		PartitionName:       pr.PartitionName,
+		ExecutionId:         pr.ExecutionId,
+		CollectionTempDir:   pr.CollectionTempDir,
+		CollectionStatePath: pr.CollectionStatePath,
+		SourceData:          sourceData,
+		From:                pr.FromTime.AsTime(),
 	}
 
 	if pr.SourceFormat != nil {

@@ -42,6 +42,11 @@ type ArtifactConversionCollector[S parse.Config] struct {
 	req                 *types.CollectRequest
 }
 
+func (c *ArtifactConversionCollector[S]) UpdateCollectionState(ctx context.Context, request *types.CollectRequest) error {
+	//TODO implement me
+	panic("implement me")
+}
+
 func NewArtifactConversionCollector[S parse.Config](tableName string, formatData *proto.ConfigData) *ArtifactConversionCollector[S] {
 	return &ArtifactConversionCollector[S]{
 		tableName:  tableName,

@@ -28,9 +28,12 @@ type TailpipePlugin interface {
 	// this is implemented by plugin.PluginImpl and should not be overridden
 	Collect(context.Context, *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.RowSchema, error)
 
+	// UpdateCollectionState is called to update the collection state
+	UpdateCollectionState(ctx context.Context, req *proto.CollectRequest) error
+
 	// Source functions - used when the plugin is acting as a Source only
 
-	InitSource(context.Context, *proto.InitSourceRequest) (*row_source.ResolvedFromTime, error)
+	InitSource(context.Context, *proto.InitSourceRequest) (row_source.RowSource, error)
 	CloseSource(context.Context) error
 	SaveCollectionState(context.Context) error
 	SourceCollect(context.Context, *proto.SourceCollectRequest) error
