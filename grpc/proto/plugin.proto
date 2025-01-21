@@ -27,9 +27,10 @@ message CollectRequest {
   string partition_name = 2;
   // unique identifier for collection execution this will be used as base for the filename for the resulting JSONL files
   string execution_id = 3;
-  //  the root collection file path - used to build the jsonl path and temp path
+  //  the temporary directory to use for the collection
   string collection_temp_dir= 4;
-  string collection_state_dir = 5;
+  // the path to the collection state file
+  string collection_state_path = 5;
   // the source to use (with raw config)
   ConfigData source_data = 6;
   // the raw hcl of the connection

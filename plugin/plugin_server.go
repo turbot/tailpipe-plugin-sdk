@@ -82,11 +82,12 @@ func (s PluginServer) UpdateCollectionState(ctx context.Context, req *proto.Coll
 }
 
 func (s PluginServer) InitSource(ctx context.Context, req *proto.InitSourceRequest) (*proto.InitSourceResponse, error) {
-	fromTime, err := s.impl.InitSource(ctx, req)
+	source, err := s.impl.InitSource(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-
+	// retrieve the resolved from time from the source
+	fromTime := source.GetFromTime()
 	return &proto.InitSourceResponse{
 		FromTime: fromTime.ToProto(),
 	}, nil

@@ -183,6 +183,22 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 			wantMatch:        false,
 			expectedMetadata: map[string][]byte{},
 		},
+
+		{
+			name: "failing chaos case",
+			args: args{
+				//test_logs/2025/01/","layout":"test_logs/%{YEAR:year}/%{MONTHNUM:month}/"}
+
+				pathSegment: "test_logs/2025/01",
+				fileLayout:  "test_logs/%{YEAR:year}/%{MONTHNUM:month}/%{MONTHDAY:day}/%{DATA}.json",
+				isFile:      false,
+			},
+			wantMatch: true,
+			expectedMetadata: map[string][]byte{
+				"year":  []byte("2025"),
+				"month": []byte("1"),
+			},
+		},
 	}
 
 	for _, tt := range tests {

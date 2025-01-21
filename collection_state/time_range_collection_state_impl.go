@@ -20,7 +20,7 @@ type TimeRangeCollectionStateImpl struct {
 
 	// for end boundary (i.e. the end granularity) we store the metadata
 	// whenever the end time changes, we must clear the map
-	EndObjects map[string]time.Time `json:"end_objects,omitempty"`
+	EndObjects map[string]time.Time `json:"end_objects"`
 
 	// the granularity of the file naming scheme - so we must keep track of object metadata
 	// this will depend on the template used to name the files
@@ -247,4 +247,45 @@ func (s *TimeRangeCollectionStateImpl) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(temp)
+}
+
+// UnmarshalJSON override unmashal to handle the special case of the start and end time
+func (s *TimeRangeCollectionStateImpl) UnmarshalJSON(data []byte) error {
+	// Create a temporary struct to hold serialized values
+	type Tmp struct {
+		// the time range of the data
+		// the time of the earliest entry in the data
+		StartTime     time.Time `json:"startTime,omitempty"`
+		LastEntryTime time.Time `json:"lastEntryTime,omitempty"`
+		// the time we are sure we have collected all data up to - this is (LastEntryTime - granularity)
+		EndTime time.Time `json:"endTime,omitempty"`
+
+		// for end boundary (i.e. the end granularity) we store the metadata
+		// whenever the end time changes, we must clear the map
+		EndObjects map[string]time.Time `json:"end_objects,omitempty"`
+
+		// the granularity of the file naming scheme - so we must keep track of object metadata
+		// this will depend on the template used to name the files
+		Granularity time.Duration `json:"granularity,omitempty"`
+	}
+
+	var dest Tmp
+
+	// Unmarshal into the temporary struct
+	err := json.Unmarshal(data, &dest)
+	if err != nil {
+		return err
+	}
+
+	// Set the values from the temporary struct
+	s.startTime = dest.StartTime
+	s.lastEntryTime = dest.LastEntryTime
+	s.endTime = dest.EndTime
+	s.EndObjects = dest.EndObjects
+	// ensure the map is not nil
+	if s.EndObjects == nil {
+		s.EndObjects = make(map[string]time.Time)
+	}
+	s.Granularity = dest.Granularity
+	return nil
 }

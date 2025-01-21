@@ -33,7 +33,7 @@ type TailpipePlugin interface {
 
 	// Source functions - used when the plugin is acting as a Source only
 
-	InitSource(context.Context, *proto.InitSourceRequest) (*row_source.ResolvedFromTime, error)
+	InitSource(context.Context, *proto.InitSourceRequest) (row_source.RowSource, error)
 	CloseSource(context.Context) error
 	SaveCollectionState(context.Context) error
 	SourceCollect(context.Context, *proto.SourceCollectRequest) error

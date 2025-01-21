@@ -91,10 +91,10 @@ func Test_dirSatisfiesFromTime(t *testing.T) {
 
 			name: "Year and month, same year, same month, should be included",
 			args: args{
-				fromTime: time.Date(2025, 6, 6, 6, 0, 0, 0, time.UTC),
+				fromTime: time.Date(2025, 6, 9, 0, 0, 0, 0, time.UTC),
 				metadata: map[string]string{
 					"year":  "2025",
-					"month": "6",
+					"month": "06",
 				},
 			},
 			want: true,
@@ -329,7 +329,8 @@ func Test_dirSatisfiesFromTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 
-			if got := dirSatisfiesFromTime(tt.args.fromTime, tt.args.metadata); got != tt.want {
+			got := dirSatisfiesFromTime(tt.args.fromTime, tt.args.metadata)
+			if got != tt.want {
 				t.Errorf("dirSatisfiesFromTime() = %v, want %v", got, tt.want)
 			}
 		})

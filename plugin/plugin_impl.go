@@ -76,7 +76,7 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 		return nil, nil, err
 	}
 
-	// ask thge collector for the from time - it will ask its souirce
+	// ask the collector for the from time - it will ask its source
 	fromTime := collector.GetFromTime()
 
 	// add ourselves as an observer
@@ -128,30 +128,32 @@ func (p *PluginImpl) Describe() (DescribeResponse, error) {
 }
 
 func (p *PluginImpl) UpdateCollectionState(ctx context.Context, req *proto.CollectRequest) error {
-
+	// TODO UpdateCollectionStateRequest
 	collectRequest, err := types.CollectRequestFromProto(req)
 	if err != nil {
 		return err
 	}
 	// ask the factory to create the collector
 	// - this will configure the requested source
-	collector, err := table.Factory.GetCollector(collectRequest)
+	params := &row_source.RowSourceParams{
+		SourceConfigData:    collectRequest.SourceData,
+		ConnectionData:      collectRequest.ConnectionData,
+		CollectionStatePath: collectRequest.CollectionStatePath,
+		From:                collectRequest.From,
+		CollectionTempDir:   req.CollectionTempDir,
+	}
+
+	source, err := row_source.Factory.GetRowSource(ctx, params)
 	if err != nil {
 		return err
 	}
-
-	// initialise the collector
-	if err := collector.Init(ctx, collectRequest); err != nil {
-		return err
-	}
-
-	return collector.UpdateCollectionState(ctx, collectRequest)
+	return source.UpdateCollectionState(ctx, collectRequest.From)
 }
 
 // InitSource is called to initialise the source when this plugin is being used as a source
 // It performs the same role as CollectorImpl.initSource for in-plugin sources
 // the flow for using a plugin from an external plugin is as follows:
-func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceRequest) (*row_source.ResolvedFromTime, error) {
+func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceRequest) (row_source.RowSource, error) {
 	// ask factory to create and initialise the source for us
 	// convert the proto request to our internal type
 	initSourceRequest, err := artifact_source.InitSourceRequestFromProto(req)
@@ -180,7 +182,7 @@ func (p *PluginImpl) InitSource(ctx context.Context, req *proto.InitSourceReques
 	}
 	p.source = as
 
-	return p.source.GetFromTime(), nil
+	return p.source, nil
 }
 
 func (p *PluginImpl) SaveCollectionState(_ context.Context) error {

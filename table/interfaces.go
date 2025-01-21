@@ -37,7 +37,6 @@ type Collector interface {
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
 	Collect(context.Context) (int, int, error)
-	UpdateCollectionState(context.Context, *types.CollectRequest) error
 	GetSchema() (*schema.RowSchema, error)
 	GetFromTime() *row_source.ResolvedFromTime
 }

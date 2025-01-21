@@ -134,9 +134,10 @@ func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 
 }
 
-func (r *RowSourceImpl[S, T]) UpdateCollectionState(ctx context.Context, req *types.CollectRequest) error {
-	r.CollectionState.SetEndTime(req.From)
-	return nil
+func (r *RowSourceImpl[S, T]) UpdateCollectionState(ctx context.Context, from time.Time) error {
+	r.CollectionState.SetEndTime(from)
+
+	return r.CollectionState.Save()
 }
 
 func (r *RowSourceImpl[S, T]) SaveCollectionState() error {
