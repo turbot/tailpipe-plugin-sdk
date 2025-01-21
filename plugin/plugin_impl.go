@@ -147,7 +147,10 @@ func (p *PluginImpl) UpdateCollectionState(ctx context.Context, req *proto.Colle
 	if err != nil {
 		return err
 	}
-	return source.UpdateCollectionState(ctx, collectRequest.From)
+
+	// as part of getting the row source, we will have updated the end time of the collection state to match the
+	// from time so all we need to to is save
+	return source.SaveCollectionState()
 }
 
 // InitSource is called to initialise the source when this plugin is being used as a source

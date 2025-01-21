@@ -37,8 +37,6 @@ type RowSource interface {
 	// Collect is called to start collecting data,
 	Collect(context.Context) error
 
-	UpdateCollectionState(ctx context.Context, from time.Time) error
-
 	// SetFromTime sets the start time for the data collection
 	SetFromTime(from time.Time)
 

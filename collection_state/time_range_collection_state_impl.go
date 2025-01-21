@@ -20,7 +20,7 @@ type TimeRangeCollectionStateImpl struct {
 
 	// for end boundary (i.e. the end granularity) we store the metadata
 	// whenever the end time changes, we must clear the map
-	EndObjects map[string]time.Time `json:"end_objects"`
+	EndObjects map[string]struct{} `json:"end_objects"`
 
 	// the granularity of the file naming scheme - so we must keep track of object metadata
 	// this will depend on the template used to name the files
@@ -29,7 +29,7 @@ type TimeRangeCollectionStateImpl struct {
 
 func NewTimeRangeCollectionStateImpl() *TimeRangeCollectionStateImpl {
 	return &TimeRangeCollectionStateImpl{
-		EndObjects: make(map[string]time.Time),
+		EndObjects: make(map[string]struct{}),
 		// default granularity is 1 nanosecond - the default for api sources
 		// this will be overridden by ArtifactCollectionStateImpl as needed
 		Granularity: 1 * time.Nanosecond,
@@ -78,20 +78,19 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 			return fmt.Errorf("OnCollected called with a non-zero timestamp but granularity is zero")
 		}
 		// store end object and return
-		s.EndObjects[id] = timestamp
+		s.EndObjects[id] = struct{}{}
 		return nil
 	}
 
 	// if this timestamp is BEFORE the start time, we must be recollecting with an earlier start time
 	// - clear collection state
 	// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
-	// TODO THIS MAY NOT BE NEEDED IF SOURCE HANDLES EARLIER 'FROM' TIMES
 	if timestamp.Before(s.startTime) {
 		s.startTime = timestamp
 		// clear the last entry time as we have a new start time
 		s.setLastEntryTime(timestamp)
 		// store the end objects
-		s.EndObjects[id] = timestamp
+		s.EndObjects[id] = struct{}{}
 		// and return
 		return nil
 	}
@@ -124,7 +123,7 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 	// if the timestamp is after the end time, it must be in the granularity boundary zone
 	// so add to end objects
 	if timestamp.After(s.endTime) {
-		s.EndObjects[id] = timestamp
+		s.EndObjects[id] = struct{}{}
 	}
 
 	return nil
@@ -137,7 +136,8 @@ func (s *TimeRangeCollectionStateImpl) setLastEntryTime(timestamp time.Time) {
 
 	// sets the end time for the collection state. If the new end time is AFTER the current end time,
 	// we update the end time and identifu any objects that are now INSIDE the end time and remove from the end objects map
-	// NOTE: the end time are adjusted by the granularity
+
+	// NOTE: the end time is <granularity> less than the last entry time
 	// i.e if the granularity is 1 hour, and the artifact time is 12:00:00,
 	// we are sure we have collected ALL data up to 11:00 so the end time will be 11:00:00,
 	newEndTime := timestamp.Add(-s.Granularity)
@@ -146,44 +146,22 @@ func (s *TimeRangeCollectionStateImpl) setLastEntryTime(timestamp time.Time) {
 	case newEndTime.Equal(s.endTime):
 		// no change
 		return
-	case newEndTime.Before(s.endTime):
-		// if the new end time is before the current end time, this must be beacuse a from parameter was passed
-		// to force recollection of earlier data - so we must clear the end objects and set the new end time
-		// if the new end time is before the start time, just clear the collection state (this should not happen)
-		if newEndTime.Before(s.startTime) {
-			s.Clear()
-			return
-		}
-
+	default:
 		// set the end time
 		s.endTime = newEndTime
-		// clear the end objects
-		s.EndObjects = make(map[string]time.Time)
-	case newEndTime.After(s.endTime), s.endTime.IsZero():
-		// if the new end time is after the current end time, update the end time and remove any end objects
-		// which are no longer in the boundary zone
-
-		// set the end time
-		s.endTime = newEndTime
-		// update the end objects - remove any objects which are now INSIDE the end time
-		var endObjectsToDelete []string
-		for id, objectTimestamp := range s.EndObjects {
-			// if the object is NOT after the new end time, remove it
-			if !objectTimestamp.After(newEndTime) {
-				endObjectsToDelete = append(endObjectsToDelete, id)
-			}
-		}
-		// clear the objects that are no longer in the end time range
-		for _, id := range endObjectsToDelete {
-			delete(s.EndObjects, id)
-		}
+		// just clear the end objects
+		s.EndObjects = make(map[string]struct{})
 	}
 }
 
 // SetEndTime sets the end time for the collection state
 func (s *TimeRangeCollectionStateImpl) SetEndTime(newEndTime time.Time) {
-	// we actually just set the last entry time adjusting for granularity - this will set the end time for us
-	s.setLastEntryTime(newEndTime.Add(s.Granularity))
+	// truncate the time to the granularity
+	newEndTime = newEndTime.Truncate(s.Granularity)
+	s.endTime = newEndTime
+	s.lastEntryTime = newEndTime
+	// clear the end objects
+	s.EndObjects = make(map[string]struct{})
 }
 
 func (s *TimeRangeCollectionStateImpl) GetStartTime() time.Time {
@@ -217,7 +195,7 @@ func (s *TimeRangeCollectionStateImpl) Clear() {
 	s.lastEntryTime = time.Time{}
 	s.endTime = time.Time{}
 	// clear the map
-	s.EndObjects = make(map[string]time.Time)
+	s.EndObjects = make(map[string]struct{})
 }
 
 // TODO we do not want to serialise start and end time if they are zero
@@ -262,7 +240,7 @@ func (s *TimeRangeCollectionStateImpl) UnmarshalJSON(data []byte) error {
 
 		// for end boundary (i.e. the end granularity) we store the metadata
 		// whenever the end time changes, we must clear the map
-		EndObjects map[string]time.Time `json:"end_objects,omitempty"`
+		EndObjects map[string]struct{} `json:"end_objects,omitempty"`
 
 		// the granularity of the file naming scheme - so we must keep track of object metadata
 		// this will depend on the template used to name the files
@@ -284,7 +262,7 @@ func (s *TimeRangeCollectionStateImpl) UnmarshalJSON(data []byte) error {
 	s.EndObjects = dest.EndObjects
 	// ensure the map is not nil
 	if s.EndObjects == nil {
-		s.EndObjects = make(map[string]time.Time)
+		s.EndObjects = make(map[string]struct{})
 	}
 	s.Granularity = dest.Granularity
 	return nil
