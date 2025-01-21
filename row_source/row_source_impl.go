@@ -194,7 +194,7 @@ func (r *RowSourceImpl[S, T]) OnRow(ctx context.Context, row *types.RowData) err
 	if err != nil {
 		return err
 	}
-	return r.NotifyObservers(ctx, events.NewRowEvent(executionId, row.Data, events.WithSourceEnrichment(row.SourceEnrichment)))
+	return r.NotifyObservers(ctx, events.NewRowExtractedEvent(executionId, row.Data, *row.SourceEnrichment))
 }
 
 // SetFromTime sets the start time for the data collection

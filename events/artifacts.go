@@ -39,10 +39,10 @@ func ArtifactDiscoveredFromProto(e *proto.Event) Event {
 type ArtifactDownloaded struct {
 	Base
 	ExecutionId string
-	Info        *types.ArtifactInfo
+	Info        *types.DownloadedArtifactInfo
 }
 
-func NewArtifactDownloadedEvent(executionId string, info *types.ArtifactInfo) *ArtifactDownloaded {
+func NewArtifactDownloadedEvent(executionId string, info *types.DownloadedArtifactInfo) *ArtifactDownloaded {
 	return &ArtifactDownloaded{
 		ExecutionId: executionId,
 		Info:        info,
@@ -63,7 +63,7 @@ func (c *ArtifactDownloaded) ToProto() *proto.Event {
 func ArtifactDownloadedFromProto(e *proto.Event) Event {
 	return &ArtifactDownloaded{
 		ExecutionId: e.GetArtifactDownloadedEvent().ExecutionId,
-		Info:        types.ArtifactInfoFromProto(e.GetArtifactDownloadedEvent().ArtifactInfo),
+		Info:        types.DownloadedArtifactInfoFromProto(e.GetArtifactDownloadedEvent().ArtifactInfo),
 	}
 }
 
@@ -72,10 +72,10 @@ func ArtifactDownloadedFromProto(e *proto.Event) Event {
 type ArtifactExtracted struct {
 	Base
 	ExecutionId string
-	Info        *types.ArtifactInfo
+	Info        *types.DownloadedArtifactInfo
 }
 
-func NewArtifactExtractedEvent(executionId string, info *types.ArtifactInfo) *ArtifactExtracted {
+func NewArtifactExtractedEvent(executionId string, info *types.DownloadedArtifactInfo, rowsExtracted int64) *ArtifactExtracted {
 	return &ArtifactExtracted{
 		ExecutionId: executionId,
 		Info:        info,
@@ -97,6 +97,6 @@ func (c *ArtifactExtracted) ToProto() *proto.Event {
 func ArtifactExtractedFromProto(e *proto.Event) Event {
 	return &ArtifactExtracted{
 		ExecutionId: e.GetArtifactExtractedEvent().ExecutionId,
-		Info:        types.ArtifactInfoFromProto(e.GetArtifactExtractedEvent().ArtifactInfo),
+		Info:        types.DownloadedArtifactInfoFromProto(e.GetArtifactExtractedEvent().ArtifactInfo),
 	}
 }

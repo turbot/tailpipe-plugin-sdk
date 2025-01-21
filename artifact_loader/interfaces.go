@@ -10,5 +10,5 @@ import (
 type Loader interface {
 	Identifier() string
 	// Load locally saved artifact data and perform any necessary decompression/decryption
-	Load(context.Context, *types.ArtifactInfo, chan *types.RowData) error
+	Load(context.Context, *types.DownloadedArtifactInfo, chan *types.RowData) error
 }

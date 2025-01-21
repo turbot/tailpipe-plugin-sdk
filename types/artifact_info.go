@@ -12,11 +12,7 @@ import (
 
 type ArtifactInfo struct {
 	// this is the original name of the artifact
-	OriginalName string `json:"original_name"`
-	// once an artifact is downloaded, this will have the local name
-	// TODO look at local name usage - ensure it is only used to reference the downloaded file (e.g. S3 seems to be use this for the source name)
-	// when that is done, only set local name after download
-	LocalName string `json:"local_name"`
+	Name string `json:"original_name"`
 
 	// enrichment values passed from the source to the collection to include in the enrichment process
 	SourceEnrichment *schema.SourceEnrichment `json:"-"`
@@ -26,11 +22,7 @@ type ArtifactInfo struct {
 func NewArtifactInfo(path string, sourceEnrichment *schema.SourceEnrichment, granularity time.Duration) (*ArtifactInfo, error) {
 	res := &ArtifactInfo{
 		// original name is the source path of the artifact
-		OriginalName: path,
-		// local name will be updated to the local path of the artifact once downloaded
-		// (for file source this remains the same)
-		// TODO DO NOT SET UNTIL DOWNLOAD?
-		LocalName:        path,
+		Name:             path,
 		SourceEnrichment: sourceEnrichment,
 	}
 	timeStamp, err := res.parseArtifactTimestamp(granularity)
@@ -44,16 +36,14 @@ func NewArtifactInfo(path string, sourceEnrichment *schema.SourceEnrichment, gra
 func ArtifactInfoFromProto(info *proto.ArtifactInfo) *ArtifactInfo {
 	enrichment := schema.SourceEnrichmentFromProto(info.SourceEnrichment)
 	return &ArtifactInfo{
-		LocalName:        info.LocalName,
-		OriginalName:     info.OriginalName,
+		Name:             info.OriginalName,
 		SourceEnrichment: enrichment,
 	}
 }
 
 func (a *ArtifactInfo) ToProto() *proto.ArtifactInfo {
 	return &proto.ArtifactInfo{
-		LocalName:        a.LocalName,
-		OriginalName:     a.OriginalName,
+		OriginalName:     a.Name,
 		SourceEnrichment: a.SourceEnrichment.ToProto(),
 	}
 }
@@ -137,5 +127,5 @@ func (a *ArtifactInfo) GetTimestamp() time.Time {
 }
 
 func (a *ArtifactInfo) Identifier() string {
-	return a.OriginalName
+	return a.Name
 }

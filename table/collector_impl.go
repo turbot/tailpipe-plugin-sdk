@@ -163,9 +163,9 @@ func (c *CollectorImpl[R]) Notify(ctx context.Context, event events.Event) error
 
 	switch e := event.(type) {
 
-	case *events.Row:
+	case *events.RowExtracted:
 		// handle row event - map, enrich and publish the row
-		return c.handleRowEvent(ctx, e)
+		return c.handleRowExtractedEvent(ctx, e)
 	case *events.Error:
 		// TODO determine whether this is a non-fatal error (in which case send an error event??) or a fatal error https://github.com/turbot/tailpipe-plugin-sdk/issues/72
 		// in which case we need to terminate execution
@@ -282,16 +282,10 @@ func (c *CollectorImpl[R]) updateStatus(ctx context.Context, e events.Event) {
 	}
 }
 
-// handleRowEvent is invoked when a Row event is received - map, enrich and publish the row
-func (c *CollectorImpl[R]) handleRowEvent(ctx context.Context, e *events.Row) error {
+// handleRowExtractedEvent is invoked when a RowExtracted event is received - map, enrich and publish the row
+func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *events.RowExtracted) error {
 	c.rowWg.Add(1)
 	defer c.rowWg.Done()
-
-	// when all rows, a null row will be sent - DO NOT try to enrich this!
-	if e.Row == nil {
-		// notify of nil row
-		return c.NotifyObservers(ctx, events.NewRowEvent(e.ExecutionId, nil))
-	}
 
 	// put data into an array as that is what mappers expect
 	mappedRow, err := c.mapRow(ctx, e.Row)
@@ -356,6 +350,8 @@ func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R) error {
 	if err != nil {
 		return err
 	}
+	// update status
+	c.status.OnRowEnriched()
 
 	if c.rowBufferMap == nil {
 		// this must mean the plugin has overridden the Init function and not called the base

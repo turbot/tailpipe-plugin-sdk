@@ -27,7 +27,7 @@ func (g GzipLoader) Identifier() string {
 
 // Load implements Loader
 // Extracts an object from a gzip file
-func (g GzipLoader) Load(ctx context.Context, info *types.ArtifactInfo, dataChan chan *types.RowData) error {
+func (g GzipLoader) Load(ctx context.Context, info *types.DownloadedArtifactInfo, dataChan chan *types.RowData) error {
 	slog.Debug("GzipLoader Load", "path", info.LocalName)
 	inputPath := info.LocalName
 	gzFile, err := os.Open(inputPath)
