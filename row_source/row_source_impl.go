@@ -75,7 +75,7 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	// create empty collection state
 	slog.Info("Creating empty collection state")
 	r.CollectionState = r.NewCollectionStateFunc()
-	// initialise the collection state - this ill load itself form json (if JSON file exists)
+	// initialise the collection state - this will load itself form json (if JSON file exists)
 	err = r.CollectionState.Init(r.Config, params.CollectionStatePath)
 	if err != nil {
 		return err
@@ -114,7 +114,6 @@ func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 	// to the default (7 days
 	r.FromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)
 	r.FromTimeSource = fmt.Sprintf("initial collection defaulting to %d days", int(constants.DefaultInitialCollectionPeriod.Hours()/24))
-
 }
 
 func (r *RowSourceImpl[S, T]) SaveCollectionState() error {
@@ -178,13 +177,6 @@ func (r *RowSourceImpl[S, T]) OnRow(ctx context.Context, row *types.RowData) err
 		return err
 	}
 	return r.NotifyObservers(ctx, events.NewRowExtractedEvent(executionId, row.Data, *row.SourceEnrichment))
-}
-
-// SetFromTime sets the start time for the data collection
-func (r *RowSourceImpl[S, T]) SetFromTime(from time.Time) {
-	if !from.IsZero() {
-		r.FromTime = from
-	}
 }
 
 // GetFromTime returns the start time for the data collection, including the source of the from time

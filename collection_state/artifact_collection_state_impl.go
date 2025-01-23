@@ -257,6 +257,15 @@ func (s *ArtifactCollectionStateImpl[T]) Save() error {
 		return fmt.Errorf("collection state path is not set")
 	}
 
+	// if we are empty, delete the file
+	if s.IsEmpty() {
+		err := os.Remove(s.jsonPath)
+		if err != nil {
+			return fmt.Errorf("failed to delete collection state file: %w", err)
+		}
+		return nil
+	}
+
 	// write the JSON data to the file, overwriting any existing data
 	err = os.WriteFile(s.jsonPath, jsonBytes, 0644)
 	if err != nil {
@@ -272,7 +281,7 @@ func (s *ArtifactCollectionStateImpl[T]) Save() error {
 // IsEmpty returns whether the collection state is empty
 func (s *ArtifactCollectionStateImpl[T]) IsEmpty() bool {
 	for _, trunkState := range s.TrunkStates {
-		if trunkState != nil {
+		if !trunkState.IsEmpty() {
 			return false
 		}
 	}

@@ -2,7 +2,6 @@ package row_source
 
 import (
 	"context"
-	"time"
 
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -36,9 +35,6 @@ type RowSource interface {
 
 	// Collect is called to start collecting data,
 	Collect(context.Context) error
-
-	// SetFromTime sets the start time for the data collection
-	SetFromTime(from time.Time)
 
 	// GetTiming returns the timing for the source row collection
 	GetTiming() (types.TimingCollection, error)

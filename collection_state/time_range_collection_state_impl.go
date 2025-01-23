@@ -86,13 +86,7 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 	// - clear collection state
 	// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
 	if timestamp.Before(s.startTime) {
-		s.startTime = timestamp
-		// clear the last entry time as we have a new start time
-		s.setLastEntryTime(timestamp)
-		// store the end objects
-		s.EndObjects[id] = struct{}{}
-		// and return
-		return nil
+		s.Clear()
 	}
 
 	// if start time is not set, set it now
@@ -100,7 +94,7 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 		s.startTime = timestamp
 	}
 
-	// if the timestamp is before the CURRENT end time, then there is an issue
+	// if the timestamp is before the current END time, this is unexpected
 	// - the end time represents the time which we THOUGHT we had collected all data up to
 	// this may indicate that the 'delivery delay'  for the source has been set incorrectly
 	// Delivery delay is the maximum lateness in reporting that we expect from a source.
@@ -158,6 +152,13 @@ func (s *TimeRangeCollectionStateImpl) setLastEntryTime(timestamp time.Time) {
 func (s *TimeRangeCollectionStateImpl) SetEndTime(newEndTime time.Time) {
 	// truncate the time to the granularity
 	newEndTime = newEndTime.Truncate(s.Granularity)
+
+	// if the new end time is before the start time, clear the state
+	if newEndTime.Before(s.startTime) {
+		s.Clear()
+		return
+	}
+
 	s.endTime = newEndTime
 	s.lastEntryTime = newEndTime
 	// clear the end objects
