@@ -91,7 +91,7 @@ func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 	if !params.From.IsZero() {
 		// just set the collection state end time
 		r.FromTime = params.From
-		r.FromTimeSource = "using --from argument"
+		r.FromTimeSource = ""
 		// set the end tim of the collection state to the DAY BEFORE from time
 		// the from time has a day granularity - we want to collect data up to the end of the day before
 		r.CollectionState.SetEndTime(params.From.Add(-time.Hour * 24))
@@ -103,7 +103,7 @@ func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 		if !t.IsZero() {
 			slog.Info("Setting from time from collection state end time", "end time", t)
 			r.FromTime = t
-			r.FromTimeSource = "continuing from data already collected"
+			r.FromTimeSource = "last collection date"
 			return
 		}
 	}
@@ -113,7 +113,7 @@ func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 	// if from is not set (either by explicitly passing is as an arg, or from the collection state end time) set it now
 	// to the default (7 days
 	r.FromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)
-	r.FromTimeSource = fmt.Sprintf("initial collection defaulting to %d days", int(constants.DefaultInitialCollectionPeriod.Hours()/24))
+	r.FromTimeSource = fmt.Sprintf("initial collection, default %d days", int(constants.DefaultInitialCollectionPeriod.Hours()/24))
 }
 
 func (r *RowSourceImpl[S, T]) SaveCollectionState() error {
