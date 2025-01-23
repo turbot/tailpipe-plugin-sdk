@@ -80,6 +80,10 @@ func (b *RowSourceFactory) GetSources() map[string]func() RowSource {
 func (b *RowSourceFactory) DescribeSources() (SourceMetadataMap, error) {
 	var res = make(SourceMetadataMap)
 	for k, f := range b.sourceFuncs {
+		// skip the plugin source wrapper
+		if k == PluginSourceWrapperIdentifier {
+			continue
+		}
 		source := f()
 		desc, err := source.Description()
 		if err != nil {
