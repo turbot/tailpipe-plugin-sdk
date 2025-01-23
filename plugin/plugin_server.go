@@ -76,7 +76,7 @@ func (s PluginServer) Describe(_ context.Context) (*proto.DescribeResponse, erro
 	return resp, nil
 }
 
-func (s PluginServer) UpdateCollectionState(ctx context.Context, req *proto.CollectRequest) (*proto.Empty, error) {
+func (s PluginServer) UpdateCollectionState(ctx context.Context, req *proto.UpdateCollectionStateRequest) (*proto.Empty, error) {
 	err := s.impl.UpdateCollectionState(ctx, req)
 	return &proto.Empty{}, err
 }

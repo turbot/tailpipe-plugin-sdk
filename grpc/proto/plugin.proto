@@ -12,7 +12,7 @@ service TailpipePlugin {
   rpc AddObserver(Empty) returns (stream Event);
   rpc Collect(CollectRequest) returns (CollectResponse);
   rpc InitSource(InitSourceRequest) returns (InitSourceResponse); ;
-  rpc UpdateCollectionState(CollectRequest) returns (Empty);
+  rpc UpdateCollectionState(UpdateCollectionStateRequest) returns (Empty);
   rpc CloseSource(Empty) returns (Empty);
   rpc SaveCollectionState(Empty) returns (Empty);
   rpc SourceCollect(SourceCollectRequest) returns (Empty);
@@ -44,17 +44,15 @@ message CollectRequest {
   // the collection start time
   google.protobuf.Timestamp from_time = 11;
 }
-//
-//message CollectRequest {
-//  string table_name = 1;
-//  string partition_name = 2;
-//  // the source to use (with raw config)
-//  ConfigData source_data = 3;
-//  string collection_state_dir = 4;
-//  // optional: the reattach config to connect to the plugin providing the source
-//  SourcePluginReattach source_plugin = 5;
-//  google.protobuf.Timestamp from_time = 6;
-//}
+
+message UpdateCollectionStateRequest {
+  // the path to the collection state file
+  string collection_state_path = 1;
+  // the source to use (with raw config)
+  ConfigData source_data = 2;
+  // the collection start time
+  google.protobuf.Timestamp from_time = 3;
+}
 
 message Table {
   string name = 1;

@@ -92,7 +92,9 @@ func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 		// just set the collection state end time
 		r.FromTime = params.From
 		r.FromTimeSource = "using --from argument"
-		r.CollectionState.SetEndTime(params.From)
+		// set the end tim of the collection state to the DAY BEFORE from time
+		// the from time has a day granularity - we want to collect data up to the end of the day before
+		r.CollectionState.SetEndTime(params.From.Add(-time.Hour * 24))
 		return
 	}
 	// if no from time was passed, set it to the end time of the collection state

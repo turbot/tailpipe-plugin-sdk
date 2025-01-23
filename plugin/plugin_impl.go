@@ -127,20 +127,21 @@ func (p *PluginImpl) Describe() (DescribeResponse, error) {
 	}, nil
 }
 
-func (p *PluginImpl) UpdateCollectionState(ctx context.Context, req *proto.CollectRequest) error {
-	// TODO UpdateCollectionStateRequest
-	collectRequest, err := types.CollectRequestFromProto(req)
+func (p *PluginImpl) UpdateCollectionState(ctx context.Context, req *proto.UpdateCollectionStateRequest) error {
+	updateRequest, err := types.UpdateCollectionStateRequestFromProto(req)
 	if err != nil {
 		return err
 	}
+	// the source requires a temp dir to initialize but WIL NOT USE IT whjen just updating collection state
+	dummyTmpDir := "invalidTempDir"
+
 	// ask the factory to create the collector
 	// - this will configure the requested source
 	params := &row_source.RowSourceParams{
-		SourceConfigData:    collectRequest.SourceData,
-		ConnectionData:      collectRequest.ConnectionData,
-		CollectionStatePath: collectRequest.CollectionStatePath,
-		From:                collectRequest.From,
-		CollectionTempDir:   req.CollectionTempDir,
+		SourceConfigData:    updateRequest.SourceData,
+		CollectionStatePath: updateRequest.CollectionStatePath,
+		From:                updateRequest.From,
+		CollectionTempDir:   dummyTmpDir,
 	}
 
 	source, err := row_source.Factory.GetRowSource(ctx, params)
