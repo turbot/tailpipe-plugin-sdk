@@ -66,6 +66,10 @@ func (c *CommonFields) Validate() error {
 	}
 	if c.TpIndex == "" {
 		missingFields = append(missingFields, "TpIndex")
+	} else {
+		// handles instances where tp_index is the same value with different casing (as seen on Azure data with subscription_id being either upper or lower case)
+		// when tp_index is differential in casing it causes data to not be set against the partition correctly
+		c.TpIndex = strings.ToLower(c.TpIndex)
 	}
 	if c.TpDate.IsZero() {
 		missingFields = append(missingFields, "TpDate")
