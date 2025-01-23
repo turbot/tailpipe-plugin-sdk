@@ -129,7 +129,6 @@ func (r *RowSchema) InitialiseFromInferredSchema(inferredSchema *RowSchema) {
 			}
 		}
 	}
-	return
 }
 
 func (r *RowSchema) Complete() bool {

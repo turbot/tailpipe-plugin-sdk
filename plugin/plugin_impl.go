@@ -88,19 +88,15 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 	// signal we have started
 	if err := p.OnStarted(ctx, req.ExecutionId); err != nil {
 		err := fmt.Errorf("error signalling started: %w", err)
-		_ = p.OnCompleted(ctx, req.ExecutionId, 0, 0, nil, err)
+		_ = p.OnCompleted(ctx, req.ExecutionId, 0, 0, err)
 	}
 
 	go func() {
 		// tell the collection to start collecting - this is a blocking call
 		rowCount, chunksWritten, err := collector.Collect(ctx)
-		var timing types.TimingCollection
-		if err == nil {
-			timing, err = collector.GetTiming()
-		}
 
 		// signal we have completed - pass error if there was one
-		_ = p.OnCompleted(ctx, req.ExecutionId, rowCount, chunksWritten, timing, err)
+		_ = p.OnCompleted(ctx, req.ExecutionId, rowCount, chunksWritten, err)
 	}()
 
 	// return the schema (if available - this may be nil for dynamic tables, in which case the CLI will infer the schema)
@@ -214,23 +210,12 @@ func (p *PluginImpl) SourceCollect(ctx context.Context, req *proto.SourceCollect
 	if err != nil {
 		p.NotifyError(ctx, req.ExecutionId, err)
 	} else {
-		timing, err := p.GetSourceTiming(ctx)
-		if err != nil {
-			slog.Error("error getting source timing", "error", err)
-		}
-		notifyError := p.NotifyObservers(ctx, events.NewSourceCompletedEvent(req.ExecutionId, timing, err))
+		notifyError := p.NotifyObservers(ctx, events.NewSourceCompletedEvent(req.ExecutionId, err))
 		if notifyError != nil {
 			p.NotifyError(ctx, req.ExecutionId, notifyError)
 		}
 	}
 	return err
-}
-
-func (p *PluginImpl) GetSourceTiming(ctx context.Context) (types.TimingCollection, error) {
-	if p.source == nil {
-		return types.TimingCollection{}, fmt.Errorf("source not initialised")
-	}
-	return p.source.GetTiming()
 }
 
 // Shutdown is called by Serve when the plugin exits
@@ -243,6 +228,6 @@ func (p *PluginImpl) Impl() *PluginImpl {
 	return p
 }
 
-func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, rowCount int, chunksWritten int, timing types.TimingCollection, err error) error {
-	return p.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, timing, err))
+func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, rowCount int, chunksWritten int, err error) error {
+	return p.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, err))
 }

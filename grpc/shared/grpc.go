@@ -39,10 +39,6 @@ func (c TailpipePluginClientWrapper) SourceCollect(req *proto.SourceCollectReque
 	return c.client.SourceCollect(context.Background(), req)
 }
 
-func (c TailpipePluginClientWrapper) GetSourceTiming() (*proto.GetSourceTimingResponse, error) {
-	return c.client.GetSourceTiming(context.Background(), &proto.Empty{})
-}
-
 // TailpipePluginServerWrapper is the gRPC server that TailpipePluginClient talks to.
 type TailpipePluginServerWrapper struct {
 	proto.UnimplementedTailpipePluginServer
@@ -86,8 +82,4 @@ func (s TailpipePluginServerWrapper) CloseSource(_ context.Context, req *proto.E
 
 func (s TailpipePluginServerWrapper) SourceCollect(_ context.Context, req *proto.SourceCollectRequest) (*proto.Empty, error) {
 	return s.Impl.SourceCollect(context.Background(), req)
-}
-
-func (s TailpipePluginServerWrapper) GetSourceTiming(_ context.Context, req *proto.Empty) (*proto.GetSourceTimingResponse, error) {
-	return s.Impl.GetSourceTiming(context.Background(), req)
 }

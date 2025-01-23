@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/elastic/go-grok"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 )
@@ -37,9 +36,6 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	lastSaveTime     time.Time
 
 	mut *sync.RWMutex
-
-	// the grok parser
-	g *grok.Grok
 }
 
 func NewArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {

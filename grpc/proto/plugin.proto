@@ -2,7 +2,7 @@ syntax = "proto3";
 package proto;
 
 import "google/protobuf/timestamp.proto";
-import "google/protobuf/duration.proto";
+
 
 
 option go_package = ".;proto";
@@ -16,7 +16,6 @@ service TailpipePlugin {
   rpc CloseSource(Empty) returns (Empty);
   rpc SaveCollectionState(Empty) returns (Empty);
   rpc SourceCollect(SourceCollectRequest) returns (Empty);
-  rpc GetSourceTiming(Empty) returns (GetSourceTimingResponse);
 }
 
 message Empty{}
@@ -178,14 +177,12 @@ message EventComplete {
   int64 row_count=2;
   int32 chunk_count=3;
   map<string, string> metadata = 4;
-  repeated Timing timing = 5;
   string error = 6;
 }
 
 
 message EventSourceComplete {
   string execution_id = 1;
-  repeated Timing timing = 5;
   string error = 6;
 }
 
@@ -229,14 +226,6 @@ message DownloadedArtifactInfo {
   SourceEnrichment source_enrichment = 3;
 
   int64 size = 4;
-}
-
-
-message Timing{
-  string operation = 1;
-  google.protobuf.Timestamp start_time = 2;
-  google.protobuf.Timestamp end_time = 3;
-  google.protobuf.Duration active_duration = 4;
 }
 
 message SourceEnrichment{
@@ -314,7 +303,3 @@ message SourceCollectRequest{
   // unique identifier for collection execution
   string execution_id = 1;
 }
-
-message GetSourceTimingResponse{
-  repeated Timing timing = 1;
-};

@@ -16,7 +16,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
@@ -81,19 +80,10 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	// wait group to wait for all artifacts to be extracted
 	// this is incremented each time we discover an artifact and decremented when we have extracted it
 	artifactExtractWg sync.WaitGroup
-
-	// keep track to the time taken for each phase
-	DiscoveryTiming types.Timing
-	DownloadTiming  types.Timing
-	ExtractTiming   types.Timing
-
-	timingLock *sync.Mutex
 }
 
 func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.RowSourceParams, opts ...row_source.RowSourceOption) error {
 	slog.Info("Initializing ArtifactSourceImpl", "configData", params.SourceConfigData.GetHcl())
-
-	a.timingLock = &sync.Mutex{}
 
 	// if no collection state func has been set by a derived struct,
 	// set it to the default for artifacts
@@ -172,22 +162,15 @@ func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) error {
 	slog.Info("ArtifactSourceImpl Collect")
 	defer slog.Info("ArtifactSourceImpl Collect complete")
 
-	// record discovery start time
-	a.DiscoveryTiming.TryStart(constants.TimingDiscover)
-
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
 	err := a.Source.DiscoverArtifacts(ctx)
-	// store discover end time
-	a.DiscoveryTiming.End = time.Now()
 	if err != nil {
 		return err
 	}
 
 	// now wait for all extractions
 	a.artifactExtractWg.Wait()
-	// set extract end time
-	a.ExtractTiming.End = time.Now()
 
 	return nil
 }
@@ -213,23 +196,17 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	}
 	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.Name)
 
-	// set the download start time if not already set
-	a.DownloadTiming.TryStart(constants.TimingDownload)
-
 	go func() {
 		defer func() {
 			a.artifactDownloadLimiter.Release()
 			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
 		}()
-		downloadStart := time.Now()
 		// cast the source to an ArtifactSource and download the artifact
 		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
 			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
 			a.NotifyError(ctx, executionId, err)
 		}
-		// update the download active duration
-		a.DownloadTiming.UpdateActiveDuration(time.Since(downloadStart))
 	}()
 
 	// send discovery event
@@ -244,14 +221,6 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	if err != nil {
 		return err
 	}
-
-	// update the download end time
-	a.timingLock.Lock()
-	a.DownloadTiming.End = time.Now()
-	a.timingLock.Unlock()
-
-	// set the extract start time if not already set
-	a.ExtractTiming.TryStart(constants.TimingExtract)
 
 	// update the collection state
 	if err := a.CollectionState.OnCollected(info.Identifier(), info.Timestamp); err != nil {
@@ -268,7 +237,6 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 		// update extract active duration
 		activeDuration := time.Since(extractStart)
 		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.LocalName, "duration (ms)", activeDuration.Milliseconds())
-		a.ExtractTiming.UpdateActiveDuration(activeDuration)
 
 		// close wait group whether there is an error or not
 		a.artifactExtractWg.Done()
@@ -282,10 +250,6 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
 	}
 	return nil
-}
-
-func (a *ArtifactSourceImpl[S, T]) GetTiming() (types.TimingCollection, error) {
-	return types.TimingCollection{a.DiscoveryTiming, a.DownloadTiming, a.ExtractTiming}, nil
 }
 
 // convert a downloaded artifact to a set of raw rows, with optional metadata

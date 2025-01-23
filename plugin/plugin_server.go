@@ -7,7 +7,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/logging"
@@ -115,18 +114,6 @@ func (s PluginServer) SourceCollect(ctx context.Context, req *proto.SourceCollec
 		return nil, err
 	}
 	return &proto.Empty{}, nil
-}
-
-func (s PluginServer) GetSourceTiming(ctx context.Context, _ *proto.Empty) (*proto.GetSourceTimingResponse, error) {
-	sourceTiming, err := s.impl.GetSourceTiming(ctx)
-	if err != nil {
-		return nil, err
-	}
-	// convert the response to proto
-	resp := &proto.GetSourceTimingResponse{
-		Timing: events.TimingCollectionToProto(sourceTiming),
-	}
-	return resp, nil
 }
 
 func (s PluginServer) Serve() error {

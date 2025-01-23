@@ -46,10 +46,7 @@ type CollectorImpl[R types.RowStruct] struct {
 	status              *events.Status
 	lastStatusEventTime time.Time
 
-	statusLock   sync.RWMutex
-	enrichTiming types.Timing
-	req          *types.CollectRequest
-
+	req *types.CollectRequest
 	// row buffer keyed by execution id
 	// each row buffer is used to write a JSONL file
 	rowBufferMap map[string][]any
@@ -141,9 +138,6 @@ func (c *CollectorImpl[R]) Collect(ctx context.Context) (int, int, error) {
 	// wait for all rows to be processed
 	c.rowWg.Wait()
 
-	// set the end time
-	c.enrichTiming.End = time.Now()
-
 	defer slog.Info("Enrichment complete")
 
 	// notify observers of final status
@@ -179,14 +173,6 @@ func (c *CollectorImpl[R]) Notify(ctx context.Context, event events.Event) error
 		// https://github.com/turbot/tailpipe-plugin-sdk/issues/10
 		return nil
 	}
-}
-
-func (c *CollectorImpl[R]) GetTiming() (types.TimingCollection, error) {
-	res, err := c.source.GetTiming()
-	if err != nil {
-		return types.TimingCollection{}, nil
-	}
-	return append(res, c.enrichTiming), nil
 }
 
 func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectRequest) error {
@@ -290,10 +276,6 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 		return fmt.Errorf("error mapping artifact: %w", err)
 	}
 
-	// set the enrich time if not already set
-	c.enrichTiming.TryStart(constants.TimingEnrich)
-	enrichStart := time.Now()
-
 	// add table and partition to the enrichment fields
 
 	sourceEnrichment := e.SourceEnrichment
@@ -310,9 +292,6 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 		// TODO #errors we need to include the raw row information in the error
 		return err
 	}
-
-	// update the enrich active duration
-	c.enrichTiming.UpdateActiveDuration(time.Since(enrichStart))
 
 	// buffer the enriched row and write to JSON file if buffer is full
 	return c.onRowEnriched(ctx, enrichedRow)

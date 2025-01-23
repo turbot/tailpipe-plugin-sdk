@@ -47,9 +47,6 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params *row_source.RowSo
 			return err
 		}
 	}
-	// remember to create the base mutex
-	w.ArtifactSourceImpl.timingLock = &sync.Mutex{}
-
 	// create a NilArtifactCollectionState - this will do nothing but is required to avoid
 	// nil reference exceptions in ArtifactSourceImpl.OnArtifactDownloaded
 	w.CollectionState = &NilArtifactCollectionState{}
@@ -187,16 +184,6 @@ func (w *PluginSourceWrapper) Collect(ctx context.Context) error {
 	// also wait for any artifact extractions to complete
 	w.artifactExtractWg.Wait()
 	return nil
-}
-
-// GetTiming returns the timing for the source row collection
-func (w *PluginSourceWrapper) GetTiming() (types.TimingCollection, error) {
-	resp, err := w.client.GetSourceTiming()
-	if err != nil {
-		return types.TimingCollection{}, nil
-	}
-	return events.TimingCollectionFromProto(resp.Timing), nil
-
 }
 
 func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream proto.TailpipePlugin_AddObserverClient) {

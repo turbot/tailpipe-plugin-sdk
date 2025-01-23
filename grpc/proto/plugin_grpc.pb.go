@@ -27,7 +27,6 @@ const (
 	TailpipePlugin_CloseSource_FullMethodName           = "/proto.TailpipePlugin/CloseSource"
 	TailpipePlugin_SaveCollectionState_FullMethodName   = "/proto.TailpipePlugin/SaveCollectionState"
 	TailpipePlugin_SourceCollect_FullMethodName         = "/proto.TailpipePlugin/SourceCollect"
-	TailpipePlugin_GetSourceTiming_FullMethodName       = "/proto.TailpipePlugin/GetSourceTiming"
 )
 
 // TailpipePluginClient is the client API for TailpipePlugin service.
@@ -42,7 +41,6 @@ type TailpipePluginClient interface {
 	CloseSource(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	SaveCollectionState(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	SourceCollect(ctx context.Context, in *SourceCollectRequest, opts ...grpc.CallOption) (*Empty, error)
-	GetSourceTiming(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetSourceTimingResponse, error)
 }
 
 type tailpipePluginClient struct {
@@ -148,15 +146,6 @@ func (c *tailpipePluginClient) SourceCollect(ctx context.Context, in *SourceColl
 	return out, nil
 }
 
-func (c *tailpipePluginClient) GetSourceTiming(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetSourceTimingResponse, error) {
-	out := new(GetSourceTimingResponse)
-	err := c.cc.Invoke(ctx, TailpipePlugin_GetSourceTiming_FullMethodName, in, out, opts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // TailpipePluginServer is the server API for TailpipePlugin service.
 // All implementations must embed UnimplementedTailpipePluginServer
 // for forward compatibility
@@ -169,7 +158,6 @@ type TailpipePluginServer interface {
 	CloseSource(context.Context, *Empty) (*Empty, error)
 	SaveCollectionState(context.Context, *Empty) (*Empty, error)
 	SourceCollect(context.Context, *SourceCollectRequest) (*Empty, error)
-	GetSourceTiming(context.Context, *Empty) (*GetSourceTimingResponse, error)
 	mustEmbedUnimplementedTailpipePluginServer()
 }
 
@@ -200,9 +188,6 @@ func (UnimplementedTailpipePluginServer) SaveCollectionState(context.Context, *E
 }
 func (UnimplementedTailpipePluginServer) SourceCollect(context.Context, *SourceCollectRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SourceCollect not implemented")
-}
-func (UnimplementedTailpipePluginServer) GetSourceTiming(context.Context, *Empty) (*GetSourceTimingResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetSourceTiming not implemented")
 }
 func (UnimplementedTailpipePluginServer) mustEmbedUnimplementedTailpipePluginServer() {}
 
@@ -364,24 +349,6 @@ func _TailpipePlugin_SourceCollect_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
-func _TailpipePlugin_GetSourceTiming_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(Empty)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(TailpipePluginServer).GetSourceTiming(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: TailpipePlugin_GetSourceTiming_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(TailpipePluginServer).GetSourceTiming(ctx, req.(*Empty))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // TailpipePlugin_ServiceDesc is the grpc.ServiceDesc for TailpipePlugin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -416,10 +383,6 @@ var TailpipePlugin_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SourceCollect",
 			Handler:    _TailpipePlugin_SourceCollect_Handler,
-		},
-		{
-			MethodName: "GetSourceTiming",
-			Handler:    _TailpipePlugin_GetSourceTiming_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

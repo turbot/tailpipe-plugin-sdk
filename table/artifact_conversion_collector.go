@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/turbot/pipe-fittings/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"log/slog"
 	"sync"
@@ -38,7 +37,6 @@ type ArtifactConversionCollector[S parse.Config] struct {
 	status              *events.Status
 	lastStatusEventTime time.Time
 	statusLock          sync.RWMutex
-	enrichTiming        types.Timing
 	req                 *types.CollectRequest
 }
 
@@ -84,51 +82,50 @@ func (c *ArtifactConversionCollector[S]) GetFromTime() *row_source.ResolvedFromT
 	return c.source.GetFromTime()
 }
 
-func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData types.ConfigData) error {
-	// default to empty config
-	cfg := utils.InstanceOf[S]()
-
-	if len(tableConfigData.GetHcl()) > 0 {
-		var err error
-		cfg, err = parse.ParseConfig[S](tableConfigData)
-		if err != nil {
-			return fmt.Errorf("error parsing config: %w", err)
-		}
-
-		slog.Info("tableName RowSourceImpl: config parsed", "config", c)
-		c.Format = cfg
-	}
-
-	// validate config
-	if err := c.Format.Validate(); err != nil {
-		return fmt.Errorf("invalid partition config: %w", err)
-	}
-
-	return nil
-}
-
-func (c *ArtifactConversionCollector[S]) initialiseFormat(tableConfigData types.ConfigData) error {
-	// default to empty config
-	cfg := utils.InstanceOf[S]()
-
-	if len(tableConfigData.GetHcl()) > 0 {
-		var err error
-		cfg, err = parse.ParseConfig[S](tableConfigData)
-		if err != nil {
-			return fmt.Errorf("error parsing config: %w", err)
-		}
-
-		slog.Info("tableName RowSourceImpl: config parsed", "config", c)
-		c.Format = cfg
-	}
-
-	// validate config
-	if err := c.Format.Validate(); err != nil {
-		return fmt.Errorf("invalid partition config: %w", err)
-	}
-
-	return nil
-}
+//func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData types.ConfigData) error {
+//	// default to empty config
+//	//cfg := utils.InstanceOf[S]()
+//
+//	if len(tableConfigData.GetHcl()) > 0 {
+//
+//		cfg, err := parse.ParseConfig[S](tableConfigData)
+//		if err != nil {
+//			return fmt.Errorf("error parsing config: %w", err)
+//		}
+//
+//		slog.Info("tableName RowSourceImpl: config parsed", "config", c)
+//		c.Format = cfg
+//	}
+//
+//	// validate config
+//	if err := c.Format.Validate(); err != nil {
+//		return fmt.Errorf("invalid partition config: %w", err)
+//	}
+//
+//	return nil
+//}
+//
+//func (c *ArtifactConversionCollector[S]) initialiseFormat(tableConfigData types.ConfigData) error {
+//	// default to empty config
+//	//cfg := utils.InstanceOf[S]()
+//
+//	if len(tableConfigData.GetHcl()) > 0 {
+//		cfg, err := parse.ParseConfig[S](tableConfigData)
+//		if err != nil {
+//			return fmt.Errorf("error parsing config: %w", err)
+//		}
+//
+//		slog.Info("tableName RowSourceImpl: config parsed", "config", c)
+//		c.Format = cfg
+//	}
+//
+//	// validate config
+//	if err := c.Format.Validate(); err != nil {
+//		return fmt.Errorf("invalid partition config: %w", err)
+//	}
+//
+//	return nil
+//}
 
 // Collect executes the collection process. Tell our source to start collection
 func (c *ArtifactConversionCollector[S]) Collect(ctx context.Context) (int, int, error) {
@@ -143,10 +140,6 @@ func (c *ArtifactConversionCollector[S]) Collect(ctx context.Context) (int, int,
 	}
 
 	slog.Info("Source collection complete - waiting for enrichment")
-
-	// set the end time
-	c.enrichTiming.End = time.Now()
-
 	defer slog.Info("Enrichment complete")
 
 	// notify observers of final status
@@ -180,15 +173,6 @@ func (c *ArtifactConversionCollector[S]) Notify(ctx context.Context, event event
 		// ignore
 		return nil
 	}
-}
-
-func (c *ArtifactConversionCollector[S]) GetTiming() (types.TimingCollection, error) {
-	res, err := c.source.GetTiming()
-	if err != nil {
-		return types.TimingCollection{}, err
-	}
-
-	return append(res, c.enrichTiming), nil
 }
 
 func (c *ArtifactConversionCollector[S]) initSource(ctx context.Context, configData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {

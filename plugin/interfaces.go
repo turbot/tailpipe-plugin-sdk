@@ -6,7 +6,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // TailpipePlugin is the interface that all tailpipe plugins must implement
@@ -37,7 +36,6 @@ type TailpipePlugin interface {
 	CloseSource(context.Context) error
 	SaveCollectionState(context.Context) error
 	SourceCollect(context.Context, *proto.SourceCollectRequest) error
-	GetSourceTiming(context.Context) (types.TimingCollection, error)
 
 	// Other interface functions
 

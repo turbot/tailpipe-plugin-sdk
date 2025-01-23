@@ -1,8 +1,6 @@
 package table
 
 import (
-	"errors"
-	"github.com/marcboeker/go-duckdb"
 	_ "github.com/marcboeker/go-duckdb"
 	"testing"
 )
@@ -120,16 +118,14 @@ import (
 func TestCsvToJsonQuery(t *testing.T) {
 	type args struct {
 		sourceFile string
-		destFile   string
-		mappings   map[string]string
-		opts       []CsvToJsonOpts
+		//destFile   string
+		//mappings   map[string]string
+		opts []CsvToJsonOpts
 	}
-	tests := []struct {
+	var tests []struct {
 		name string
 		args args
 		want string
-	}{
-		// TODO: Add test cases.
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -188,12 +184,12 @@ func TestCsvToJsonQuery(t *testing.T) {
 //
 //	fmt.Println("Splitting complete!")
 //}
-
-// Helper function to detect "end of file" error
-func isEndOfFileError(err error) bool {
-	var d *duckdb.Error
-	if errors.As(err, &d) {
-		return d.Type == duckdb.ErrorTypeInvalidInput
-	}
-	return false
-}
+//
+//// Helper function to detect "end of file" error
+//func isEndOfFileError(err error) bool {
+//	var d *duckdb.Error
+//	if errors.As(err, &d) {
+//		return d.Type == duckdb.ErrorTypeInvalidInput
+//	}
+//	return false
+//}

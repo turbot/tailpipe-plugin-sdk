@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // RowSource is the interface that represents a data source
@@ -35,9 +34,6 @@ type RowSource interface {
 
 	// Collect is called to start collecting data,
 	Collect(context.Context) error
-
-	// GetTiming returns the timing for the source row collection
-	GetTiming() (types.TimingCollection, error)
 
 	// GetFromTime returns the start time for the data collection, including the source of the from time
 	// (config, collection state or default)

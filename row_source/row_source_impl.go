@@ -188,11 +188,6 @@ func (r *RowSourceImpl[S, T]) GetFromTime() *ResolvedFromTime {
 	}
 }
 
-func (r *RowSourceImpl[S, T]) GetTiming() (types.TimingCollection, error) {
-	// TODO #observability implement default timing for custom row sourceFuncs
-	return types.TimingCollection{}, nil
-}
-
 func (*RowSourceImpl[S, T]) Description() (string, error) {
 	// override if you want to provide a description
 	return "", nil

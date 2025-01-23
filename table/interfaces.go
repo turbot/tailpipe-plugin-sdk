@@ -33,7 +33,6 @@ type Table[R types.RowStruct] interface {
 type Collector interface {
 	observable.Observable
 
-	GetTiming() (types.TimingCollection, error)
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
 	Collect(context.Context) (int, int, error)

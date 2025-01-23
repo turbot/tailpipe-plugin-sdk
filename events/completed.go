@@ -2,7 +2,6 @@ package events
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type Complete struct {
@@ -11,15 +10,13 @@ type Complete struct {
 	RowCount      int
 	ChunksWritten int
 	Err           error
-	Timing        types.TimingCollection
 }
 
-func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, timing types.TimingCollection, err error) *Complete {
+func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, err error) *Complete {
 	return &Complete{
 		ExecutionId:   executionId,
 		RowCount:      rowCount,
 		ChunksWritten: chunksWritten,
-		Timing:        timing,
 		Err:           err,
 	}
 }
@@ -30,9 +27,6 @@ func (c *Complete) ToProto() *proto.Event {
 		errString = c.Err.Error()
 	}
 
-	// convert timing map to proto
-	protoTimingCollection := TimingCollectionToProto(c.Timing)
-
 	return &proto.Event{
 		Event: &proto.Event_CompleteEvent{
 			CompleteEvent: &proto.EventComplete{
@@ -40,7 +34,6 @@ func (c *Complete) ToProto() *proto.Event {
 				RowCount:    int64(c.RowCount),
 				ChunkCount:  int32(c.ChunksWritten),
 				Error:       errString,
-				Timing:      protoTimingCollection,
 			},
 		},
 	}
