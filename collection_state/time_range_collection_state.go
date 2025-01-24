@@ -95,7 +95,7 @@ func (s *TimeRangeCollectionState[T]) Save() error {
 		return nil
 	}
 
-	slog.Info("Saving collection state", "lastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime)
+	slog.Info("Saving collection state", "LastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime)
 
 	jsonBytes, err := json.Marshal(s)
 	if err != nil {

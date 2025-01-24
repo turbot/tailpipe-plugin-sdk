@@ -1,10 +1,8 @@
 package artifact_source
 
 import (
-	"fmt"
 	"github.com/elastic/go-grok"
 	"github.com/turbot/pipe-fittings/filter"
-	"log/slog"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -121,33 +119,31 @@ func getPathSegmentMetadata(g *grok.Grok, pathSegment, fileLayout string) (bool,
 
 	// if the path segment is longer than the layout-1, the need to check if the penultimate segment is a wildcard
 	// for example "AWSLogs/%{WORD:org}/%{DATA}/%{WORD}.log"
-	// or "AWSLogs/%{WORD:org}/%{DATA}"
 	// in these case DATA is a wildcard which may cover multiple path segments
-	// to check if this is the case, we need to check if either of the final 2 layout segments is a wildcard
-	if pathLength > (len(layoutParts) - 1) {
+	// to check if this is the case, we need to check if the penultimate layout segments is a wildcard
+	if pathLength > (len(layoutParts)-1) && len(layoutParts) > 1 && isWildcard(layoutParts[len(layoutParts)-2]) {
 		// if the penultimate segment is a wildcard, just use the layout up to that segment
-		if isWildcard(layoutParts[len(layoutParts)-2]) {
-			// so the penultimate segment is a wildcard - trim the layout to make this the final segment
-			// (i.e. trim off the filename portion)
-			fileLayout = strings.Join(layoutParts[:len(layoutParts)-1], "/")
-		} else if isWildcard(layoutParts[len(layoutParts)-1]) {
-			// the other wildcoard option we support if is the final segment is a wildcard,
-			// in which case wee just use the full pattern
-			slog.Info("pattern has wildcard at end - use full pattern")
-		} else {
-			// The layout doesn't match the path length and there is NO wildcard ast the end
-			return false, nil, fmt.Errorf("path segment length exceeds layout length")
-		}
+		// - trim the layout to make this the final segment
+		// (i.e. trim off the filename portion)
+		fileLayout = strings.Join(layoutParts[:len(layoutParts)-1], "/")
 	} else {
-		// So the layout is longer than the path segment - just trim the layout to match the path segment length
-		// Reconstruct the layout to match the path segment length
-		// (NOTE: add the trailing slash to ensure we match the full segment)
-		fileLayout = strings.Join(layoutParts[:pathLength], "/")
+		//otherwise just reconstruct the layout to match the path segment length
+		if len(layoutParts) > pathLength {
+			// Reconstruct the layout to match the path segment length
+			// (NOTE: add the trailing slash to ensure we match the full segment)
+			fileLayout = strings.Join(layoutParts[:pathLength], "/")
+		} else {
+			fileLayout = strings.Join(layoutParts, "/")
+		}
 	}
 
 	// Add a trailing slash to the path segment AND the pattern to ensure we match the full segment
-	pathSegment = pathSegment + "/"
-	fileLayout = fileLayout + "/"
+	if !strings.HasSuffix(pathSegment, "/") {
+		pathSegment = pathSegment + "/"
+	}
+	if !strings.HasSuffix(fileLayout, "/") {
+		fileLayout = fileLayout + "/"
+	}
 	// this covers the case where the pattern is "/foo/AWS" and the path is "/foo/AWSLogs" which should fail
 	// but will pass without the trailing slashes
 

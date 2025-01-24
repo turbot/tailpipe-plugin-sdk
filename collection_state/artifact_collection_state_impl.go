@@ -22,6 +22,13 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	// for example if the path is s3://bucket/folder1/folder2/2021/01/01/file.txt then the trunk is s3://bucket/folder1/folder2
 	TrunkStates map[string]*TimeRangeCollectionStateImpl `json:"trunk_states,omitempty"`
 
+	// the time the last artifact was collected
+	// TACTICAL: this is used in GetEndTime called by RowSourceImpl.setFromTime
+	// if there is no timing information in the files, we use this to determine the end time
+	// which we pass to the CLI to use as the --from time (if one has not been passed)
+	// NOTE: this assumes forward collection
+	LastModifiedTime time.Time `json:"last_modified_time,omitempty"`
+
 	// map of object identifier to collection state which contains the object
 	// used to store the collection state for each object between the ShouldCollect call and the OnCollected call
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
@@ -31,9 +38,8 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	granularity time.Duration
 
 	// path to the serialised collection state JSON
-	jsonPath         string
-	lastModifiedTime time.Time
-	lastSaveTime     time.Time
+	jsonPath     string
+	lastSaveTime time.Time
 
 	mut *sync.RWMutex
 }
@@ -109,12 +115,24 @@ func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
 			endTime = trunkState.GetEndTime()
 		}
 	}
+	// if there is NO end time, the end of the last collection
+	if endTime.IsZero() {
+		endTime = s.LastModifiedTime
+	}
 	return endTime
 }
 
 // SetEndTime sets the end time for the collection state - update all trunk states
 // This is called when we are using the --from flag to force recollection
 func (s *ArtifactCollectionStateImpl[T]) SetEndTime(newEndTime time.Time) {
+	if s.granularity == 0 {
+		if newEndTime.Before(s.LastModifiedTime) {
+			s.Clear()
+		}
+		return
+	}
+
+	// do not lock mut until AFTER we have checked the granularity as Clear also locks mut
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
@@ -217,9 +235,9 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollected(id string, timestamp time.T
 	defer s.mut.Unlock()
 
 	// store modified time to ensure we save the state
-	s.lastModifiedTime = time.Now()
+	s.LastModifiedTime = time.Now()
 
-	slog.Info("OnCollected", "id", id, "timestamp", timestamp, "lastModifiedTime", s.lastModifiedTime)
+	slog.Info("OnCollected", "id", id, "timestamp", timestamp, "LastModifiedTime", s.LastModifiedTime)
 	// we should have stored a collection state mapping for this object
 	collectionState, ok := s.objectStateMap[id]
 	if !ok {
@@ -237,12 +255,12 @@ func (s *ArtifactCollectionStateImpl[T]) Save() error {
 	defer s.mut.Unlock()
 
 	// if the last save time is after the last modified time, then we have nothing to do
-	if s.lastSaveTime.After(s.lastModifiedTime) {
+	if s.lastSaveTime.After(s.LastModifiedTime) {
 		slog.Info("collection state has not been modified since last save")
 		// nothing to do
 		return nil
 	}
-	slog.Info("Saving collection state", "lastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime, "jsonPath", s.jsonPath)
+	slog.Info("Saving collection state", "LastModifiedTime", s.LastModifiedTime, "lastSaveTime", s.lastSaveTime, "jsonPath", s.jsonPath)
 
 	jsonBytes, err := json.Marshal(s)
 	if err != nil {
@@ -277,7 +295,7 @@ func (s *ArtifactCollectionStateImpl[T]) Save() error {
 // IsEmpty returns whether the collection state is empty
 func (s *ArtifactCollectionStateImpl[T]) IsEmpty() bool {
 	for _, trunkState := range s.TrunkStates {
-		if !trunkState.IsEmpty() {
+		if trunkState != nil && !trunkState.IsEmpty() {
 			return false
 		}
 	}

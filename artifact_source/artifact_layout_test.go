@@ -19,7 +19,7 @@ var org1_account1 = strings.Split(`AWSLogs/org1/1/CloudTrail/logfile1.json`, "/"
 // i.e. if pattern is AWSLogs/%{WORD:org}/%{WORD:account_id}/CloudTrail/%{NOTSPACE:region}/%{YEAR:year}/%{MONTHNUM:month}/%{MONTHDAY:day}/%{NOTSPACE:file_name}.%{WORD:ext}`
 // this path should fail: AWSLogs/org1/1/CloudTrail/1_1.log
 
-func Test_pathSegmentSatisfiesFilters(t *testing.T) {
+func Test_getPathMetadata(t *testing.T) {
 	type args struct {
 		pathSegment string
 		isFile      bool
@@ -30,6 +30,7 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 		name             string
 		args             args
 		wantMatch        bool
+		wantErr          bool
 		expectedMetadata map[string][]byte
 	}{
 		// Single segment, positive case
@@ -184,19 +185,104 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 			expectedMetadata: map[string][]byte{},
 		},
 
+		//**
 		{
-			name: "failing chaos case",
+			name: "Empty path segment",
 			args: args{
-				//test_logs/2025/01/","layout":"test_logs/%{YEAR:year}/%{MONTHNUM:month}/"}
+				pathSegment: "",
+				fileLayout:  "AWSLogs/%{WORD:org}/%{WORD:account_id}/%{WORD:region}/",
+				filters:     []string{"org = 'org1'"},
+			},
+			wantMatch:        false,
+			expectedMetadata: map[string][]byte{},
+		},
 
-				pathSegment: "test_logs/2025/01",
-				fileLayout:  "test_logs/%{YEAR:year}/%{MONTHNUM:month}/%{MONTHDAY:day}/%{DATA}.json",
-				isFile:      false,
+		{
+			name: "Single slash as path segment",
+			args: args{
+				pathSegment: "/",
+				fileLayout:  "AWSLogs/%{WORD:org}/%{WORD:account_id}/%{WORD:region}/",
+				filters:     []string{"org = 'org1'"},
+			},
+			wantMatch:        false,
+			expectedMetadata: map[string][]byte{},
+		},
+
+		{
+			name: "Path segment longer than file layout",
+			args: args{
+				pathSegment: "AWSLogs/org1/account1/us-east-1/logfile.json",
+				fileLayout:  "AWSLogs/%{WORD:org}/%{WORD:account_id}/",
+				isFile:      true,
+				filters:     []string{},
 			},
 			wantMatch: true,
 			expectedMetadata: map[string][]byte{
-				"year":  []byte("2025"),
-				"month": []byte("1"),
+				"org":        []byte("org1"),
+				"account_id": []byte("account1"),
+			},
+		},
+
+		{
+			name: "File layout without wildcards",
+			args: args{
+				pathSegment: "AWSLogs/org1/account1/us-east-1",
+				fileLayout:  "AWSLogs/org1/account1/",
+				filters:     []string{},
+			},
+			wantMatch:        true,
+			expectedMetadata: map[string][]byte{},
+		},
+
+		{
+			name: "File layout with multiple wildcards",
+			args: args{
+				pathSegment: "AWSLogs/org1/account1/us-east-1/logfile.json",
+				isFile:      true,
+				fileLayout:  "AWSLogs/%{WORD:org}/%{DATA}/%{DATA}/%{WORD:filename}.json",
+				filters:     []string{},
+			},
+			wantMatch: true,
+			expectedMetadata: map[string][]byte{
+				"org":      []byte("org1"),
+				"filename": []byte("logfile"),
+			},
+		},
+
+		{
+			name: "File layout with empty wildcard",
+			args: args{
+				pathSegment: "AWSLogs/org1/account1//logfile.json",
+				isFile:      true,
+				fileLayout:  "AWSLogs/%{WORD:org}/%{WORD:account_id}/%{WORD:region}/%{WORD:filename}.json",
+				filters:     []string{},
+			},
+			wantMatch:        false,
+			expectedMetadata: map[string][]byte{},
+		},
+		{
+			name: "File layout with fewer than two segments (file)",
+			args: args{
+				pathSegment: "logfile.json",
+				fileLayout:  "%{WORD:filename}.json", // Too short, will fail when accessing `len(layoutParts)-2`
+				isFile:      true,
+				filters:     []string{},
+			},
+			wantMatch: true,
+			expectedMetadata: map[string][]byte{
+				"filename": []byte("logfile"),
+			},
+		},
+		{
+			name: "File layout with fewer than two segments",
+			args: args{
+				pathSegment: "account12334",
+				fileLayout:  "%{WORD:account_id}", // Too short, will fail when accessing `len(layoutParts)-2`
+				filters:     []string{},
+			},
+			wantMatch: true,
+			expectedMetadata: map[string][]byte{
+				"account_id": []byte("account12334"),
 			},
 		},
 	}
@@ -222,7 +308,13 @@ func Test_pathSegmentSatisfiesFilters(t *testing.T) {
 				match, metadata, err = getPathSegmentMetadata(g, tt.args.pathSegment, tt.args.fileLayout)
 			}
 			if err != nil {
-				t.Fatalf("failed to extract metadata: %v", err)
+				if !tt.wantErr {
+					t.Fatalf("failed to extract metadata: %v", err)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatalf("expected error, got none")
 			}
 
 			// if the pattern match fails but we wanted a match

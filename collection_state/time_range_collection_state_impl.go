@@ -37,7 +37,7 @@ func NewTimeRangeCollectionStateImpl() *TimeRangeCollectionStateImpl {
 }
 
 func (s *TimeRangeCollectionStateImpl) IsEmpty() bool {
-	return s.startTime.IsZero()
+	return s.startTime.IsZero() && len(s.EndObjects) == 0
 }
 
 // ShouldCollect returns whether the object should be collected
@@ -150,6 +150,12 @@ func (s *TimeRangeCollectionStateImpl) setLastEntryTime(timestamp time.Time) {
 
 // SetEndTime sets the end time for the collection state
 func (s *TimeRangeCollectionStateImpl) SetEndTime(newEndTime time.Time) {
+	// if we have zero granularity, do not set end time as we do not have timing information
+	// (this is not expected)
+	if s.Granularity == 0 {
+		return
+	}
+
 	// truncate the time to the granularity
 	newEndTime = newEndTime.Truncate(s.Granularity)
 
