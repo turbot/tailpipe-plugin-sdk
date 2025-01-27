@@ -78,7 +78,7 @@ func (s *ArtifactCollectionStateImpl[T]) Init(_ T, path string) error {
 // granularity of the time metadata it contains
 func (s *ArtifactCollectionStateImpl[T]) SetGranularity(granularity time.Duration) {
 	// ensure the granularity is no smaller than the minimum
-	if granularity < MinArtifactGranularity {
+	if granularity < MinArtifactGranularity && granularity != 0 {
 		granularity = MinArtifactGranularity
 	}
 	s.granularity = granularity
