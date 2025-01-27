@@ -177,7 +177,7 @@ func (s *CollectionStateImplDeprecated[T]) OnCollected(id string, itemTimestamp 
 	// i.e if the granularity is 1 hour, and the artifact time is 12:00:00,
 	// we are sure we have collected ALL data up to 11:00
 	// the end time will be 11:00:00,
-	endTime := itemTimestamp.Add(-s.Granularity)
+	endTime := itemTimestamp.Add(-s.Granularity).Truncate(s.Granularity)
 	if endTime.After(s.EndTime) || s.EndTime.IsZero() {
 		s.SetEndTime(endTime)
 	}

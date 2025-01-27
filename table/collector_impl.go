@@ -63,12 +63,9 @@ type CollectorImpl[R types.RowStruct] struct {
 func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
 
-	slog.Info("CollectorImpl: Collect", "Table", c.Table.Identifier())
 	if err := c.initSource(ctx, req); err != nil {
 		return err
 	}
-
-	slog.Info("Start collection")
 
 	// if the plugin overrides this function it must call the base implementation
 	c.rowBufferMap = make(map[string][]any)
@@ -82,6 +79,7 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 	// create writer
 	c.writer = NewJSONLWriter(jsonPath)
 
+	slog.Info("Initialise collector", "table", c.Table.Identifier(), "partition", req.PartitionName, "jsonPath", jsonPath)
 	return nil
 }
 
@@ -123,6 +121,8 @@ func (c *CollectorImpl[S]) GetFromTime() *row_source.ResolvedFromTime {
 
 // Collect executes the collection process. Tell our source to start collection
 func (c *CollectorImpl[R]) Collect(ctx context.Context) (int, int, error) {
+	slog.Info("Start collection", "table", c.Table.Identifier(), "partition", c.req.PartitionName)
+
 	// create empty status event
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
 

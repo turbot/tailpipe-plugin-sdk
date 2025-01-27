@@ -13,6 +13,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 )
 
+const MinArtifactGranularity = time.Hour * 24
+
 // ArtifactCollectionStateImpl is the interface for the collection state of an S3 bucket
 // return the start time and the end time for the data downloaded
 
@@ -75,6 +77,10 @@ func (s *ArtifactCollectionStateImpl[T]) Init(_ T, path string) error {
 // SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
 // granularity of the time metadata it contains
 func (s *ArtifactCollectionStateImpl[T]) SetGranularity(granularity time.Duration) {
+	// ensure the granularity is no smaller than the minimum
+	if granularity < MinArtifactGranularity {
+		granularity = MinArtifactGranularity
+	}
 	s.granularity = granularity
 }
 
@@ -237,7 +243,6 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollected(id string, timestamp time.T
 	// store modified time to ensure we save the state
 	s.LastModifiedTime = time.Now()
 
-	slog.Info("OnCollected", "id", id, "timestamp", timestamp, "LastModifiedTime", s.LastModifiedTime)
 	// we should have stored a collection state mapping for this object
 	collectionState, ok := s.objectStateMap[id]
 	if !ok {
@@ -256,11 +261,9 @@ func (s *ArtifactCollectionStateImpl[T]) Save() error {
 
 	// if the last save time is after the last modified time, then we have nothing to do
 	if s.lastSaveTime.After(s.LastModifiedTime) {
-		slog.Info("collection state has not been modified since last save")
 		// nothing to do
 		return nil
 	}
-	slog.Info("Saving collection state", "LastModifiedTime", s.LastModifiedTime, "lastSaveTime", s.lastSaveTime, "jsonPath", s.jsonPath)
 
 	jsonBytes, err := json.Marshal(s)
 	if err != nil {

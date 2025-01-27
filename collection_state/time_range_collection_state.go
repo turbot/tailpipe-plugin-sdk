@@ -3,11 +3,11 @@ package collection_state
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
-	"log/slog"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 )
 
 type TimeRangeCollectionState[T parse.Config] struct {
@@ -90,13 +90,9 @@ func (s *TimeRangeCollectionState[T]) Save() error {
 
 	// if the last save time is after the last modified time, then we have nothing to do
 	if s.lastSaveTime.After(s.lastModifiedTime) {
-		slog.Debug("collection state has not been modified since last save")
 		// nothing to do
 		return nil
 	}
-
-	slog.Info("Saving collection state", "LastModifiedTime", s.lastModifiedTime, "lastSaveTime", s.lastSaveTime)
-
 	jsonBytes, err := json.Marshal(s)
 	if err != nil {
 		return err

@@ -134,7 +134,7 @@ func (s *TimeRangeCollectionStateImpl) setLastEntryTime(timestamp time.Time) {
 	// NOTE: the end time is <granularity> less than the last entry time
 	// i.e if the granularity is 1 hour, and the artifact time is 12:00:00,
 	// we are sure we have collected ALL data up to 11:00 so the end time will be 11:00:00,
-	newEndTime := timestamp.Add(-s.Granularity)
+	newEndTime := timestamp.Add(-s.Granularity).Truncate(s.Granularity)
 
 	switch {
 	case newEndTime.Equal(s.endTime):
