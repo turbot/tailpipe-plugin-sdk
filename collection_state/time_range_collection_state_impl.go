@@ -14,6 +14,8 @@ const (
 	CollectionOrderReverse
 )
 
+// TODO rename to something less similar to TimeRangeCollectionState
+
 // TimeRangeCollectionStateImpl is a struct that tracks time ranges and objects that have been collected
 // it is used by the ArtifactCollectionStateImpl and TimeRangeCollectionState
 // NOTE: we do not implement mutex locking here - it is assumed that the caller will lock the state before calling
@@ -94,17 +96,19 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 		return nil
 	}
 
+	// is this the first entry we have collected?
 	// if start time is not set, set it now
 	if s.firstEntryTime.IsZero() {
 		s.firstEntryTime = timestamp
 		s.setLastEntryTime(timestamp)
 		s.EndObjects[id] = struct{}{}
-
+		return nil
 	}
 
 	if s.CollectionOrder == CollectionOrderChronological {
 		// if this timestamp is BEFORE the start time, we must be recollecting with an earlier start time
 		// - clear collection state
+		// (we sdo not expect to hit this as in the case of recollection the collection state should already be cleared)
 		// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
 		if timestamp.Before(s.firstEntryTime) {
 			s.Clear()
@@ -131,24 +135,31 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 		if timestamp.After(s.lastEntryTime) {
 			s.setLastEntryTime(timestamp)
 		}
-	} else {
-		// reverse order collection
-
-		// if this timestamp is AFTER the last entry time, we must be recollecting
-		// - clear collection state
-		// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
-		if timestamp.After(s.lastEntryTime) {
-			s.Clear()
-			s.firstEntryTime = timestamp
-			s.setLastEntryTime(timestamp)
+		// if the timestamp is after the end time, it must be in the granularity boundary zone
+		// so add to end objects
+		// (this is the same for forwards and backwards collection)
+		if timestamp.After(s.endTime) {
 			s.EndObjects[id] = struct{}{}
-			return nil
 		}
 
-		// if the timestamp is before the current start time, just update the start time
-		if timestamp.Before(s.firstEntryTime) {
-			s.firstEntryTime = timestamp
-		}
+		return nil
+	}
+	// reverse order collection
+
+	// if this timestamp is AFTER the last entry time, we must be recollecting
+	// - clear collection state
+	// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
+	if timestamp.After(s.lastEntryTime) {
+		s.Clear()
+		s.firstEntryTime = timestamp
+		s.setLastEntryTime(timestamp)
+		s.EndObjects[id] = struct{}{}
+		return nil
+	}
+
+	// if the timestamp is before the current first entry time, just update the first entry time
+	if timestamp.Before(s.firstEntryTime) {
+		s.firstEntryTime = timestamp
 	}
 
 	// if the timestamp is after the end time, it must be in the granularity boundary zone
