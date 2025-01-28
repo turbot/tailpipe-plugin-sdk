@@ -8,15 +8,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 )
 
 // ReverseOrderCollectionState is the interface for the collection state of an S3 bucket
 // return the start time and the end time for the data downloaded
 
-type ReverseOrderCollectionState[T artifact_source_config.ArtifactSourceConfig] struct {
+type ReverseOrderCollectionState[T parse.Config] struct {
 	// collection of time ranges ordered by time
-	timeRanges []*TimeRangeCollectionStateImpl
+	TimeRanges []*TimeRangeCollectionStateImpl `json:"time_ranges"`
+
+	activeTimeRange *TimeRangeCollectionStateImpl
 
 	granularity time.Duration
 
@@ -26,13 +28,12 @@ type ReverseOrderCollectionState[T artifact_source_config.ArtifactSourceConfig] 
 	lastSaveTime     time.Time
 
 	mut *sync.RWMutex
-
 }
 
-func NewReverseOrderCollectionState[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
+func NewReverseOrderCollectionState[T parse.Config]() CollectionState[T] {
 	return &ReverseOrderCollectionState[T]{
 		//objectStateMap: make(map[string]*TimeRangeCollectionStateImpl),
-		mut:            &sync.RWMutex{},
+		mut: &sync.RWMutex{},
 	}
 }
 
@@ -57,13 +58,13 @@ func (s *ReverseOrderCollectionState[T]) Init(_ T, path string) error {
 }
 
 func (s *ReverseOrderCollectionState[T]) Start() {
-	// add a new time range 
-	s.timeRanges = append(s.timeRanges, NewTimeRangeCollectionStateImpl())
+	// add a new time range
+	s.activeTimeRange = NewTimeRangeCollectionStateImpl()
+	s.TimeRanges = append(s.TimeRanges, s.activeTimeRange)
 }
 
-
 func (s *ReverseOrderCollectionState[T]) End() {
-
+	s.activeTimeRange = nil
 }
 
 // SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
@@ -78,20 +79,20 @@ func (s *ReverseOrderCollectionState[T]) GetGranularity() time.Duration {
 }
 
 func (s *ReverseOrderCollectionState[T]) GetStartTime() time.Time {
-	if len(s.timeRanges) == 0 {
+	if len(s.TimeRanges) == 0 {
 		return time.Time{}
 	}
 	// return the time of the first state
-	return s.timeRanges[0].GetStartTime()
+	return s.TimeRanges[0].GetStartTime()
 
 }
 
 func (s *ReverseOrderCollectionState[T]) GetEndTime() time.Time {
-	if len(s.timeRanges) == 0 {
+	if len(s.TimeRanges) == 0 {
 		return time.Time{}
 	}
 	// return the time of the last state
-	return s.timeRanges[len(s.timeRanges)-1].GetEndTime()
+	return s.TimeRanges[len(s.TimeRanges)-1].GetEndTime()
 }
 
 // SetEndTime sets the end time for the collection state - update all trunk states
@@ -100,49 +101,67 @@ func (s *ReverseOrderCollectionState[T]) SetEndTime(newEndTime time.Time) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
-	// for each time range, determine if the new end time is within the range
-	// if it is, set the end time and clear subsequent states
-	var finalTimeRangeIdx int
-	for i, timeRange := range s.timeRanges {
-		if timeRange.GetStartTime().Before(newEndTime) && timeRange.GetEndTime().After(newEndTime) {
-			timeRange.SetEndTime(newEndTime)
-			finalTimeRangeIdx = i
-		}
+	// if before the first time range -> clear everything
+	if newEndTime.Before(s.TimeRanges[0].GetStartTime()) {
+		s.Clear()
+		return
 	}
-	// TODO is this correct or withouth the plus 1?
-	s.timeRanges = s.timeRanges[:finalTimeRangeIdx+1]
+
+	// if after the last time range -> do nothing
+	if newEndTime.After(s.TimeRanges[len(s.TimeRanges)-1].GetEndTime()) {
+		return
+	}
+
+	// if within a time range -> set the end time of the time range & discard subsequent time ranges
+	// or if between two time ranges -> discard subsequent time ranges
+	var newTimeRanges []*TimeRangeCollectionStateImpl
+	for i, r := range s.TimeRanges {
+		if !newEndTime.Before(r.startTime) && !newEndTime.After(r.endTime) {
+			r.SetEndTime(newEndTime)
+			newTimeRanges = append(newTimeRanges, r)
+			break
+		}
+
+		if i+1 < len(s.TimeRanges) && newEndTime.After(r.endTime) && newEndTime.Before(s.TimeRanges[i+1].startTime) {
+			newTimeRanges = append(newTimeRanges, r)
+			break
+		}
+
+		newTimeRanges = append(newTimeRanges, r)
+	}
+	s.TimeRanges = newTimeRanges
 }
 
 func (s *ReverseOrderCollectionState[T]) Clear() {
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	// cleat the map
-	s.timeRanges = nil
+	// clear the map
+	s.TimeRanges = nil
 }
-
-
 
 // ShouldCollect returns whether the object should be collected, based on the time metadata in the object
 func (s *ReverseOrderCollectionState[T]) ShouldCollect(id string, timestamp time.Time) bool {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
-	if len(s.timeRanges) == 0 {
+	if s.activeTimeRange == nil {
 		panic("Start must be called before we start collecting")
 	}
 
-	// TODO active time range concept
-
-	finalTimeRange := s.timeRanges[len(s.timeRanges)-1]
-	if timestamp.After(finalTimeRange.StartTime) {
-		return false
+	if timestamp.Compare(s.activeTimeRange.startTime) >= 0 {
+		return s.activeTimeRange.ShouldCollect(id, timestamp)
 	}
 
-	if len(s.timeRanges) > 1 {
-		penultimateState := s.timeRanges[len(s.timeRanges)-2]
-		if timestamp.Before(penultimateState.EndTime) {
-			MERGE TIME RANGES
-			Add function HasJustMergedWithPreviousTimeRange()
+	if len(s.TimeRanges) > 1 {
+		penultimateState := s.TimeRanges[len(s.TimeRanges)-2]
+
+		if timestamp.Before(penultimateState.endTime.Add(s.granularity)) && timestamp.After(penultimateState.endTime) {
+			// check if item is in the penultimate state end objects
+			return penultimateState.ShouldCollect(id, timestamp)
+		}
+
+		if timestamp.Compare(penultimateState.endTime) <= 0 {
+			s.mergeActiveRangeWithPrevious()
 
 			return false
 		}
@@ -150,36 +169,28 @@ func (s *ReverseOrderCollectionState[T]) ShouldCollect(id string, timestamp time
 	return true
 }
 
-func HasJustMergedWithPreviousTimeRange(){
-	merge ranges
+func (s *ReverseOrderCollectionState[T]) mergeActiveRangeWithPrevious() {
+	// merge the last two time ranges
+	// the last range is the active range
+	// the penultimate range is the one before that
+	penultimateState := s.TimeRanges[len(s.TimeRanges)-2]
+	penultimateState.SetEndTime(s.activeTimeRange.GetEndTime())
+	penultimateState.EndObjects = s.activeTimeRange.EndObjects
+	// remove the last range
+	s.TimeRanges = s.TimeRanges[:len(s.TimeRanges)-1]
+	// set the active range to the penultimate range
+	s.activeTimeRange = penultimateState
+
 	s.lastModifiedTime = time.Now()
 }
-
 
 // OnCollected is called when an object has been collected - update our end time and end objects if needed
 func (s *ReverseOrderCollectionState[T]) OnCollected(id string, timestamp time.Time) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
-	// ifd we just merged with prev range, do nothing
-	if HasJustMergedWithPreviousTimeRange(){
-		return nil
-	}
-
-	// otherwise sets start time
-
-	// TODO
-	// store modified time to ensure we save the state
 	s.lastModifiedTime = time.Now()
-
-	slog.Info("OnCollected", "id", id, "timestamp", timestamp, "lastModifiedTime", s.lastModifiedTime)
-	// we should have stored a collection state mapping for this object
-	collectionState, ok := s.objectStateMap[id]
-	if !ok {
-		return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", id)
-	}
-
-	return collectionState.OnCollected(id, timestamp)
+	return s.activeTimeRange.OnCollected(id, timestamp)
 }
 
 // Save serialises the collection state to a JSON file
@@ -221,7 +232,7 @@ func (s *ReverseOrderCollectionState[T]) Save() error {
 
 // IsEmpty returns whether the collection state is empty
 func (s *ReverseOrderCollectionState[T]) IsEmpty() bool {
-	for _, trunkState := range s.timeRanges {
+	for _, trunkState := range s.TimeRanges {
 		if trunkState != nil {
 			return false
 		}

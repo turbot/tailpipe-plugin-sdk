@@ -11,6 +11,7 @@ import (
 // it is used by the ArtifactCollectionStateImpl and TimeRangeCollectionState
 // NOTE: we do not implement mutex locking here - it is assumed that the caller will lock the state before calling
 type TimeRangeCollectionStateImpl struct {
+	// TODO: add Export & add JSON tags to startTime, lastEntryTime, endTime once we can replace the serialization in go1.24 with omitzero
 	// the time range of the data
 	// the time of the earliest entry in the data
 	startTime     time.Time
@@ -159,6 +160,11 @@ func (s *TimeRangeCollectionStateImpl) SetEndTime(newEndTime time.Time) {
 	// truncate the time to the granularity
 	newEndTime = newEndTime.Truncate(s.Granularity)
 
+	// if newEndTime is after the current end time, do nothing as we don't nee to clear anything
+	if newEndTime.After(s.endTime) {
+		return
+	}
+
 	// if the new end time is before the start time, clear the state
 	if newEndTime.Before(s.startTime) {
 		s.Clear()
@@ -213,9 +219,9 @@ func (s *TimeRangeCollectionStateImpl) MarshalJSON() ([]byte, error) {
 	type Alias TimeRangeCollectionStateImpl
 	temp := struct {
 		*Alias
-		SerialisedStartTime     *time.Time `json:"startTime,omitempty"`
-		SerialisedLastEntryTime *time.Time `json:"lastEntryTime,omitempty"`
-		SerialisedEndTime       *time.Time `json:"endTime,omitempty"`
+		SerialisedStartTime     *time.Time `json:"start_time,omitempty"`
+		SerialisedLastEntryTime *time.Time `json:"last_entry_time,omitempty"`
+		SerialisedEndTime       *time.Time `json:"end_time,omitempty"`
 	}{
 		Alias: (*Alias)(s),
 	}
