@@ -142,8 +142,8 @@ func (s *ArtifactCollectionStateImpl[T]) SetEndTime(newEndTime time.Time) {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
+	// call set end time for each trunk state
 	for _, s := range s.TrunkStates {
-		// to work with granularity, we actually set the last entry time - this will set the end time for us
 		s.SetEndTime(newEndTime)
 	}
 }
@@ -216,7 +216,7 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 	}
 	if collectionState == nil {
 		// create a new collection state for this trunk
-		collectionState = NewTimeRangeCollectionStateImpl()
+		collectionState = NewTimeRangeCollectionStateImpl(CollectionOrderChronological)
 		// set the granularity
 		collectionState.SetGranularity(s.granularity)
 

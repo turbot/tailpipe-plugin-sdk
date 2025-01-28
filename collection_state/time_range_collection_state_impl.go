@@ -7,15 +7,22 @@ import (
 	"time"
 )
 
+type CollectionOrder int
+
+const (
+	CollectionOrderChronological CollectionOrder = iota
+	CollectionOrderReverse
+)
+
 // TimeRangeCollectionStateImpl is a struct that tracks time ranges and objects that have been collected
 // it is used by the ArtifactCollectionStateImpl and TimeRangeCollectionState
 // NOTE: we do not implement mutex locking here - it is assumed that the caller will lock the state before calling
 type TimeRangeCollectionStateImpl struct {
-	// TODO: add Export & add JSON tags to startTime, lastEntryTime, endTime once we can replace the serialization in go1.24 with omitzero
+	// TODO: add Export & add JSON tags to firstEntryTime, lastEntryTime, endTime once we can replace the serialization in go1.24 with omitzero
 	// the time range of the data
 	// the time of the earliest entry in the data
-	startTime     time.Time
-	lastEntryTime time.Time
+	firstEntryTime time.Time
+	lastEntryTime  time.Time
 	// the time we are sure we have collected all data up to - this is (LastEntryTime - granularity)
 	endTime time.Time
 
@@ -26,19 +33,23 @@ type TimeRangeCollectionStateImpl struct {
 	// the granularity of the file naming scheme - so we must keep track of object metadata
 	// this will depend on the template used to name the files
 	Granularity time.Duration `json:"granularity,omitempty"`
+
+	// are we collecting forwards (the default) or backwards
+	CollectionOrder CollectionOrder `json:"collection_order,omitempty"`
 }
 
-func NewTimeRangeCollectionStateImpl() *TimeRangeCollectionStateImpl {
+func NewTimeRangeCollectionStateImpl(order CollectionOrder) *TimeRangeCollectionStateImpl {
 	return &TimeRangeCollectionStateImpl{
 		EndObjects: make(map[string]struct{}),
 		// default granularity is 1 nanosecond - the default for api sources
 		// this will be overridden by ArtifactCollectionStateImpl as needed
-		Granularity: 1 * time.Nanosecond,
+		Granularity:     1 * time.Nanosecond,
+		CollectionOrder: order,
 	}
 }
 
 func (s *TimeRangeCollectionStateImpl) IsEmpty() bool {
-	return s.startTime.IsZero() && len(s.EndObjects) == 0
+	return s.firstEntryTime.IsZero() && len(s.EndObjects) == 0
 }
 
 // ShouldCollect returns whether the object should be collected
@@ -53,7 +64,7 @@ func (s *TimeRangeCollectionStateImpl) ShouldCollect(id string, timestamp time.T
 
 	// if the time is between the start and end time (inclusive) we should NOT collect
 	// (as have already collected it- assuming consistent artifact ordering)
-	if timestamp.Compare(s.startTime) >= 0 && timestamp.Compare(s.endTime) <= 0 {
+	if timestamp.Compare(s.firstEntryTime) >= 0 && timestamp.Compare(s.endTime) <= 0 {
 		return false
 	}
 
@@ -83,40 +94,66 @@ func (s *TimeRangeCollectionStateImpl) OnCollected(id string, timestamp time.Tim
 		return nil
 	}
 
-	// if this timestamp is BEFORE the start time, we must be recollecting with an earlier start time
-	// - clear collection state
-	// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
-	if timestamp.Before(s.startTime) {
-		s.Clear()
-	}
-
 	// if start time is not set, set it now
-	if s.startTime.IsZero() {
-		s.startTime = timestamp
-	}
-
-	// if the timestamp is before the current END time, this is unexpected
-	// - the end time represents the time which we THOUGHT we had collected all data up to
-	// this may indicate that the 'delivery delay'  for the source has been set incorrectly
-	// Delivery delay is the maximum lateness in reporting that we expect from a source.
-	// Thus if an API may report log entries up[ to 1 hour late, the delivery delay should be set to 1 hour
-	// If it is set to 1 hour but then reports an entry 2 hours late, this condition would occur
-	// NOTE: THIS ASSUMES COLLECTION IS IN ORDER
-	// TODO IMPLEMENT REVERSE ORDERING
-	if timestamp.Before(s.endTime) {
-		// TODO implement delivery delay
-		slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate a delay in delivering log lines", "item timestamp", timestamp, "collection state end time", s.endTime)
-		return nil
-	}
-
-	// if the timestamp is after the last entry time, update the last entry time
-	// this may also update the end time
-	if timestamp.After(s.lastEntryTime) {
+	if s.firstEntryTime.IsZero() {
+		s.firstEntryTime = timestamp
 		s.setLastEntryTime(timestamp)
+		s.EndObjects[id] = struct{}{}
+
+	}
+
+	if s.CollectionOrder == CollectionOrderChronological {
+		// if this timestamp is BEFORE the start time, we must be recollecting with an earlier start time
+		// - clear collection state
+		// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
+		if timestamp.Before(s.firstEntryTime) {
+			s.Clear()
+			s.firstEntryTime = timestamp
+			s.setLastEntryTime(timestamp)
+			s.EndObjects[id] = struct{}{}
+			return nil
+		}
+
+		// if the timestamp is before the current END time, this is unexpected
+		// - the end time represents the time which we THOUGHT we had collected all data up to
+		// this may indicate that the 'delivery delay'  for the source has been set incorrectly
+		// Delivery delay is the maximum lateness in reporting that we expect from a source.
+		// Thus if an API may report log entries up[ to 1 hour late, the delivery delay should be set to 1 hour
+		// If it is set to 1 hour but then reports an entry 2 hours late, this condition would occur
+		// TODO implement delivery delay
+		if timestamp.Before(s.endTime) {
+			slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate a delay in delivering log lines", "item timestamp", timestamp, "collection state end time", s.endTime)
+			return nil
+		}
+
+		// if the timestamp is after the last entry time, update the last entry time
+		// this may also update the end time
+		if timestamp.After(s.lastEntryTime) {
+			s.setLastEntryTime(timestamp)
+		}
+	} else {
+		// reverse order collection
+
+		// if this timestamp is AFTER the last entry time, we must be recollecting
+		// - clear collection state
+		// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
+		if timestamp.After(s.lastEntryTime) {
+			s.Clear()
+			s.firstEntryTime = timestamp
+			s.setLastEntryTime(timestamp)
+			s.EndObjects[id] = struct{}{}
+			return nil
+		}
+
+		// if the timestamp is before the current start time, just update the start time
+		if timestamp.Before(s.firstEntryTime) {
+			s.firstEntryTime = timestamp
+		}
 	}
 
 	// if the timestamp is after the end time, it must be in the granularity boundary zone
 	// so add to end objects
+	// (this is the same for forwards and backwards collection)
 	if timestamp.After(s.endTime) {
 		s.EndObjects[id] = struct{}{}
 	}
@@ -166,7 +203,7 @@ func (s *TimeRangeCollectionStateImpl) SetEndTime(newEndTime time.Time) {
 	}
 
 	// if the new end time is before the start time, clear the state
-	if newEndTime.Before(s.startTime) {
+	if newEndTime.Before(s.firstEntryTime) {
 		s.Clear()
 		return
 	}
@@ -178,7 +215,7 @@ func (s *TimeRangeCollectionStateImpl) SetEndTime(newEndTime time.Time) {
 }
 
 func (s *TimeRangeCollectionStateImpl) GetStartTime() time.Time {
-	return s.startTime
+	return s.firstEntryTime
 }
 
 func (s *TimeRangeCollectionStateImpl) GetEndTime() time.Time {
@@ -204,7 +241,7 @@ func (s *TimeRangeCollectionStateImpl) endObjectsContain(id string) bool {
 
 func (s *TimeRangeCollectionStateImpl) Clear() {
 	// clear the times
-	s.startTime = time.Time{}
+	s.firstEntryTime = time.Time{}
 	s.lastEntryTime = time.Time{}
 	s.endTime = time.Time{}
 	// clear the map
@@ -227,8 +264,8 @@ func (s *TimeRangeCollectionStateImpl) MarshalJSON() ([]byte, error) {
 	}
 
 	// Set serialized values conditionally
-	if !s.startTime.IsZero() {
-		temp.SerialisedStartTime = &s.startTime
+	if !s.firstEntryTime.IsZero() {
+		temp.SerialisedStartTime = &s.firstEntryTime
 	}
 	if !s.lastEntryTime.IsZero() {
 		temp.SerialisedLastEntryTime = &s.lastEntryTime
@@ -246,10 +283,10 @@ func (s *TimeRangeCollectionStateImpl) UnmarshalJSON(data []byte) error {
 	type Tmp struct {
 		// the time range of the data
 		// the time of the earliest entry in the data
-		StartTime     time.Time `json:"startTime,omitempty"`
-		LastEntryTime time.Time `json:"lastEntryTime,omitempty"`
+		FirstEntryTime time.Time `json:"first_entry_time,omitempty"`
+		LastEntryTime  time.Time `json:"last_entry_time,omitempty"`
 		// the time we are sure we have collected all data up to - this is (LastEntryTime - granularity)
-		EndTime time.Time `json:"endTime,omitempty"`
+		EndTime time.Time `json:"end_time,omitempty"`
 
 		// for end boundary (i.e. the end granularity) we store the metadata
 		// whenever the end time changes, we must clear the map
@@ -269,7 +306,7 @@ func (s *TimeRangeCollectionStateImpl) UnmarshalJSON(data []byte) error {
 	}
 
 	// Set the values from the temporary struct
-	s.startTime = dest.StartTime
+	s.firstEntryTime = dest.FirstEntryTime
 	s.lastEntryTime = dest.LastEntryTime
 	s.endTime = dest.EndTime
 	s.EndObjects = dest.EndObjects

@@ -59,7 +59,7 @@ func (s *ReverseOrderCollectionState[T]) Init(_ T, path string) error {
 
 func (s *ReverseOrderCollectionState[T]) Start() {
 	// add a new time range
-	s.activeTimeRange = NewTimeRangeCollectionStateImpl()
+	s.activeTimeRange = NewTimeRangeCollectionStateImpl(CollectionOrderReverse)
 	s.TimeRanges = append(s.TimeRanges, s.activeTimeRange)
 }
 
@@ -116,13 +116,13 @@ func (s *ReverseOrderCollectionState[T]) SetEndTime(newEndTime time.Time) {
 	// or if between two time ranges -> discard subsequent time ranges
 	var newTimeRanges []*TimeRangeCollectionStateImpl
 	for i, r := range s.TimeRanges {
-		if !newEndTime.Before(r.startTime) && !newEndTime.After(r.endTime) {
+		if !newEndTime.Before(r.firstEntryTime) && !newEndTime.After(r.endTime) {
 			r.SetEndTime(newEndTime)
 			newTimeRanges = append(newTimeRanges, r)
 			break
 		}
 
-		if i+1 < len(s.TimeRanges) && newEndTime.After(r.endTime) && newEndTime.Before(s.TimeRanges[i+1].startTime) {
+		if i+1 < len(s.TimeRanges) && newEndTime.After(r.endTime) && newEndTime.Before(s.TimeRanges[i+1].firstEntryTime) {
 			newTimeRanges = append(newTimeRanges, r)
 			break
 		}
@@ -148,7 +148,7 @@ func (s *ReverseOrderCollectionState[T]) ShouldCollect(id string, timestamp time
 		panic("Start must be called before we start collecting")
 	}
 
-	if timestamp.Compare(s.activeTimeRange.startTime) >= 0 {
+	if timestamp.Compare(s.activeTimeRange.firstEntryTime) >= 0 {
 		return s.activeTimeRange.ShouldCollect(id, timestamp)
 	}
 
