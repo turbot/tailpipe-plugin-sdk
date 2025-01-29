@@ -267,7 +267,7 @@ func (s *TimeRangeCollectionStateImpl) MarshalJSON() ([]byte, error) {
 	type Alias TimeRangeCollectionStateImpl
 	temp := struct {
 		*Alias
-		SerialisedStartTime     *time.Time `json:"start_time,omitempty"`
+		SerialisedStartTime     *time.Time `json:"first_entry_time,omitempty"`
 		SerialisedLastEntryTime *time.Time `json:"last_entry_time,omitempty"`
 		SerialisedEndTime       *time.Time `json:"end_time,omitempty"`
 	}{
