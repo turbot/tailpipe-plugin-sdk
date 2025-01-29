@@ -144,25 +144,42 @@ func (s *ReverseOrderCollectionState[T]) ShouldCollect(id string, timestamp time
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
+	// if we haven't initialized an activeTimeRange we shouldn't have hit this code path, so panic.
 	if s.activeTimeRange == nil {
 		panic("Start must be called before we start collecting")
 	}
 
-	if timestamp.Compare(s.activeTimeRange.firstEntryTime) >= 0 {
-		return s.activeTimeRange.ShouldCollect(id, timestamp)
+	// if our active time range is not empty, we should check against this
+	if !s.activeTimeRange.IsEmpty() {
+		// we should not be going forwards in time, so if we are, log a warning and return false
+		if timestamp.After(s.activeTimeRange.firstEntryTime) {
+			slog.Warn("Unexpected timestamp after activeTimeRange.firstEntryTime", "id", id, "timestamp", timestamp, "firstEntryTime", s.activeTimeRange.firstEntryTime)
+			return false
+		}
+
+		// if we're at the start of the active time range, we should collect as we assume that we're not getting duplicates in a single collection
+		if timestamp.Equal(s.activeTimeRange.firstEntryTime) {
+			return true
+		}
 	}
 
+	// if we have a penultimate state - we should check against this
 	if len(s.TimeRanges) > 1 {
 		penultimateState := s.TimeRanges[len(s.TimeRanges)-2]
 
-		if timestamp.Before(penultimateState.endTime.Add(s.granularity)) && timestamp.After(penultimateState.endTime) {
-			// check if item is in the penultimate state end objects
-			return penultimateState.ShouldCollect(id, timestamp)
+		// if we're in the boundary of the penultimate state we should ask the penultimate state if we should collect
+		if timestamp.After(penultimateState.endTime) && timestamp.Compare(penultimateState.lastEntryTime) <= 0 {
+			// check if item is in the penultimate state end objects, if so merge and return false else return true
+			res := penultimateState.ShouldCollect(id, timestamp)
+			if !res {
+				s.mergeActiveRangeWithPrevious()
+			}
+			return res
 		}
 
+		// if we're not in the boundary of the penultimate state but inside it, we should merge the active range with the penultimate range & not collect
 		if timestamp.Compare(penultimateState.endTime) <= 0 {
 			s.mergeActiveRangeWithPrevious()
-
 			return false
 		}
 	}
@@ -170,24 +187,34 @@ func (s *ReverseOrderCollectionState[T]) ShouldCollect(id string, timestamp time
 }
 
 func (s *ReverseOrderCollectionState[T]) mergeActiveRangeWithPrevious() {
-	// merge the last two time ranges
-	// the last range is the active range
-	// the penultimate range is the one before that
-	penultimateState := s.TimeRanges[len(s.TimeRanges)-2]
-	penultimateState.SetEndTime(s.activeTimeRange.GetEndTime())
-	penultimateState.EndObjects = s.activeTimeRange.EndObjects
+	if len(s.TimeRanges) < 2 {
+		panic("mergeActiveRangeWithPrevious called with less than 2 time ranges")
+	}
+	s.lastModifiedTime = time.Now()
+
+	if !s.activeTimeRange.IsEmpty() {
+		// merge the last two time ranges
+		// the last range is the active range
+		// the penultimate range is the one before that
+		penultimateState := s.TimeRanges[len(s.TimeRanges)-2]
+		penultimateState.SetEndTime(s.activeTimeRange.GetEndTime())
+		penultimateState.EndObjects = s.activeTimeRange.EndObjects
+	}
+
 	// remove the last range
 	s.TimeRanges = s.TimeRanges[:len(s.TimeRanges)-1]
 	// set the active range to the penultimate range
-	s.activeTimeRange = penultimateState
-
-	s.lastModifiedTime = time.Now()
+	s.activeTimeRange = s.TimeRanges[len(s.TimeRanges)-1]
 }
 
 // OnCollected is called when an object has been collected - update our end time and end objects if needed
 func (s *ReverseOrderCollectionState[T]) OnCollected(id string, timestamp time.Time) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
+
+	if s.activeTimeRange == nil {
+		panic("OnCollected called with no activeTimeRange")
+	}
 
 	s.lastModifiedTime = time.Now()
 	return s.activeTimeRange.OnCollected(id, timestamp)
