@@ -2,7 +2,7 @@ package artifact_source
 
 import (
 	"github.com/elastic/go-grok"
-	"github.com/turbot/pipe-fittings/filter"
+	"github.com/turbot/pipe-fittings/v2/filter"
 	"path/filepath"
 	"regexp"
 	"strings"

@@ -3,7 +3,7 @@ package table
 import (
 	"context"
 	"fmt"
-	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"

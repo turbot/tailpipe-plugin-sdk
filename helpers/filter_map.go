@@ -2,7 +2,7 @@ package helpers
 
 import (
 	"fmt"
-	"github.com/turbot/pipe-fittings/filter"
+	"github.com/turbot/pipe-fittings/v2/filter"
 )
 
 // BuildFilterMap parses the provided filter strings and returns a map of field name to SQL filters.

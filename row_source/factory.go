@@ -3,7 +3,7 @@ package row_source
 import (
 	"context"
 	"fmt"
-	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 )
 

@@ -1,7 +1,7 @@
 package helpers
 
 import (
-	"github.com/turbot/pipe-fittings/utils"
+	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"golang.org/x/exp/maps"
 	"log/slog"
