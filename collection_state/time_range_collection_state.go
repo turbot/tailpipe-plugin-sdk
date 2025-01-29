@@ -22,7 +22,7 @@ type TimeRangeCollectionState[T parse.Config] struct {
 }
 
 func NewTimeRangeCollectionState[T parse.Config]() CollectionState[T] {
-	s := NewTimeRangeCollectionStateImpl()
+	s := NewTimeRangeCollectionStateImpl(CollectionOrderChronological)
 	return &TimeRangeCollectionState[T]{
 		TimeRangeCollectionStateImpl: *s,
 		mut:                          &sync.RWMutex{},
