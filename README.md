@@ -1,6 +1,6 @@
 # Tailpipe Plugin SDK
 
-This SDK makes it easy to write Tailpipee plugins.
+This SDK makes it easy to write Tailpipe [plugins](https://hub.tailpipe.io/plugins).
 
 * **[Go Documentation →](https://pkg.go.dev/github.com/turbot/tailpipe-plugin-sdk)**
 
