@@ -3,7 +3,6 @@ package collection_state
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -194,6 +193,7 @@ func (s *ArtifactCollectionStateImpl[T]) RegisterPath(path string, metadata map[
 func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time.Time) bool {
 	s.mut.Lock()
 	defer s.mut.Unlock()
+	rootChar := "/"
 
 	// find the trunk state for this object
 	itemPath := id
@@ -211,8 +211,10 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 
 	// we should always have a trunk state
 	if len(trunkPath) == 0 {
-		slog.Error("No trunk state found for item - not collectiong", "item", itemPath)
-		return false
+		trunkPath = rootChar
+		if trunkState, ok := s.TrunkStates[rootChar]; ok {
+			collectionState = trunkState
+		}
 	}
 	if collectionState == nil {
 		// create a new collection state for this trunk
