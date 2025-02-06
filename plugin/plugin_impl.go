@@ -210,7 +210,7 @@ func (p *PluginImpl) SourceCollect(ctx context.Context, req *proto.SourceCollect
 	if err != nil {
 		p.NotifyError(ctx, req.ExecutionId, err)
 	} else {
-		notifyError := p.NotifyObservers(ctx, events.NewSourceCompletedEvent(req.ExecutionId, err))
+		notifyError := p.NotifyObservers(ctx, events.NewSourceCompleteEvent(req.ExecutionId, err))
 		if notifyError != nil {
 			p.NotifyError(ctx, req.ExecutionId, notifyError)
 		}
