@@ -23,7 +23,7 @@ type Table[R types.RowStruct] interface {
 	Identifier() string
 
 	// GetSourceMetadata returns the supported sources for the table
-	GetSourceMetadata() []*SourceMetadata[R]
+	GetSourceMetadata() ([]*SourceMetadata[R], error)
 	// EnrichRow is called to enrich the row with common (tp_*) fields
 	EnrichRow(R, schema.SourceEnrichment) (R, error)
 }

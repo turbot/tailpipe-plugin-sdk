@@ -31,6 +31,7 @@ func ParseConfig[T types.Config](configData types.ConfigData) (T, error) {
 	// Parse the config
 	declRange := configData.GetRange()
 	hclBytes := configData.GetHcl()
+
 	file, diags := hclsyntax.ParseConfig(hclBytes, declRange.Filename, declRange.Start)
 	if diags != nil && diags.HasErrors() {
 		slog.Warn("failed to parse config", "config type", configData.GetConfigType(), "hcl", hclBytes)

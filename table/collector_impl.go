@@ -211,7 +211,10 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 
 func (c *CollectorImpl[R]) getSourceMetadata(sourceConfig *types.SourceConfigData) (sourceMetadata *SourceMetadata[R], err error) {
 	// get the supported sources for the table
-	supportedSourceMap := c.getSourceMetadataMap()
+	supportedSourceMap, err := c.getSourceMetadataMap()
+	if err != nil {
+		return nil, err
+	}
 	requestedSource := sourceConfig.Type
 	// validate the requested source type is supported by this table
 	sourceMetadata, ok := supportedSourceMap[requestedSource]
@@ -238,14 +241,17 @@ func (c *CollectorImpl[R]) getSourceMetadata(sourceConfig *types.SourceConfigDat
 }
 
 // ask table for it;s supported sources and put into map for ease of lookup
-func (c *CollectorImpl[R]) getSourceMetadataMap() map[string]*SourceMetadata[R] {
-	supportedSources := c.Table.GetSourceMetadata()
+func (c *CollectorImpl[R]) getSourceMetadataMap() (map[string]*SourceMetadata[R], error) {
+	supportedSources, err := c.Table.GetSourceMetadata()
+	if err != nil {
+		return nil, err
+	}
 	// convert to a map for easy lookup
 	sourceMap := make(map[string]*SourceMetadata[R])
 	for _, s := range supportedSources {
 		sourceMap[s.SourceName] = s
 	}
-	return sourceMap
+	return sourceMap, nil
 }
 
 // updateStatus updates the status counters with the latest event
@@ -300,9 +306,9 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 // mapRow applies any configured mappers to the raw rows
 func (c *CollectorImpl[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
 	var empty R
-	// if there is no mapperFunc, just return the data as is
+	// if there is no mapper, just return the data as is
 	if c.mapper == nil {
-		// if no mapperFunc is defined, we expect the rawRow to be of type R - if not this is an error
+		// if no mapper is defined, we expect the rawRow to be of type R - if not this is an error
 		row, ok := rawRow.(R)
 		if !ok {
 			// TODO #error this is not raised in UI
