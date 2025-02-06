@@ -11,7 +11,7 @@ type SourceComplete struct {
 	Err         error
 }
 
-func NewSourceCompletedEvent(executionId string, err error) *SourceComplete {
+func NewSourceCompleteEvent(executionId string, err error) *SourceComplete {
 	return &SourceComplete{
 		ExecutionId: executionId,
 		Err:         err,
