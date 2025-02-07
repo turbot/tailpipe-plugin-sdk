@@ -2,15 +2,12 @@ module github.com/turbot/tailpipe-plugin-sdk
 
 go 1.23.6
 
-replace (
-	github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
-	github.com/turbot/steampipe-plugin-code => ../steampipe-plugin-code
-)
+replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
 	github.com/elastic/go-grok v0.3.1
-	github.com/hashicorp/go-hclog v1.6.2
+	github.com/hashicorp/go-hclog v1.6.3
 	github.com/hashicorp/go-plugin v1.6.1
 	github.com/hashicorp/hcl/v2 v2.20.1
 	github.com/iancoleman/strcase v0.3.0
@@ -158,7 +155,7 @@ require (
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	github.com/tkrajina/go-reflector v0.5.8 // indirect
 	github.com/turbot/pipes-sdk-go v0.12.0 // indirect
-	github.com/turbot/steampipe-plugin-code v0.7.0 // indirect
+	github.com/turbot/steampipe-plugin-code v1.0.1-alpha.1 // indirect
 	github.com/turbot/terraform-components v0.0.0-20231213122222-1f3526cab7a7 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
