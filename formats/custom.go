@@ -8,10 +8,10 @@ type Custom struct {
 	// the layout of the log line
 	// NOTE that as will contain grok patterns, this property is included in constants.GrokConfigProperties
 	// meaning and '{' will be auto-escaped in the hcl
-	Layout string
+	Layout string `hcl:"layout"`
 
 	// grok patterns to add to the grok parser used to parse the layout
-	Patterns map[string]string
+	Patterns map[string]string `hcl:"patterns,optional"`
 
 	// the roq schema must at the minimum provide mapping for the tp_timestamp field
 	//Schema *schema.RowSchema `hcl:"schema,block"`
