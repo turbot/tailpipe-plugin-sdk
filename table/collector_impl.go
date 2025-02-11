@@ -13,6 +13,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
+	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -38,7 +39,7 @@ type CollectorImpl[R types.RowStruct] struct {
 
 	Table  Table[R]
 	source row_source.RowSource
-	mapper Mapper[R]
+	mapper mappers.Mapper[R]
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
@@ -318,7 +319,7 @@ func (c *CollectorImpl[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
 	}
 
 	// if there is a custom table, pass the schema to the mapper
-	var opts []MapOption[R]
+	var opts []mappers.MapOption[R]
 	if c.req.CustomTable != nil {
 		opts = append(opts, WithSchema[R](c.req.CustomTable.Schema))
 	}

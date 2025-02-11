@@ -30,13 +30,14 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
 func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
-	// apply sourceCommonFields
+	// apply source common fields
 	for k, v := range sourceCommonFields.AsMap() {
 		if _, ok := l.Columns[k]; !ok {
 			l.Columns[k] = v
 		}
 	}
 
+	//
 	const timeFormat = time.RFC3339
 
 	// auto populate id and timestamp
@@ -48,14 +49,15 @@ func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
 		l.Columns["tp_index"] = schema.DefaultIndex
 	}
 
-	// if we have tp_timestamp - parse it and update the field
+	// if we have a tp_timestamp, parse it and update the field
 	if timestampStr, ok := l.Columns["tp_timestamp"]; ok {
 		timestamp, err := helpers.ParseTime(timestampStr)
 		if err != nil {
 			return fmt.Errorf("error parsing tp_timestamp: %w", err)
 		}
+
 		l.Columns["tp_timestamp"] = timestamp.Format(timeFormat)
-		// also set tp_date
+		// also set the date
 		l.Columns["tp_date"] = timestamp.Truncate(24 * time.Hour).Format(timeFormat)
 	}
 
@@ -63,6 +65,8 @@ func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
 }
 
 func (l *DynamicRow) Validate() error {
+	// TODO re-implement validate rather than instantiating a common fields struct
+	// benchmark the time taken
 	commonFields := l.GetCommonFields()
 	return commonFields.Validate()
 }

@@ -4,35 +4,35 @@ import (
 	"context"
 	"fmt"
 	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
 )
 
-// CollectorWithFormat is a collector that has a table format
+// CustomCollector is a collector that has a table format
 // The format is parsed from the source format config
-type CollectorWithFormat[R types.RowStruct, S parse.Config] struct {
-	CollectorImpl[R]
-
-	// shadow the table field from the base collector, so we store it as a TableWithFormat,
+type CustomCollector struct {
+	CollectorImpl[*DynamicRow]
+	// shadow the table field from the base collector, so we store it as a CustomTable,
 	//to avoid the need for a type assertion
-	Table TableWithFormat[R, S]
+	Table CustomTable
 	// the table format
-	Format S
+	Format *formats.Custom
 }
 
-func NewCollectorWithFormat[R types.RowStruct, S parse.Config, T TableWithFormat[R, S]]() *CollectorWithFormat[R, S] {
-	table := utils.InstanceOf[T]()
+func NewCustomCollector[T CustomTable]() *CustomCollector {
+	t := utils.InstanceOf[T]()
 
-	return &CollectorWithFormat[R, S]{
-		Table: table,
-		CollectorImpl: CollectorImpl[R]{
-			Table: table,
+	return &CustomCollector{
+		Table: t,
+		CollectorImpl: CollectorImpl[*DynamicRow]{
+			Table: t,
 		},
 	}
 
 }
-func (c *CollectorWithFormat[R, S]) Init(ctx context.Context, req *types.CollectRequest) error {
+func (c *CustomCollector) Init(ctx context.Context, req *types.CollectRequest) error {
 	// parse format config
 	if err := c.initialiseFormat(req.SourceFormat); err != nil {
 		return err
@@ -45,12 +45,12 @@ func (c *CollectorWithFormat[R, S]) Init(ctx context.Context, req *types.Collect
 	return c.CollectorImpl.Init(ctx, req)
 }
 
-func (c *CollectorWithFormat[R, S]) initialiseFormat(formatData types.ConfigData) error {
+func (c *CustomCollector) initialiseFormat(formatData types.ConfigData) error {
 	// default to empty format
-	format := utils.InstanceOf[S]()
+	format := &formats.Custom{}
 	if len(formatData.GetHcl()) > 0 {
 		var err error
-		format, err = parse.ParseConfig[S](formatData)
+		format, err = parse.ParseConfig[*formats.Custom](formatData)
 		if err != nil {
 			return fmt.Errorf("error parsing config: %w", err)
 		}
