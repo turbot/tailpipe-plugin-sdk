@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rs/xid"
+	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -28,8 +29,9 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
-func (l *DynamicRow) Enrich(fields schema.CommonFields) {
-	for k, v := range fields.AsMap() {
+func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
+	// apply sourceCommonFields
+	for k, v := range sourceCommonFields.AsMap() {
 		if _, ok := l.Columns[k]; !ok {
 			l.Columns[k] = v
 		}
@@ -46,18 +48,18 @@ func (l *DynamicRow) Enrich(fields schema.CommonFields) {
 		l.Columns["tp_index"] = schema.DefaultIndex
 	}
 
-	// if tp_date is not set, and tp_timestamp is, set tpDate to the date part of tpTimestamp
-	// we know the fitled WILL be there as it isa value type but is it zero?
-	// is date zero
-	var zeroDate time.Time
-	dateSet := l.Columns["tp_date"] == zeroDate.String()
-
-	timestamp := l.Columns["tp_timestamp"]
-	if !dateSet && timestamp != zeroDate.String() {
-		if t, err := time.Parse(timeFormat, timestamp); err == nil {
-			l.Columns["tp_date"] = t.Truncate(24 * time.Hour).Format(timeFormat)
+	// if we have tp_timestamp - parse it and update the field
+	if timestampStr, ok := l.Columns["tp_timestamp"]; ok {
+		timestamp, err := helpers.ParseTime(timestampStr)
+		if err != nil {
+			return fmt.Errorf("error parsing tp_timestamp: %w", err)
 		}
+		l.Columns["tp_timestamp"] = timestamp.Format(timeFormat)
+		// also set tp_date
+		l.Columns["tp_date"] = timestamp.Truncate(24 * time.Hour).Format(timeFormat)
 	}
+
+	return nil
 }
 
 func (l *DynamicRow) Validate() error {
