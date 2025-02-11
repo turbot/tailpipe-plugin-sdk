@@ -7,15 +7,14 @@ import (
 	"github.com/satyrius/gonx"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
-	"github.com/turbot/tailpipe-plugin-sdk/table"
 )
 
-type GonxMapper[T table.MapInitialisedRow] struct {
+type GonxMapper[T MapInitialisedRow] struct {
 	parsers []*gonx.Parser
 	schema  *schema.RowSchema
 }
 
-func NewGonxMapper[T table.MapInitialisedRow](formats ...string) *GonxMapper[T] {
+func NewGonxMapper[T MapInitialisedRow](formats ...string) *GonxMapper[T] {
 	res := &GonxMapper[T]{}
 	for _, format := range formats {
 		res.parsers = append(res.parsers, gonx.NewParser(format))
@@ -32,7 +31,7 @@ func (c *GonxMapper[T]) Identifier() string {
 	return "row_pattern_mapper"
 }
 
-func (c *GonxMapper[T]) Map(_ context.Context, a any, opts_ ...table.MapOption[T]) (T, error) {
+func (c *GonxMapper[T]) Map(_ context.Context, a any, opts_ ...MapOption[T]) (T, error) {
 	// apply opts - this may set a schema
 	for _, opt := range opts_ {
 		opt(c)

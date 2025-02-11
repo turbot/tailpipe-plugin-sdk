@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -13,11 +12,11 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
-// RegisterTableFormat registers a collector constructor for a table which supports Format
+// RegisterCustomTable registers a collector constructor for a table which supports Format
 // this is called from the package init function of the table implementation
-func RegisterTableFormat[R types.RowStruct, S parse.Config, T TableWithFormat[R, S]]() {
+func RegisterCustomTable[T CustomTable]() {
 	collectorFunc := func() Collector {
-		return NewCollectorWithFormat[R, S, T]()
+		return NewCustomCollector[T]()
 	}
 
 	Factory.registerCollector(collectorFunc)
@@ -37,8 +36,8 @@ func RegisterTable[R types.RowStruct, T Table[R]]() {
 
 // RegisterCollector registers a collector constructor directly
 // this is only used if we need to specify a custom collector (used for custom tables)
-func RegisterCollector(collectorFunc func() Collector) {
-	Factory.registerCollector(collectorFunc)
+func RegisterCollector(collectorFunc Collector) {
+	Factory.registerCollector(func() Collector { return collectorFunc })
 }
 
 type TableFactory struct {
