@@ -1,11 +1,8 @@
 package table
 
 import (
-	"fmt"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // CustomCollector is a collector that has a table format
@@ -46,24 +43,24 @@ func NewCustomCollector[T CustomTable](format *formats.Custom) *CustomCollector 
 //	return c.CollectorImpl.Init(ctx, req)
 //}
 //
-func (c *CustomCollector) initialiseFormat(formatData types.ConfigData) error {
-	// default to empty format
-	format := &formats.Custom{}
-	if len(formatData.GetHcl()) > 0 {
-		var err error
-		format, err = parse.ParseConfig[*formats.Custom](formatData)
-		if err != nil {
-			return fmt.Errorf("error parsing config: %w", err)
-		}
-
-		slog.Info("CollectorImpl: format parsed", "format", c)
-	}
-	c.Format = format
-
-	// validate format
-	if err := format.Validate(); err != nil {
-		return fmt.Errorf("invalid format config: %w", err)
-	}
-
-	return nil
-}
+//func (c *CustomCollector) initialiseFormat(formatData types.ConfigData) error {
+//	// default to empty format
+//	format := &formats.Custom{}
+//	if len(formatData.GetHcl()) > 0 {
+//		var err error
+//		format, err = parse.ParseConfig[*formats.Custom](formatData)
+//		if err != nil {
+//			return fmt.Errorf("error parsing config: %w", err)
+//		}
+//
+//		slog.Info("CollectorImpl: format parsed", "format", c)
+//	}
+//	c.Format = format
+//
+//	// validate format
+//	if err := format.Validate(); err != nil {
+//		return fmt.Errorf("invalid format config: %w", err)
+//	}
+//
+//	return nil
+//}

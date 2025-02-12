@@ -2,10 +2,9 @@ package formats
 
 import (
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-core/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type Custom struct {
@@ -38,15 +37,15 @@ func (c *Custom) Identifier() string {
 //	return nil
 //}
 
-func NewCustomFormat(T, error) interface{} {
+func NewCustomFormat(formatData *types.FormatConfigData) (*Custom, error) {
 	if len(formatData.GetHcl()) > 0 {
 		var err error
 		format, err := parse.ParseConfig[*Custom](formatData)
 		if err != nil {
-			return fmt.Errorf("error parsing config: %w", err)
+			return nil, fmt.Errorf("error parsing config: %w", err)
 		}
 
-		slog.Info("CollectorImpl: format parsed", "format", c)
+		return format, nil
 	}
-
+	return &Custom{}, nil
 }
