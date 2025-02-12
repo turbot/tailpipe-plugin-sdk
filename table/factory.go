@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -14,9 +15,9 @@ var Factory = newTableFactory()
 
 // RegisterCustomTable registers a collector constructor for a table which supports Format
 // this is called from the package init function of the table implementation
-func RegisterCustomTable[T CustomTable]() {
+func RegisterCustomTable[T CustomTable](format *formats.Custom) {
 	collectorFunc := func() Collector {
-		return NewCustomCollector[T]()
+		return NewCustomCollector[T](format)
 	}
 
 	Factory.registerCollector(collectorFunc)
