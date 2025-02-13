@@ -236,7 +236,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 
 		// update extract active duration
 		activeDuration := time.Since(extractStart)
-		slog.Debug("ArtifactDownloaded - extract complete", "artifact", info.LocalName, "duration (ms)", activeDuration.Milliseconds())
+		slog.Debug("ArtifactDownloaded - extraction complete", "artifact", info.LocalName, "duration (ms)", activeDuration.Milliseconds())
 
 		// close wait group whether there is an error or not
 		a.artifactExtractWg.Done()
@@ -263,7 +263,7 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		return err
 	}
 	// load artifact data
-	// resolve the loader - if one has not been specified, create a default for the file tyoe
+	// resolve the loader
 	loader, err := a.resolveLoader(info)
 	if err != nil {
 		return err
@@ -278,14 +278,13 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 
 	var count int64 = 0
 
+	// raise row events, sending collection state data
+	// we may have thousands of notify errors - just store the first one and the count
+	var notifyError error
+	notifyErrorCount := 0
 	// the loader will return one more more data objects (depending on whether RowPerLine flag is set)
 	// range over the data channel and apply extractor if needed
 	for artifactData := range artifactChan {
-
-		// raise row events, sending collection state data
-		// we may have thousands of notify errors - just store the first one and the count
-		var notifyError error
-		notifyErrorCount := 0
 
 		// add source enrichment from the artifacts to the artifact data
 		artifactData.SourceEnrichment = info.SourceEnrichment
@@ -314,9 +313,11 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 			}
 		}
 
-		if notifyErrorCount > 0 {
-			return fmt.Errorf("error notifying %d %s of row event: %w", notifyErrorCount, utils.Pluralize("observer", notifyErrorCount), notifyError)
-		}
+	}
+
+	// if we skipped the header row, decrement the count to ensure logged row count is accurate
+	if a.SkipHeaderRow {
+		count--
 	}
 
 	// notify observers of extraction (if any rows were extracted)
@@ -326,12 +327,10 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		}
 	}
 
-	// if we skipped the header row, decrement the count to ensure logged row count is accurate
-	if a.SkipHeaderRow {
-		count--
-	}
-
 	slog.Debug("RowSourceImpl processArtifact complete", "artifact", info.LocalName, "rows", count)
+	if notifyErrorCount > 0 {
+		return fmt.Errorf("error extracting %d %s: %w", notifyErrorCount, utils.Pluralize("row", notifyErrorCount), notifyError)
+	}
 	return nil
 }
 

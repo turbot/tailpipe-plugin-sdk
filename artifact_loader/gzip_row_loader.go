@@ -28,6 +28,8 @@ func (g GzipRowLoader) Identifier() string {
 // Load implements Loader
 // Extracts an object from a gzip file
 func (g GzipRowLoader) Load(ctx context.Context, info *types.DownloadedArtifactInfo, dataChan chan *types.RowData) error {
+	slog.Debug("GzipRowLoader Load", "path", info.LocalName)
+
 	inputPath := info.LocalName
 	gzFile, err := os.Open(inputPath)
 	if err != nil {
@@ -65,6 +67,7 @@ func (g GzipRowLoader) Load(ctx context.Context, info *types.DownloadedArtifactI
 				Data: scanner.Text(),
 			}
 		}
+		slog.Debug("GzipRowLoader Load complete", "path", info.LocalName)
 	}()
 	return nil
 }
