@@ -3,6 +3,7 @@ package artifact_source
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 
 	"github.com/turbot/go-kit/helpers"
@@ -178,11 +179,16 @@ func (w *PluginSourceWrapper) Collect(ctx context.Context) error {
 		return err
 	}
 
+	slog.Info("PluginSourceWrapper.Close - wait for source completion")
 	// wait for the source to complete - this will be cleared by the event handler
 	// TODO timeout?
 	w.sourceWg.Wait()
+
+	slog.Info("PluginSourceWrapper.Close - wait for artifact extractions ")
 	// also wait for any artifact extractions to complete
 	w.artifactExtractWg.Wait()
+
+	slog.Info("PluginSourceWrapper.Close done")
 	return nil
 }
 
