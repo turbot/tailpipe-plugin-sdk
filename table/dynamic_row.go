@@ -84,7 +84,7 @@ func (l *DynamicRow) MarshalJSON() ([]byte, error) {
 
 // ResolveSchema returns the (potentially partial) schema for the dynamic row
 // - this will be used for the JSONL-parquet conversion
-func (l *DynamicRow) ResolveSchema(customTable *types.Table) (*schema.RowSchema, error) {
+func (l *DynamicRow) ResolveSchema(customTable *types.CustomTableDef) (*schema.RowSchema, error) {
 	if customTable.Schema == nil {
 		return nil, fmt.Errorf("no schema provided for dynamic row")
 	}

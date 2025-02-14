@@ -35,7 +35,7 @@ message CollectRequest {
   // the raw hcl of the connection
   ConfigData connection_data = 7;
   // if this is custom table, Table contains the source format and table schema
-  Table custom_table = 8;
+  Table custom_table_def = 8;
   // the source format
   ConfigData source_format = 9;
   // optional: the reattach config to connect to the plugin providing the source

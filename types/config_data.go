@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"github.com/hashicorp/hcl/v2"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"strings"
 )
@@ -21,13 +22,14 @@ type ConfigData interface {
 type ConfigDataImpl struct {
 	Hcl   []byte
 	Range hcl.Range
-	// Id represent the type of the config:
+	// ConfigType is the type of the config data, i.e. connection, source, partition, format
+	ConfigType string
+	// InstanceType represent the subtype type of the config instance:
 	// - if this is a partition config, this will be the table name
 	// - if this is a source config, this will be the source type
 	// - if this is a connection config, this will be the connection type (i.e. plugin name)
-	Id string
-	// ConfigType is the type of the config data, i.e. connection, source, partition
-	ConfigType string
+	// - if this is a format config, this will be the format type
+	InstanceType string
 }
 
 // GetHcl returns the HCL config data
@@ -42,7 +44,7 @@ func (c *ConfigDataImpl) GetRange() hcl.Range {
 
 // Identifier returns the identifier of the config data
 func (c *ConfigDataImpl) Identifier() string {
-	return c.Id
+	return c.InstanceType
 }
 
 // GetConfigType returns the type of the config data
@@ -62,9 +64,9 @@ func ConfigDataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 	switch any(empty).(type) {
 	case *SourceConfigData:
 		if len(parts) != 2 {
-			return empty, fmt.Errorf("invalid source config target %s: expected a name of format source.<type>", data.Target)
+			return empty, fmt.Errorf("invalid source config target %s: expected a name of form 'source.<type>'", data.Target)
 		}
-		if parts[0] != "source" {
+		if parts[0] != constants.ConfigTypeSource {
 			return empty, fmt.Errorf("invalid source config target %s: expected a source", data.Target)
 		}
 		d := NewSourceConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1])
@@ -72,15 +74,22 @@ func ConfigDataFromProto[T ConfigData](data *proto.ConfigData) (T, error) {
 
 	case *ConnectionConfigData:
 		if len(parts) != 2 {
-			return empty, fmt.Errorf("invalid source config target %s: expected a name of format connection.<type>", data.Target)
+			return empty, fmt.Errorf("invalid connection config target %s: expected a form 'connection.<type>'", data.Target)
 		}
-		if parts[0] != "connection" {
-			return empty, fmt.Errorf("invalid source config target %s: expected a connection", data.Target)
+		if parts[0] != constants.ConfigTypeConnection {
+			return empty, fmt.Errorf("invalid connection config target %s: expected a connection", data.Target)
 		}
 		d := NewConnectionConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1])
 		return ConfigData(d).(T), nil
 	case *FormatConfigData:
-		d := NewFormatConfigData(data.Hcl, proto.RangeFromProto(data.Range), data.Target)
+		if len(parts) != 2 {
+			return empty, fmt.Errorf("invalid format config target %s: expected a name of form 'format.<type>'", data.Target)
+		}
+		if parts[0] != constants.ConfigTypeFormat {
+			return empty, fmt.Errorf("invalid format config target %s: expected a connection", data.Target)
+		}
+
+		d := NewFormatConfigData(data.Hcl, proto.RangeFromProto(data.Range), parts[1])
 		return ConfigData(d).(T), nil
 	default:
 		return empty, fmt.Errorf("invalid config type %T", empty)
@@ -91,6 +100,6 @@ func (c *ConfigDataImpl) AsProto() *proto.ConfigData {
 	return &proto.ConfigData{
 		Hcl:    c.Hcl,
 		Range:  proto.RangeToProto(c.Range),
-		Target: fmt.Sprintf("%s.%s", c.ConfigType, c.Id),
+		Target: fmt.Sprintf("%s.%s", c.ConfigType, c.InstanceType),
 	}
 }

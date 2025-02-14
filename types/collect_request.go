@@ -7,13 +7,13 @@ import (
 	"time"
 )
 
-type Table struct {
+type CustomTableDef struct {
 	Name   string
 	Schema *schema.RowSchema
 }
 
-func TableFromProto(pt *proto.Table) *Table {
-	return &Table{
+func CustomTableFromProto(pt *proto.Table) *CustomTableDef {
+	return &CustomTableDef{
 		Name:   pt.Name,
 		Schema: schema.RowSchemaFromProto(pt.Schema),
 	}
@@ -39,7 +39,7 @@ type CollectRequest struct {
 	// the collection start time
 	From time.Time
 	// the custom table definition, if specified
-	CustomTable *Table
+	CustomTableDef *CustomTableDef
 }
 
 func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
@@ -81,8 +81,8 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		}
 		req.ConnectionData = connectionData
 	}
-	if pr.CustomTable != nil {
-		req.CustomTable = TableFromProto(pr.CustomTable)
+	if pr.CustomTableDef != nil {
+		req.CustomTableDef = CustomTableFromProto(pr.CustomTableDef)
 	}
 
 	return req, nil

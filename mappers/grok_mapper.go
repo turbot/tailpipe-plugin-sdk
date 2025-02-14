@@ -2,7 +2,9 @@ package mappers
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"regexp/syntax"
 
 	"github.com/elastic/go-grok"
 	"github.com/turbot/go-kit/helpers"
@@ -26,7 +28,13 @@ func NewGrokMapper[T MapInitialisedRow](layout string, patterns map[string]strin
 		return nil, fmt.Errorf("error adding patterns: %w", err)
 	}
 	if err := g.Compile(layout, true); err != nil {
-		return nil, fmt.Errorf("error compiling layout: %w", err)
+		//is this a *syntax.Error
+		var e = &syntax.Error{}
+		if errors.As(err, &e) {
+			return nil, fmt.Errorf("syntax error compiling layout: %s", e.Code)
+		} else {
+			return nil, fmt.Errorf("syntax error compiling layout: %w", err)
+		}
 	}
 	res.parser = g
 
@@ -34,17 +42,15 @@ func NewGrokMapper[T MapInitialisedRow](layout string, patterns map[string]strin
 }
 
 func (c *GrokMapper[T]) Identifier() string {
-	return "row_grok_mapper"
+	return "grok_mapper"
 }
 
-// SetSchema implements SchemaSetter interface
 func (c *GrokMapper[T]) SetSchema(schema *schema.RowSchema) {
 	c.schema = schema
 }
 func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, error) {
 	var empty T
 
-	// apply opts - this may set a schema
 	for _, opt := range opts {
 		opt(c)
 	}

@@ -21,7 +21,7 @@ import (
 
 // ArtifactConversionCollector is a collector that converts artifacts directly to JSONL
 // S is the table config type
-type ArtifactConversionCollector[S parse.Config] struct {
+type ArtifactConversionCollector struct {
 	observable.ObservableImpl
 
 	source row_source.RowSource
@@ -30,7 +30,7 @@ type ArtifactConversionCollector[S parse.Config] struct {
 	// the source format
 	formatData *proto.ConfigData
 	// the table config
-	Format S
+	Format parse.Config
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
@@ -40,19 +40,19 @@ type ArtifactConversionCollector[S parse.Config] struct {
 	req                 *types.CollectRequest
 }
 
-func (c *ArtifactConversionCollector[S]) UpdateCollectionState(ctx context.Context, request *types.CollectRequest) error {
+func (c *ArtifactConversionCollector) UpdateCollectionState(ctx context.Context, request *types.CollectRequest) error {
 	//TODO implement me
 	panic("implement me")
 }
 
-func NewArtifactConversionCollector[S parse.Config](tableName string, formatData *proto.ConfigData) *ArtifactConversionCollector[S] {
-	return &ArtifactConversionCollector[S]{
-		tableName:  tableName,
+func NewArtifactConversionCollector(tableDef *types.CustomTableDef, formatData *proto.ConfigData) *ArtifactConversionCollector {
+	return &ArtifactConversionCollector{
+		tableName:  tableDef.Name,
 		formatData: formatData,
 	}
 }
 
-func (c *ArtifactConversionCollector[S]) Init(ctx context.Context, req *types.CollectRequest) error {
+func (c *ArtifactConversionCollector) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
 
 	// TODO #validate validate no extractor
@@ -67,28 +67,28 @@ func (c *ArtifactConversionCollector[S]) Init(ctx context.Context, req *types.Co
 	return nil
 }
 
-func (c *ArtifactConversionCollector[S]) Identifier() string {
+func (c *ArtifactConversionCollector) Identifier() string {
 	return c.tableName
 }
 
 // GetSchema returns the schema of the table if available
 // for dynamic tables, the schema is only available at this if the config contains a schema
-func (c *ArtifactConversionCollector[S]) GetSchema() (*schema.RowSchema, error) {
+func (c *ArtifactConversionCollector) GetSchema() (*schema.RowSchema, error) {
 	var row *DynamicRow
-	return row.ResolveSchema(c.req.CustomTable)
+	return row.ResolveSchema(c.req.CustomTableDef)
 }
 
-func (c *ArtifactConversionCollector[S]) GetFromTime() *row_source.ResolvedFromTime {
+func (c *ArtifactConversionCollector) GetFromTime() *row_source.ResolvedFromTime {
 	return c.source.GetFromTime()
 }
 
-//func (c *ArtifactConversionCollector[S]) initialiseConfig(tableConfigData types.ConfigData) error {
+//func (c *ArtifactConversionCollector) initialiseConfig(tableConfigData types.ConfigData) error {
 //	// default to empty config
-//	//cfg := utils.InstanceOf[S]()
+//	//cfg := utils.InstanceOf()
 //
 //	if len(tableConfigData.GetHcl()) > 0 {
 //
-//		cfg, err := parse.ParseConfig[S](tableConfigData)
+//		cfg, err := parse.ParseConfig(tableConfigData)
 //		if err != nil {
 //			return fmt.Errorf("error parsing config: %w", err)
 //		}
@@ -105,12 +105,12 @@ func (c *ArtifactConversionCollector[S]) GetFromTime() *row_source.ResolvedFromT
 //	return nil
 //}
 //
-//func (c *ArtifactConversionCollector[S]) initialiseFormat(tableConfigData types.ConfigData) error {
+//func (c *ArtifactConversionCollector) initialiseFormat(tableConfigData types.ConfigData) error {
 //	// default to empty config
-//	//cfg := utils.InstanceOf[S]()
+//	//cfg := utils.InstanceOf()
 //
 //	if len(tableConfigData.GetHcl()) > 0 {
-//		cfg, err := parse.ParseConfig[S](tableConfigData)
+//		cfg, err := parse.ParseConfig(tableConfigData)
 //		if err != nil {
 //			return fmt.Errorf("error parsing config: %w", err)
 //		}
@@ -128,7 +128,7 @@ func (c *ArtifactConversionCollector[S]) GetFromTime() *row_source.ResolvedFromT
 //}
 
 // Collect executes the collection process. Tell our source to start collection
-func (c *ArtifactConversionCollector[S]) Collect(ctx context.Context) (int, int, error) {
+func (c *ArtifactConversionCollector) Collect(ctx context.Context) (int, int, error) {
 	// create empty status event#
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
 
@@ -157,7 +157,7 @@ func (c *ArtifactConversionCollector[S]) Collect(ctx context.Context) (int, int,
 
 // Notify implements observable.Observer
 // it handles all events which collectorFuncMap may receive (these will all come from the source)
-func (c *ArtifactConversionCollector[S]) Notify(ctx context.Context, event events.Event) error {
+func (c *ArtifactConversionCollector) Notify(ctx context.Context, event events.Event) error {
 	// update the status counts
 	c.updateStatus(ctx, event)
 
@@ -175,8 +175,8 @@ func (c *ArtifactConversionCollector[S]) Notify(ctx context.Context, event event
 	}
 }
 
-func (c *ArtifactConversionCollector[S]) initSource(ctx context.Context, configData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
-	requestedSource := configData.Type
+func (c *ArtifactConversionCollector) initSource(ctx context.Context, configData *types.SourceConfigData, connectionData *types.ConnectionConfigData) error {
+	requestedSource := configData.InstanceType
 	// must be an artifact source
 	if !row_source.IsArtifactSource(requestedSource) {
 		return fmt.Errorf("source type %s is not an artifact source", requestedSource)
@@ -215,7 +215,7 @@ func (c *ArtifactConversionCollector[S]) initSource(ctx context.Context, configD
 // updateStatus updates the status counters with the latest event
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes
-func (c *ArtifactConversionCollector[S]) updateStatus(ctx context.Context, e events.Event) {
+func (c *ArtifactConversionCollector) updateStatus(ctx context.Context, e events.Event) {
 	c.statusLock.Lock()
 	defer c.statusLock.Unlock()
 
@@ -232,7 +232,7 @@ func (c *ArtifactConversionCollector[S]) updateStatus(ctx context.Context, e eve
 	}
 }
 
-func (c *ArtifactConversionCollector[S]) handleArtifactDownloaded(ctx context.Context, e *events.ArtifactDownloaded) error {
+func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Context, e *events.ArtifactDownloaded) error {
 	// TODO K
 	//executionId, err := context_values.ExecutionIdFromContext(ctx)
 	//if err != nil {
@@ -265,7 +265,7 @@ func (c *ArtifactConversionCollector[S]) handleArtifactDownloaded(ctx context.Co
 
 // OnChunk is called by the we have written a chunk of enriched rows to a [JSONL/CSV] file
 // notify observers of the chunk
-func (c *ArtifactConversionCollector[S]) OnChunk(ctx context.Context, chunkNumber int, collectionState json.RawMessage) error {
+func (c *ArtifactConversionCollector) OnChunk(ctx context.Context, chunkNumber int, collectionState json.RawMessage) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err

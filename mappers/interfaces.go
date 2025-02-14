@@ -2,6 +2,7 @@ package mappers
 
 import (
 	"context"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -18,4 +19,9 @@ type Mapper[R types.RowStruct] interface {
 	Identifier() string
 	// Map converts raw rows to the desired format (type 'R')
 	Map(context.Context, any, ...MapOption[R]) (R, error)
+}
+
+type CustomTableMapper[R types.RowStruct] interface {
+	Mapper[R]
+	SetSchema(*schema.RowSchema)
 }
