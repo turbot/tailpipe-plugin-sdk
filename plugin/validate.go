@@ -1,7 +1,6 @@
 package plugin
 
 import (
-	"context"
 	"github.com/stretchr/testify/assert"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"testing"
@@ -13,9 +12,6 @@ func Validate(t *testing.T, ctor func() (TailpipePlugin, error)) {
 	p, err := ctor()
 	assert.Nil(t, err)
 
-	t.Run("TestInit", func(t *testing.T) {
-		TestInit(t, p)
-	})
 	t.Run("TestIdentifier", func(t *testing.T) {
 		TestIdentifier(t, p)
 	})
@@ -36,14 +32,6 @@ func TestDescribe(t *testing.T, p TailpipePlugin) {
 	assert.Nil(t, err)
 	assert.NotNil(t, schema)
 	assert.NotEmpty(t, schema)
-}
-
-func TestInit(t *testing.T, p TailpipePlugin) {
-	err := p.Init(context.Background())
-	assert.Nil(t, err)
-
-	// ensure base is initialized
-	assert.True(t, p.Impl().initialized())
 }
 
 func TestIdentifier(t *testing.T, p TailpipePlugin) {

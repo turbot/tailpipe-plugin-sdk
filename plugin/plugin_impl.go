@@ -39,19 +39,12 @@ func (p *PluginImpl) Identifier() string {
 	return p.identifier
 }
 
-// Init implements [plugin.TailpipePlugin]
-func (p *PluginImpl) Init(context.Context) error {
-	//initialise the table factory
-	// this converts the array of table constructors to a map of table constructors
-	// and populates the table schemas
-	return table.Factory.Init()
-}
-
 // initialized returns true if the plugin has been initialized
 func (p *PluginImpl) initialized() bool {
 	return table.Factory.Initialized()
 }
 
+// Collect Implements [plugin.TailpipePlugin]
 func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.RowSchema, error) {
 	// create context containing execution id
 	ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
@@ -63,16 +56,24 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 
 		return nil, nil, err
 	}
+	// call the implementation
+	return p.DoCollect(ctx, collectRequest)
+}
+
+// DoCollect is an implementation of the Collect method which accepts a types.CollectRequest
+// it is split out to allow for overridden implementations of Collect to call it
+// after having converted the proto request to the internal type
+func (p *PluginImpl) DoCollect(ctx context.Context, req *types.CollectRequest) (*row_source.ResolvedFromTime, *schema.RowSchema, error) {
 
 	// ask the factory to create the collector
 	// - this will configure the requested source
-	collector, err := table.Factory.GetCollector(collectRequest)
+	collector, err := table.Factory.GetCollector(req)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// initialise the collector
-	if err := collector.Init(ctx, collectRequest); err != nil {
+	if err := collector.Init(ctx, req); err != nil {
 		return nil, nil, err
 	}
 

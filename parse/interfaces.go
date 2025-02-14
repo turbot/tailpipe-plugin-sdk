@@ -6,6 +6,7 @@ import "github.com/turbot/tailpipe-plugin-sdk/schema"
 // - table config
 // - source config
 // - connection config
+// - format config
 type Config interface {
 	Validate() error
 	Identifier() string

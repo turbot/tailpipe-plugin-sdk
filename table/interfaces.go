@@ -2,9 +2,6 @@ package table
 
 import (
 	"context"
-	"github.com/turbot/tailpipe-plugin-sdk/mappers"
-
-	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -13,9 +10,11 @@ import (
 )
 
 // CustomTable is a generic interface representing a plugin table definition with a format
-type CustomTable interface {
-	Table[*DynamicRow]
-	SetFormat(custom *formats.Custom)
+type CustomTable[R types.RowStruct] interface {
+	Table[R]
+	SetFormat(parse.Config)
+	GetFormat() parse.Config
+	SetSchema(*schema.RowSchema)
 }
 
 // Table is a generic interface representing a plugin table definition
@@ -40,20 +39,6 @@ type Collector interface {
 	Collect(context.Context) (int, int, error)
 	GetSchema() (*schema.RowSchema, error)
 	GetFromTime() *row_source.ResolvedFromTime
-}
-
-// SchemaSetter is an interface which provides a method to set the schema
-type SchemaSetter interface {
-	SetSchema(*schema.RowSchema)
-}
-
-// WithSchema is a MapOption which sets the schema on a Mapper
-func WithSchema[R types.RowStruct](schema *schema.RowSchema) mappers.MapOption[R] {
-	return func(m mappers.Mapper[R]) {
-		if mapper, ok := m.(SchemaSetter); ok {
-			mapper.SetSchema(schema)
-		}
-	}
 }
 
 type ArtifactToJsonConverter[S parse.Config] interface {

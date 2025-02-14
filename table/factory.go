@@ -6,6 +6,7 @@ import (
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -13,37 +14,41 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
-// RegisterCustomTable registers a collector constructor for a table which supports Format
+// RegisterCustomTable registers a collector constructor for a table which supports Formatrm,
 // this is called from the package init function of the table implementation
-func RegisterCustomTable[T CustomTable](format *formats.Custom) {
-	collectorFunc := func() Collector {
-		return NewCustomCollector[T](format)
+func RegisterCustomTable[R types.RowStruct, T CustomTable[R]](tableDef *types.CustomTableDef, format parse.Config) {
+	var collectorFunc func() Collector
+
+	switch any(format).(type) {
+	case *formats.Grok, *formats.Regex:
+		collectorFunc = func() Collector {
+			return NewCustomCollector[R, T](tableDef, format)
+		}
+	case *formats.Delimited:
+		collectorFunc = func() Collector {
+			// TODO
+			return NewArtifactConversionCollector(tableDef, nil)
+		}
 	}
 
-	Factory.registerCollector(collectorFunc)
+	Factory.registerCollector(tableDef.Name, collectorFunc)
 }
 
 // RegisterTable registers a collector constructor with the factory
 // this is called from the package init function of the table implementation
 func RegisterTable[R types.RowStruct, T Table[R]]() {
+	t := utils.InstanceOf[T]()
 	collectorFunc := func() Collector {
 		return &CollectorImpl[R]{
-			Table: utils.InstanceOf[T](),
+			Table: t,
 		}
 	}
 
-	Factory.registerCollector(collectorFunc)
-}
-
-// RegisterCollector registers a collector constructor directly
-// this is only used if we need to specify a custom collector (used for custom tables)
-func RegisterCollector(collectorFunc Collector) {
-	Factory.registerCollector(func() Collector { return collectorFunc })
+	Factory.registerCollector(t.Identifier(), collectorFunc)
 }
 
 type TableFactory struct {
-	collectorFuncs []func() Collector
-	// maps of collector constructors, keyed by the name of the registered table types
+	// maps of collector constructors, keyed by the name of the table name
 	collectorFuncMap map[string]func() Collector
 	// map of table schemas
 	schemaMap schema.SchemaMap
@@ -61,31 +66,8 @@ func newTableFactory() TableFactory {
 // (for the map key) and the schema
 // we defer this until TableFactory.Init as registerCollector is called from
 // package init functions which cannot return an error
-func (f *TableFactory) registerCollector(ctor func() Collector) {
-	f.collectorFuncs = append(f.collectorFuncs, ctor)
-}
-
-// Init builds the map of table constructors and schemas
-func (f *TableFactory) Init() (err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = helpers.ToError(r)
-		}
-	}()
-
-	errs := make([]error, 0)
-
-	for _, ctor := range f.collectorFuncs {
-		// create an instance of the table to get the identifier
-		collector := ctor()
-
-		// register the collector func with the table factory
-		f.collectorFuncMap[collector.Identifier()] = ctor
-	}
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-	return nil
+func (f *TableFactory) registerCollector(name string, ctor func() Collector) {
+	f.collectorFuncMap[name] = ctor
 }
 
 // populateSchemas builds the map of table constructors and schemas
@@ -102,7 +84,7 @@ func (f *TableFactory) populateSchemas() (err error) {
 
 	errs := make([]error, 0)
 
-	for _, ctor := range f.collectorFuncs {
+	for _, ctor := range f.collectorFuncMap {
 		// create an instance of the table to get the identifier
 		collector := ctor()
 
@@ -181,10 +163,10 @@ type TableFactory interface {
 
 // RegisterTable registers a collector constructor with the factory
 // this is called from the package init function of the table implementation
-func RegisterTable[R types.RowStruct, S parse.Config, T Table[R]]() {
+func RegisterTable[R types.RowStruct, S parse.Config, T CustomTableDef[R]]() {
 	collectorFunc := func() Collector {
 		return &CollectorImpl[R, S]{
-			Table:utils.InstanceOf[T](),
+			CustomTableDef:utils.InstanceOf[T](),
 		}
 	}
 
@@ -275,10 +257,10 @@ func (f *PluginTableFactory) populateSchemas() (err error) {
 
 func (f *PluginTableFactory) GetCollector(req *types.CollectRequest) (Collector, error) {
 	// get the registered partition constructor for the table
-	ctor, ok := f.collectorFuncMap[req.PartitionData.Table]
+	ctor, ok := f.collectorFuncMap[req.PartitionData.CustomTableDef]
 	if !ok {
 		// this type is not registered
-		return nil, fmt.Errorf("Table not found: %s", req.PartitionData.Table)
+		return nil, fmt.Errorf("CustomTableDef not found: %s", req.PartitionData.CustomTableDef)
 	}
 
 	// create the partition

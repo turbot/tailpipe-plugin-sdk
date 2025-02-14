@@ -123,10 +123,6 @@ func (s PluginServer) Serve() error {
 	// initialize logger
 	logging.Initialize(s.impl.Identifier())
 
-	// initialise the plugin
-	if err := s.impl.Init(ctx); err != nil {
-		return err
-	}
 	// shutdown the plugin when done
 	defer func() {
 		if err := s.impl.Shutdown(ctx); err != nil {

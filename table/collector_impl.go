@@ -95,7 +95,7 @@ func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
 	// if the table has a dynamic row, we can only return the schema is the config supports it
 	if d, ok := any(rowStruct).(*DynamicRow); ok {
 		// we must have a custom table
-		customTable := c.req.CustomTable
+		customTable := c.req.CustomTableDef
 		if customTable == nil {
 			return nil, fmt.Errorf("table %s has dynamic row but no custom table definition", c.Table.Identifier())
 		}
@@ -216,7 +216,7 @@ func (c *CollectorImpl[R]) getSourceMetadata(sourceConfig *types.SourceConfigDat
 	if err != nil {
 		return nil, err
 	}
-	requestedSource := sourceConfig.Type
+	requestedSource := sourceConfig.InstanceType
 	// validate the requested source type is supported by this table
 	sourceMetadata, ok := supportedSourceMap[requestedSource]
 	if !ok {
@@ -318,13 +318,7 @@ func (c *CollectorImpl[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
 		return row, nil
 	}
 
-	// if there is a custom table, pass the schema to the mapper
-	var opts []mappers.MapOption[R]
-	if c.req.CustomTable != nil {
-		opts = append(opts, WithSchema[R](c.req.CustomTable.Schema))
-	}
-
-	return c.mapper.Map(ctx, rawRow, opts...)
+	return c.mapper.Map(ctx, rawRow)
 }
 
 // onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full

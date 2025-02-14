@@ -64,8 +64,8 @@ func TestParseFormat(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			configData := &types.FormatConfigData{
 				ConfigDataImpl: &types.ConfigDataImpl{
-					Hcl: tt.args.hclBytes,
-					Id:  "custom",
+					Hcl:          tt.args.hclBytes,
+					InstanceType: "custom",
 				},
 			}
 			got, err := ParseConfig[*customFormat](configData)
