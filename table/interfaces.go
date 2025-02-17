@@ -12,6 +12,8 @@ import (
 // CustomTable is a generic interface representing a plugin table definition with a format
 type CustomTable interface {
 	Table[*DynamicRow]
+	SetFormat(parse.Config)
+	SetTableDef(*types.CustomTableDef)
 	GetFormat() parse.Config
 	GetTableDef() *types.CustomTableDef
 }
