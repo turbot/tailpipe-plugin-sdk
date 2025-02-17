@@ -22,15 +22,23 @@ func RegisterCustomTable[T CustomTable](opts ...CustomTableOpt) {
 	t := utils.InstanceOf[T]()
 
 	// apply any options to the table
+	// this is used to set the format and table def for fully custom tables
 	for _, opt := range opts {
 		opt(t)
 	}
+
+	// TODO come up with a cleaner mechanism
+	// to handle the case of a predefined custom table, which implement GetFormat and GetTableDef
+	// to define the table, we need to populate the format and table def for the embedded CustomTableImpl
+	// this avoids the need for plugin authors to do so
+	t.SetFormat(t.GetFormat())
+	t.SetTableDef(t.GetTableDef())
 
 	f := t.GetFormat()
 	switch f.(type) {
 	case *formats.Grok, *formats.Regex:
 		collectorFunc = func() Collector {
-			return NewCustomCollector[T](t)
+			return &CollectorImpl[*DynamicRow]{Table: t}
 		}
 	case *formats.Delimited:
 		collectorFunc = func() Collector {

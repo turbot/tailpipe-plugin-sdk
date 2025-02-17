@@ -15,6 +15,18 @@ type CustomTableImpl struct {
 	Format parse.Config
 }
 
+// SetFormat sets the format for the custom table
+func (c *CustomTableImpl) SetFormat(format parse.Config) {
+	c.Format = format
+}
+
+// SetTableDef sets the table def for the custom table
+func (c *CustomTableImpl) SetTableDef(tableDef *types.CustomTableDef) {
+	if tableDef != nil {
+		c.CustomTableDef = *tableDef
+	}
+}
+
 func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
 
 	var mapper mappers.CustomTableMapper[*DynamicRow]
