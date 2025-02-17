@@ -9,11 +9,11 @@ import (
 
 // CustomCollector is a collector that has a table format
 // The format is parsed from the source format config
-type CustomCollector[R types.RowStruct] struct {
-	CollectorImpl[R]
+type CustomCollector struct {
+	CollectorImpl[*DynamicRow]
 	// shadow the table field from the base collector, so we store it as a CustomTable,
 	//to avoid the need for a type assertion
-	Table     CustomTable[R]
+	Table     CustomTable
 	tableName string
 }
 
@@ -36,12 +36,12 @@ func WithTableDef(tableDef *types.CustomTableDef, format parse.Config) CustomTab
 	}
 }
 
-func NewCustomCollector[R types.RowStruct, T CustomTable[R]](t T) *CustomCollector[R] {
+func NewCustomCollector[T CustomTable](t T) *CustomCollector {
 	slog.Info("Creating new custom collector")
 
-	c := &CustomCollector[R]{
+	c := &CustomCollector{
 		Table: t,
-		CollectorImpl: CollectorImpl[R]{
+		CollectorImpl: CollectorImpl[*DynamicRow]{
 			Table: t,
 		},
 	}

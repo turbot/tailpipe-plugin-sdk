@@ -15,7 +15,7 @@ var Factory = newTableFactory()
 
 // RegisterCustomTable registers a collector constructor for a table which supports Formatr
 // this is called from the package init function of the table implementation
-func RegisterCustomTable[R types.RowStruct, T CustomTable[R]](opts ...CustomTableOpt) {
+func RegisterCustomTable[T CustomTable](opts ...CustomTableOpt) {
 	var collectorFunc func() Collector
 
 	// create table instance
@@ -30,7 +30,7 @@ func RegisterCustomTable[R types.RowStruct, T CustomTable[R]](opts ...CustomTabl
 	switch f.(type) {
 	case *formats.Grok, *formats.Regex:
 		collectorFunc = func() Collector {
-			return NewCustomCollector[R, T](t)
+			return NewCustomCollector[T](t)
 		}
 	case *formats.Delimited:
 		collectorFunc = func() Collector {
