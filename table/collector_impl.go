@@ -92,9 +92,8 @@ func (c *CollectorImpl[R]) Identifier() string {
 func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
 	rowStruct := utils.InstanceOf[R]()
 
-	// if the table has a dynamic row, we can only return the schema is the config supports it
+	// if the table has a dynamic row, we must have a custom table
 	if d, ok := any(rowStruct).(*DynamicRow); ok {
-		// we must have a custom table
 		ct, ok := any(c.Table).(CustomTable)
 		if !ok {
 			return nil, fmt.Errorf("dynamic row requires a custom table")

@@ -16,12 +16,6 @@ type DynamicRow struct {
 	Columns map[string]string
 }
 
-func NewDynamicRow() *DynamicRow {
-	return &DynamicRow{
-		Columns: make(map[string]string),
-	}
-}
-
 // InitialiseFromMap initializes the struct from a map of string values
 func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 	l.Columns = m
@@ -30,6 +24,11 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
 func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
+	// we expect the columns to be initialised by a previous call to InitialiseFromMap but if not, create it
+	if l.Columns == nil {
+		l.Columns = make(map[string]string)
+	}
+
 	// apply source common fields
 	for k, v := range sourceCommonFields.AsMap() {
 		if _, ok := l.Columns[k]; !ok {
@@ -37,7 +36,6 @@ func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
 		}
 	}
 
-	//
 	const timeFormat = time.RFC3339
 
 	// auto populate id and timestamp
@@ -65,7 +63,7 @@ func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
 }
 
 func (l *DynamicRow) Validate() error {
-	// TODO re-implement validate rather than instantiating a common fields struct
+	// TODO re-implement validate rather than instantiating a common fields struct https://github.com/turbot/tailpipe-plugin-sdk/issues/99
 	// benchmark the time taken
 	commonFields := l.GetCommonFields()
 	return commonFields.Validate()

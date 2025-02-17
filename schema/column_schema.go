@@ -13,7 +13,6 @@ type ColumnType struct {
 	ChildFields []*ColumnSchema
 }
 
-// TODO DYNAMIC to we need Required attribute
 type ColumnSchema struct {
 	// SourceName refers to one of 2 things depdending on where the schema is used
 	// 1. When the schemas is used by a mapper, SourceName refers to the field name in the raw row data
@@ -26,6 +25,8 @@ type ColumnSchema struct {
 	StructFields []*ColumnSchema `json:"struct_fields,omitempty"`
 	// the column description (optional)
 	Description string `json:"description,omitempty"`
+	// is the column required
+	Required bool `json:"required"`
 }
 
 func (c *ColumnSchema) toProto() *proto.ColumnSchema {

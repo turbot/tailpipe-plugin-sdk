@@ -11,20 +11,16 @@ import (
 
 // CustomTableImpl is a generic struct representing a plugin table definition with a format
 type CustomTableImpl struct {
-	types.CustomTableDef
+	Name   string
+	Schema *schema.RowSchema
 	Format parse.Config
 }
 
-// SetFormat sets the format for the custom table
-func (c *CustomTableImpl) SetFormat(format parse.Config) {
+// Initialize sets the format and schema for the table
+func (c *CustomTableImpl) Initialize(format parse.Config, tableDef *types.CustomTableDef) {
 	c.Format = format
-}
-
-// SetTableDef sets the table def for the custom table
-func (c *CustomTableImpl) SetTableDef(tableDef *types.CustomTableDef) {
-	if tableDef != nil {
-		c.CustomTableDef = *tableDef
-	}
+	c.Name = tableDef.Name
+	c.Schema = tableDef.Schema
 }
 
 func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
@@ -53,7 +49,6 @@ func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
 	ss.SetSchema(c.Schema)
 
 	return mapper, err
-
 }
 
 func (c *CustomTableImpl) EnrichRow(row *DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*DynamicRow, error) {

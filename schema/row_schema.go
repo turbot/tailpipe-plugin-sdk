@@ -75,9 +75,12 @@ func (r *RowSchema) MapRow(rowMap map[string]string) (map[string]string, error) 
 		if c.SourceName != "" {
 			sourceName = c.SourceName
 		}
+		//
 		if v, ok := rowMap[sourceName]; !ok {
-			// TODO once we have config for this, we can decide if this is an error or not
-			return nil, fmt.Errorf("source field %s not found in row", sourceName)
+			if c.Required {
+				return nil, fmt.Errorf("source field '%s' not found in row", sourceName)
+			}
+			// if the field is not required, we just skip it
 		} else {
 			res[c.ColumnName] = v
 		}

@@ -10,8 +10,6 @@ type CustomTableOpt = func(c CustomTable)
 
 func WithTableDef(tableDef *types.CustomTableDef, format parse.Config) CustomTableOpt {
 	return func(t CustomTable) {
-
-		t.SetTableDef(tableDef)
-		t.SetFormat(format)
+		t.Initialize(format, tableDef)
 	}
 }

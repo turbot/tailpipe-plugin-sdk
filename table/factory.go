@@ -21,18 +21,26 @@ func RegisterCustomTable[T CustomTable](opts ...CustomTableOpt) {
 	// create table instance
 	t := utils.InstanceOf[T]()
 
+	//There are 2 uses cases for custom tables:
+	//- fully custom tables implements by the LogTable in the core plugin
+	//- predefined custom tables which may be implemented by any plugin and have a fixed format and table definition
+
+	// In the case of fully custom tables, the format and table definition are defined in config.
+	// The opts passed to this function will include WithTableDef, whach sets the format and table def for the table
+	// by calling t.Initialize(format, tableDef)
+
 	// apply any options to the table
 	// this is used to set the format and table def for fully custom tables
 	for _, opt := range opts {
 		opt(t)
 	}
 
-	// TODO come up with a cleaner mechanism
-	// to handle the case of a predefined custom table, which implement GetFormat and GetTableDef
-	// to define the table, we need to populate the format and table def for the embedded CustomTableImpl
-	// this avoids the need for plugin authors to do so
-	t.SetFormat(t.GetFormat())
-	t.SetTableDef(t.GetTableDef())
+	// In the case of predefined custom tables, the format and table def are defined in the table implementation,
+	// and returned by the interface functions GetFormat and GetTableDef.
+	// For this usage wqe need to populate the format and table def of the embedded CustomTableImpl struct
+	// by calling Initialize
+	// (this does mean that for custom tables we call Initialize twice, but it is a cheap call)
+	t.Initialize(t.GetFormat(), t.GetTableDef())
 
 	f := t.GetFormat()
 	switch f.(type) {
