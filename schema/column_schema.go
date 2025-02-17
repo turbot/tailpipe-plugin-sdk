@@ -13,6 +13,7 @@ type ColumnType struct {
 	ChildFields []*ColumnSchema
 }
 
+// TODO DYNAMIC to we need Required attribute
 type ColumnSchema struct {
 	// SourceName refers to one of 2 things depdending on where the schema is used
 	// 1. When the schemas is used by a mapper, SourceName refers to the field name in the raw row data

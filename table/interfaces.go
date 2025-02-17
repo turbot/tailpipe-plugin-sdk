@@ -2,7 +2,6 @@ package table
 
 import (
 	"context"
-
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -10,10 +9,13 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// TableWithFormat is a generic interface representing a plugin table definition with a format
-type TableWithFormat[R types.RowStruct, S parse.Config] interface {
-	Table[R]
-	SetFormat(S)
+// CustomTable is a generic interface representing a plugin table definition with a format
+type CustomTable interface {
+	Table[*DynamicRow]
+	SetFormat(parse.Config)
+	SetTableDef(*types.CustomTableDef)
+	GetFormat() parse.Config
+	GetTableDef() *types.CustomTableDef
 }
 
 // Table is a generic interface representing a plugin table definition
@@ -38,37 +40,6 @@ type Collector interface {
 	Collect(context.Context) (int, int, error)
 	GetSchema() (*schema.RowSchema, error)
 	GetFromTime() *row_source.ResolvedFromTime
-}
-
-type MapOption[R types.RowStruct] func(Mapper[R])
-
-// Mapper is a generic interface which provides a method for mapping raw source data into row structs
-// R is the type of the row struct which the mapperFunc outputs
-type Mapper[R types.RowStruct] interface {
-	Identifier() string
-	// Map converts raw rows to the desired format (type 'R')
-	Map(context.Context, any, ...MapOption[R]) (R, error)
-}
-
-// SchemaSetter is an interface which provides a method to set the schema
-type SchemaSetter interface {
-	SetSchema(*schema.RowSchema)
-}
-
-// WithSchema is a MapOption which sets the schema on a Mapper
-func WithSchema[R types.RowStruct](schema *schema.RowSchema) MapOption[R] {
-	return func(m Mapper[R]) {
-		if mapper, ok := m.(SchemaSetter); ok {
-			mapper.SetSchema(schema)
-		}
-	}
-}
-
-// MapInitialisedRow is an interface which provides a means to initialise a row struct from a string map
-// this is used in combination with the GonxMapper/GrokMapper
-type MapInitialisedRow interface {
-	types.RowStruct
-	InitialiseFromMap(m map[string]string) error
 }
 
 type ArtifactToJsonConverter[S parse.Config] interface {

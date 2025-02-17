@@ -46,7 +46,7 @@ func (b *RowSourceFactory) registerRowSource(ctor func() RowSource) {
 // Implements [plugin.SourceFactory]
 func (b *RowSourceFactory) GetRowSource(ctx context.Context, params *RowSourceParams, sourceOpts ...RowSourceOption) (RowSource, error) {
 	var source RowSource
-	sourceType := params.SourceConfigData.Type
+	sourceType := params.SourceConfigData.InstanceType
 	// if a reattach config is provided, we need to create a wrapper source which will handle the reattach
 	if params.SourceConfigData.ReattachConfig != nil {
 		sourceType = PluginSourceWrapperIdentifier
@@ -54,7 +54,7 @@ func (b *RowSourceFactory) GetRowSource(ctx context.Context, params *RowSourcePa
 	//look for a constructor for the source
 	ctor, ok := b.sourceFuncs[sourceType]
 	if !ok {
-		return nil, fmt.Errorf("source not registered: %s", params.SourceConfigData.Type)
+		return nil, fmt.Errorf("source not registered: %s", params.SourceConfigData.InstanceType)
 	}
 	// create the source
 	source = ctor()

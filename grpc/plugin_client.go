@@ -5,7 +5,6 @@ import (
 
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/turbot/steampipe-plugin-sdk/v5/logging"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -44,7 +43,7 @@ func NewPluginClientFromReattach(sourcePlugin *types.SourcePluginReattach) (*Plu
 		sourcePlugin.Plugin: &shared.TailpipeGRPCPlugin{},
 	}
 	// discard logging from the client (plugin logs will still flow through to the log file as the plugin manager set this up)
-	logger := logging.NewLogger(&hclog.LoggerOptions{Name: "plugin", Output: io.Discard})
+	logger := hclog.New(&hclog.LoggerOptions{Name: "plugin", Output: io.Discard})
 
 	// create grpc client
 	client := plugin.NewClient(&plugin.ClientConfig{
