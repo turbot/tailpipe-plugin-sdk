@@ -1,10 +1,10 @@
 package table
 
 import (
-	"github.com/turbot/pipe-fittings/v2/utils"
+	"log/slog"
+
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"log/slog"
 )
 
 // CustomCollector is a collector that has a table format
@@ -17,52 +17,34 @@ type CustomCollector[R types.RowStruct] struct {
 	tableName string
 }
 
-func NewCustomCollector[R types.RowStruct, T CustomTable[R]](tableDef *types.CustomTableDef, format parse.Config) *CustomCollector[R] {
-	slog.Info("Creating new custom collector", "table", tableDef.Name, "format", format)
+// CustomTableOpt is a function that can be used to set options on a custom table
+// note: as type assertion is done inside the option, there is no need to
+// accept a generic type for the option func, simplifying the declaration
+type CustomTableOpt = func(c any)
 
-	t := utils.InstanceOf[T]()
-	// set the format on the table
-	t.SetFormat(format)
-	t.SetSchema(tableDef.Schema)
+func WithTableDef(tableDef *types.CustomTableDef, format parse.Config) CustomTableOpt {
+	return func(t any) {
+		// if the table supports setting schema, set it
+		type SchemaSetter interface {
+			SetFormat(parse.Config)
+			SetCustomTableDef(*types.CustomTableDef)
+		}
+		if ss, ok := any(t).(SchemaSetter); ok {
+			ss.SetCustomTableDef(tableDef)
+			ss.SetFormat(format)
+		}
+	}
+}
 
-	return &CustomCollector[R]{
+func NewCustomCollector[R types.RowStruct, T CustomTable[R]](t T) *CustomCollector[R] {
+	slog.Info("Creating new custom collector")
+
+	c := &CustomCollector[R]{
 		Table: t,
 		CollectorImpl: CollectorImpl[R]{
 			Table: t,
 		},
 	}
-}
 
-//func (c *CustomCollector) Init(ctx context.Context, req *types.CollectRequest) error {
-//	// TODO only required if we can override the format
-//	// parse format config
-//	if err := c.initialiseFormat(req.SourceFormat); err != nil {
-//		return err
-//	}
-//
-//
-//	// now call base init
-//	return c.CollectorImpl.Init(ctx, req)
-//}
-//
-//func (c *CustomCollector) initialiseFormat(formatData types.ConfigData) error {
-//	// default to empty format
-//	format := &formats.Grok{}
-//	if len(formatData.GetHcl()) > 0 {
-//		var err error
-//		format, err = parse.ParseConfig[*formats.Grok](formatData)
-//		if err != nil {
-//			return fmt.Errorf("error parsing config: %w", err)
-//		}
-//
-//		slog.Info("CollectorImpl: format parsed", "format", c)
-//	}
-//	c.Format = format
-//
-//	// validate format
-//	if err := format.Validate(); err != nil {
-//		return fmt.Errorf("invalid format config: %w", err)
-//	}
-//
-//	return nil
-//}
+	return c
+}

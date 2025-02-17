@@ -9,22 +9,11 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// TODO REMOVE R
 // CustomTableImpl is a generic struct representing a plugin table definition with a format
 type CustomTableImpl[R types.RowStruct] struct {
+	types.CustomTableDef
 	Format parse.Config
-	Schema *schema.RowSchema
-}
-
-func (c *CustomTableImpl[R]) GetFormat() parse.Config {
-	return c.Format
-}
-
-func (c *CustomTableImpl[R]) SetFormat(format parse.Config) {
-	c.Format = format
-}
-
-func (c *CustomTableImpl[R]) SetSchema(schema *schema.RowSchema) {
-	c.Schema = schema
 }
 
 func (c *CustomTableImpl[R]) GetMapper() (mappers.Mapper[*DynamicRow], error) {

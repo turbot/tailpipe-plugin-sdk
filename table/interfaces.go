@@ -12,9 +12,8 @@ import (
 // CustomTable is a generic interface representing a plugin table definition with a format
 type CustomTable[R types.RowStruct] interface {
 	Table[R]
-	SetFormat(parse.Config)
 	GetFormat() parse.Config
-	SetSchema(*schema.RowSchema)
+	GetTableDef() *types.CustomTableDef
 }
 
 // Table is a generic interface representing a plugin table definition

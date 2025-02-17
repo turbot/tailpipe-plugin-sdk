@@ -45,10 +45,11 @@ func (c *ArtifactConversionCollector) UpdateCollectionState(ctx context.Context,
 	panic("implement me")
 }
 
-func NewArtifactConversionCollector(tableDef *types.CustomTableDef, formatData *proto.ConfigData) *ArtifactConversionCollector {
+func NewArtifactConversionCollector() *ArtifactConversionCollector {
 	return &ArtifactConversionCollector{
-		tableName:  tableDef.Name,
-		formatData: formatData,
+		// TODO
+		//tableName:  tableDef.Name,
+		//formatData: formatData,
 	}
 }
 

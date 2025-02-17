@@ -6,7 +6,6 @@ import (
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -14,24 +13,34 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
-// RegisterCustomTable registers a collector constructor for a table which supports Formatrm,
+// RegisterCustomTable registers a collector constructor for a table which supports Formatr
 // this is called from the package init function of the table implementation
-func RegisterCustomTable[R types.RowStruct, T CustomTable[R]](tableDef *types.CustomTableDef, format parse.Config) {
+func RegisterCustomTable[R types.RowStruct, T CustomTable[R]](opts ...CustomTableOpt) {
 	var collectorFunc func() Collector
 
-	switch any(format).(type) {
+	// create table instance
+	t := utils.InstanceOf[T]()
+
+	// apply any options to the table
+	for _, opt := range opts {
+		opt(t)
+	}
+
+	f := t.GetFormat()
+	switch f.(type) {
 	case *formats.Grok, *formats.Regex:
 		collectorFunc = func() Collector {
-			return NewCustomCollector[R, T](tableDef, format)
+			return NewCustomCollector[R, T](t)
 		}
 	case *formats.Delimited:
 		collectorFunc = func() Collector {
 			// TODO
-			return NewArtifactConversionCollector(tableDef, nil)
+			return NewArtifactConversionCollector()
 		}
 	}
 
-	Factory.registerCollector(tableDef.Name, collectorFunc)
+	// now register the collector
+	Factory.registerCollector(t.Identifier(), collectorFunc)
 }
 
 // RegisterTable registers a collector constructor with the factory
@@ -112,9 +121,9 @@ func (f *TableFactory) GetCollector(req *types.CollectRequest) (Collector, error
 	}
 
 	// create the partition
-	partition := ctor()
+	collector := ctor()
 
-	return partition, nil
+	return collector, nil
 }
 
 func (f *TableFactory) GetPartitions() map[string]func() Collector {
