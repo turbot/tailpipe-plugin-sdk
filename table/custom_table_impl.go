@@ -9,14 +9,13 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// TODO REMOVE R
 // CustomTableImpl is a generic struct representing a plugin table definition with a format
-type CustomTableImpl[R types.RowStruct] struct {
+type CustomTableImpl struct {
 	types.CustomTableDef
 	Format parse.Config
 }
 
-func (c *CustomTableImpl[R]) GetMapper() (mappers.Mapper[*DynamicRow], error) {
+func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
 
 	var mapper mappers.CustomTableMapper[*DynamicRow]
 	var err error
@@ -45,7 +44,7 @@ func (c *CustomTableImpl[R]) GetMapper() (mappers.Mapper[*DynamicRow], error) {
 
 }
 
-func (c *CustomTableImpl[R]) EnrichRow(row *DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*DynamicRow, error) {
+func (c *CustomTableImpl) EnrichRow(row *DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*DynamicRow, error) {
 	// tell the row to enrich itself using any mappings specified in the source format
 	err := row.Enrich(sourceEnrichmentFields.CommonFields)
 	if err != nil {
