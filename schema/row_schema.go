@@ -116,7 +116,7 @@ func (r *RowSchema) InitialiseFromInferredSchema(inferredSchema *RowSchema) {
 			}
 		}
 	} else {
-		// we ar not automapping - just the typ efor any columns missing a type
+		// we are not automapping - just the typ efor any columns missing a type
 		inferredMap := inferredSchema.AsMap()
 
 		for _, c := range r.Columns {
