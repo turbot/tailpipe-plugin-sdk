@@ -106,6 +106,8 @@ message ColumnSchema {
   repeated ColumnSchema child_fields = 4;
   // column description
   string description = 5;
+  // is the column required
+  bool required = 6;
 }
 
 message ConfigData {

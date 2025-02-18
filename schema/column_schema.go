@@ -73,6 +73,7 @@ func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
 		ColumnName:  p.ColumnName,
 		Type:        p.Type,
 		Description: p.Description,
+		Required:    p.Required,
 	}
 	for _, child := range p.ChildFields {
 		c.StructFields = append(c.StructFields, ColumnFromProto(child))
