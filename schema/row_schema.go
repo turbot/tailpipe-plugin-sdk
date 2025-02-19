@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
@@ -119,7 +120,7 @@ func (r *RowSchema) InitialiseFromInferredSchema(inferredSchema *RowSchema) {
 			}
 		}
 	} else {
-		// we are not automapping - just the typ efor any columns missing a type
+		// we are not automapping - just the type for any columns missing a type
 		inferredMap := inferredSchema.AsMap()
 
 		for _, c := range r.Columns {
@@ -146,4 +147,13 @@ func (r *RowSchema) columnsWithNoType() []string {
 		}
 	}
 	return res
+}
+
+func (r *RowSchema) Validate() error {
+	// verify all columns have a type
+	missingTypes := r.columnsWithNoType()
+	if len(missingTypes) > 0 {
+		return fmt.Errorf("it was not possible to infer types for all columns - please check the table definition: %s", strings.Join(missingTypes, ", "))
+	}
+	return nil
 }

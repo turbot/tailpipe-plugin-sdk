@@ -42,6 +42,7 @@ func (p *ObservableImpl) NotifyObservers(ctx context.Context, e events.Event) er
 	return errors.Join(notifyErrors...)
 }
 
+// TODO #errors non fatal errors should be aggregated by the plugin - only fatal errors should be sent as error event
 func (p *ObservableImpl) NotifyError(ctx context.Context, executionId string, err error) {
 	notifyErr := p.NotifyObservers(ctx, events.NewErrorEvent(executionId, err))
 	if notifyErr != nil {
