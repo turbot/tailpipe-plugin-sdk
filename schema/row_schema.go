@@ -149,7 +149,28 @@ func (r *RowSchema) columnsWithNoType() []string {
 	return res
 }
 
+// Validate checks that all optional columns have a type and returns an error if not
+// The purpose of this function is to validate the TableDefinition provided by a 'predefined custom table'
+// This validation ensures that any optional columns have a type specified, so we can correctly create the parquet schema
+// even if the column is not present in the source data
+// NOTE: this is the same validation as we perform in tailpipe Table.Validate - that validfates the TableDef in config,
+// whereas as this validates the hardcoded TableDef provided by the plugin
 func (r *RowSchema) Validate() error {
+	var optionalColumnsWithNoType []string
+	for _, c := range r.Columns {
+		if !c.Required && c.Type == "" {
+			optionalColumnsWithNoType = append(optionalColumnsWithNoType, c.ColumnName)
+		}
+	}
+
+	if len(optionalColumnsWithNoType) > 0 {
+		return fmt.Errorf("column type must be specified if column is optional (%s '%s')", utils.Pluralize("column", len(optionalColumnsWithNoType)), strings.Join(optionalColumnsWithNoType, "', '"))
+	}
+	return nil
+}
+
+// EnsureComplete checks that all columns have a type and returns an error if not
+func (r *RowSchema) EnsureComplete() error {
 	// verify all columns have a type
 	missingTypes := r.columnsWithNoType()
 	if len(missingTypes) > 0 {

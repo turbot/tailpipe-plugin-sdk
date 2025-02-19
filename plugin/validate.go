@@ -3,6 +3,7 @@ package plugin
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
+	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"testing"
 )
 
@@ -48,18 +49,17 @@ func TestIdentifier(t *testing.T, p TailpipePlugin) {
 }
 
 func TestTables(t *testing.T, p TailpipePlugin) {
-	// TODO re-add validation
 
-	//partitions := table.Factory.GetPartitions()
-	//
-	//// plugin must provide at least 1 collection
-	//assert.True(t, len(tables) > 0)
-	//
-	//for _, c := range tables {
-	//	t.Run("TestInit", func(t *testing.T) {
-	//		table.Validate(t, c)
-	//	})
-	//}
+	collectorMap := table.Factory.GetCollectorMap()
+
+	// plugin must provide at least 1 table
+	assert.True(t, len(collectorMap) > 0)
+
+	for _, c := range collectorMap {
+		t.Run("TestInit", func(t *testing.T) {
+			table.Validate(t, c)
+		})
+	}
 }
 
 func TestSources(t *testing.T, p TailpipePlugin) {

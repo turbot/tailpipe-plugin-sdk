@@ -35,6 +35,7 @@ func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 		ColumnName:  c.ColumnName,
 		Type:        c.Type,
 		Description: c.Description,
+		Required:    c.Required,
 	}
 	for _, child := range c.StructFields {
 		p.ChildFields = append(p.ChildFields, child.toProto())

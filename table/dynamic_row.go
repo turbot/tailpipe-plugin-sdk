@@ -77,6 +77,7 @@ func (l *DynamicRow) GetCommonFields() schema.CommonFields {
 
 // MarshalJSON overrides JSON serialization to include the dynamic columns
 func (l *DynamicRow) MarshalJSON() ([]byte, error) {
+	// TODO we need a schema then we need to format the json for each field according to type
 	return json.Marshal(l.Columns)
 }
 
@@ -104,6 +105,7 @@ func (l *DynamicRow) ResolveSchema(customTable *types.CustomTableDef) (*schema.R
 			// this schema will be used to convert the JSONL (i.e. the mapped row) to parquet
 			SourceName: c.ColumnName,
 			Type:       c.Type,
+			Required:   c.Required,
 		})
 	}
 

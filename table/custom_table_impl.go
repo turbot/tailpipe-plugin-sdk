@@ -24,7 +24,6 @@ func (c *CustomTableImpl) Initialize(format parse.Config, tableDef *types.Custom
 }
 
 func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
-
 	var mapper mappers.CustomTableMapper[*DynamicRow]
 	var err error
 
