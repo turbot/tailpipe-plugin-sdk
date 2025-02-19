@@ -30,9 +30,9 @@ func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
 	switch t := any(c.Format).(type) {
 	case *formats.Grok:
 		mapper, err = mappers.NewGrokMapper[*DynamicRow](t.Layout, t.Patterns)
-	//case *formats.Regex:
-	//	return mappers.NewRegexMapper[*DynamicRow](t.Layout, t.Patterns)
-	//
+	case *formats.Regex:
+		mapper, err = mappers.NewRegexMapper[*DynamicRow](t.Layout)
+
 	default:
 		return nil, fmt.Errorf("unsupported format type: %T", t)
 	}
