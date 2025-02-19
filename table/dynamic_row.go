@@ -23,7 +23,7 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
-func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
+func (l *DynamicRow) Enrich(rowSchema *schema.RowSchema, sourceCommonFields schema.CommonFields) error {
 	// we expect the columns to be initialised by a previous call to InitialiseFromMap but if not, create it
 	if l.Columns == nil {
 		l.Columns = make(map[string]string)
@@ -62,22 +62,19 @@ func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
 	return nil
 }
 
-func (l *DynamicRow) Validate() error {
-	// TODO re-implement validate rather than instantiating a common fields struct https://github.com/turbot/tailpipe-plugin-sdk/issues/99
-	// benchmark the time taken
-	commonFields := l.GetCommonFields()
-	return commonFields.Validate()
+func (l *DynamicRow) GetCommonFields() schema.CommonFields {
+	return schema.CommonFieldsFromMap(l.Columns)
 }
 
-func (l *DynamicRow) GetCommonFields() schema.CommonFields {
-	var res schema.CommonFields
-	res.InitialiseFromMap(l.Columns)
-	return res
+func (l *DynamicRow) Validate() error {
+	f := schema.CommonFieldsFromMap(l.Columns)
+	return f.Validate()
 }
 
 // MarshalJSON overrides JSON serialization to include the dynamic columns
 func (l *DynamicRow) MarshalJSON() ([]byte, error) {
-	// TODO we need a schema then we need to format the json for each field according to type
+	// convert the common fields to a map and overlay the dynamic columns
+	// we do this to ensure values are correctly formatted
 	return json.Marshal(l.Columns)
 }
 

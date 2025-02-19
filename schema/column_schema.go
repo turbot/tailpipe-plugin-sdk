@@ -27,6 +27,8 @@ type ColumnSchema struct {
 	Description string `json:"description,omitempty"`
 	// is the column required
 	Required bool `json:"required"`
+	// The null value for the column
+	NullValue string `json:"null_value,omitempty"`
 }
 
 func (c *ColumnSchema) toProto() *proto.ColumnSchema {
@@ -36,6 +38,7 @@ func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 		Type:        c.Type,
 		Description: c.Description,
 		Required:    c.Required,
+		NullValue:   c.NullValue,
 	}
 	for _, child := range c.StructFields {
 		p.ChildFields = append(p.ChildFields, child.toProto())
@@ -75,6 +78,7 @@ func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
 		Type:        p.Type,
 		Description: p.Description,
 		Required:    p.Required,
+		NullValue:   p.NullValue,
 	}
 	for _, child := range p.ChildFields {
 		c.StructFields = append(c.StructFields, ColumnFromProto(child))

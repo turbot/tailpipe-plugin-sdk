@@ -16,6 +16,8 @@ type RowSchema struct {
 	ExcludeSourceFields []string `json:"exclude_source_fields"`
 	// the table description (optional)
 	Description string `json:"description,omitempty"`
+	// the default null value for the table (may be overriden for specific columns
+	NullValue string `json:"null_value,omitempty"`
 }
 
 func (r *RowSchema) ToProto() *proto.Schema {
@@ -24,6 +26,7 @@ func (r *RowSchema) ToProto() *proto.Schema {
 		AutomapSourceFields: r.AutoMapSourceFields,
 		ExcludeSourceFields: r.ExcludeSourceFields,
 		Description:         r.Description,
+		NullValue:           r.NullValue,
 	}
 
 	for i, c := range r.Columns {
@@ -47,6 +50,7 @@ func RowSchemaFromProto(p *proto.Schema) *RowSchema {
 		AutoMapSourceFields: p.AutomapSourceFields,
 		ExcludeSourceFields: p.ExcludeSourceFields,
 		Description:         p.Description,
+		NullValue:           p.NullValue,
 	}
 	for _, c := range p.Columns {
 		res.Columns = append(res.Columns, ColumnFromProto(c))
@@ -83,7 +87,12 @@ func (r *RowSchema) MapRow(rowMap map[string]string) (map[string]string, error) 
 			}
 			// if the field is not required, we just skip it
 		} else {
-			res[c.ColumnName] = v
+
+			// check for null value
+			// by default, treat an empty string as a null value, but this may be overridden by the config
+			if !r.isNullValue(c, v) {
+				res[c.ColumnName] = v
+			}
 		}
 	}
 	return res, nil
@@ -133,6 +142,14 @@ func (r *RowSchema) InitialiseFromInferredSchema(inferredSchema *RowSchema) {
 			}
 		}
 	}
+}
+
+func (r *RowSchema) isNullValue(c *ColumnSchema, v string) bool {
+	nullValue := r.NullValue
+	if c.NullValue != "" {
+		nullValue = c.NullValue
+	}
+	return v == nullValue
 }
 
 func (r *RowSchema) Complete() bool {

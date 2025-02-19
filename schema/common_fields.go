@@ -39,6 +39,12 @@ type CommonFields struct {
 	TpUsernames []string `json:"tp_usernames,omitempty"`
 }
 
+func CommonFieldsFromMap(source map[string]string) CommonFields {
+	var c CommonFields
+	c.InitialiseFromMap(source)
+	return c
+}
+
 // Validate implements the Validatable interface and is used to validate that the required fields have been set
 // it can also be overridden by RowStruct implementations to perform additional validation - in this case
 // CommonFields.Validate() should be called first

@@ -52,7 +52,7 @@ func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
 
 func (c *CustomTableImpl) EnrichRow(row *DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*DynamicRow, error) {
 	// tell the row to enrich itself using any mappings specified in the source format
-	err := row.Enrich(sourceEnrichmentFields.CommonFields)
+	err := row.Enrich(c.Schema, sourceEnrichmentFields.CommonFields)
 	if err != nil {
 		return nil, err
 	}

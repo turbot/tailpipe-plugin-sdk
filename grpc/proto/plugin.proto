@@ -93,6 +93,8 @@ message Schema {
   repeated string exclude_source_fields = 3;
   // table description
   string description = 4;
+  // the default null value to use for the table
+  string null_value = 5;
 }
 
 message ColumnSchema {
@@ -108,6 +110,8 @@ message ColumnSchema {
   string description = 5;
   // is the column required
   bool required = 6;
+  // the null value to use for the column
+  string null_value = 7;
 }
 
 message ConfigData {
