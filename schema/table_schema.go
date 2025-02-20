@@ -8,7 +8,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
-type RowSchema struct {
+type TableSchema struct {
+	Name    string          `json:"name,omitempty"`
 	Columns []*ColumnSchema `json:"columns"`
 	// should we include ALL source fields in addition to any defined columns, or ONLY include the columns defined
 	AutoMapSourceFields bool `json:"automap_source_fields"`
@@ -20,8 +21,9 @@ type RowSchema struct {
 	NullValue string `json:"null_value,omitempty"`
 }
 
-func (r *RowSchema) ToProto() *proto.Schema {
+func (r *TableSchema) ToProto() *proto.Schema {
 	var res = &proto.Schema{
+		Name:                r.Name,
 		Columns:             make([]*proto.ColumnSchema, len(r.Columns)),
 		AutomapSourceFields: r.AutoMapSourceFields,
 		ExcludeSourceFields: r.ExcludeSourceFields,
@@ -36,7 +38,7 @@ func (r *RowSchema) ToProto() *proto.Schema {
 	return res
 }
 
-func (r *RowSchema) AsMap() map[string]*ColumnSchema {
+func (r *TableSchema) AsMap() map[string]*ColumnSchema {
 	var res = make(map[string]*ColumnSchema, len(r.Columns))
 	for _, c := range r.Columns {
 		res[c.ColumnName] = c
@@ -44,8 +46,9 @@ func (r *RowSchema) AsMap() map[string]*ColumnSchema {
 	return res
 }
 
-func RowSchemaFromProto(p *proto.Schema) *RowSchema {
-	var res = &RowSchema{
+func RowSchemaFromProto(p *proto.Schema) *TableSchema {
+	var res = &TableSchema{
+		Name:                p.Name,
 		Columns:             make([]*ColumnSchema, 0, len(p.Columns)),
 		AutoMapSourceFields: p.AutomapSourceFields,
 		ExcludeSourceFields: p.ExcludeSourceFields,
@@ -60,7 +63,7 @@ func RowSchemaFromProto(p *proto.Schema) *RowSchema {
 
 // MapRow maps a row from a map of source fields to a map of target fields, applying the schema
 // and respecting the automap and exclude fields
-func (r *RowSchema) MapRow(rowMap map[string]string) (map[string]string, error) {
+func (r *TableSchema) MapRow(rowMap map[string]string) (map[string]string, error) {
 	var res = make(map[string]string, len(r.Columns))
 
 	if r.AutoMapSourceFields {
@@ -102,7 +105,7 @@ func (r *RowSchema) MapRow(rowMap map[string]string) (map[string]string, error) 
 // this is called from the CLI when we are trying to determine the full schema after receiving the first JSONL file
 // it either adds all fields in the inferred schema (if AutoMapSourceFields is true) or
 // just populate missing types if AutoMapSourceFields is false
-func (r *RowSchema) InitialiseFromInferredSchema(inferredSchema *RowSchema) {
+func (r *TableSchema) InitialiseFromInferredSchema(inferredSchema *TableSchema) {
 	// TODO test this https://github.com/turbot/tailpipe/issues/108
 	// if we are in autoMap mode, we use the inferred schema in full
 	if r.AutoMapSourceFields {
@@ -144,7 +147,7 @@ func (r *RowSchema) InitialiseFromInferredSchema(inferredSchema *RowSchema) {
 	}
 }
 
-func (r *RowSchema) isNullValue(c *ColumnSchema, v string) bool {
+func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
 	nullValue := r.NullValue
 	if c.NullValue != "" {
 		nullValue = c.NullValue
@@ -152,11 +155,11 @@ func (r *RowSchema) isNullValue(c *ColumnSchema, v string) bool {
 	return v == nullValue
 }
 
-func (r *RowSchema) Complete() bool {
+func (r *TableSchema) Complete() bool {
 	return len(r.columnsWithNoType()) == 0 && !r.AutoMapSourceFields
 }
 
-func (r *RowSchema) columnsWithNoType() []string {
+func (r *TableSchema) columnsWithNoType() []string {
 	var res []string
 	for _, c := range r.Columns {
 		if c.Type == "" {
@@ -172,7 +175,7 @@ func (r *RowSchema) columnsWithNoType() []string {
 // even if the column is not present in the source data
 // NOTE: this is the same validation as we perform in tailpipe Table.Validate - that validfates the TableDef in config,
 // whereas as this validates the hardcoded TableDef provided by the plugin
-func (r *RowSchema) Validate() error {
+func (r *TableSchema) Validate() error {
 	var optionalColumnsWithNoType []string
 	for _, c := range r.Columns {
 		if !c.Required && c.Type == "" {
@@ -187,7 +190,7 @@ func (r *RowSchema) Validate() error {
 }
 
 // EnsureComplete checks that all columns have a type and returns an error if not
-func (r *RowSchema) EnsureComplete() error {
+func (r *TableSchema) EnsureComplete() error {
 	// verify all columns have a type
 	missingTypes := r.columnsWithNoType()
 	if len(missingTypes) > 0 {
