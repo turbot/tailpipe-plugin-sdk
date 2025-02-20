@@ -8,12 +8,17 @@ import (
 	"github.com/rs/xid"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type DynamicRow struct {
 	// dynamic columns
 	Columns map[string]string
+}
+
+func NewDynamicRow() *DynamicRow {
+	return &DynamicRow{
+		Columns: make(map[string]string),
+	}
 }
 
 // InitialiseFromMap initializes the struct from a map of string values
@@ -23,7 +28,7 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
-func (l *DynamicRow) Enrich(rowSchema *schema.RowSchema, sourceCommonFields schema.CommonFields) error {
+func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
 	// we expect the columns to be initialised by a previous call to InitialiseFromMap but if not, create it
 	if l.Columns == nil {
 		l.Columns = make(map[string]string)
@@ -80,8 +85,8 @@ func (l *DynamicRow) MarshalJSON() ([]byte, error) {
 
 // ResolveSchema returns the (potentially partial) schema for the dynamic row
 // - this will be used for the JSONL-parquet conversion
-func (l *DynamicRow) ResolveSchema(customTable *types.CustomTableDef) (*schema.RowSchema, error) {
-	if customTable.Schema == nil {
+func (l *DynamicRow) ResolveSchema(customTableSchema *schema.TableSchema) (*schema.TableSchema, error) {
+	if customTableSchema == nil {
 		return nil, fmt.Errorf("no schema provided for dynamic row")
 	}
 	// get the schema from the common fields
@@ -90,7 +95,7 @@ func (l *DynamicRow) ResolveSchema(customTable *types.CustomTableDef) (*schema.R
 		return nil, err
 	}
 
-	for _, c := range customTable.Schema.Columns {
+	for _, c := range customTableSchema.Columns {
 		// skip the common fields
 		if schema.IsCommonField(c.ColumnName) {
 			continue
@@ -106,6 +111,6 @@ func (l *DynamicRow) ResolveSchema(customTable *types.CustomTableDef) (*schema.R
 		})
 	}
 
-	s.AutoMapSourceFields = customTable.Schema.AutoMapSourceFields
+	s.AutoMapSourceFields = customTableSchema.AutoMapSourceFields
 	return s, nil
 }

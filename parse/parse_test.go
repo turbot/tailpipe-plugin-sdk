@@ -28,7 +28,7 @@ type customFormat struct {
 	Patterns map[string]string `hcl:"patterns,optional"`
 
 	// the roq schema must at the minimum provide mapping for the tp_timestamp field
-	Schema *schema.RowSchema `hcl:"schema,block"`
+	Schema *schema.TableSchema `hcl:"schema,block"`
 }
 
 func (c customFormat) Validate() error {

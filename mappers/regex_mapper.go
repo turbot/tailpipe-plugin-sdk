@@ -11,7 +11,7 @@ import (
 
 type RegexMapper[T MapInitialisedRow] struct {
 	re     *regexp.Regexp
-	schema *schema.RowSchema
+	schema *schema.TableSchema
 }
 
 // NewRegexMapper creates a new RegexMapper with the provided pattern.
@@ -28,7 +28,7 @@ func (c *RegexMapper[T]) Identifier() string {
 }
 
 // SetSchema implements SchemaSetter interface
-func (c *RegexMapper[T]) SetSchema(schema *schema.RowSchema) {
+func (c *RegexMapper[T]) SetSchema(schema *schema.TableSchema) {
 	c.schema = schema
 }
 

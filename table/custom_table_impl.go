@@ -6,21 +6,18 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // CustomTableImpl is a generic struct representing a plugin table definition with a format
 type CustomTableImpl struct {
-	Name   string
-	Schema *schema.RowSchema
+	Schema *schema.TableSchema
 	Format parse.Config
 }
 
 // Initialize sets the format and schema for the table
-func (c *CustomTableImpl) Initialize(format parse.Config, tableDef *types.CustomTableDef) {
+func (c *CustomTableImpl) Initialize(format parse.Config, customTableSchema *schema.TableSchema) {
 	c.Format = format
-	c.Name = tableDef.Name
-	c.Schema = tableDef.Schema
+	c.Schema = customTableSchema
 }
 
 func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
@@ -39,7 +36,7 @@ func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
 
 	// all mappers returned by this function should support SetSchema
 	type SchemaSetter interface {
-		SetSchema(*schema.RowSchema)
+		SetSchema(*schema.TableSchema)
 	}
 	ss, ok := mapper.(SchemaSetter)
 	if !ok {
@@ -52,7 +49,7 @@ func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
 
 func (c *CustomTableImpl) EnrichRow(row *DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*DynamicRow, error) {
 	// tell the row to enrich itself using any mappings specified in the source format
-	err := row.Enrich(c.Schema, sourceEnrichmentFields.CommonFields)
+	err := row.Enrich(sourceEnrichmentFields.CommonFields)
 	if err != nil {
 		return nil, err
 	}

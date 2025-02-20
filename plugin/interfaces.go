@@ -25,7 +25,7 @@ type TailpipePlugin interface {
 
 	// Collect is called to start a collection run
 	// this is implemented by plugin.PluginImpl
-	Collect(context.Context, *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.RowSchema, error)
+	Collect(context.Context, *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.TableSchema, error)
 
 	// UpdateCollectionState is called to update the collection state
 	UpdateCollectionState(ctx context.Context, req *proto.UpdateCollectionStateRequest) error

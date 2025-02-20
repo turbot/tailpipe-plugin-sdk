@@ -11,7 +11,7 @@ import (
 
 type GonxMapper[T MapInitialisedRow] struct {
 	parsers []*gonx.Parser
-	schema  *schema.RowSchema
+	schema  *schema.TableSchema
 }
 
 func NewGonxMapper[T MapInitialisedRow](formats ...string) *GonxMapper[T] {
@@ -23,7 +23,7 @@ func NewGonxMapper[T MapInitialisedRow](formats ...string) *GonxMapper[T] {
 }
 
 // SetSchema implements SchemaSetter interface
-func (c *GonxMapper[T]) SetSchema(schema *schema.RowSchema) {
+func (c *GonxMapper[T]) SetSchema(schema *schema.TableSchema) {
 	c.schema = schema
 }
 

@@ -36,11 +36,11 @@ func RegisterCustomTable[T CustomTable](opts ...CustomTableOpt) {
 	}
 
 	// In the case of predefined custom tables, the format and table def are defined in the table implementation,
-	// and returned by the interface functions GetFormat and GetTableDef.
+	// and returned by the interface functions GetFormat and GetSchema.
 	// For this usage wqe need to populate the format and table def of the embedded CustomTableImpl struct
 	// by calling Initialize
 	// (this does mean that for custom tables we call Initialize twice, but it is a cheap call)
-	t.Initialize(t.GetFormat(), t.GetTableDef())
+	t.Initialize(t.GetFormat(), t.GetSchema())
 
 	f := t.GetFormat()
 	switch f.(type) {

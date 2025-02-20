@@ -23,5 +23,5 @@ type Mapper[R types.RowStruct] interface {
 
 type CustomTableMapper[R types.RowStruct] interface {
 	Mapper[R]
-	SetSchema(*schema.RowSchema)
+	SetSchema(*schema.TableSchema)
 }

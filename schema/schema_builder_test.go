@@ -116,7 +116,7 @@ func TestSchemaFromStruct(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    *RowSchema
+		want    *TableSchema
 		wantErr bool
 	}{
 		{
@@ -124,7 +124,7 @@ func TestSchemaFromStruct(t *testing.T) {
 			args: args{
 				s: SimpleStructNoTags{},
 			},
-			want: &RowSchema{
+			want: &TableSchema{
 				Columns: []*ColumnSchema{
 					{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
 					{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
@@ -149,7 +149,7 @@ func TestSchemaFromStruct(t *testing.T) {
 			args: args{
 				s: ComplexStructNoTags{},
 			},
-			want: &RowSchema{
+			want: &TableSchema{
 				Columns: []*ColumnSchema{
 					{SourceName: "TimeField", ColumnName: "time_field", Type: "TIMESTAMP"},
 					{
@@ -238,7 +238,7 @@ func TestSchemaFromStruct(t *testing.T) {
 			args: args{
 				s: EmbeddedStruct{},
 			},
-			want: &RowSchema{
+			want: &TableSchema{
 				Columns: []*ColumnSchema{
 					{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
 					{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
@@ -289,7 +289,7 @@ func TestSchemaFromStruct(t *testing.T) {
 			args: args{
 				s: SimpleStructWithTags{},
 			},
-			want: &RowSchema{
+			want: &TableSchema{
 				Columns: []*ColumnSchema{
 					{SourceName: "StringFieldNameOverridden", ColumnName: "renamed_string_field", Type: "VARCHAR"},
 					{SourceName: "json_tag_only", ColumnName: "json_tag_only", Type: "VARCHAR"},
@@ -305,7 +305,7 @@ func TestSchemaFromStruct(t *testing.T) {
 			args: args{
 				s: StructWithStructArray{},
 			},
-			want: &RowSchema{
+			want: &TableSchema{
 				// TODO we do not currently support struct arrays - treat as JSON https://github.com/turbot/tailpipe-plugin-sdk/issues/55
 				Columns: []*ColumnSchema{
 					{
@@ -324,7 +324,7 @@ func TestSchemaFromStruct(t *testing.T) {
 			args: args{
 				s: StructWithDeeplyNestedStructArray{},
 			},
-			want: &RowSchema{
+			want: &TableSchema{
 				Columns: []*ColumnSchema{
 					{
 						SourceName: "StructWithNestedStructArray",

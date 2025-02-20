@@ -66,9 +66,6 @@ type Delimited struct {
 
 	// Specifies the date format to use when parsing timestamps
 	TimestampFormat *string
-
-	// The row schema must at the minimum provide mapping for the tp_timestamp field
-	//Schema *schema.RowSchema
 }
 
 func (c *Delimited) Validate() error {
@@ -77,15 +74,6 @@ func (c *Delimited) Validate() error {
 
 func (c *Delimited) Identifier() string {
 	return constants.SourceFormatDelimited
-}
-
-func (c *Delimited) GetSchema() *schema.RowSchema {
-	//if c.Schema == nil {
-	//	return nil
-	//}
-	//
-	//return c.Schema.ToRowSchema()
-	return nil
 }
 
 // GetCsvOpts converts the Delimited configuration into a slice of CSV options strings

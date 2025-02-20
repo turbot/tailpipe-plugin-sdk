@@ -15,7 +15,7 @@ import (
 type GrokMapper[T MapInitialisedRow] struct {
 	parser *grok.Grok
 
-	schema *schema.RowSchema
+	schema *schema.TableSchema
 }
 
 // NewGrokMapper creates a new GrokMapper which contains a grok parser for each layout.
@@ -45,7 +45,7 @@ func (c *GrokMapper[T]) Identifier() string {
 	return "grok_mapper"
 }
 
-func (c *GrokMapper[T]) SetSchema(schema *schema.RowSchema) {
+func (c *GrokMapper[T]) SetSchema(schema *schema.TableSchema) {
 	c.schema = schema
 }
 func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, error) {

@@ -13,8 +13,8 @@ import (
 type CustomTable interface {
 	Table[*DynamicRow]
 	GetFormat() parse.Config
-	GetTableDef() *types.CustomTableDef
-	Initialize(parse.Config, *types.CustomTableDef)
+	GetSchema() *schema.TableSchema
+	Initialize(parse.Config, *schema.TableSchema)
 }
 
 // Table is a generic interface representing a plugin table definition
@@ -37,7 +37,7 @@ type Collector interface {
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
 	Collect(context.Context) (int, int, error)
-	GetSchema() (*schema.RowSchema, error)
+	GetSchema() (*schema.TableSchema, error)
 	GetFromTime() *row_source.ResolvedFromTime
 }
 

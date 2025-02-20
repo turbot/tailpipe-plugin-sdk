@@ -89,7 +89,7 @@ func (c *CollectorImpl[R]) Identifier() string {
 }
 
 // GetSchema returns the schema of the table
-func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
+func (c *CollectorImpl[R]) GetSchema() (*schema.TableSchema, error) {
 	rowStruct := utils.InstanceOf[R]()
 
 	// if the table has a dynamic row, we must have a custom table
@@ -99,7 +99,7 @@ func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
 			return nil, fmt.Errorf("dynamic row requires a custom table")
 		}
 
-		return d.ResolveSchema(ct.GetTableDef())
+		return d.ResolveSchema(ct.GetSchema())
 	}
 
 	// otherwise, return the schema from the row struct

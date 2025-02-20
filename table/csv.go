@@ -38,7 +38,7 @@ func WithCsvComment(comment string) CsvToJsonOpts {
 	}
 }
 
-func WithCsvSchema(schema *schema.RowSchema) CsvToJsonOpts {
+func WithCsvSchema(schema *schema.TableSchema) CsvToJsonOpts {
 	return func(c *CsvTableConfig) {
 		c.Schema = schema
 	}
@@ -54,7 +54,7 @@ type CsvTableConfig struct {
 	HeaderMode CsvHeaderMode
 	Delimiter  *string
 	Comment    *string
-	Schema     *schema.RowSchema
+	Schema     *schema.TableSchema
 	Mappings   map[string]string
 }
 
@@ -106,7 +106,7 @@ func GetReadCsvChunkQueryFormat(sourceFile string, opts ...CsvToJsonOpts) string
 	return fmt.Sprintf("SELECT %s%s FROM read_csv(%s) LIMIT %d", mappedColumnSelectString, columnSelectString, strings.Join(readCsvOpts, ", "), JSONLChunkSize)
 }
 
-func getSchemaColumnSelect(rowSchema *schema.RowSchema) string {
+func getSchemaColumnSelect(rowSchema *schema.TableSchema) string {
 	if rowSchema == nil || len(rowSchema.Columns) == 0 || rowSchema.AutoMapSourceFields {
 		return "*"
 	}

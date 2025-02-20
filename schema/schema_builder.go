@@ -13,7 +13,7 @@ import (
 
 const maxNesting = 10
 
-func SchemaFromStruct(s any) (*RowSchema, error) {
+func SchemaFromStruct(s any) (*TableSchema, error) {
 	return NewSchemaBuilder().SchemaFromStruct(s)
 }
 
@@ -28,7 +28,7 @@ func NewSchemaBuilder() *SchemaBuilder {
 	}
 }
 
-func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
+func (b *SchemaBuilder) SchemaFromStruct(s any) (*TableSchema, error) {
 	// Get the type of the rowStruct
 	t := reflect.TypeOf(s)
 	res, err := b.schemaFromType(t)
@@ -58,7 +58,7 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
 	return res, nil
 }
 
-func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
+func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*TableSchema, error) {
 	// if the type is a pointer, get the element type
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -170,7 +170,7 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 	}
 
 	// now convert the map into a schema
-	schema := &RowSchema{
+	schema := &TableSchema{
 		Columns: make([]*ColumnSchema, len(res)),
 	}
 	// construct the column array, respecting the order property

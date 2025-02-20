@@ -7,18 +7,6 @@ import (
 	"time"
 )
 
-type CustomTableDef struct {
-	Name   string
-	Schema *schema.RowSchema
-}
-
-func CustomTableFromProto(pt *proto.Table) *CustomTableDef {
-	return &CustomTableDef{
-		Name:   pt.Name,
-		Schema: schema.RowSchemaFromProto(pt.Schema),
-	}
-}
-
 // CollectRequest is an sdk type which is mapped from the proto.CollectRequest
 type CollectRequest struct {
 	TableName     string
@@ -39,7 +27,7 @@ type CollectRequest struct {
 	// the collection start time
 	From time.Time
 	// the custom table definition, if specified
-	CustomTableDef *CustomTableDef
+	CustomTableSchema *schema.TableSchema
 }
 
 func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
@@ -81,8 +69,8 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		}
 		req.ConnectionData = connectionData
 	}
-	if pr.CustomTableDef != nil {
-		req.CustomTableDef = CustomTableFromProto(pr.CustomTableDef)
+	if pr.CustomTableSchema != nil {
+		req.CustomTableSchema = schema.RowSchemaFromProto(pr.CustomTableSchema)
 	}
 
 	return req, nil

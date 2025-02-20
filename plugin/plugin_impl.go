@@ -45,7 +45,7 @@ func (p *PluginImpl) initialized() bool {
 }
 
 // Collect Implements [plugin.TailpipePlugin]
-func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.RowSchema, error) {
+func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.TableSchema, error) {
 	// create context containing execution id
 	ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
 
@@ -63,7 +63,7 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 // DoCollect is an implementation of the Collect method which accepts a types.CollectRequest
 // it is split out to allow for overridden implementations of Collect to call it
 // after having converted the proto request to the internal type
-func (p *PluginImpl) DoCollect(ctx context.Context, req *types.CollectRequest) (*row_source.ResolvedFromTime, *schema.RowSchema, error) {
+func (p *PluginImpl) DoCollect(ctx context.Context, req *types.CollectRequest) (*row_source.ResolvedFromTime, *schema.TableSchema, error) {
 
 	// ask the factory to create the collector
 	// - this will configure the requested source

@@ -4,8 +4,8 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
-// SchemaMap is a map of table names to RowSchema
-type SchemaMap map[string]*RowSchema
+// SchemaMap is a map of table names to TableSchema
+type SchemaMap map[string]*TableSchema
 
 func (s SchemaMap) ToProto() map[string]*proto.Schema {
 	var res = make(map[string]*proto.Schema, len(s))
