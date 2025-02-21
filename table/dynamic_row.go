@@ -83,6 +83,7 @@ func (l *DynamicRow) Validate() error {
 
 // MarshalJSON overrides JSON serialization to include the dynamic columns
 func (l *DynamicRow) MarshalJSON() ([]byte, error) {
+	// TODO #customtables check this
 	// convert the common fields to a map and overlay the dynamic columns
 	// we do this to ensure values are correctly formatted
 	return json.Marshal(l.Columns)

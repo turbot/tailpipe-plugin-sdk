@@ -14,7 +14,7 @@ type ColumnType struct {
 }
 
 type ColumnSchema struct {
-	// TODO split into 2 properties - SourceName and JSONSOurceName or something
+	// TODO split into 2 properties - SourceName and JSONSourceName or something
 	// SourceName refers to one of 2 things depdending on where the schema is used
 	// 1. When the schemas is used by a mapper, SourceName refers to the field name in the raw row data
 	// 2. When the schema is used by the JSONL conversion, SourceName refers to the column name in the JSONL

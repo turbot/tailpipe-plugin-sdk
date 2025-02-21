@@ -49,7 +49,6 @@ func TestIdentifier(t *testing.T, p TailpipePlugin) {
 }
 
 func TestTables(t *testing.T, p TailpipePlugin) {
-
 	collectorMap := table.Factory.GetCollectorMap()
 
 	// plugin must provide at least 1 table

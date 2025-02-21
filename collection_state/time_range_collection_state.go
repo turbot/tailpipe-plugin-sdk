@@ -10,7 +10,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 )
 
-// TODO COMBINE WITH REVERSE ORDERT THEN IN END, set the end time to time.Now-granularity-delay
+// TODO #collectionstate COMBINE WITH REVERSE ORDER THEN IN END, set the end time to time.Now-granularity-delay
 type TimeRangeCollectionState[T parse.Config] struct {
 	TimeRangeCollectionStateImpl
 

@@ -279,6 +279,7 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 
 	var count int64 = 0
 
+	// TODO #errors handle better
 	// raise row events, sending collection state data
 	// we may have thousands of notify errors - just store the first one and the count
 	var notifyError error
@@ -313,7 +314,6 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 				notifyErrorCount++
 			}
 		}
-
 	}
 
 	// if we skipped the header row, decrement the count to ensure logged row count is accurate
