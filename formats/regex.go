@@ -6,8 +6,6 @@ import (
 
 type Regex struct {
 	// the layout of the log line
-	// NOTE that as will contain grok patterns, this property is included in constants.GrokConfigProperties
-	// meaning and '{' will be auto-escaped in the hcl
 	Layout string `hcl:"layout"`
 }
 
