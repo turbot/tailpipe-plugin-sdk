@@ -2,9 +2,9 @@ package formats
 
 import (
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"strings"
+
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 )
 
 type Delimited struct {

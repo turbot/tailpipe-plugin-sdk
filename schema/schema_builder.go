@@ -38,14 +38,12 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*TableSchema, error) {
 	// just use the column names from the struct, do not automap source fields
 	res.AutoMapSourceFields = false
 
-	// set the column descriptions
-	defaultCommonFieldDescriptions := DefaultCommonFieldDescriptions()
 	// if the struct implements GetColumnDescriptions, use this to populate the column descriptions
 	if desc, ok := s.(GetColumnDescriptions); ok {
 		// merge the default common field descriptions with column descriptions from the struct
 		// NOTE: the struct descriptions will overwrite the default descriptions - it may use this to override
 		// the descriptions for the common fields
-		columnDescriptions := defaultCommonFieldDescriptions
+		columnDescriptions := DefaultCommonFieldDescriptions
 		maps.Copy(columnDescriptions, desc.GetColumnDescriptions())
 
 		for _, c := range res.Columns {

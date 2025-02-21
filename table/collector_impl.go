@@ -90,19 +90,19 @@ func (c *CollectorImpl[R]) Identifier() string {
 
 // GetSchema returns the schema of the table
 func (c *CollectorImpl[R]) GetSchema() (*schema.TableSchema, error) {
-	rowStruct := utils.InstanceOf[R]()
+	// if the table is a custom table, ask it for its schema
+	if ct, ok := any(c.Table).(CustomTable); ok {
 
-	// if the table has a dynamic row, we must have a custom table
-	if d, ok := any(rowStruct).(*DynamicRow); ok {
-		ct, ok := any(c.Table).(CustomTable)
-		if !ok {
-			return nil, fmt.Errorf("dynamic row requires a custom table")
-		}
+		// the schema on the custom table will already have been 'resolved'
+		// (i.e. the configured custom table schema will have been merged with the comm fields struct schema)
+		// TACTICAL clear source fields as theses were for mapping
+		customSchema := ct.GetSchema().WithSourceFieldsCleared()
 
-		return d.ResolveSchema(ct.GetSchema())
+		return customSchema, nil
 	}
 
 	// otherwise, return the schema from the row struct
+	rowStruct := utils.InstanceOf[R]()
 	s, err := schema.SchemaFromStruct(rowStruct)
 	if err != nil {
 		return nil, fmt.Errorf("error getting schema from struct: %w", err)

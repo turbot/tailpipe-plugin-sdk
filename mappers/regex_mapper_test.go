@@ -17,7 +17,7 @@ type WebLogRow struct {
 	Size      string
 }
 
-func (r *WebLogRow) InitialiseFromMap(m map[string]string) error {
+func (r *WebLogRow) InitialiseFromMap(m map[string]string, tableSchema *schema.TableSchema) error {
 	if ip, ok := m["ip"]; ok {
 		r.IPAddress = ip
 	}

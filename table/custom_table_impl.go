@@ -17,7 +17,8 @@ type CustomTableImpl struct {
 // Initialize sets the format and schema for the table
 func (c *CustomTableImpl) Initialize(format parse.Config, customTableSchema *schema.TableSchema) {
 	c.Format = format
-	c.Schema = customTableSchema
+	// merge the custom table schema with the common fields schema
+	c.Schema = customTableSchema.MergeWithCommonSchema()
 }
 
 func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
@@ -45,6 +46,11 @@ func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
 	ss.SetSchema(c.Schema)
 
 	return mapper, err
+}
+
+// GetSchema implements the CustomTable interface
+func (c *CustomTableImpl) GetSchema() *schema.TableSchema {
+	return c.Schema
 }
 
 func (c *CustomTableImpl) EnrichRow(row *DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*DynamicRow, error) {

@@ -100,7 +100,7 @@ func (p *PluginImpl) DoCollect(ctx context.Context, req *types.CollectRequest) (
 		_ = p.OnCompleted(ctx, req.ExecutionId, rowCount, chunksWritten, err)
 	}()
 
-	// return the schema (if available - this may be nil for dynamic tables, in which case the CLI will infer the schema)
+	// return the schema (if available - this may be partial for dynamic tables, in which case the CLI will infer the full schema)
 	s, err := collector.GetSchema()
 	if err != nil {
 		return nil, nil, err

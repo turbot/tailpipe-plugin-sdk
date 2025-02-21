@@ -6,6 +6,7 @@ import (
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -13,37 +14,37 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
-// RegisterCustomTable registers a collector constructor for a table which supports Formatr
-// this is called from the package init function of the table implementation
-func RegisterCustomTable[T CustomTable](opts ...CustomTableOpt) {
-	var collectorFunc func() Collector
+//There are 2 uses cases for custom tables:
+//- fully custom tables implements by the LogTable in the core plugin
+//- predefined custom tables which may be implemented by any plugin and have a fixed format and table definition
 
+// In the case of fully custom tables, the format and table definition are defined in config.
+// The opts passed to this function will include WithTableDef, whach sets the format and table def for the table
+// by calling t.Initialize(format, tableDef)
+
+// RegisterPredefinedCustomTable registers a collector constructor for a table which has a predefined Format and TableSchema
+// this is called from the package init function of the table implementation
+func RegisterPredefinedCustomTable[T PredefinedCustomTable]() {
 	// create table instance
 	t := utils.InstanceOf[T]()
+	doRegisterCustomTable[T](t.GetFormat(), t.GetTableDefinition(), t)
+}
 
-	//There are 2 uses cases for custom tables:
-	//- fully custom tables implements by the LogTable in the core plugin
-	//- predefined custom tables which may be implemented by any plugin and have a fixed format and table definition
+// RegisterCustomTable registers a collector constructor for a table which has a configurable
+// format and table schema
+func RegisterCustomTable[T CustomTable](format parse.Config, customTableSchema *schema.TableSchema) {
+	// create table instance
+	t := utils.InstanceOf[T]()
+	doRegisterCustomTable[T](format, customTableSchema, t)
+}
 
-	// In the case of fully custom tables, the format and table definition are defined in config.
-	// The opts passed to this function will include WithTableDef, whach sets the format and table def for the table
-	// by calling t.Initialize(format, tableDef)
+// doRegisterCustomTable is the actual implementation of the custom table registration,
+// called by both RegisterPredefinedCustomTable and RegisterCustomTable
+func doRegisterCustomTable[T CustomTable](format parse.Config, customTableSchema *schema.TableSchema, t T) {
+	var collectorFunc func() Collector
+	t.Initialize(format, customTableSchema)
 
-	// apply any options to the table
-	// this is used to set the format and table def for fully custom tables
-	for _, opt := range opts {
-		opt(t)
-	}
-
-	// In the case of predefined custom tables, the format and table def are defined in the table implementation,
-	// and returned by the interface functions GetFormat and GetSchema.
-	// For this usage wqe need to populate the format and table def of the embedded CustomTableImpl struct
-	// by calling Initialize
-	// (this does mean that for custom tables we call Initialize twice, but it is a cheap call)
-	t.Initialize(t.GetFormat(), t.GetSchema())
-
-	f := t.GetFormat()
-	switch f.(type) {
+	switch format.(type) {
 	case *formats.Grok, *formats.Regex:
 		collectorFunc = func() Collector {
 			return &CollectorImpl[*DynamicRow]{Table: t}

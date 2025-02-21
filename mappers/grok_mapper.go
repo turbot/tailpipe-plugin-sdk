@@ -68,17 +68,10 @@ func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, 
 	}
 
 	rowMap := helpers.ByteMapToStringMap(result)
-	// if we have a schema, apply the schema to map any required
-	if c.schema != nil {
-		rowMap, err = c.schema.MapRow(rowMap)
-		if err != nil {
-			return empty, fmt.Errorf("error applying schema: %w", err)
-		}
-	}
 
 	// Map parsed fields to the row struct
 	row := utils.InstanceOf[T]()
-	if err := row.InitialiseFromMap(rowMap); err != nil {
+	if err := row.InitialiseFromMap(rowMap, c.schema); err != nil {
 		return empty, fmt.Errorf("error initializing row from map: %w", err)
 	}
 

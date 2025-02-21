@@ -10,7 +10,7 @@ import (
 // this is used in combination with the GonxMapper/GrokMapper
 type MapInitialisedRow interface {
 	types.RowStruct
-	InitialiseFromMap(m map[string]string) error
+	InitialiseFromMap(m map[string]string, tableSchema *schema.TableSchema) error
 }
 
 // Mapper is a generic interface which provides a method for mapping raw source data into row structs

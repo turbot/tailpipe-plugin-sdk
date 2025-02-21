@@ -64,16 +64,8 @@ func (c *GonxMapper[T]) Map(_ context.Context, a any, opts_ ...MapOption[T]) (T,
 
 	rowMap := parsed.Fields()
 
-	// if we have a schema, apply the schema to map any required
-	if c.schema != nil {
-		rowMap, err = c.schema.MapRow(rowMap)
-		if err != nil {
-			return empty, fmt.Errorf("error applying schema: %w", err)
-		}
-	}
-
 	row := utils.InstanceOf[T]()
-	if err := row.InitialiseFromMap(rowMap); err != nil {
+	if err := row.InitialiseFromMap(rowMap, c.schema); err != nil {
 		return empty, fmt.Errorf("error initialising row from map: %w", err)
 	}
 
