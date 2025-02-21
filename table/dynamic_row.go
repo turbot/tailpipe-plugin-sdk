@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/rs/xid"
+	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type DynamicRow struct {
@@ -15,21 +15,32 @@ type DynamicRow struct {
 	Columns map[string]string
 }
 
-func NewDynamicRow() *DynamicRow {
-	return &DynamicRow{
-		Columns: make(map[string]string),
-	}
-}
-
 // InitialiseFromMap initializes the struct from a map of string values
-func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
-	l.Columns = m
+func (l *DynamicRow) InitialiseFromMap(m map[string]string, tableSchema *schema.TableSchema) error {
+	// we must have a schema
+	if tableSchema == nil {
+		return fmt.Errorf("DynamicRow.InitialiseFromMap: tableSchema is nil")
+	}
+
+	val, err := tableSchema.MapRow(m)
+	if err != nil {
+		return fmt.Errorf("error mapping row: %w", err)
+	}
+
+	l.Columns = val
 	return nil
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
-func (l *DynamicRow) Enrich(fields schema.CommonFields) {
-	for k, v := range fields.AsMap() {
+func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
+
+	// we expect the columns to be initialised by a previous call to InitialiseFromMap
+	if l.Columns == nil {
+		return fmt.Errorf("the DynamicRow struct has not been initialised with a map of columns")
+	}
+
+	// apply source common fields
+	for k, v := range sourceCommonFields.AsMap() {
 		if _, ok := l.Columns[k]; !ok {
 			l.Columns[k] = v
 		}
@@ -46,63 +57,34 @@ func (l *DynamicRow) Enrich(fields schema.CommonFields) {
 		l.Columns["tp_index"] = schema.DefaultIndex
 	}
 
-	// if tp_date is not set, and tp_timestamp is, set tpDate to the date part of tpTimestamp
-	// we know the fitled WILL be there as it isa value type but is it zero?
-	// is date zero
-	var zeroDate time.Time
-	dateSet := l.Columns["tp_date"] == zeroDate.String()
-
-	timestamp := l.Columns["tp_timestamp"]
-	if !dateSet && timestamp != zeroDate.String() {
-		if t, err := time.Parse(timeFormat, timestamp); err == nil {
-			l.Columns["tp_date"] = t.Truncate(24 * time.Hour).Format(timeFormat)
+	// if we have a tp_timestamp, parse it and update the field
+	if timestampStr, ok := l.Columns["tp_timestamp"]; ok {
+		timestamp, err := helpers.ParseTime(timestampStr)
+		if err != nil {
+			return fmt.Errorf("error parsing tp_timestamp: %w", err)
 		}
-	}
-}
 
-func (l *DynamicRow) Validate() error {
-	commonFields := l.GetCommonFields()
-	return commonFields.Validate()
+		l.Columns["tp_timestamp"] = timestamp.Format(timeFormat)
+		// also set the date
+		l.Columns["tp_date"] = timestamp.Truncate(24 * time.Hour).Format(timeFormat)
+	}
+
+	return nil
 }
 
 func (l *DynamicRow) GetCommonFields() schema.CommonFields {
-	var res schema.CommonFields
-	res.InitialiseFromMap(l.Columns)
-	return res
+	return schema.CommonFieldsFromMap(l.Columns)
+}
+
+func (l *DynamicRow) Validate() error {
+	f := schema.CommonFieldsFromMap(l.Columns)
+	return f.Validate()
 }
 
 // MarshalJSON overrides JSON serialization to include the dynamic columns
 func (l *DynamicRow) MarshalJSON() ([]byte, error) {
+	// TODO #customtables check this
+	// convert the common fields to a map and overlay the dynamic columns
+	// we do this to ensure values are correctly formatted
 	return json.Marshal(l.Columns)
-}
-
-// ResolveSchema returns the (potentially partial) schema for the dynamic row
-// - this will be used for the JSONL-parquet conversion
-func (l *DynamicRow) ResolveSchema(customTable *types.Table) (*schema.RowSchema, error) {
-	if customTable.Schema == nil {
-		return nil, fmt.Errorf("no schema provided for dynamic row")
-	}
-	// get the schema from the common fields
-	s, err := schema.SchemaFromStruct(schema.CommonFields{})
-	if err != nil {
-		return nil, err
-	}
-
-	for _, c := range customTable.Schema.Columns {
-		// skip the common fields
-		if schema.IsCommonField(c.ColumnName) {
-			continue
-		}
-		s.Columns = append(s.Columns, &schema.ColumnSchema{
-			ColumnName: c.ColumnName,
-			// NOTE: do not set the source from the table schema - just use the column name
-			// - the source in the table config relates to the mapping from raw row to mapped rown
-			// this schema will be used to convert the JSONL (i.e. the mapped row) to parquet
-			SourceName: c.ColumnName,
-			Type:       c.Type,
-		})
-	}
-
-	s.AutoMapSourceFields = customTable.Schema.AutoMapSourceFields
-	return s, nil
 }

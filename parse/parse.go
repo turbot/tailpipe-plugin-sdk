@@ -30,7 +30,13 @@ func ParseConfig[T types.Config](configData types.ConfigData) (T, error) {
 
 	// Parse the config
 	declRange := configData.GetRange()
-	hclBytes := configData.GetHcl()
+
+	// EscapeBackticks to escape and expressions within backticks (e.g. grok expressions)
+	hclBytes, diags := pf_parse.EscapeBackticks(configData.GetHcl(), declRange.Filename)
+	if diags.HasErrors() {
+		return target, error_helpers.HclDiagsToError("Failed to escape grok expressions", diags)
+	}
+
 	file, diags := hclsyntax.ParseConfig(hclBytes, declRange.Filename, declRange.Start)
 	if diags != nil && diags.HasErrors() {
 		slog.Warn("failed to parse config", "config type", configData.GetConfigType(), "hcl", hclBytes)

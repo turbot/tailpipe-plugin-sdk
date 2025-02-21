@@ -6,6 +6,7 @@ import "github.com/turbot/tailpipe-plugin-sdk/schema"
 // - table config
 // - source config
 // - connection config
+// - format config
 type Config interface {
 	Validate() error
 	Identifier() string
@@ -13,5 +14,5 @@ type Config interface {
 
 // DynamicTableConfig is an interface that all dynamic table configuration structs must implement
 type DynamicTableConfig interface {
-	GetSchema() *schema.RowSchema
+	GetSchema() *schema.TableSchema
 }

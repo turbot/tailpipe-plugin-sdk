@@ -34,8 +34,8 @@ message CollectRequest {
   ConfigData source_data = 6;
   // the raw hcl of the connection
   ConfigData connection_data = 7;
-  // if this is custom table, Table contains the source format and table schema
-  Table custom_table = 8;
+  // if this is custom table, schema contains the source format and table schema
+  Schema custom_table_schema  = 8;
   // the source format
   ConfigData source_format = 9;
   // optional: the reattach config to connect to the plugin providing the source
@@ -51,12 +51,6 @@ message UpdateCollectionStateRequest {
   ConfigData source_data = 2;
   // the collection start time
   google.protobuf.Timestamp from_time = 3;
-}
-
-message Table {
-  string name = 1;
-  // the schema of the table
-  Schema schema = 2;
 }
 
 message DescribeRequest {
@@ -85,14 +79,17 @@ message ResolvedFromTime {
 }
 // schema
 message Schema {
+  string name = 1;
   // Map of source field name to column name and type
-  repeated ColumnSchema columns = 1;
+  repeated ColumnSchema columns = 2;
   // should we include ALL source fields in addition to any defined columns, or ONLY include the columns defined
-  bool automap_source_fields = 2;
+  bool automap_source_fields = 3;
   // should we exclude any source fields from the output (only applicable if automap_source_fields is true)
-  repeated string exclude_source_fields = 3;
+  repeated string exclude_source_fields = 4;
   // table description
-  string description = 4;
+  string description = 5;
+  // the default null value to use for the table
+  string null_value = 6;
 }
 
 message ColumnSchema {
@@ -106,6 +103,10 @@ message ColumnSchema {
   repeated ColumnSchema child_fields = 4;
   // column description
   string description = 5;
+  // is the column required
+  bool required = 6;
+  // the null value to use for the column
+  string null_value = 7;
 }
 
 message ConfigData {

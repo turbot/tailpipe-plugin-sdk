@@ -24,8 +24,8 @@ type TailpipePlugin interface {
 	AddObserver(observable.Observer) error
 
 	// Collect is called to start a collection run
-	// this is implemented by plugin.PluginImpl and should not be overridden
-	Collect(context.Context, *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.RowSchema, error)
+	// this is implemented by plugin.PluginImpl
+	Collect(context.Context, *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.TableSchema, error)
 
 	// UpdateCollectionState is called to update the collection state
 	UpdateCollectionState(ctx context.Context, req *proto.UpdateCollectionStateRequest) error
@@ -38,10 +38,6 @@ type TailpipePlugin interface {
 	SourceCollect(context.Context, *proto.SourceCollectRequest) error
 
 	// Other interface functions
-
-	// Init is implemented by plugin.PluginImpl.
-	// If overridden by the plugin it MUST call the base version
-	Init(context.Context) error
 
 	// Shutdown is implemented by plugin.PluginImpl (empty implementation)
 	// it may be overridden by the plugin

@@ -13,7 +13,7 @@ import (
 
 const maxNesting = 10
 
-func SchemaFromStruct(s any) (*RowSchema, error) {
+func SchemaFromStruct(s any) (*TableSchema, error) {
 	return NewSchemaBuilder().SchemaFromStruct(s)
 }
 
@@ -28,7 +28,7 @@ func NewSchemaBuilder() *SchemaBuilder {
 	}
 }
 
-func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
+func (b *SchemaBuilder) SchemaFromStruct(s any) (*TableSchema, error) {
 	// Get the type of the rowStruct
 	t := reflect.TypeOf(s)
 	res, err := b.schemaFromType(t)
@@ -38,14 +38,12 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
 	// just use the column names from the struct, do not automap source fields
 	res.AutoMapSourceFields = false
 
-	// set the column descriptions
-	defaultCommonFieldDescriptions := DefaultCommonFieldDescriptions()
 	// if the struct implements GetColumnDescriptions, use this to populate the column descriptions
 	if desc, ok := s.(GetColumnDescriptions); ok {
 		// merge the default common field descriptions with column descriptions from the struct
 		// NOTE: the struct descriptions will overwrite the default descriptions - it may use this to override
 		// the descriptions for the common fields
-		columnDescriptions := defaultCommonFieldDescriptions
+		columnDescriptions := DefaultCommonFieldDescriptions
 		maps.Copy(columnDescriptions, desc.GetColumnDescriptions())
 
 		for _, c := range res.Columns {
@@ -58,7 +56,7 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*RowSchema, error) {
 	return res, nil
 }
 
-func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
+func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*TableSchema, error) {
 	// if the type is a pointer, get the element type
 	if t.Kind() == reflect.Ptr {
 		t = t.Elem()
@@ -170,7 +168,7 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*RowSchema, error) {
 	}
 
 	// now convert the map into a schema
-	schema := &RowSchema{
+	schema := &TableSchema{
 		Columns: make([]*ColumnSchema, len(res)),
 	}
 	// construct the column array, respecting the order property

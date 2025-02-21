@@ -1,20 +1,14 @@
 package artifact_source
 
 import (
-	"github.com/elastic/go-grok"
-	"github.com/turbot/pipe-fittings/v2/filter"
 	"path/filepath"
 	"regexp"
 	"strings"
-)
 
-func ByteMapToStringMap(m map[string][]byte) map[string]string {
-	res := make(map[string]string, len(m))
-	for k, v := range m {
-		res[k] = string(v)
-	}
-	return res
-}
+	"github.com/elastic/go-grok"
+	"github.com/turbot/go-kit/helpers"
+	"github.com/turbot/pipe-fittings/v2/filter"
+)
 
 func ExpandPatternIntoOptionalAlternatives(pattern string) []string {
 	var res []string
@@ -98,7 +92,7 @@ func getPathMetadata(targetPath, basePath string, layout string, isDir bool, g *
 	}
 
 	// convert the metadata to a string map
-	return match, ByteMapToStringMap(metadata), nil
+	return match, helpers.ByteMapToStringMap(metadata), nil
 }
 
 // getPathSegmentMetadata extracts metadata from a path segment (i.e. a folder)

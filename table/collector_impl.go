@@ -13,6 +13,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
+	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -38,7 +39,7 @@ type CollectorImpl[R types.RowStruct] struct {
 
 	Table  Table[R]
 	source row_source.RowSource
-	mapper Mapper[R]
+	mapper mappers.Mapper[R]
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
@@ -88,20 +89,20 @@ func (c *CollectorImpl[R]) Identifier() string {
 }
 
 // GetSchema returns the schema of the table
-func (c *CollectorImpl[R]) GetSchema() (*schema.RowSchema, error) {
-	rowStruct := utils.InstanceOf[R]()
+func (c *CollectorImpl[R]) GetSchema() (*schema.TableSchema, error) {
+	// if the table is a custom table, ask it for its schema
+	if ct, ok := any(c.Table).(CustomTable); ok {
 
-	// if the table has a dynamic row, we can only return the schema is the config supports it
-	if d, ok := any(rowStruct).(*DynamicRow); ok {
-		// we must have a custom table
-		customTable := c.req.CustomTable
-		if customTable == nil {
-			return nil, fmt.Errorf("table %s has dynamic row but no custom table definition", c.Table.Identifier())
-		}
-		return d.ResolveSchema(customTable)
+		// the schema on the custom table will already have been 'resolved'
+		// (i.e. the configured custom table schema will have been merged with the comm fields struct schema)
+		// TACTICAL clear source fields as theses were for mapping
+		customSchema := ct.GetSchema().WithSourceFieldsCleared()
+
+		return customSchema, nil
 	}
 
 	// otherwise, return the schema from the row struct
+	rowStruct := utils.InstanceOf[R]()
 	s, err := schema.SchemaFromStruct(rowStruct)
 	if err != nil {
 		return nil, fmt.Errorf("error getting schema from struct: %w", err)
@@ -211,8 +212,11 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 
 func (c *CollectorImpl[R]) getSourceMetadata(sourceConfig *types.SourceConfigData) (sourceMetadata *SourceMetadata[R], err error) {
 	// get the supported sources for the table
-	supportedSourceMap := c.getSourceMetadataMap()
-	requestedSource := sourceConfig.Type
+	supportedSourceMap, err := c.getSourceMetadataMap()
+	if err != nil {
+		return nil, err
+	}
+	requestedSource := sourceConfig.InstanceType
 	// validate the requested source type is supported by this table
 	sourceMetadata, ok := supportedSourceMap[requestedSource]
 	if !ok {
@@ -238,14 +242,17 @@ func (c *CollectorImpl[R]) getSourceMetadata(sourceConfig *types.SourceConfigDat
 }
 
 // ask table for it;s supported sources and put into map for ease of lookup
-func (c *CollectorImpl[R]) getSourceMetadataMap() map[string]*SourceMetadata[R] {
-	supportedSources := c.Table.GetSourceMetadata()
+func (c *CollectorImpl[R]) getSourceMetadataMap() (map[string]*SourceMetadata[R], error) {
+	supportedSources, err := c.Table.GetSourceMetadata()
+	if err != nil {
+		return nil, err
+	}
 	// convert to a map for easy lookup
 	sourceMap := make(map[string]*SourceMetadata[R])
 	for _, s := range supportedSources {
 		sourceMap[s.SourceName] = s
 	}
-	return sourceMap
+	return sourceMap, nil
 }
 
 // updateStatus updates the status counters with the latest event
@@ -300,9 +307,9 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 // mapRow applies any configured mappers to the raw rows
 func (c *CollectorImpl[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
 	var empty R
-	// if there is no mapperFunc, just return the data as is
+	// if there is no mapper, just return the data as is
 	if c.mapper == nil {
-		// if no mapperFunc is defined, we expect the rawRow to be of type R - if not this is an error
+		// if no mapper is defined, we expect the rawRow to be of type R - if not this is an error
 		row, ok := rawRow.(R)
 		if !ok {
 			// TODO #error this is not raised in UI
@@ -311,13 +318,7 @@ func (c *CollectorImpl[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
 		return row, nil
 	}
 
-	// if there is a custom table, pass the schema to the mapper
-	var opts []MapOption[R]
-	if c.req.CustomTable != nil {
-		opts = append(opts, WithSchema[R](c.req.CustomTable.Schema))
-	}
-
-	return c.mapper.Map(ctx, rawRow, opts...)
+	return c.mapper.Map(ctx, rawRow)
 }
 
 // onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full

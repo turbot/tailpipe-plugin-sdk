@@ -1,11 +1,13 @@
 package artifact_source
 
 import (
-	"github.com/elastic/go-grok"
-	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/elastic/go-grok"
+	maphelpers "github.com/turbot/go-kit/helpers"
+	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 )
 
 var patterns = map[string]string{
@@ -330,11 +332,10 @@ func Test_getPathMetadata(t *testing.T) {
 			}
 			// if we have metadata and filters, check if the metadata satisfies the filters
 			if len(metadata) > 0 {
-				if got := metadataSatisfiesFilters(ByteMapToStringMap(metadata), filters); got != tt.wantMatch {
+				if got := metadataSatisfiesFilters(maphelpers.ByteMapToStringMap(metadata), filters); got != tt.wantMatch {
 					t.Errorf("metadataSatisfiesFilters() = %v, wantMatch %v", got, tt.wantMatch)
 				}
 			}
-
 		})
 	}
 }

@@ -1,20 +1,21 @@
 package types
 
-import "github.com/hashicorp/hcl/v2"
+import (
+	"github.com/hashicorp/hcl/v2"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
+)
 
 type FormatConfigData struct {
 	*ConfigDataImpl
-	Type string
 }
 
 func NewFormatConfigData(hcl []byte, decRange hcl.Range, formatType string) *FormatConfigData {
 	return &FormatConfigData{
 		ConfigDataImpl: &ConfigDataImpl{
-			Hcl:        hcl,
-			Range:      decRange,
-			Id:         formatType,
-			ConfigType: "format",
+			Hcl:          hcl,
+			Range:        decRange,
+			InstanceType: formatType,
+			ConfigType:   constants.ConfigTypeFormat,
 		},
-		Type: formatType,
 	}
 }

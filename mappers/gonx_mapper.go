@@ -7,15 +7,14 @@ import (
 	"github.com/satyrius/gonx"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
-	"github.com/turbot/tailpipe-plugin-sdk/table"
 )
 
-type GonxMapper[T table.MapInitialisedRow] struct {
+type GonxMapper[T MapInitialisedRow] struct {
 	parsers []*gonx.Parser
-	schema  *schema.RowSchema
+	schema  *schema.TableSchema
 }
 
-func NewGonxMapper[T table.MapInitialisedRow](formats ...string) *GonxMapper[T] {
+func NewGonxMapper[T MapInitialisedRow](formats ...string) *GonxMapper[T] {
 	res := &GonxMapper[T]{}
 	for _, format := range formats {
 		res.parsers = append(res.parsers, gonx.NewParser(format))
@@ -24,7 +23,7 @@ func NewGonxMapper[T table.MapInitialisedRow](formats ...string) *GonxMapper[T] 
 }
 
 // SetSchema implements SchemaSetter interface
-func (c *GonxMapper[T]) SetSchema(schema *schema.RowSchema) {
+func (c *GonxMapper[T]) SetSchema(schema *schema.TableSchema) {
 	c.schema = schema
 }
 
@@ -32,7 +31,7 @@ func (c *GonxMapper[T]) Identifier() string {
 	return "row_pattern_mapper"
 }
 
-func (c *GonxMapper[T]) Map(_ context.Context, a any, opts_ ...table.MapOption[T]) (T, error) {
+func (c *GonxMapper[T]) Map(_ context.Context, a any, opts_ ...MapOption[T]) (T, error) {
 	// apply opts - this may set a schema
 	for _, opt := range opts_ {
 		opt(c)
@@ -64,14 +63,9 @@ func (c *GonxMapper[T]) Map(_ context.Context, a any, opts_ ...table.MapOption[T
 	}
 
 	rowMap := parsed.Fields()
-	// if we have a schema, apply the schema to map any required
-	rowMap, err = c.schema.MapRow(rowMap)
-	if err != nil {
-		return empty, fmt.Errorf("error applying schema: %w", err)
-	}
 
 	row := utils.InstanceOf[T]()
-	if err := row.InitialiseFromMap(rowMap); err != nil {
+	if err := row.InitialiseFromMap(rowMap, c.schema); err != nil {
 		return empty, fmt.Errorf("error initialising row from map: %w", err)
 	}
 

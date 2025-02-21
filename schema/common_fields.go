@@ -10,6 +10,128 @@ import (
 
 const DefaultIndex = "default"
 
+// CommonFieldsSchema is the TableSchema for the common fields
+// it is used for custom tables
+func CommonFieldsSchema() *TableSchema {
+	return &TableSchema{
+		Name: "common_fields",
+		Columns: []*ColumnSchema{
+			{
+				ColumnName:  "tp_timestamp",
+				SourceName:  "tp_timestamp",
+				Type:        "TIMESTAMP",
+				Description: DefaultCommonFieldDescriptions["tp_timestamp"],
+				Required:    true,
+			},
+			{
+				ColumnName:  "tp_id",
+				SourceName:  "tp_id",
+				Type:        "VARCHAR",
+				Description: DefaultCommonFieldDescriptions["tp_id"],
+			},
+			{
+				ColumnName:  "tp_source_type",
+				SourceName:  "tp_source_type",
+				Type:        "VARCHAR",
+				Description: DefaultCommonFieldDescriptions["tp_source_type"],
+			},
+			{
+				ColumnName:  "tp_ingest_timestamp",
+				SourceName:  "tp_ingest_timestamp",
+				Type:        "TIMESTAMP",
+				Description: DefaultCommonFieldDescriptions["tp_ingest_timestamp"],
+			},
+			// Hive fields
+			{
+				ColumnName:  "tp_table",
+				SourceName:  "tp_table",
+				Type:        "VARCHAR",
+				Description: DefaultCommonFieldDescriptions["tp_table"],
+			},
+			{
+				ColumnName:  "tp_partition",
+				SourceName:  "tp_partition",
+				Type:        "VARCHAR",
+				Description: DefaultCommonFieldDescriptions["tp_partition"],
+			},
+			{
+				ColumnName:  "tp_index",
+				SourceName:  "tp_index",
+				Type:        "VARCHAR",
+				Description: DefaultCommonFieldDescriptions["tp_index"],
+			},
+			{
+				ColumnName:  "tp_date",
+				SourceName:  "tp_date",
+				Type:        "DATE",
+				Description: DefaultCommonFieldDescriptions["tp_date"],
+			},
+			// Optional fields
+			{
+				ColumnName:  "tp_source_ip",
+				SourceName:  "tp_source_ip",
+				Type:        "VARCHAR",
+				Description: DefaultCommonFieldDescriptions["tp_source_ip"],
+			},
+			{
+				ColumnName:  "tp_destination_ip",
+				SourceName:  "tp_destination_ip",
+				Type:        "VARCHAR",
+				Description: DefaultCommonFieldDescriptions["tp_destination_ip"],
+			},
+			{
+				ColumnName:  "tp_source_name",
+				SourceName:  "tp_source_name",
+				Type:        "VARCHAR",
+				Description: DefaultCommonFieldDescriptions["tp_source_name"],
+			},
+			{
+				ColumnName:  "tp_source_location",
+				SourceName:  "tp_source_location",
+				Type:        "VARCHAR",
+				Description: DefaultCommonFieldDescriptions["tp_source_location"],
+			},
+			// Searchable fields (arrays)
+			{
+				ColumnName:  "tp_akas",
+				SourceName:  "tp_akas",
+				Type:        "VARCHAR[]",
+				Description: DefaultCommonFieldDescriptions["tp_akas"],
+			},
+			{
+				ColumnName:  "tp_ips",
+				SourceName:  "tp_ips",
+				Type:        "VARCHAR[]",
+				Description: DefaultCommonFieldDescriptions["tp_ips"],
+			},
+			{
+				ColumnName:  "tp_tags",
+				SourceName:  "tp_tags",
+				Type:        "VARCHAR[]",
+				Description: DefaultCommonFieldDescriptions["tp_tags"],
+			},
+			{
+				ColumnName:  "tp_domains",
+				SourceName:  "tp_domains",
+				Type:        "VARCHAR[]",
+				Description: DefaultCommonFieldDescriptions["tp_domains"],
+			},
+			{
+				ColumnName:  "tp_emails",
+				SourceName:  "tp_emails",
+				Type:        "VARCHAR[]",
+				Description: DefaultCommonFieldDescriptions["tp_emails"],
+			},
+			{
+				ColumnName:  "tp_usernames",
+				SourceName:  "tp_usernames",
+				Type:        "VARCHAR[]",
+				Description: DefaultCommonFieldDescriptions["tp_usernames"],
+			},
+		},
+	}
+}
+
 // CommonFields represents the common fields with JSON tags
 type CommonFields struct {
 	// Mandatory fields
@@ -37,6 +159,12 @@ type CommonFields struct {
 	TpDomains   []string `json:"tp_domains,omitempty"`
 	TpEmails    []string `json:"tp_emails,omitempty"`
 	TpUsernames []string `json:"tp_usernames,omitempty"`
+}
+
+func CommonFieldsFromMap(source map[string]string) CommonFields {
+	var c CommonFields
+	c.InitialiseFromMap(source)
+	return c
 }
 
 // Validate implements the Validatable interface and is used to validate that the required fields have been set
@@ -232,30 +360,28 @@ func (c *CommonFields) AsMap() map[string]string {
 }
 
 // TODO improve these descriptions https://github.com/turbot/tailpipe-plugin-sdk/issues/83
-func DefaultCommonFieldDescriptions() map[string]string {
-	return map[string]string{
-		"tp_id":               "A unique identifier for the row.",
-		"tp_source_type":      "The name of the source that collected the row.",
-		"tp_ingest_timestamp": "The timestamp in UTC when the row was ingested into the system.",
-		"tp_timestamp":        "The original timestamp in UTC when the event or log entry was generated.",
-		"tp_table":            "The name of the table.",
-		"tp_partition":        "The name of the partition as defined in the Tailpipe configuration file.",
-		"tp_index":            "The name of the optional index used to partition the data.",
-		"tp_date":             "The original date when the event or log entry was generated in YYYY-MM-DD format.",
-		"tp_source_ip":        "The IP address of the source.",
-		"tp_destination_ip":   "The IP address of the destination.",
-		"tp_source_name":      "The name or identifier of the source generating the row, such as a service name.",
-		"tp_source_location":  "The geographic or network location of the source, such as a region.",
-		"tp_akas":             "A list of associated globally unique identifier strings (also known as).",
-		"tp_ips":              "A list of associated IP addresses.",
-		"tp_tags":             "A list of associated tags or labels.",
-		"tp_domains":          "A list of associated domain names.",
-		"tp_emails":           "A list of associated email addresses.",
-		"tp_usernames":        "A list of associated usernames or identities.",
-	}
+var DefaultCommonFieldDescriptions = map[string]string{
+	"tp_id":               "A unique identifier for the row.",
+	"tp_source_type":      "The name of the source that collected the row.",
+	"tp_ingest_timestamp": "The timestamp in UTC when the row was ingested into the system.",
+	"tp_timestamp":        "The original timestamp in UTC when the event or log entry was generated.",
+	"tp_table":            "The name of the table.",
+	"tp_partition":        "The name of the partition as defined in the Tailpipe configuration file.",
+	"tp_index":            "The name of the optional index used to partition the data.",
+	"tp_date":             "The original date when the event or log entry was generated in YYYY-MM-DD format.",
+	"tp_source_ip":        "The IP address of the source.",
+	"tp_destination_ip":   "The IP address of the destination.",
+	"tp_source_name":      "The name or identifier of the source generating the row, such as a service name.",
+	"tp_source_location":  "The geographic or network location of the source, such as a region.",
+	"tp_akas":             "A list of associated globally unique identifier strings (also known as).",
+	"tp_ips":              "A list of associated IP addresses.",
+	"tp_tags":             "A list of associated tags or labels.",
+	"tp_domains":          "A list of associated domain names.",
+	"tp_emails":           "A list of associated email addresses.",
+	"tp_usernames":        "A list of associated usernames or identities.",
 }
 
 func IsCommonField(name string) bool {
-	_, ok := DefaultCommonFieldDescriptions()[name]
+	_, ok := DefaultCommonFieldDescriptions[name]
 	return ok
 }
