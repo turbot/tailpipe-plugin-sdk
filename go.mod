@@ -2,7 +2,7 @@ module github.com/turbot/tailpipe-plugin-sdk
 
 go 1.24
 
-replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
+// replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
@@ -16,7 +16,7 @@ require (
 	github.com/satyrius/gonx v1.4.0
 	github.com/stretchr/testify v1.10.0
 	github.com/turbot/go-kit v1.1.0
-	github.com/turbot/pipe-fittings/v2 v2.1.0-rc.0
+	github.com/turbot/pipe-fittings/v2 v2.2.0
 	github.com/zclconf/go-cty v1.14.4
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	golang.org/x/sync v0.10.0
@@ -154,6 +154,7 @@ require (
 	github.com/tklauser/numcpus v0.3.0 // indirect
 	github.com/tkrajina/go-reflector v0.5.8 // indirect
 	github.com/turbot/pipes-sdk-go v0.12.0 // indirect
+	github.com/turbot/steampipe-plugin-code v1.0.1-alpha.1 // indirect
 	github.com/turbot/terraform-components v0.0.0-20231213122222-1f3526cab7a7 // indirect
 	github.com/ulikunitz/xz v0.5.10 // indirect
 	github.com/xlab/treeprint v1.2.0 // indirect
