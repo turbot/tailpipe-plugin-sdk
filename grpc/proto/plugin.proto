@@ -79,17 +79,18 @@ message ResolvedFromTime {
 }
 // schema
 message Schema {
-  string name = 1;
   // Map of source field name to column name and type
-  repeated ColumnSchema columns = 2;
+  repeated ColumnSchema columns = 1;
   // should we include ALL source fields in addition to any defined columns, or ONLY include the columns defined
-  bool automap_source_fields = 3;
+  bool automap_source_fields = 2;
   // should we exclude any source fields from the output (only applicable if automap_source_fields is true)
-  repeated string exclude_source_fields = 4;
+  repeated string exclude_source_fields = 3;
   // table description
-  string description = 5;
+  string description = 4;
   // the default null value to use for the table
-  string null_value = 6;
+  string null_value = 5;
+  // the table name
+  string name = 6;
 }
 
 message ColumnSchema {
