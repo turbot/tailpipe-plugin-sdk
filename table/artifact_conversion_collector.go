@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"log/slog"
 	"sync"
 	"time"
@@ -28,7 +27,7 @@ type ArtifactConversionCollector struct {
 
 	tableName string
 	// the source format
-	formatData *proto.ConfigData
+	//formatData *proto.ConfigData
 	// the table config
 	Format parse.Config
 

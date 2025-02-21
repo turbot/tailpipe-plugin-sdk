@@ -127,7 +127,7 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (string, 
 	case "TIMESTAMP", "DATE", "TIME":
 		t, err := helpers.ParseTime(valString)
 		if err != nil {
-			return valString, fmt.Errorf("error parsing time value '%s' for column '%s': %w", valString, column, err)
+			return valString, fmt.Errorf("error parsing time value '%s' for column '%s': %w", valString, column.ColumnName, err)
 		}
 		// format the time as a string
 		return t.Format(time.RFC3339), nil

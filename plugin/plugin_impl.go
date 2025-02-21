@@ -39,11 +39,6 @@ func (p *PluginImpl) Identifier() string {
 	return p.identifier
 }
 
-// initialized returns true if the plugin has been initialized
-func (p *PluginImpl) initialized() bool {
-	return table.Factory.Initialized()
-}
-
 // Collect Implements [plugin.TailpipePlugin]
 func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*row_source.ResolvedFromTime, *schema.TableSchema, error) {
 	// create context containing execution id
