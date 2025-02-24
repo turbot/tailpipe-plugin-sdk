@@ -20,14 +20,13 @@ jobs:
         with:
           repository: turbot/pipe-fittings
           path: pipe-fittings
-          ref: tp
+          ref: develop
 
       - name: Checkout Tailpipe plugin SDK repository
         uses: actions/checkout@v4
         with:
           repository: turbot/tailpipe-plugin-sdk
           path: tailpipe-plugin-sdk
-          token: ${{ secrets.GH_ACCESS_TOKEN }}
           ref: develop
 
       # this is required, check golangci-lint-action docs
