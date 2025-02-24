@@ -29,14 +29,12 @@ jobs:
       - name: Checkout Tailpipe plugin SDK repository
         uses: actions/checkout@v4
         with:
-          repository: turbot/tailpipe-plugin-sdk
           path: tailpipe-plugin-sdk
-          ref: develop
 
        # this is required, check golangci-lint-action docs
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.24'
           cache: false # setup-go v4 caches by default, do not change this parameter, check golangci-lint-action doc: https://github.com/golangci/golangci-lint-action/pull/704
 
       - name: Run CLI Unit Tests
