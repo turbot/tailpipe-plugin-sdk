@@ -23,7 +23,7 @@ func (r *Chunk) ToProto() *proto.Event {
 		Event: &proto.Event_ChunkWrittenEvent{
 			ChunkWrittenEvent: &proto.EventChunkWritten{
 				ExecutionId: r.ExecutionId,
-				ChunkNumber: int32(r.ChunkNumber),
+				ChunkNumber: int32(r.ChunkNumber), //nolint:gosec // TODO check integer overflow conversion
 			},
 		},
 	}
