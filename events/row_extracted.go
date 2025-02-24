@@ -15,11 +15,11 @@ type RowExtracted struct {
 	Row              any
 }
 
-func NewRowExtractedEvent(executionId string, row any, SourceEnrichmens schema.SourceEnrichment) *RowExtracted {
+func NewRowExtractedEvent(executionId string, row any, sourceEnrichments schema.SourceEnrichment) *RowExtracted {
 	r := &RowExtracted{
 		ExecutionId:      executionId,
 		Row:              row,
-		SourceEnrichment: SourceEnrichmens,
+		SourceEnrichment: sourceEnrichments,
 	}
 
 	return r

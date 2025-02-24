@@ -3,11 +3,12 @@ package collection_state
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/aws/aws-sdk-go-v2/config"
 	"log/slog"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/aws/aws-sdk-go-v2/config"
 )
 
 type CollectionStateImplDeprecated[T config.Config] struct {
@@ -80,7 +81,7 @@ func (s *CollectionStateImplDeprecated[T]) Save() error {
 	}
 
 	// write the JSON data to the file, overwriting any existing data
-	err = os.WriteFile(s.jsonPath, jsonBytes, 0644)
+	err = os.WriteFile(s.jsonPath, jsonBytes, 0644) //nolint:gosec // 0644 is the file permission we want
 	if err != nil {
 		return fmt.Errorf("failed to write collection state to file: %w", err)
 	}
