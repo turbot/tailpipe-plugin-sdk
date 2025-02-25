@@ -70,6 +70,10 @@ type Delimited struct {
 	TimestampFormat *string
 }
 
+func NewDelimited() Format {
+	return &Delimited{}
+}
+
 func (c *Delimited) Validate() error {
 	return nil
 }

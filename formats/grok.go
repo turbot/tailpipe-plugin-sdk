@@ -16,6 +16,10 @@ type Grok struct {
 	Patterns map[string]string `hcl:"patterns,optional"`
 }
 
+func NewGrok() Format {
+	return &Grok{}
+}
+
 func (c *Grok) Validate() error {
 	return nil
 }

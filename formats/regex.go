@@ -13,6 +13,10 @@ type Regex struct {
 	Layout string `hcl:"layout"`
 }
 
+func NewRegex() Format {
+	return &Regex{}
+}
+
 func (c *Regex) Validate() error {
 	return nil
 }
