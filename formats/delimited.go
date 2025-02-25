@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/mappers"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type Delimited struct {
@@ -74,6 +76,11 @@ func (c *Delimited) Validate() error {
 
 func (c *Delimited) Identifier() string {
 	return constants.SourceFormatDelimited
+}
+
+// getmapper
+func (c *Delimited) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
+	panic("implement me")
 }
 
 // GetCsvOpts converts the Delimited configuration into a slice of CSV options strings

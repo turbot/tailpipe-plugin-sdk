@@ -2,6 +2,7 @@ package table
 
 import (
 	"context"
+	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -11,22 +12,27 @@ import (
 
 // CustomTable is a generic interface representing a plugin table definition with a format
 type CustomTable interface {
-	Table[*DynamicRow]
+	Table[*types.DynamicRow]
 	GetSchema() *schema.TableSchema
-	Initialize(parse.Config, *schema.TableSchema)
+
+	Initialize(formats.Format, *schema.TableSchema)
+	GetSupportedFormats() *formats.SupportedFormats
+	GetTableDefinition() *schema.TableSchema
 }
 
 // CustomTable is a generic interface representing a plugin table definition with a format
+// TODO KAI GET RID - just use CustomTable?
 type PredefinedCustomTable interface {
 	CustomTable
-	GetFormat() parse.Config
-	GetTableDefinition() *schema.TableSchema
+
+	// get the configured format
+	GetFormat() formats.Format
 }
 
 // Table is a generic interface representing a plugin table definition
 // R is the row struct type
 type Table[R types.RowStruct] interface {
-	// Identifier must return the collection name
+	// Identifier returns the table name
 	Identifier() string
 
 	// GetSourceMetadata returns the supported sources for the table

@@ -1,9 +1,8 @@
 package formats
 
 import (
-	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
@@ -25,15 +24,6 @@ func (c *Grok) Identifier() string {
 	return constants.SourceFormatGrok
 }
 
-func NewCustomFormat(formatData *types.FormatConfigData) (*Grok, error) {
-	if len(formatData.GetHcl()) > 0 {
-		var err error
-		format, err := parse.ParseConfig[*Grok](formatData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing config: %w", err)
-		}
-
-		return format, nil
-	}
-	return &Grok{}, nil
+func (c *Grok) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
+	return mappers.NewGrokMapper[*types.DynamicRow](c.Layout, c.Patterns)
 }

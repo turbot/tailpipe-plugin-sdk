@@ -27,20 +27,24 @@ func ParseConfig[T types.Config](configData types.ConfigData) (T, error) {
 	if id != configData.Identifier() {
 		return target, fmt.Errorf("invalid %s type '%s': expected '%s'", configData.GetConfigType(), configData.Identifier(), id)
 	}
+	err := ParseConfigIntoTarget(configData, target)
+	return target, err
+}
 
+func ParseConfigIntoTarget(configData types.ConfigData, target types.Config) error {
 	// Parse the config
 	declRange := configData.GetRange()
 
 	// EscapeBackticks to escape and expressions within backticks (e.g. grok expressions)
 	hclBytes, diags := pf_parse.EscapeBackticks(configData.GetHcl(), declRange.Filename)
 	if diags.HasErrors() {
-		return target, error_helpers.HclDiagsToError("Failed to escape grok expressions", diags)
+		return error_helpers.HclDiagsToError("Failed to escape backtick expressions", diags)
 	}
 
 	file, diags := hclsyntax.ParseConfig(hclBytes, declRange.Filename, declRange.Start)
 	if diags != nil && diags.HasErrors() {
 		slog.Warn("failed to parse config", "config type", configData.GetConfigType(), "hcl", hclBytes)
-		return target, fmt.Errorf("failed to parse %s config: %s", configData.GetConfigType(), diags)
+		return fmt.Errorf("failed to parse %s config: %s", configData.GetConfigType(), diags)
 	}
 
 	// Create empty eval context
@@ -54,11 +58,10 @@ func ParseConfig[T types.Config](configData types.ConfigData) (T, error) {
 	//decodeDiags := gohcl.DecodeBody(file.Body, evalCtx, target)
 	diags = append(diags, decodeDiags...)
 	if diags.HasErrors() {
-		return target, error_helpers.HclDiagsToError(fmt.Sprintf("Failed to decode %s config", configData.GetConfigType()), diags)
+		return error_helpers.HclDiagsToError(fmt.Sprintf("Failed to decode %s config", configData.GetConfigType()), diags)
 	}
 
-	// Return the struct by value
-	return target, nil
+	return nil
 }
 
 // decodeHclBodyWithNestedStructs decodes the hcl body into the target resource, also decoding into any nested structs

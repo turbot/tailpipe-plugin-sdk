@@ -61,6 +61,10 @@ type CollectorImpl[R types.RowStruct] struct {
 	writer ChunkWriter
 }
 
+func NewCollectorImpl[R types.RowStruct](table Table[R]) *CollectorImpl[R] {
+	return &CollectorImpl[R]{Table: table}
+}
+
 func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
 
