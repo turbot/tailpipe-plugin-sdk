@@ -2,6 +2,8 @@ package formats
 
 import (
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/mappers"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type Regex struct {
@@ -17,4 +19,8 @@ func (c *Regex) Validate() error {
 
 func (c *Regex) Identifier() string {
 	return constants.SourceFormatRegex
+}
+
+func (c *Regex) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
+	return mappers.NewRegexMapper[*types.DynamicRow](c.Layout)
 }

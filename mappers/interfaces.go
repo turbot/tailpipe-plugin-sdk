@@ -10,6 +10,7 @@ import (
 // this is used in combination with the GonxMapper/GrokMapper
 type MapInitialisedRow interface {
 	types.RowStruct
+	// TODO REMOVE SCHEMA
 	InitialiseFromMap(m map[string]string, tableSchema *schema.TableSchema) error
 }
 
@@ -21,7 +22,8 @@ type Mapper[R types.RowStruct] interface {
 	Map(context.Context, any, ...MapOption[R]) (R, error)
 }
 
-type CustomTableMapper[R types.RowStruct] interface {
-	Mapper[R]
-	SetSchema(*schema.TableSchema)
-}
+// TODO REMOVE SCHEMA
+//type CustomTableMapper[R types.RowStruct] interface {
+//	Mapper[R]
+//	SetSchema(*schema.TableSchema)
+//}

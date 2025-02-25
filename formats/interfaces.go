@@ -1,0 +1,13 @@
+package formats
+
+import (
+	"github.com/turbot/tailpipe-plugin-sdk/mappers"
+	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
+)
+
+type Format interface {
+	parse.Config
+
+	GetMapper() (mappers.Mapper[*types.DynamicRow], error)
+}

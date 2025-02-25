@@ -51,24 +51,16 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 
 		return nil, nil, err
 	}
-	// call the implementation
-	return p.DoCollect(ctx, collectRequest)
-}
-
-// DoCollect is an implementation of the Collect method which accepts a types.CollectRequest
-// it is split out to allow for overridden implementations of Collect to call it
-// after having converted the proto request to the internal type
-func (p *PluginImpl) DoCollect(ctx context.Context, req *types.CollectRequest) (*row_source.ResolvedFromTime, *schema.TableSchema, error) {
 
 	// ask the factory to create the collector
 	// - this will configure the requested source
-	collector, err := table.Factory.GetCollector(req)
+	collector, err := table.Factory.GetCollector(collectRequest)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	// initialise the collector
-	if err := collector.Init(ctx, req); err != nil {
+	if err := collector.Init(ctx, collectRequest); err != nil {
 		return nil, nil, err
 	}
 
@@ -82,9 +74,9 @@ func (p *PluginImpl) DoCollect(ctx context.Context, req *types.CollectRequest) (
 	}
 
 	// signal we have started
-	if err := p.OnStarted(ctx, req.ExecutionId); err != nil {
+	if err := p.OnStarted(ctx, collectRequest.ExecutionId); err != nil {
 		err := fmt.Errorf("error signalling started: %w", err)
-		_ = p.OnCompleted(ctx, req.ExecutionId, 0, 0, err)
+		_ = p.OnCompleted(ctx, collectRequest.ExecutionId, 0, 0, err)
 	}
 
 	go func() {
@@ -92,7 +84,7 @@ func (p *PluginImpl) DoCollect(ctx context.Context, req *types.CollectRequest) (
 		rowCount, chunksWritten, err := collector.Collect(ctx)
 
 		// signal we have completed - pass error if there was one
-		_ = p.OnCompleted(ctx, req.ExecutionId, rowCount, chunksWritten, err)
+		_ = p.OnCompleted(ctx, collectRequest.ExecutionId, rowCount, chunksWritten, err)
 	}()
 
 	// return the schema (if available - this may be partial for dynamic tables, in which case the CLI will infer the full schema)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
 	"log/slog"
 	"sync"
 	"time"
@@ -44,7 +45,7 @@ func (c *ArtifactConversionCollector) UpdateCollectionState(ctx context.Context,
 	panic("implement me")
 }
 
-func NewArtifactConversionCollector() *ArtifactConversionCollector {
+func NewArtifactConversionCollector(Table[*types.DynamicRow]) *ArtifactConversionCollector {
 	return &ArtifactConversionCollector{
 		// TODO
 		//tableName:  tableDef.Name,
@@ -183,7 +184,7 @@ func (c *ArtifactConversionCollector) initSource(ctx context.Context, configData
 
 	// get the source metadata for this source type
 	// (this returns an error if the source is not supported by the table)
-	sourceMetadata := &SourceMetadata[*DynamicRow]{
+	sourceMetadata := &SourceMetadata[*types.DynamicRow]{
 		SourceName: requestedSource,
 	}
 

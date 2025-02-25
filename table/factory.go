@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -14,50 +14,13 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
-//There are 2 uses cases for custom tables:
-//- fully custom tables implements by the LogTable in the core plugin
-//- predefined custom tables which may be implemented by any plugin and have a fixed format and table definition
-
-// In the case of fully custom tables, the format and table definition are defined in config.
-// The opts passed to this function will include WithTableDef, whach sets the format and table def for the table
-// by calling t.Initialize(format, tableDef)
-
-// RegisterPredefinedCustomTable registers a collector constructor for a table which has a predefined Format and TableSchema
-// this is called from the package init function of the table implementation
-func RegisterPredefinedCustomTable[T PredefinedCustomTable]() {
-	// create table instance
-	t := utils.InstanceOf[T]()
-	doRegisterCustomTable[T](t.GetFormat(), t.GetTableDefinition(), t)
-}
-
-// RegisterCustomTable registers a collector constructor for a table which has a configurable
+// RegisterCustomTable registers a constructor for a table which has a configurable
 // format and table schema
-func RegisterCustomTable[T CustomTable](format parse.Config, customTableSchema *schema.TableSchema) {
-	// create table instance
+func RegisterCustomTable[T CustomTable]() {
+	// supportedFormats formats.SupportedFormats, customTableSchema *schema.TableSchema
 	t := utils.InstanceOf[T]()
-	doRegisterCustomTable[T](format, customTableSchema, t)
-}
-
-// doRegisterCustomTable is the actual implementation of the custom table registration,
-// called by both RegisterPredefinedCustomTable and RegisterCustomTable
-func doRegisterCustomTable[T CustomTable](format parse.Config, customTableSchema *schema.TableSchema, t T) {
-	var collectorFunc func() Collector
-	t.Initialize(format, customTableSchema)
-
-	switch format.(type) {
-	case *formats.Grok, *formats.Regex:
-		collectorFunc = func() Collector {
-			return &CollectorImpl[*DynamicRow]{Table: t}
-		}
-	case *formats.Delimited:
-		collectorFunc = func() Collector {
-			// TODO
-			return NewArtifactConversionCollector()
-		}
-	}
-
-	// now register the collector
-	Factory.registerCollector(t.Identifier(), collectorFunc)
+	customTableFunc := func() CustomTable { return t }
+	Factory.registerCustomTable(t.Identifier(), customTableFunc)
 }
 
 // RegisterTable registers a collector constructor with the factory
@@ -65,17 +28,24 @@ func doRegisterCustomTable[T CustomTable](format parse.Config, customTableSchema
 func RegisterTable[R types.RowStruct, T Table[R]]() {
 	t := utils.InstanceOf[T]()
 	collectorFunc := func() Collector {
-		return &CollectorImpl[R]{
-			Table: t,
-		}
+		return NewCollectorImpl[R](t)
 	}
-
 	Factory.registerCollector(t.Identifier(), collectorFunc)
 }
 
 type TableFactory struct {
 	// maps of collector constructors, keyed by the name of the table name
+	// these are registered for static tables
+	// NOTE: we store the collector ctor not the table ctor as tables are generic so with different row types
+	// so cannot be stored in a map
 	collectorFuncMap map[string]func() Collector
+
+	// custom tables registered with the factory
+	// these are registered with a table constructor function
+	// NOTE: we store the table not the collector ctor as the collector type may be different for each table
+	// (could still do the logic in the ctor)
+	customTableMap map[string]func() CustomTable
+
 	// map of table schemas
 	schemaMap schema.SchemaMap
 }
@@ -83,6 +53,7 @@ type TableFactory struct {
 func newTableFactory() TableFactory {
 	return TableFactory{
 		collectorFuncMap: make(map[string]func() Collector),
+		customTableMap:   make(map[string]func() CustomTable),
 	}
 }
 
@@ -94,6 +65,10 @@ func newTableFactory() TableFactory {
 // package init functions which cannot return an error
 func (f *TableFactory) registerCollector(name string, ctor func() Collector) {
 	f.collectorFuncMap[name] = ctor
+}
+
+func (f *TableFactory) registerCustomTable(name string, ctor func() CustomTable) {
+	f.customTableMap[name] = ctor
 }
 
 // populateSchemas builds the map of table constructors and schemas
@@ -120,9 +95,20 @@ func (f *TableFactory) populateSchemas() (err error) {
 			errs = append(errs, err)
 			continue
 		}
-		// merge in the common schema
 		f.schemaMap[collector.Identifier()] = s
 	}
+	// now do the custom tables - only predefined custom tables will have schema
+	for _, ctor := range f.customTableMap {
+		// create an instance of the table to get the identifier
+		customTable := ctor()
+
+		// get the schema for the table row type
+		s := customTable.GetSchema()
+		if s != nil {
+			f.schemaMap[customTable.Identifier()] = s
+		}
+	}
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
@@ -131,16 +117,54 @@ func (f *TableFactory) populateSchemas() (err error) {
 
 func (f *TableFactory) GetCollector(req *types.CollectRequest) (Collector, error) {
 	// get the registered collector constructor for the table
-	ctor, ok := f.collectorFuncMap[req.TableName]
-	if !ok {
-		// this type is not registered
-		return nil, fmt.Errorf("table not found: %s", req.TableName)
+	// is it a static table (i.e. in the collectorFuncMap) or a custom table
+	collectorCtor, ok := f.collectorFuncMap[req.TableName]
+	if ok {
+		// create the collector
+		return collectorCtor(), nil
 	}
 
-	// create the partition
-	collector := ctor()
+	// check for custom table
+	if customTableCtor, ok := f.customTableMap[req.TableName]; ok {
+		return f.getCustomTableCollector(req, customTableCtor)
+	}
+	// this type is not registered
+	return nil, fmt.Errorf("table not found: %s", req.TableName)
+}
 
-	return collector, nil
+func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, customCtor func() CustomTable) (Collector, error) {
+	customTable := customCtor()
+	supportedFormats := customTable.GetSupportedFormats()
+	// if no format was provided, use the default format
+	format, err := supportedFormats.GetDefaultFormat()
+	if err != nil {
+		return nil, nil
+	}
+	// if a format was provided, parse it
+	if req.SourceFormat != nil {
+		var err error
+		format, err = formats.ParseFormat(req.SourceFormat, supportedFormats)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// the table may provide a table definition - default to this
+	tableDef := customTable.GetTableDefinition()
+	// if a table definition was provided in the req, use it
+	if req.CustomTableSchema != nil {
+		tableDef = req.CustomTableSchema
+	}
+	// now initialize the custom table with the format and table definition
+	customTable.Initialize(format, tableDef)
+
+	// now create the appropriate type of collector
+	switch format.Identifier() {
+	case constants.SourceFormatDelimited, constants.SourceFormatJson, constants.SourceFormatJsonLines:
+		return NewArtifactConversionCollector(customTable), nil
+	default:
+		return NewCollectorImpl[*types.DynamicRow](customTable), nil
+	}
 }
 
 func (f *TableFactory) GetCollectorMap() map[string]func() Collector {

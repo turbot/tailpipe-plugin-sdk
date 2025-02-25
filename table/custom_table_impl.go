@@ -4,37 +4,28 @@ import (
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/mappers"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // CustomTableImpl is a generic struct representing a plugin table definition with a format
 type CustomTableImpl struct {
 	Schema *schema.TableSchema
-	Format parse.Config
+	// the format
+	Format formats.Format
 }
 
 // Initialize sets the format and schema for the table
-func (c *CustomTableImpl) Initialize(format parse.Config, customTableSchema *schema.TableSchema) {
+func (c *CustomTableImpl) Initialize(format formats.Format, customTableSchema *schema.TableSchema) {
 	c.Format = format
 	// merge the custom table schema with the common fields schema
 	c.Schema = customTableSchema.MergeWithCommonSchema()
 }
 
-func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*DynamicRow], error) {
-	var mapper mappers.CustomTableMapper[*DynamicRow]
-	var err error
+func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
+	mapper, err := c.Format.GetMapper()
 
-	switch t := any(c.Format).(type) {
-	case *formats.Grok:
-		mapper, err = mappers.NewGrokMapper[*DynamicRow](t.Layout, t.Patterns)
-	case *formats.Regex:
-		mapper, err = mappers.NewRegexMapper[*DynamicRow](t.Layout)
-
-	default:
-		return nil, fmt.Errorf("unsupported format type: %T", t)
-	}
-
+	// TODO KAI stop passing schema to mapper
 	// all mappers returned by this function should support SetSchema
 	type SchemaSetter interface {
 		SetSchema(*schema.TableSchema)
@@ -53,7 +44,7 @@ func (c *CustomTableImpl) GetSchema() *schema.TableSchema {
 	return c.Schema
 }
 
-func (c *CustomTableImpl) EnrichRow(row *DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*DynamicRow, error) {
+func (c *CustomTableImpl) EnrichRow(row *types.DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*types.DynamicRow, error) {
 	// tell the row to enrich itself using any mappings specified in the source format
 	err := row.Enrich(sourceEnrichmentFields.CommonFields)
 	if err != nil {

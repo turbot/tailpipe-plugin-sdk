@@ -11,7 +11,8 @@ import (
 
 type GonxMapper[T MapInitialisedRow] struct {
 	parsers []*gonx.Parser
-	schema  *schema.TableSchema
+	// TODOKAI REMOVE SCHEMA
+	schema *schema.TableSchema
 }
 
 func NewGonxMapper[T MapInitialisedRow](formats ...string) *GonxMapper[T] {
@@ -22,6 +23,7 @@ func NewGonxMapper[T MapInitialisedRow](formats ...string) *GonxMapper[T] {
 	return res
 }
 
+// TODO REMOVE SCHEMA
 // SetSchema implements SchemaSetter interface
 func (c *GonxMapper[T]) SetSchema(schema *schema.TableSchema) {
 	c.schema = schema
@@ -65,6 +67,8 @@ func (c *GonxMapper[T]) Map(_ context.Context, a any, opts_ ...MapOption[T]) (T,
 	rowMap := parsed.Fields()
 
 	row := utils.InstanceOf[T]()
+
+	// TODO REMOVE SCHEMA
 	if err := row.InitialiseFromMap(rowMap, c.schema); err != nil {
 		return empty, fmt.Errorf("error initialising row from map: %w", err)
 	}
