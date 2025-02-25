@@ -3,6 +3,7 @@ package table
 import (
 	"errors"
 	"fmt"
+
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
@@ -16,11 +17,20 @@ var Factory = newTableFactory()
 
 // RegisterCustomTable registers a constructor for a table which has a configurable
 // format and table schema
+// The table name is derived from the table type- this is used for 'predefined' custom tables
 func RegisterCustomTable[T CustomTable]() {
-	// supportedFormats formats.SupportedFormats, customTableSchema *schema.TableSchema
+	// create instance to get the identifier
 	t := utils.InstanceOf[T]()
 	customTableFunc := func() CustomTable { return t }
 	Factory.registerCustomTable(t.Identifier(), customTableFunc)
+}
+
+// RegisterNamedCustomTable registers a constructor for a table which has a configurable
+// format and table schema
+// The table name is passed in - this is used for fully custom tables
+func RegisterNamedCustomTable[T CustomTable](name string) {
+	customTableFunc := func() CustomTable { return utils.InstanceOf[T]() }
+	Factory.registerCustomTable(name, customTableFunc)
 }
 
 // RegisterTable registers a collector constructor with the factory
@@ -151,6 +161,7 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 
 	// the table may provide a table definition - default to this
 	tableDef := customTable.GetTableDefinition()
+
 	// if a table definition was provided in the req, use it
 	if req.CustomTableSchema != nil {
 		tableDef = req.CustomTableSchema
