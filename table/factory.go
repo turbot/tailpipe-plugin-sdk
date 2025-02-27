@@ -3,6 +3,7 @@ package table
 import (
 	"errors"
 	"fmt"
+	"reflect"
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
@@ -15,23 +16,38 @@ import (
 // Factory is a global TableFactory instance
 var Factory = newTableFactory()
 
-// RegisterCustomTable registers a constructor for a table which has a configurable
-// format and table schema
-// The table name is derived from the table type- this is used for 'predefined' custom tables
-func RegisterCustomTable[T CustomTable]() {
-	// create instance to get the identifier
-	t := utils.InstanceOf[T]()
-	customTableFunc := func() CustomTable { return t }
-	Factory.registerCustomTable(t.Identifier(), customTableFunc)
+type TableOption func(*tableConfig)
+
+type tableConfig struct {
+	name string
 }
 
-// TODO bit weird that the core plugin has its own function - use options instead
-// RegisterNamedCustomTable registers a constructor for a table which has a configurable
-// format and table schema
-// The table name is passed in - this is used for fully custom tables
-func RegisterNamedCustomTable[T CustomTable](name string) {
-	customTableFunc := func() CustomTable { return utils.InstanceOf[T]() }
-	Factory.registerCustomTable(name, customTableFunc)
+func WithName(name string) TableOption {
+	return func(tc *tableConfig) {
+		tc.name = name
+	}
+}
+
+// RegisterCustomTable registers a custom table type with optional configuration
+func RegisterCustomTable[T CustomTable](opts ...TableOption) {
+	cfg := &tableConfig{
+		name: getTypeName[T](), // default to type name
+	}
+
+	// Apply any options
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
+	t := utils.InstanceOf[T]()
+	customTableFunc := func() CustomTable { return t }
+	Factory.registerCustomTable(cfg.name, customTableFunc)
+}
+
+// getTypeName returns the type name of T
+func getTypeName[T any]() string {
+	var t T
+	return reflect.TypeOf(t).Name()
 }
 
 // RegisterTable registers a collector constructor with the factory
