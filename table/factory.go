@@ -25,6 +25,7 @@ func RegisterCustomTable[T CustomTable]() {
 	Factory.registerCustomTable(t.Identifier(), customTableFunc)
 }
 
+// TODO bit weird that the core plugin has its own function - use options instead
 // RegisterNamedCustomTable registers a constructor for a table which has a configurable
 // format and table schema
 // The table name is passed in - this is used for fully custom tables
