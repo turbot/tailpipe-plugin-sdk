@@ -1,21 +1,9 @@
 package formats
 
-import "fmt"
-
 type SupportedFormats struct {
-	Formats         map[string]func() Format
+	Formats map[string]func() Format
+	// an optional default format for the table (may be referenced in HCL config)
+	DefaultFormat Format
+	// an optional list of format instqances which the plugin exports for use in HCL config
 	FormatInstances []Format
-	DefaultFormat   string
-}
-
-func (f SupportedFormats) GetDefaultFormat() (Format, error) {
-	if f.DefaultFormat == "" {
-		return nil, nil
-	}
-	for _, format := range f.FormatInstances {
-		if format.Identifier() == f.DefaultFormat {
-			return format, nil
-		}
-	}
-	return nil, fmt.Errorf("default format not found: %s", f.DefaultFormat)
 }

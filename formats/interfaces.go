@@ -9,5 +9,6 @@ import (
 type Format interface {
 	parse.Config
 
+	GetName() string
 	GetMapper() (mappers.Mapper[*types.DynamicRow], error)
 }

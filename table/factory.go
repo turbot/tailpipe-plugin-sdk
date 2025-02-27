@@ -3,14 +3,13 @@ package table
 import (
 	"errors"
 	"fmt"
-	"reflect"
-
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"log/slog"
 )
 
 // Factory is a global TableFactory instance
@@ -30,8 +29,10 @@ func WithName(name string) TableOption {
 
 // RegisterCustomTable registers a custom table type with optional configuration
 func RegisterCustomTable[T CustomTable](opts ...TableOption) {
+	t := utils.InstanceOf[T]()
 	cfg := &tableConfig{
-		name: getTypeName[T](), // default to type name
+		// default to type name
+		name: t.Identifier(),
 	}
 
 	// Apply any options
@@ -39,15 +40,8 @@ func RegisterCustomTable[T CustomTable](opts ...TableOption) {
 		opt(cfg)
 	}
 
-	t := utils.InstanceOf[T]()
 	customTableFunc := func() CustomTable { return t }
 	Factory.registerCustomTable(cfg.name, customTableFunc)
-}
-
-// getTypeName returns the type name of T
-func getTypeName[T any]() string {
-	var t T
-	return reflect.TypeOf(t).Name()
 }
 
 // RegisterTable registers a collector constructor with the factory
@@ -163,19 +157,23 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 	customTable := customCtor()
 	supportedFormats := customTable.GetSupportedFormats()
 	// if no format was provided, use the default format
-	format, err := supportedFormats.GetDefaultFormat()
-	if err != nil {
-		return nil, nil
-	}
+	format := supportedFormats.DefaultFormat
+
 	// if a format was provided, parse it
 	if req.SourceFormat != nil {
 		var err error
 		format, err = formats.ParseFormat(req.SourceFormat, supportedFormats)
 		if err != nil {
+			slog.Warn("error parsing format", "error", err)
 			return nil, err
 		}
 	}
 
+	// if we now do not have a format, return an error
+	if format == nil {
+		slog.Warn("no supported format provided in config and table does not define a default format", "table", req.TableName)
+		return nil, fmt.Errorf("no supported format found for table %s", req.TableName)
+	}
 	// the table may provide a table definition - default to this
 	tableDef := customTable.GetTableDefinition()
 

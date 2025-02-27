@@ -10,6 +10,7 @@ import (
 )
 
 type Delimited struct {
+	Name string `hcl:",label"`
 	// Option to skip type detection for CSV parsing and assume all columns to be of type VARCHAR
 	AllVarchar *bool
 
@@ -78,6 +79,12 @@ func (c *Delimited) Validate() error {
 	return nil
 }
 
+// GetName returns the name of this format instance
+func (c *Delimited) GetName() string {
+	return c.Name
+}
+
+// Identifier returns the format type identifier
 func (c *Delimited) Identifier() string {
 	return constants.SourceFormatDelimited
 }
