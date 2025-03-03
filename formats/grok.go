@@ -22,30 +22,36 @@ func NewGrok() Format {
 	return &Grok{}
 }
 
-func (c *Grok) Validate() error {
+func (g *Grok) Validate() error {
 	return nil
 }
 
 // Identifier returns the format type identifier
-func (c *Grok) Identifier() string {
+func (g *Grok) Identifier() string {
 	return constants.SourceFormatGrok
 }
 
 // GetName returns the name of this format instance
-func (c *Grok) GetName() string {
-	return c.Name
+func (g *Grok) GetName() string {
+	return g.Name
 }
 
-func (c *Grok) GetDescription() string {
-	return c.Description
+func (g *Grok) GetDescription() string {
+	return g.Description
 }
 
-func (c *Grok) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
-	return mappers.NewGrokMapper[*types.DynamicRow](c.Layout, c.Patterns)
+// GetFormatString returns the format as a string which can be included in the introspection response
+// in our case, we just return the layout
+func (g *Grok) GetFormatString() string {
+	return g.Layout
 }
 
-func (c *Grok) GetRegex() (string, error) {
-	mapper, err := mappers.NewGrokMapper[*types.DynamicRow](c.Layout, c.Patterns)
+func (g *Grok) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
+	return mappers.NewGrokMapper[*types.DynamicRow](g.Layout, g.Patterns)
+}
+
+func (g *Grok) GetRegex() (string, error) {
+	mapper, err := mappers.NewGrokMapper[*types.DynamicRow](g.Layout, g.Patterns)
 	if err != nil {
 		return "", err
 	}

@@ -19,28 +19,34 @@ func NewRegex() Format {
 	return &Regex{}
 }
 
-func (c *Regex) Validate() error {
+func (r *Regex) Validate() error {
 	return nil
 }
 
 // Identifier returns the format type identifier
-func (c *Regex) Identifier() string {
+func (r *Regex) Identifier() string {
 	return constants.SourceFormatRegex
 }
 
 // GetName returns the name of this format instance
-func (c *Regex) GetName() string {
-	return c.Name
+func (r *Regex) GetName() string {
+	return r.Name
 }
 
-func (c *Regex) GetDescription() string {
-	return c.Description
+func (r *Regex) GetDescription() string {
+	return r.Description
 }
 
-func (c *Regex) GetRegex() (string, error) {
-	return c.Layout, nil
+// GetFormatString returns the format as a string which can be included in the introspection response
+// in our case, we just return the layout
+func (r *Regex) GetFormatString() string {
+	return r.Layout
 }
 
-func (c *Regex) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
-	return mappers.NewRegexMapper[*types.DynamicRow](c.Layout)
+func (r *Regex) GetRegex() (string, error) {
+	return r.Layout, nil
+}
+
+func (r *Regex) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
+	return mappers.NewRegexMapper[*types.DynamicRow](r.Layout)
 }
