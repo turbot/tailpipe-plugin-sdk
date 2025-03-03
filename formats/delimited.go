@@ -10,7 +10,8 @@ import (
 )
 
 type Delimited struct {
-	Name string `hcl:",label"`
+	Name        string `hcl:",label"`
+	Description string `hcl:"description,optional"`
 	// Option to skip type detection for CSV parsing and assume all columns to be of type VARCHAR
 	AllVarchar *bool
 
@@ -84,12 +85,21 @@ func (c *Delimited) GetName() string {
 	return c.Name
 }
 
+// GetDescription returns the description of this format instance
+func (c *Delimited) GetDescription() string {
+	return c.Description
+}
+
 // Identifier returns the format type identifier
 func (c *Delimited) Identifier() string {
 	return constants.SourceFormatDelimited
 }
 
-// getmapper
+func (c *Delimited) GetRegex() (string, error) {
+	// the delimited format does not support regex
+	return "N/A", nil
+}
+
 func (c *Delimited) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
 	panic("implement me")
 }
