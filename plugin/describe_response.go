@@ -10,7 +10,7 @@ import (
 type DescribeResponse struct {
 	Schemas schema.SchemaMap
 	Sources row_source.SourceMetadataMap
-	Formats formats.FormatMap
+	Formats formats.FormatDescriptionMap
 }
 
 func (d *DescribeResponse) ToProto() *proto.DescribeResponse {

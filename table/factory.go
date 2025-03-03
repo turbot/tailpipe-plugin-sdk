@@ -3,14 +3,13 @@ package table
 import (
 	"errors"
 	"fmt"
-	"log/slog"
-
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"log/slog"
 )
 
 // Factory is a global TableFactory instance
@@ -213,8 +212,8 @@ func (f *TableFactory) Initialized() bool {
 }
 
 // DescribeFormats returns a map of format instances -
-func (f *TableFactory) DescribeFormats() formats.FormatMap {
-	res := make(formats.FormatMap)
+func (f *TableFactory) DescribeFormats() formats.FormatDescriptionMap {
+	res := make(formats.FormatDescriptionMap)
 	for _, customTable := range f.customTableMap {
 		supportedFormats := customTable().GetSupportedFormats()
 
@@ -232,10 +231,11 @@ func (f *TableFactory) DescribeFormats() formats.FormatMap {
 				regex = fmt.Sprintf("faild to convert pattern to regex: %s", err.Error())
 			}
 
+			// marshal the format properties to a map
 			formatsForType = append(formatsForType, &formats.FormatDescription{
 				Type:        format.Identifier(),
 				Name:        format.GetName(),
-				FormatString: format.GetFormatString(),
+				Properties: format.GetProperties(),
 				Description: format.GetDescription(),
 				Regex:       regex,
 			})
@@ -244,3 +244,4 @@ func (f *TableFactory) DescribeFormats() formats.FormatMap {
 	}
 	return res
 }
+

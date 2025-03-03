@@ -90,10 +90,64 @@ func (c *Delimited) GetDescription() string {
 	return c.Description
 }
 
-// GetFormatString returns the format as a string which can be included in the introspection response
+// GetProperties returns the format as a string which can be included in the introspection response
 
-func (c *Delimited) GetFormatString() string {
-	panic ("implement me - build string containing all the options")
+func (c *Delimited) GetProperties() map[string]string {
+	properties := make(map[string]string)
+
+	if c.AllVarchar != nil {
+		properties["all_varchar"] = fmt.Sprintf("%v", *c.AllVarchar)
+	}
+	if c.AllowQuotedNulls != nil {
+		properties["allow_quoted_nulls"] = fmt.Sprintf("%v", *c.AllowQuotedNulls)
+	}
+	if c.DecimalSeparator != nil {
+		properties["decimal_separator"] = *c.DecimalSeparator
+	}
+	if c.Delimiter != nil {
+		properties["delimiter"] = *c.Delimiter
+	}
+	if c.Escape != nil {
+		properties["escape"] = *c.Escape
+	}
+	if c.Filename != nil {
+		properties["filename"] = fmt.Sprintf("%v", *c.Filename)
+	}
+	if c.ForceNotNull != nil && len(*c.ForceNotNull) > 0 {
+		properties["force_not_null"] = strings.Join(*c.ForceNotNull, ",")
+	}
+	if c.Header != nil {
+		properties["header"] = fmt.Sprintf("%v", *c.Header)
+	}
+	if c.IgnoreErrors != nil {
+		properties["ignore_errors"] = fmt.Sprintf("%v", *c.IgnoreErrors)
+	}
+	if c.MaxLineSize != nil {
+		properties["max_line_size"] = fmt.Sprintf("%d", *c.MaxLineSize)
+	}
+	if c.NewLine != nil {
+		properties["new_line"] = *c.NewLine
+	}
+	if c.NormalizeNames != nil {
+		properties["normalize_names"] = fmt.Sprintf("%v", *c.NormalizeNames)
+	}
+	if c.NullPadding != nil {
+		properties["null_padding"] = fmt.Sprintf("%v", *c.NullPadding)
+	}
+	if c.NullStr != nil {
+		properties["null_str"] = *c.NullStr
+	}
+	if c.Quote != nil {
+		properties["quote"] = *c.Quote
+	}
+	if c.SampleSize != nil {
+		properties["sample_size"] = fmt.Sprintf("%d", *c.SampleSize)
+	}
+	if c.TimestampFormat != nil {
+		properties["timestamp_format"] = *c.TimestampFormat
+	}
+
+	return properties
 }
 
 // Identifier returns the format type identifier

@@ -1,6 +1,7 @@
 package formats
 
 import (
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -40,10 +41,18 @@ func (g *Grok) GetDescription() string {
 	return g.Description
 }
 
-// GetFormatString returns the format as a string which can be included in the introspection response
-// in our case, we just return the layout
-func (g *Grok) GetFormatString() string {
-	return g.Layout
+func (g *Grok) GetProperties() map[string]string {
+	properties := make(map[string]string)
+
+	properties["layout"] = g.Layout
+
+	if g.Patterns != nil && len(g.Patterns) > 0 {
+		for key, value := range g.Patterns {
+			properties[fmt.Sprintf("pattern: %s", key)] = value
+		}
+	}
+
+	return properties
 }
 
 func (g *Grok) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
