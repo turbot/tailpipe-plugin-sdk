@@ -1,9 +1,7 @@
 package table
 
 import (
-	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
-	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
@@ -20,23 +18,6 @@ func (c *CustomTableImpl) Initialize(format formats.Format, customTableSchema *s
 	c.Format = format
 	// merge the custom table schema with the common fields schema
 	c.Schema = customTableSchema.MergeWithCommonSchema()
-}
-
-func (c *CustomTableImpl) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
-	mapper, err := c.Format.GetMapper()
-
-	// TODO KAI stop passing schema to mapper
-	// all mappers returned by this function should support SetSchema
-	type SchemaSetter interface {
-		SetSchema(*schema.TableSchema)
-	}
-	ss, ok := mapper.(SchemaSetter)
-	if !ok {
-		return nil, fmt.Errorf("mapper %T does not support SetSchema", mapper)
-	}
-	ss.SetSchema(c.Schema)
-
-	return mapper, err
 }
 
 // GetSchema implements the CustomTable interface
