@@ -15,21 +15,9 @@ type DynamicRow struct {
 	Columns map[string]string
 }
 
-// TODO REMOVE SCHEMA
-// InitialiseFromMap initializes the struct from a map of string values
-func (l *DynamicRow) InitialiseFromMap(m map[string]string, tableSchema *schema.TableSchema) error {
-	// we must have a schema
-	if tableSchema == nil {
-		return fmt.Errorf("DynamicRow.InitialiseFromMap: tableSchema is nil")
-	}
 
-	// TODO REMOVE SCHEMA
-	val, err := tableSchema.MapRow(m)
-	if err != nil {
-		return fmt.Errorf("error mapping row: %w", err)
-	}
-
-	l.Columns = val
+func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
+	l.Columns = m
 	return nil
 }
 

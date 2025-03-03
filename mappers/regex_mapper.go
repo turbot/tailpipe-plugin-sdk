@@ -6,14 +6,10 @@ import (
 	"regexp"
 
 	"github.com/turbot/pipe-fittings/v2/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
-// TODO REMOVE SCHEMA
 type RegexMapper[T MapInitialisedRow] struct {
 	re *regexp.Regexp
-	// TODO REMOVE SCHEMA
-	schema *schema.TableSchema
 }
 
 // NewRegexMapper creates a new RegexMapper with the provided pattern.
@@ -27,12 +23,6 @@ func NewRegexMapper[T MapInitialisedRow](pattern string) (*RegexMapper[T], error
 
 func (c *RegexMapper[T]) Identifier() string {
 	return "row_regex_mapper"
-}
-
-// TODO REMOVE SCHEMA
-// SetSchema implements SchemaSetter interface
-func (c *RegexMapper[T]) SetSchema(schema *schema.TableSchema) {
-	c.schema = schema
 }
 
 func (c *RegexMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, error) {
@@ -67,8 +57,7 @@ func (c *RegexMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T,
 
 	// Map parsed fields to the row struct
 	row := utils.InstanceOf[T]()
-	// TODO REMOVE SCHEMA
-	if err = row.InitialiseFromMap(rowMap, c.schema); err != nil {
+	if err = row.InitialiseFromMap(rowMap); err != nil {
 		return empty, fmt.Errorf("error initialising row from map: %w", err)
 	}
 

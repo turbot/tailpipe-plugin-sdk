@@ -23,12 +23,6 @@ func NewGonxMapper[T MapInitialisedRow](formats ...string) *GonxMapper[T] {
 	return res
 }
 
-// TODO REMOVE SCHEMA
-// SetSchema implements SchemaSetter interface
-func (c *GonxMapper[T]) SetSchema(schema *schema.TableSchema) {
-	c.schema = schema
-}
-
 func (c *GonxMapper[T]) Identifier() string {
 	return "row_pattern_mapper"
 }
@@ -68,8 +62,7 @@ func (c *GonxMapper[T]) Map(_ context.Context, a any, opts_ ...MapOption[T]) (T,
 
 	row := utils.InstanceOf[T]()
 
-	// TODO REMOVE SCHEMA
-	if err := row.InitialiseFromMap(rowMap, c.schema); err != nil {
+	if err := row.InitialiseFromMap(rowMap); err != nil {
 		return empty, fmt.Errorf("error initialising row from map: %w", err)
 	}
 
