@@ -227,10 +227,17 @@ func (f *TableFactory) DescribeFormats() formats.FormatMap {
 			formatType := format.Identifier()
 			formatsForType := res[formatType]
 
+			regex, err := format.GetRegex()
+			if err != nil {
+				regex = fmt.Sprintf("faild to convert pattern to regex: %s", err.Error())
+			}
+
 			formatsForType = append(formatsForType, &formats.FormatDescription{
 				Type:        format.Identifier(),
 				Name:        format.GetName(),
+				FormatString: format.GetFormatString(),
 				Description: format.GetDescription(),
+				Regex:       regex,
 			})
 			res[formatType] = formatsForType
 		}

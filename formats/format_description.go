@@ -18,18 +18,26 @@ func (f FormatMap) ToProto() *proto.FormatMap {
 	return pb
 }
 
-func FormatMapFromProto(pb []*proto.FormatDescription) FormatMap {
+func FormatMapFromProto(pb *proto.FormatMap) FormatMap {
 	fm := make(FormatMap)
-	for _, formatDescription := range pb {
-		fm[formatDescription.Type] = append(fm[formatDescription.Type], FormatDescriptionFromProto(formatDescription))
+	for ty, formatDescriptions := range pb.Formats {
+		var formats []*FormatDescription
+		for _, formatDescription := range formatDescriptions.Descriptions {
+			formats = append(formats, FormatDescriptionFromProto(formatDescription))
+		}
+		fm[ty] = formats
 	}
 	return fm
 }
 
+// FormatDescription is a struct which contains introspection data about a format
+// - it is used in the Describe call to pas format information
 type FormatDescription struct {
-	Type        string
-	Name        string
-	Description string
+	Type         string
+	Name         string
+	Description  string
+	FormatString string
+	Regex string
 }
 
 func FormatDescriptionFromProto(pb *proto.FormatDescription) *FormatDescription {
@@ -37,6 +45,8 @@ func FormatDescriptionFromProto(pb *proto.FormatDescription) *FormatDescription 
 		Type:        pb.Type,
 		Name:        pb.Name,
 		Description: pb.Description,
+		FormatString: pb.FormatString,
+		Regex: pb.Regex,
 	}
 }
 
@@ -45,5 +55,7 @@ func (f *FormatDescription) AsProto() *proto.FormatDescription {
 		Type:        f.Type,
 		Name:        f.Name,
 		Description: f.Description,
+		FormatString: f.FormatString,
+		Regex: f.Regex,
 	}
 }

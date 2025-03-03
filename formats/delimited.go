@@ -90,6 +90,12 @@ func (c *Delimited) GetDescription() string {
 	return c.Description
 }
 
+// GetFormatString returns the format as a string which can be included in the introspection response
+
+func (c *Delimited) GetFormatString() string {
+	panic ("implement me - build string containing all the options")
+}
+
 // Identifier returns the format type identifier
 func (c *Delimited) Identifier() string {
 	return constants.SourceFormatDelimited

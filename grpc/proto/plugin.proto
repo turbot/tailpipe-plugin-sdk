@@ -72,7 +72,7 @@ message FormatDescriptions {
   repeated FormatDescription descriptions = 1;
 }
 
-// formatDewscripotiosn
+
 message FormatDescription {
   // format type
   string type = 1;
@@ -80,6 +80,10 @@ message FormatDescription {
   string name = 2;
   // format description
   string description = 3;
+  // format as a a string
+  string format_string = 4;
+  // regex
+  string regex = 5;
 }
 
 message CollectResponse {
