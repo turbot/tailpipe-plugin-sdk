@@ -37,14 +37,14 @@ func (r *Regex) GetDescription() string {
 	return r.Description
 }
 
-// GetFormatString returns the format as a string which can be included in the introspection response
-// in our case, we just return the layout
-func (r *Regex) GetFormatString() string {
-	return r.Layout
-}
-
 func (r *Regex) GetRegex() (string, error) {
 	return r.Layout, nil
+}
+
+func (r *Regex) GetProperties() map[string]string {
+	return map[string]string{
+		"layout": r.Layout,
+	}
 }
 
 func (r *Regex) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {

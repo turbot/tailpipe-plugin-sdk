@@ -2,9 +2,9 @@ package formats
 
 import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 
-type FormatMap map[string][]*FormatDescription
+type FormatDescriptionMap map[string][]*FormatDescription
 
-func (f FormatMap) ToProto() *proto.FormatMap {
+func (f FormatDescriptionMap) ToProto() *proto.FormatMap {
 	pb := &proto.FormatMap{
 		Formats: make(map[string]*proto.FormatDescriptions),
 	}
@@ -18,8 +18,8 @@ func (f FormatMap) ToProto() *proto.FormatMap {
 	return pb
 }
 
-func FormatMapFromProto(pb *proto.FormatMap) FormatMap {
-	fm := make(FormatMap)
+func FormatMapFromProto(pb *proto.FormatMap) FormatDescriptionMap {
+	fm := make(FormatDescriptionMap)
 	for ty, formatDescriptions := range pb.Formats {
 		var formats []*FormatDescription
 		for _, formatDescription := range formatDescriptions.Descriptions {
@@ -36,8 +36,8 @@ type FormatDescription struct {
 	Type         string
 	Name         string
 	Description  string
-	FormatString string
-	Regex string
+	Regex  		 string
+	Properties map[string]string
 }
 
 func FormatDescriptionFromProto(pb *proto.FormatDescription) *FormatDescription {
@@ -45,7 +45,7 @@ func FormatDescriptionFromProto(pb *proto.FormatDescription) *FormatDescription 
 		Type:        pb.Type,
 		Name:        pb.Name,
 		Description: pb.Description,
-		FormatString: pb.FormatString,
+		Properties: pb.Properties,
 		Regex: pb.Regex,
 	}
 }
@@ -55,7 +55,7 @@ func (f *FormatDescription) AsProto() *proto.FormatDescription {
 		Type:        f.Type,
 		Name:        f.Name,
 		Description: f.Description,
-		FormatString: f.FormatString,
+		Properties: f.Properties,
 		Regex: f.Regex,
 	}
 }
