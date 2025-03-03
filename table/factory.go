@@ -211,3 +211,29 @@ func (f *TableFactory) GetSchema() (schema.SchemaMap, error) {
 func (f *TableFactory) Initialized() bool {
 	return len(f.collectorFuncMap) > 0
 }
+
+// DescribeFormats returns a map of format instances -
+func (f *TableFactory) DescribeFormats() formats.FormatMap {
+	res := make(formats.FormatMap)
+	for _, customTable := range f.customTableMap {
+		supportedFormats := customTable().GetSupportedFormats()
+
+		// if no formats are supported, skip
+		if supportedFormats == nil || len(supportedFormats.FormatInstances) == 0 {
+			continue
+		}
+
+		for _, format := range supportedFormats.FormatInstances {
+			formatType := format.Identifier()
+			formatsForType := res[formatType]
+
+			formatsForType = append(formatsForType, &formats.FormatDescription{
+				Type:        format.Identifier(),
+				Name:        format.GetName(),
+				Description: format.GetDescription(),
+			})
+			res[formatType] = formatsForType
+		}
+	}
+	return res
+}

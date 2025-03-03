@@ -4,7 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"regexp"
 	"regexp/syntax"
+	"unsafe"
 
 	"github.com/elastic/go-grok"
 	"github.com/turbot/go-kit/helpers"
@@ -48,6 +51,7 @@ func (c *GrokMapper[T]) Identifier() string {
 func (c *GrokMapper[T]) SetSchema(schema *schema.TableSchema) {
 	c.schema = schema
 }
+
 func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, error) {
 	var empty T
 
@@ -76,4 +80,32 @@ func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, 
 	}
 
 	return row, nil
+}
+
+func (c *GrokMapper[T]) GetRegex() (_ string, err error) {
+	if c.parser == nil {
+		return "", fmt.Errorf("no parser configured")
+	}
+	// unfortunately the regex field in the grok parser is private so we need to use reflection to get it
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("failed to get regex from grok parser: %w", helpers.ToError(r))
+		}
+	}()
+	parserValue := reflect.ValueOf(c.parser).Elem()
+	regexField := parserValue.FieldByName("re")
+
+	// Ensure the field is valid and addressable
+	if !regexField.IsValid() || !regexField.CanAddr() {
+		return "", fmt.Errorf("could not find or access regex field in grok.Grok")
+	}
+
+	// Ensure the field is of the correct type
+	if regexField.Type() != reflect.TypeOf(&regexp.Regexp{}) {
+		return "", fmt.Errorf("regex field is not of type *regexp.Regexp")
+	}
+
+	// Get the value of the regex field
+	regexPtr := (*regexp.Regexp)(unsafe.Pointer(regexField.UnsafeAddr()))
+	return regexPtr.String(), nil
 }

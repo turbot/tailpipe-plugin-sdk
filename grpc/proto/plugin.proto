@@ -60,7 +60,26 @@ message DescribeResponse {
   // Map of schemas keyed by collection name
   map<string, Schema> schemas = 1;
   map<string, SourceMetadata> sources = 2;
+  // map string to array of format descriptions
+  FormatMap formats = 3;
+}
 
+message FormatMap {
+  map<string, FormatDescriptions> formats = 1;
+}
+
+message FormatDescriptions {
+  repeated FormatDescription descriptions = 1;
+}
+
+// formatDewscripotiosn
+message FormatDescription {
+  // format type
+  string type = 1;
+  // format instance name
+  string name = 2;
+  // format description
+  string description = 3;
 }
 
 message CollectResponse {
@@ -116,6 +135,8 @@ message ConfigData {
   // raw hcl for collection specific config
   bytes hcl = 2;
   Range range = 3;
+  // for a preset format, this will contain the name of the format
+  string reference = 4;
 }
 
 message Range{
