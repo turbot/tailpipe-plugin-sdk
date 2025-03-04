@@ -301,7 +301,7 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 	}
 
 	// for non-dynamic tables, validate that the enriched row has required fields
-	// TODO #dynamic - custom tables muyst be validated after JSONL conversion)
+	// TODO #dynamic - custom tables must be validated after JSONL conversion)
 	if _, ok := any(c.Table).(CustomTable); !ok {
 		// validate that the enriched row has required fields
 		if err := enrichedRow.Validate(); err != nil {
