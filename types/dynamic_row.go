@@ -3,20 +3,26 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"time"
 
 	"github.com/rs/xid"
-	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type DynamicRow struct {
+	schema.CommonFields
 	// dynamic columns
 	Columns map[string]string
 }
 
-
 func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
+	l.CommonFields.InitialiseFromMap(m)
+	// remove common fields from the map
+	for commonField := range schema.DefaultCommonFieldDescriptions {
+		delete(m, commonField)
+	}
+	// now assign remaining fields to columns
 	l.Columns = m
 	return nil
 }
@@ -36,45 +42,33 @@ func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
 		}
 	}
 
-	const timeFormat = time.RFC3339
-
 	// auto populate id and timestamp
-	l.Columns["tp_id"] = xid.New().String()
-	l.Columns["tp_ingest_timestamp"] = time.Now().Format(timeFormat)
+	l.TpID = xid.New().String()
+	l.TpIngestTimestamp = time.Now()
 
 	// if no index is set, set the the default
-	if l.Columns["tp_index"] == "" {
-		l.Columns["tp_index"] = schema.DefaultIndex
+	if l.TpIndex == "" {
+		l.TpIndex = schema.DefaultIndex
 	}
 
 	// if we have a tp_timestamp, parse it and update the field
-	if timestampStr, ok := l.Columns["tp_timestamp"]; ok {
-		timestamp, err := helpers.ParseTime(timestampStr)
-		if err != nil {
-			return fmt.Errorf("error parsing tp_timestamp: %w", err)
-		}
-
-		l.Columns["tp_timestamp"] = timestamp.Format(timeFormat)
-		// also set the date
-		l.Columns["tp_date"] = timestamp.Truncate(24 * time.Hour).Format(timeFormat)
+	if !l.TpTimestamp.IsZero() {
+		l.TpDate = l.TpTimestamp.Truncate(24 * time.Hour)
 	}
 
 	return nil
 }
 
 func (l *DynamicRow) GetCommonFields() schema.CommonFields {
-	return schema.CommonFieldsFromMap(l.Columns)
-}
-
-func (l *DynamicRow) Validate() error {
-	f := schema.CommonFieldsFromMap(l.Columns)
-	return f.Validate()
+	return l.CommonFields
 }
 
 // MarshalJSON overrides JSON serialization to include the dynamic columns
 func (l *DynamicRow) MarshalJSON() ([]byte, error) {
-	// TODO #customtables check this
-	// convert the common fields to a map and overlay the dynamic columns
-	// we do this to ensure values are correctly formatted
-	return json.Marshal(l.Columns)
+	// convert common fields to a map
+	res := l.CommonFields.AsMap()
+	// copy the dynamic columns into the map
+	maps.Copy(res, l.Columns)
+	// and return the map as JSON
+	return json.Marshal(res)
 }
