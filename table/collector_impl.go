@@ -97,12 +97,13 @@ func (c *CollectorImpl[R]) GetSchema() (*schema.TableSchema, error) {
 	// if the table is a custom table, ask it for its schema
 	if ct, ok := any(c.Table).(CustomTable); ok {
 
-		// the schema on the custom table will already have been 'resolved'
-		// (i.e. the configured custom table schema will have been merged with the comm fields struct schema)
-		// TACTICAL clear source fields as theses were for mapping
-		customSchema := ct.GetSchema().WithSourceFieldsCleared()
+		// TODO #dynamic - we now just do the field mapping in the JSONL conversion
+		//// the schema on the custom table will already have been 'resolved'
+		//// (i.e. the configured custom table schema will have been merged with the comm fields struct schema)
+		//// TACTICAL clear source fields as theses were for mapping
+		//customSchema := ct.GetSchema().WithSourceFieldsCleared()
 
-		return customSchema, nil
+		return ct.GetSchema(), nil
 	}
 
 	// otherwise, return the schema from the row struct
@@ -112,8 +113,8 @@ func (c *CollectorImpl[R]) GetSchema() (*schema.TableSchema, error) {
 		return nil, fmt.Errorf("error getting schema from struct: %w", err)
 	}
 
-	// if the table implements GetDescription, use this to populate the table description
-	if getDesc, ok := c.Table.(schema.GetDescription); ok {
+	// if the table implements DescriptionProvider, use this to populate the table description
+	if getDesc, ok := c.Table.(schema.DescriptionProvider); ok {
 		s.Description = getDesc.GetDescription()
 	}
 	return s, nil
@@ -298,10 +299,15 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 	if err != nil {
 		return err
 	}
-	// validate that the enriched row has required fields
-	if err := enrichedRow.Validate(); err != nil {
-		// TODO #errors we need to include the raw row information in the error
-		return err
+
+	// for non-dynamic tables, validate that the enriched row has required fields
+	// TODO #dynamic - custom tables muyst be validated after JSONL conversion)
+	if _, ok := any(c.Table).(CustomTable); !ok {
+		// validate that the enriched row has required fields
+		if err := enrichedRow.Validate(); err != nil {
+			// TODO #errors we need to include the raw row information in the error
+			return err
+		}
 	}
 
 	// buffer the enriched row and write to JSON file if buffer is full
