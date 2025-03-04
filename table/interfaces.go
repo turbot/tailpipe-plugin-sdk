@@ -20,15 +20,6 @@ type CustomTable interface {
 	GetTableDefinition() *schema.TableSchema
 }
 
-// CustomTable is a generic interface representing a plugin table definition with a format
-// TODO KAI GET RID - just use CustomTable?
-type PredefinedCustomTable interface {
-	CustomTable
-
-	// get the configured format
-	GetFormat() formats.Format
-}
-
 // Table is a generic interface representing a plugin table definition
 // R is the row struct type
 type Table[R types.RowStruct] interface {

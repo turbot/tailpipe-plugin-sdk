@@ -122,9 +122,15 @@ func (f *TableFactory) populateSchemas() (err error) {
 	for _, ctor := range f.customTableMap {
 		// create an instance of the table to get the identifier
 		customTable := ctor()
-
-		// get the schema for the table row type
+		// for custom tables, we need to initialize the table with the table def and format before we can get the schem
+		// get the defaults
+		format := customTable.GetSupportedFormats().DefaultFormat
+		tableDef := customTable.GetTableDefinition()
+		// initialize the table
+		customTable.Initialize(format, tableDef)
+		// now get the schema
 		s := customTable.GetSchema()
+		// only add the schema if it is not nil (which would not be expected - as we should at least have the common row schema)
 		if s != nil {
 			f.schemaMap[customTable.Identifier()] = s
 		}
