@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"golang.org/x/exp/maps"
 	"log/slog"
 
 	"github.com/turbot/go-kit/helpers"
@@ -72,7 +73,7 @@ type TableFactory struct {
 
 	// a map of formats provided by plugin
 	formatMap     map[string]func() formats.Format
-	formatPresets map[string][]formats.Format
+	formatPresets map[string]formats.Format
 
 	// map of table schemas
 	schemaMap schema.SchemaMap
@@ -83,7 +84,7 @@ func newTableFactory() TableFactory {
 		collectorFuncMap: make(map[string]func() Collector),
 		customTableMap:   make(map[string]func() CustomTable),
 		formatMap:        make(map[string]func() formats.Format),
-		formatPresets:    make(map[string][]formats.Format),
+		formatPresets:    make(map[string]formats.Format),
 	}
 }
 
@@ -123,36 +124,40 @@ func (f *TableFactory) Initialized() bool {
 }
 
 // DescribeFormats returns a map of format instances -
-func (f *TableFactory) DescribeFormats(customFormatConfigs []*proto.ConfigData) (formatDescriptions, customFormatDescriptions formats.FormatDescriptionMap, err error) {
-	formatDescriptions = make(formats.FormatDescriptionMap)
+func (f *TableFactory) DescribeFormats(customFormatConfigs []*proto.ConfigData) (presetDescriptions, customFormatDescriptions formats.FormatDescriptionMap, formatTypes []string, err error) {
+	presetDescriptions = make(formats.FormatDescriptionMap)
 	customFormatDescriptions = make(formats.FormatDescriptionMap)
 
 	// Add format presets
-	for ty, formatsForType := range f.formatPresets {
-		for _, format := range formatsForType {
-			formatDescription := f.describeFormat(format)
-			formatDescriptions[ty] = append(formatDescriptions[ty], formatDescription)
-		}
+	for name, preset := range f.formatPresets {
+		presetDescription := f.describeFormat(preset)
+		presetDescriptions[name] = presetDescription
+
 	}
 	// now parse custom formats adnd add them to the map (they take precedence
 	customFormats, errMap := f.parseCustomFormats(customFormatConfigs)
 
 	for _, format := range customFormats {
 		formatDescription := f.describeFormat(format)
-		customFormatDescriptions[format.Identifier()] = append(customFormatDescriptions[format.Identifier()], formatDescription)
+		// add the format to the map
+		formatFullName := fmt.Sprintf("%s.%s", format.Identifier(), format.GetName())
+
+		customFormatDescriptions[formatFullName] = formatDescription
 	}
 	// now add the errors for any formats that failed to parse
 	for formatType, typeMap := range errMap {
 		for formatName, errMsg := range typeMap {
-			customFormatDescriptions[formatType] = append(customFormatDescriptions[formatType], &formats.FormatDescription{
+			fullName := fmt.Sprintf("%s.%s", formatType, formatName)
+			customFormatDescriptions[fullName] = &formats.FormatDescription{
 				Type:        formatType,
 				Name:        formatName,
 				Description: errMsg,
-			})
+			}
 		}
 	}
+	formatTypes = maps.Keys(f.formatMap)
 
-	return formatDescriptions, customFormatDescriptions, nil
+	return presetDescriptions, customFormatDescriptions, formatTypes, nil
 }
 
 func (f *TableFactory) describeFormat(format formats.Format) *formats.FormatDescription {
@@ -210,9 +215,15 @@ func (f *TableFactory) registerCollector(name string, ctor func() Collector) {
 	f.collectorFuncMap[name] = ctor
 }
 
-func (f *TableFactory) registerFormat(identifier string, formatFunc func() formats.Format, presets []formats.Format) {
-	f.formatMap[identifier] = formatFunc
-	f.formatPresets[identifier] = presets
+func (f *TableFactory) registerFormat(formatType string, formatFunc func() formats.Format, presets []formats.Format) {
+	// build the format full name (i.e. type.name)
+	// this is used as the key in the format map
+	f.formatMap[formatType] = formatFunc
+	for _, preset := range presets {
+		presetFullName := fmt.Sprintf("%s.%s", formatType, preset.GetName())
+		f.formatPresets[presetFullName] = preset
+	}
+
 }
 
 func (f *TableFactory) registerCustomTable(name string, ctor func() CustomTable) {

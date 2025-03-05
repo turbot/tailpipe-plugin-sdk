@@ -11,17 +11,19 @@ type DescribeResponse struct {
 	Plugin        string
 	Schemas       schema.SchemaMap
 	Sources       row_source.SourceMetadataMap
-	Formats       formats.FormatDescriptionMap
+	FormatPresets formats.FormatDescriptionMap
 	CustomFormats formats.FormatDescriptionMap
+	FormatTypes   []string
 }
 
 func (d *DescribeResponse) ToProto() *proto.DescribeResponse {
 	return &proto.DescribeResponse{
-		Plugin:        d.Plugin,
-		Schemas:       d.Schemas.ToProto(),
-		Sources:       d.Sources.ToProto(),
-		Formats:       d.Formats.ToProto(),
-		CustomFormats: d.CustomFormats.ToProto(),
+		Plugin:         d.Plugin,
+		Schemas:        d.Schemas.ToProto(),
+		Sources:        d.Sources.ToProto(),
+		FormatsPresets: d.FormatPresets.ToProto(),
+		CustomFormats:  d.CustomFormats.ToProto(),
+		FormatTypes:    d.FormatTypes,
 	}
 }
 
@@ -36,8 +38,13 @@ func DescribeResponseFromProto(resp *proto.DescribeResponse) *DescribeResponse {
 	if resp.Sources != nil {
 		res.Sources = row_source.SourceMetadataMapFromProto(resp.Sources)
 	}
-	if resp.Formats != nil {
-		res.Formats = formats.FormatMapFromProto(resp.Formats)
+	if resp.FormatsPresets != nil {
+		res.FormatPresets = formats.FormatMapFromProto(resp.FormatsPresets)
 	}
+	if resp.CustomFormats != nil {
+		res.CustomFormats = formats.FormatMapFromProto(resp.CustomFormats)
+	}
+	res.FormatTypes = resp.FormatTypes
+
 	return res
 }

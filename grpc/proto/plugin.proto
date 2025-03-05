@@ -62,19 +62,12 @@ message DescribeResponse {
   // Map of schemas keyed by collection name
   map<string, Schema> schemas = 2;
   map<string, SourceMetadata> sources = 3;
-  FormatMap formats = 4;
+  map<string, FormatDescription> formats_presets = 4;
   // map string to array of custom format descriptions
-  FormatMap custom_formats = 5;
+  map<string, FormatDescription> custom_formats = 5;
+  // list of all format types provided by the plugin
+  repeated string format_types = 6;
 }
-
-message FormatMap {
-  map<string, FormatDescriptions> formats = 1;
-}
-
-message FormatDescriptions {
-  repeated FormatDescription descriptions = 1;
-}
-
 
 message FormatDescription {
   // format type
