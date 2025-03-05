@@ -54,14 +54,17 @@ message UpdateCollectionStateRequest {
 }
 
 message DescribeRequest {
+  repeated ConfigData custom_formats = 1;
 }
 
 message DescribeResponse {
+  string plugin = 1;
   // Map of schemas keyed by collection name
-  map<string, Schema> schemas = 1;
-  map<string, SourceMetadata> sources = 2;
-  // map string to array of format descriptions
-  FormatMap formats = 3;
+  map<string, Schema> schemas = 2;
+  map<string, SourceMetadata> sources = 3;
+  FormatMap formats = 4;
+  // map string to array of custom format descriptions
+  FormatMap custom_formats = 5;
 }
 
 message FormatMap {
@@ -139,8 +142,6 @@ message ConfigData {
   // raw hcl for collection specific config
   bytes hcl = 2;
   Range range = 3;
-  // for a preset format, this will contain the name of the format
-  string reference = 4;
 }
 
 message Range{

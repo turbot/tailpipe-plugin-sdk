@@ -15,5 +15,4 @@ type Format interface {
 	GetDescription() string
 	// GetProperties returns the format properties as a string map - used for introspection
 	GetProperties() map[string]string
-
 }

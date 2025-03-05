@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+
 	"github.com/hashicorp/go-plugin"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"google.golang.org/grpc"
@@ -19,7 +20,7 @@ var Handshake = plugin.HandshakeConfig{
 type TailpipePluginServer interface {
 	AddObserver(proto.TailpipePlugin_AddObserverServer) error
 	Collect(context.Context, *proto.CollectRequest) (*proto.CollectResponse, error)
-	Describe(context.Context) (*proto.DescribeResponse, error)
+	Describe(context.Context, *proto.DescribeRequest) (*proto.DescribeResponse, error)
 	UpdateCollectionState(context.Context, *proto.UpdateCollectionStateRequest) (*proto.Empty, error)
 	InitSource(context.Context, *proto.InitSourceRequest) (*proto.InitSourceResponse, error)
 	SaveCollectionState(context.Context, *proto.Empty) (*proto.Empty, error)
@@ -30,9 +31,9 @@ type TailpipePluginServer interface {
 // TailpipePluginClient is the client interface that we're exposing as a plugin.
 type TailpipePluginClient interface {
 	AddObserver() (proto.TailpipePlugin_AddObserverClient, error)
-	Collect(req *proto.CollectRequest) (*proto.CollectResponse, error)
-	Describe() (*proto.DescribeResponse, error)
-	UpdateCollectionState(*proto.UpdateCollectionStateRequest) (*proto.Empty, error)
+	Collect(context.Context, *proto.CollectRequest) (*proto.CollectResponse, error)
+	Describe(context.Context, *proto.DescribeRequest) (*proto.DescribeResponse, error)
+	UpdateCollectionState(context.Context, *proto.UpdateCollectionStateRequest) (*proto.Empty, error)
 	InitSource(context.Context, *proto.InitSourceRequest) (*proto.InitSourceResponse, error)
 	SaveCollectionState(context.Context, *proto.Empty) (*proto.Empty, error)
 	CloseSource(context.Context, *proto.Empty) (*proto.Empty, error)
