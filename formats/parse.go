@@ -7,13 +7,13 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-func ParseFormat(formatData types.ConfigData, supportedFormats *SupportedFormats) (Format, error) {
+func ParseFormat(formatData types.ConfigData, formatConstructorMap map[string]func() Format) (Format, error) {
 	// we expect the config to be format data
 	if formatData.GetConfigType() != constants.ConfigTypeFormat {
 		return nil, fmt.Errorf("invalid config type: expected format, got %s", formatData.GetConfigType())
 	}
 	// is this format type supported
-	formatCtor, isSupported := supportedFormats.Formats[formatData.Identifier()]
+	formatCtor, isSupported := formatConstructorMap[formatData.Identifier()]
 	if !isSupported {
 		return nil, fmt.Errorf("unsupported format: %s", formatData.Identifier())
 	}

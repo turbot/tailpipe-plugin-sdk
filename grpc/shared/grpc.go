@@ -2,6 +2,7 @@ package shared
 
 import (
 	"context"
+
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -60,8 +61,8 @@ func (s TailpipePluginServerWrapper) Collect(_ context.Context, req *proto.Colle
 	return s.Impl.Collect(context.Background(), req)
 }
 
-func (s TailpipePluginServerWrapper) Describe(_ context.Context, _ *proto.DescribeRequest) (*proto.DescribeResponse, error) {
-	return s.Impl.Describe(context.Background())
+func (s TailpipePluginServerWrapper) Describe(ctx context.Context, req *proto.DescribeRequest) (*proto.DescribeResponse, error) {
+	return s.Impl.Describe(ctx)
 }
 
 func (s TailpipePluginServerWrapper) UpdateCollectionState(_ context.Context, req *proto.UpdateCollectionStateRequest) (*proto.Empty, error) {

@@ -96,7 +96,7 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 }
 
 // Describe implements TailpipePlugin
-func (p *PluginImpl) Describe() (*DescribeResponse, error) {
+func (p *PluginImpl) Describe(_ context.Context, req *proto.DescribeRequest) (*proto.DescribeResponse, error) {
 	schemas, err := table.Factory.GetSchema()
 	if err != nil {
 		return nil, err
@@ -107,13 +107,19 @@ func (p *PluginImpl) Describe() (*DescribeResponse, error) {
 		return nil, err
 	}
 
-	formats := table.Factory.DescribeFormats()
+	formatDescriptions, customFormatDescriptions, err := table.Factory.DescribeFormats(req.CustomFormats)
+	if err != nil {
+		return nil, err
+	}
 
-	return &DescribeResponse{
-		Schemas: schemas,
-		Sources: sources,
-		Formats: formats,
-	}, nil
+	resp := &DescribeResponse{
+		Plugin:        p.Identifier(),
+		Schemas:       schemas,
+		Sources:       sources,
+		Formats:       formatDescriptions,
+		CustomFormats: customFormatDescriptions,
+	}
+	return resp.ToProto(), nil
 }
 
 func (p *PluginImpl) UpdateCollectionState(ctx context.Context, req *proto.UpdateCollectionStateRequest) error {

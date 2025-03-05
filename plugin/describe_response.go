@@ -8,15 +8,36 @@ import (
 )
 
 type DescribeResponse struct {
-	Schemas schema.SchemaMap
-	Sources row_source.SourceMetadataMap
-	Formats formats.FormatDescriptionMap
+	Plugin        string
+	Schemas       schema.SchemaMap
+	Sources       row_source.SourceMetadataMap
+	Formats       formats.FormatDescriptionMap
+	CustomFormats formats.FormatDescriptionMap
 }
 
 func (d *DescribeResponse) ToProto() *proto.DescribeResponse {
 	return &proto.DescribeResponse{
-		Schemas: d.Schemas.ToProto(),
-		Sources: d.Sources.ToProto(),
-		Formats: d.Formats.ToProto(),
+		Plugin:        d.Plugin,
+		Schemas:       d.Schemas.ToProto(),
+		Sources:       d.Sources.ToProto(),
+		Formats:       d.Formats.ToProto(),
+		CustomFormats: d.CustomFormats.ToProto(),
 	}
+}
+
+func DescribeResponseFromProto(resp *proto.DescribeResponse) *DescribeResponse {
+	res := &DescribeResponse{}
+	if resp == nil {
+		return res
+	}
+	if resp.Schemas != nil {
+		res.Schemas = schema.SchemaMapFromProto(resp.Schemas)
+	}
+	if resp.Sources != nil {
+		res.Sources = row_source.SourceMetadataMapFromProto(resp.Sources)
+	}
+	if resp.Formats != nil {
+		res.Formats = formats.FormatMapFromProto(resp.Formats)
+	}
+	return res
 }
