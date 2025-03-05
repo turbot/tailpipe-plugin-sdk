@@ -142,7 +142,7 @@ func (w *PluginSourceWrapper) Description() (string, error) {
 		return "Plugin source wrapper", nil
 	}
 
-	res, err := w.client.Describe()
+	res, err := w.client.Describe(&proto.DescribeRequest{})
 	if err != nil {
 		return "", err
 	}

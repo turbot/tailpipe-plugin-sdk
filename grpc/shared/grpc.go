@@ -16,8 +16,8 @@ func (c TailpipePluginClientWrapper) Collect(req *proto.CollectRequest) (*proto.
 	return c.client.Collect(context.Background(), req)
 }
 
-func (c TailpipePluginClientWrapper) Describe() (*proto.DescribeResponse, error) {
-	return c.client.Describe(context.Background(), &proto.DescribeRequest{})
+func (c TailpipePluginClientWrapper) Describe(req *proto.DescribeRequest) (*proto.DescribeResponse, error) {
+	return c.client.Describe(context.Background(), req)
 }
 
 func (c TailpipePluginClientWrapper) UpdateCollectionState(req *proto.UpdateCollectionStateRequest) (*proto.Empty, error) {
