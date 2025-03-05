@@ -107,7 +107,7 @@ func (p *PluginImpl) Describe(_ context.Context, req *proto.DescribeRequest) (*p
 		return nil, err
 	}
 
-	formatDescriptions, customFormatDescriptions, err := table.Factory.DescribeFormats(req.CustomFormats)
+	formatDescriptions, customFormatDescriptions, formatTypes, err := table.Factory.DescribeFormats(req.CustomFormats)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +116,9 @@ func (p *PluginImpl) Describe(_ context.Context, req *proto.DescribeRequest) (*p
 		Plugin:        p.Identifier(),
 		Schemas:       schemas,
 		Sources:       sources,
-		Formats:       formatDescriptions,
+		FormatPresets: formatDescriptions,
 		CustomFormats: customFormatDescriptions,
+		FormatTypes:   formatTypes,
 	}
 	return resp.ToProto(), nil
 }
