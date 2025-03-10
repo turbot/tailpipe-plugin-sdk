@@ -48,3 +48,22 @@ func DescribeResponseFromProto(resp *proto.DescribeResponse) *DescribeResponse {
 
 	return res
 }
+
+func (d *DescribeResponse) AsMetadataMap() map[string][]string {
+	metadata := make(map[string][]string)
+
+	for _, tableValue := range d.Schemas {
+		metadata["tables"] = append(metadata["tables"], tableValue.Name)
+	}
+
+	for _, sourceValue := range d.Sources {
+		metadata["sources"] = append(metadata["sources"], sourceValue.Name)
+	}
+
+	for _, preset := range d.FormatPresets {
+		metadata["format_presets"] = append(metadata["format_presets"], preset.FullName())
+	}
+
+	metadata["format_types"] = d.FormatTypes
+	return metadata
+}
