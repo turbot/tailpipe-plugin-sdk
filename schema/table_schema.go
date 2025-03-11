@@ -17,10 +17,6 @@ type TableSchema struct {
 	AutoMapSourceFields bool `json:"automap_source_fields"`
 	// should we exclude any source fields from the output (only applicable if automap_source_fields is true)
 	ExcludeSourceFields []string `json:"exclude_source_fields"`
-	// is this a custom table - this inkudes 'predefined' custom tables which use the custom table mechanism to define
-	// a fixed table - such as nginx access logs
-	// this is used when building the select query - we use a different query for custom tables
-	CustomTable bool `json:"custom_table"`
 
 	// the table description (optional)
 	Description string `json:"description,omitempty"`
@@ -36,7 +32,6 @@ func (r *TableSchema) ToProto() *proto.Schema {
 		ExcludeSourceFields: r.ExcludeSourceFields,
 		Description:         r.Description,
 		NullValue:           r.NullValue,
-		CustomTable:         r.CustomTable,
 	}
 
 	for i, c := range r.Columns {
@@ -62,7 +57,6 @@ func TableSchemaFromProto(p *proto.Schema) *TableSchema {
 		ExcludeSourceFields: p.ExcludeSourceFields,
 		Description:         p.Description,
 		NullValue:           p.NullValue,
-		CustomTable:         p.CustomTable,
 	}
 	for _, c := range p.Columns {
 		res.Columns = append(res.Columns, ColumnFromProto(c))
@@ -72,8 +66,8 @@ func TableSchemaFromProto(p *proto.Schema) *TableSchema {
 
 // MapRow maps a row from a map of source fields to a map of target fields, applying the schema
 // and respecting the automap and exclude fields
-func (r *TableSchema) MapRow(rowMap map[string]string) (map[string]string, error) {
-	var res = make(map[string]string, len(r.Columns))
+func (r *TableSchema) MapRow(rowMap map[string]string) (map[string]interface{}, error) {
+	var res = make(map[string]interface{}, len(r.Columns))
 
 	schemaMap := r.AsMap()
 
@@ -138,7 +132,9 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (string, 
 		}
 		// format the time as a string
 		return t.Format(time.RFC3339), nil
+	//	TODO array, struct
 	default:
+
 		return valString, nil
 	}
 }
@@ -208,7 +204,7 @@ func (r *TableSchema) InitialiseFromInferredSchema(inferredSchema *TableSchema) 
 	}
 }
 
-func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
+func (r *TableSchema) isNullValue(c *ColumnSchema, v interface{}) bool {
 	nullValue := r.NullValue
 	if c.NullValue != "" {
 		nullValue = c.NullValue
@@ -284,7 +280,6 @@ func (r *TableSchema) MergeWithCommonSchema() *TableSchema {
 			// mutate the common column in the merged schema
 			commonColumn.SourceName = c.SourceName
 			commonColumn.TimeFormat = c.TimeFormat
-			commonColumn.SelectClause = c.SelectClause
 			continue
 		}
 

@@ -2,67 +2,184 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"golang.org/x/exp/maps"
+	"strings"
 	"time"
+
+	"github.com/turbot/go-kit/helpers"
+	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 
 	"github.com/rs/xid"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type DynamicRow struct {
-	schema.CommonFields
-	// dynamic columns
-	Columns map[string]string
+	// the source columns as a string map (the format output by the mappers)
+	sourceColumns map[string]string
+	// the output columns, as a map of string to interface{} - the result of enrichment and type conversion
+	OutputColumns map[string]interface{}
 }
 
 func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
-	l.CommonFields.InitialiseFromMap(m)
-	// remove common fields from the map
-	for commonField := range schema.DefaultCommonFieldDescriptions {
-		delete(m, commonField)
-	}
-	// now assign remaining fields to columns
-	l.Columns = m
+	// just assign the source columns
+	l.sourceColumns = m
 	return nil
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
-func (l *DynamicRow) Enrich(sourceEnrichmentFields schema.SourceEnrichment) error {
+func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFields schema.SourceEnrichment) error {
 	// we expect the columns to be initialised by a previous call to InitialiseFromMap
-	if l.Columns == nil {
+	if l.sourceColumns == nil {
 		return fmt.Errorf("the DynamicRow struct has not been initialised with a map of columns")
 	}
-	// merge our common fields with the source enrichment fields
-	l.CommonFields.MergeWith(sourceEnrichmentFields.CommonFields)
+
+	// apply source common fields
+	for k, v := range sourceEnrichmentFields.CommonFields.AsMap() {
+		if _, ok := l.sourceColumns[k]; !ok {
+			l.sourceColumns[k] = v
+		}
+	}
+
+	const timeFormat = time.RFC3339
 
 	// auto populate id and timestamp
-	l.TpID = xid.New().String()
-	l.TpIngestTimestamp = time.Now()
+	l.sourceColumns[constants.TpID] = xid.New().String()
+	l.sourceColumns[constants.TpIngestTimestamp] = time.Now().Format(timeFormat)
 
 	// if no index is set, set the the default
-	if l.TpIndex == "" {
-		l.TpIndex = schema.DefaultIndex
+	if l.sourceColumns[constants.TpIndex] == "" {
+		l.sourceColumns[constants.TpIndex] = schema.DefaultIndex
 	}
 
 	// if we have a tp_timestamp, parse it and update the field
-	if !l.TpTimestamp.IsZero() {
-		l.TpDate = l.TpTimestamp.Truncate(24 * time.Hour)
+	if timestampStr, ok := l.sourceColumns[constants.TpTimestamp]; ok {
+		timestamp, err := helpers.ParseTime(timestampStr)
+		if err != nil {
+			return fmt.Errorf("error parsing tp_timestamp: %w", err)
+		}
+
+		l.sourceColumns[constants.TpTimestamp] = timestamp.Format(timeFormat)
+		// also set the date
+		l.sourceColumns[constants.TpDate] = timestamp.Truncate(24 * time.Hour).Format(timeFormat)
+	}
+
+	// now ask the schema to map the row for uas
+	outputColumns, err := tableSchema.MapRow(l.sourceColumns)
+	if err != nil {
+		return fmt.Errorf("error mapping row: %w", err)
+	}
+	// set the output columns
+	l.OutputColumns = outputColumns
+
+	return nil
+}
+
+func (l *DynamicRow) Validate() error {
+	var missingFields []string
+	var invalidFields []string
+
+	// Define time fields that need validation
+	timeFields := map[string]bool{
+		constants.TpIngestTimestamp: true,
+		constants.TpTimestamp:       true,
+		constants.TpDate:            true,
+	}
+
+	// Define required string fields
+	requiredStringFields := map[string]bool{
+		constants.TpID:         true,
+		constants.TpSourceType: true,
+		constants.TpTable:      true,
+		constants.TpPartition:  true,
+		constants.TpIndex:      true,
+	}
+
+	// Validate time fields
+	for field := range timeFields {
+		if err := l.validateTime(l.OutputColumns[field]); err != nil {
+			if err.Error() == missingFieldError {
+				missingFields = append(missingFields, field)
+			} else {
+				invalidFields = append(invalidFields, field)
+			}
+		}
+	}
+
+	// Special validation for tp_date to ensure it's a date without time component
+	if dateVal, ok := l.OutputColumns[constants.TpDate].(string); ok && dateVal != "" {
+		if parsedDate, err := time.Parse(time.RFC3339, dateVal); err == nil {
+			if !parsedDate.Equal(parsedDate.Truncate(24 * time.Hour)) {
+				invalidFields = append(invalidFields, constants.TpDate)
+			}
+		}
+	}
+
+	// Validate required string fields
+	for field := range requiredStringFields {
+		val, ok := l.OutputColumns[field].(string)
+		if !ok || val == "" {
+			missingFields = append(missingFields, field)
+			continue
+		}
+		// Special handling for tp_index - ensure lowercase
+		if field == constants.TpIndex {
+			l.OutputColumns[field] = strings.ToLower(val)
+		}
+	}
+
+	var missingFieldsStr, invalidFieldsStr string
+	if len(missingFields) > 0 {
+		missingFieldsStr = fmt.Sprintf("missing required %s: %s", utils.Pluralize("field", len(missingFields)), strings.Join(missingFields, ", "))
+	}
+	if len(invalidFields) > 0 {
+		invalidFieldsStr = fmt.Sprintf("invalid fields: %s", strings.Join(invalidFields, ", "))
+	}
+
+	// Concatenate the messages without extra spaces
+	errorMsg := missingFieldsStr
+	if missingFieldsStr != "" && invalidFieldsStr != "" {
+		errorMsg += " "
+	}
+	errorMsg += invalidFieldsStr
+
+	if errorMsg != "" {
+		return fmt.Errorf("row validation failed: %s", errorMsg)
+	}
+	return nil
+}
+
+var invalidFieldError = "invalid field"
+var missingFieldError = "missing field"
+
+func (l *DynamicRow) validateTime(t interface{}) error {
+	if t == nil {
+		return errors.New(missingFieldError)
+	}
+
+	// check if the field is a string
+	tStr, ok := t.(string)
+	if !ok {
+		return errors.New(invalidFieldError)
+	}
+	if tStr == "" {
+		return errors.New(missingFieldError)
+	}
+	// try to parse the time
+	ingestTimestamp, err := time.Parse(time.RFC3339, tStr)
+	if err != nil {
+		return errors.New(invalidFieldError)
+	}
+
+	if ingestTimestamp.IsZero() {
+		return errors.New(missingFieldError)
 	}
 
 	return nil
 }
 
-func (l *DynamicRow) GetCommonFields() schema.CommonFields {
-	return l.CommonFields
-}
-
 // MarshalJSON overrides JSON serialization to include the dynamic columns
 func (l *DynamicRow) MarshalJSON() ([]byte, error) {
-	// convert common fields to a map
-	res := l.CommonFields.AsMap()
-	// copy the dynamic columns into the map
-	maps.Copy(res, l.Columns)
-	// and return the map as JSON
-	return json.Marshal(res)
+	return json.Marshal(l.OutputColumns)
 }

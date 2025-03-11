@@ -161,12 +161,6 @@ type CommonFields struct {
 	TpUsernames []string `json:"tp_usernames,omitempty"`
 }
 
-func CommonFieldsFromMap(source map[string]string) CommonFields {
-	var c CommonFields
-	c.InitialiseFromMap(source)
-	return c
-}
-
 // Validate implements the Validatable interface and is used to validate that the required fields have been set
 // it can also be overridden by RowStruct implementations to perform additional validation - in this case
 // CommonFields.Validate() should be called first
@@ -224,12 +218,6 @@ func (c *CommonFields) Validate() error {
 		return fmt.Errorf("row validation failed: %s", errorMsg)
 	}
 	return nil
-}
-
-// GetCommonFields implements RowStruct
-func (c *CommonFields) GetCommonFields() CommonFields {
-	// just return ourselves
-	return *c
 }
 
 // InitialiseFromMap initializes a CommonFields struct using a source map
@@ -357,65 +345,6 @@ func (c *CommonFields) AsMap() map[string]string {
 	}
 
 	return result
-}
-
-// MergeWith merges the current CommonFields with another CommonFields instance.
-// If a field in the current instance is not populated, it will be populated from the other instance.
-func (c *CommonFields) MergeWith(other CommonFields) {
-	if c.TpID == "" {
-		c.TpID = other.TpID
-	}
-	if c.TpSourceType == "" {
-		c.TpSourceType = other.TpSourceType
-	}
-	if c.TpIngestTimestamp.IsZero() {
-		c.TpIngestTimestamp = other.TpIngestTimestamp
-	}
-	if c.TpTimestamp.IsZero() {
-		c.TpTimestamp = other.TpTimestamp
-	}
-	if c.TpTable == "" {
-		c.TpTable = other.TpTable
-	}
-	if c.TpPartition == "" {
-		c.TpPartition = other.TpPartition
-	}
-	if c.TpIndex == "" {
-		c.TpIndex = other.TpIndex
-	}
-	if c.TpDate.IsZero() {
-		c.TpDate = other.TpDate
-	}
-	if c.TpSourceIP == nil {
-		c.TpSourceIP = other.TpSourceIP
-	}
-	if c.TpDestinationIP == nil {
-		c.TpDestinationIP = other.TpDestinationIP
-	}
-	if c.TpSourceName == nil {
-		c.TpSourceName = other.TpSourceName
-	}
-	if c.TpSourceLocation == nil {
-		c.TpSourceLocation = other.TpSourceLocation
-	}
-	if len(c.TpAkas) == 0 {
-		c.TpAkas = other.TpAkas
-	}
-	if len(c.TpIps) == 0 {
-		c.TpIps = other.TpIps
-	}
-	if len(c.TpTags) == 0 {
-		c.TpTags = other.TpTags
-	}
-	if len(c.TpDomains) == 0 {
-		c.TpDomains = other.TpDomains
-	}
-	if len(c.TpEmails) == 0 {
-		c.TpEmails = other.TpEmails
-	}
-	if len(c.TpUsernames) == 0 {
-		c.TpUsernames = other.TpUsernames
-	}
 }
 
 // TODO improve these descriptions https://github.com/turbot/tailpipe-plugin-sdk/issues/83

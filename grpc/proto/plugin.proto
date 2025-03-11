@@ -110,8 +110,6 @@ message Schema {
   string null_value = 5;
   // the table name
   string name = 6;
-  // is this a custom table
-  bool custom_table = 7;
 }
 
 message ColumnSchema {

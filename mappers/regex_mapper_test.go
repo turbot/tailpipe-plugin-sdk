@@ -4,8 +4,6 @@ import (
 	"context"
 	"reflect"
 	"testing"
-
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type WebLogRow struct {
@@ -41,11 +39,6 @@ func (r *WebLogRow) InitialiseFromMap(m map[string]string) error {
 
 func (r *WebLogRow) Validate() error {
 	return nil
-}
-
-func (r *WebLogRow) GetCommonFields() schema.CommonFields {
-	var res schema.CommonFields
-	return res
 }
 
 func TestRegexMapper(t *testing.T) {
