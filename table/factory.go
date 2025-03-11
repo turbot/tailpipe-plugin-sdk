@@ -3,16 +3,16 @@ package table
 import (
 	"errors"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"golang.org/x/exp/maps"
 	"log/slog"
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"golang.org/x/exp/maps"
 )
 
 // Factory is a global TableFactory instance
@@ -124,7 +124,7 @@ func (f *TableFactory) Initialized() bool {
 }
 
 // DescribeFormats returns a map of format instances -
-func (f *TableFactory) DescribeFormats(customFormatConfigs []*proto.ConfigData) (presetDescriptions, customFormatDescriptions formats.FormatDescriptionMap, formatTypes []string, err error) {
+func (f *TableFactory) DescribeFormats(customFormatConfigs []*proto.FormatData) (presetDescriptions, customFormatDescriptions formats.FormatDescriptionMap, formatTypes []string, err error) {
 	presetDescriptions = make(formats.FormatDescriptionMap)
 	customFormatDescriptions = make(formats.FormatDescriptionMap)
 
@@ -135,7 +135,7 @@ func (f *TableFactory) DescribeFormats(customFormatConfigs []*proto.ConfigData) 
 
 	}
 	// now parse custom formats adnd add them to the map (they take precedence
-	customFormats, errMap := f.parseCustomFormats(customFormatConfigs)
+	customFormats, errs := f.parseCustomFormats(customFormatConfigs)
 
 	for _, format := range customFormats {
 		formatDescription := f.describeFormat(format)
@@ -145,14 +145,11 @@ func (f *TableFactory) DescribeFormats(customFormatConfigs []*proto.ConfigData) 
 		customFormatDescriptions[formatFullName] = formatDescription
 	}
 	// now add the errors for any formats that failed to parse
-	for formatType, typeMap := range errMap {
-		for formatName, errMsg := range typeMap {
-			fullName := fmt.Sprintf("%s.%s", formatType, formatName)
-			customFormatDescriptions[fullName] = &formats.FormatDescription{
-				Type:        formatType,
-				Name:        formatName,
-				Description: errMsg,
-			}
+	for _, err := range errs {
+		customFormatDescriptions[err.Error()] = &formats.FormatDescription{
+			Type:        "error",
+			Name:        err.Error(),
+			Description: err.Error(),
 		}
 	}
 	formatTypes = maps.Keys(f.formatMap)
@@ -175,28 +172,26 @@ func (f *TableFactory) describeFormat(format formats.Format) *formats.FormatDesc
 	}
 }
 
-// parseCustomFormats parses an array of custom formats - if any fail to parse we rteturn a map of format name to error message
+// parseCustomFormats parses an array of custom formats - if any fail to parse we return a list of errors
 // this function is used to parse custom formats provided in the config for the describe call - we will not fail on
 // parse failure but instead want to show a message
-func (f *TableFactory) parseCustomFormats(customFormatConfigs []*proto.ConfigData) ([]formats.Format, map[string]map[string]string) {
-	parseFailures := make(map[string]map[string]string)
+func (f *TableFactory) parseCustomFormats(customFormatConfigs []*proto.FormatData) ([]formats.Format, map[string]error) {
 	var res []formats.Format
+	var errs = make(map[string]error)
 	for _, formatConfig := range customFormatConfigs {
-		formatData, err := types.ConfigDataFromProto[*types.FormatConfigData](formatConfig)
+		formatData, err := types.FormatConfigDataFromProto(formatConfig)
 		if err != nil {
-			// we do not know the format name so just put it into the map with type
-			parseFailures[formatData.Identifier()]["unknown"] = err.Error()
+			errs[formatConfig.Config.Target] = err
 			continue
 		}
 		format, err := f.GetFormat(formatData)
 		if err != nil {
-			// we do not know the format name so just put it into the map with type
-			parseFailures[formatData.Identifier()][format.GetName()] = err.Error()
+			errs[formatConfig.Config.Target] = err
 			continue
 		}
 		res = append(res, format)
 	}
-	return res, nil
+	return res, errs
 }
 
 // GetFormat returns a format instance for the given format config

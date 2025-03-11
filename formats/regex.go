@@ -33,6 +33,11 @@ func (r *Regex) GetName() string {
 	return r.Name
 }
 
+// SetName sets the name of this format instance
+func (r *Regex) SetName(name string) {
+	r.Name = name
+}
+
 func (r *Regex) GetDescription() string {
 	return r.Description
 }

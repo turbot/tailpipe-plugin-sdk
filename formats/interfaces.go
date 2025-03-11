@@ -10,6 +10,7 @@ type Format interface {
 	parse.Config
 
 	GetName() string
+	SetName(name string)
 	GetMapper() (mappers.Mapper[*types.DynamicRow], error)
 	GetRegex() (string, error)
 	GetDescription() string

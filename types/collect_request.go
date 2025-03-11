@@ -55,7 +55,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	if pr.SourceFormat != nil {
-		sourceFormat, err := ConfigDataFromProto[*FormatConfigData](pr.SourceFormat)
+		sourceFormat, err := FormatConfigDataFromProto(pr.SourceFormat)
 		if err != nil {
 			return nil, err
 		}

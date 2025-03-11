@@ -37,6 +37,11 @@ func (g *Grok) GetName() string {
 	return g.Name
 }
 
+// SetName sets the name of this format instance
+func (g *Grok) SetName(name string) {
+	g.Name = name
+}
+
 func (g *Grok) GetDescription() string {
 	return g.Description
 }
