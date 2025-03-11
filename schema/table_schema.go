@@ -17,7 +17,6 @@ type TableSchema struct {
 	AutoMapSourceFields bool `json:"automap_source_fields"`
 	// should we exclude any source fields from the output (only applicable if automap_source_fields is true)
 	ExcludeSourceFields []string `json:"exclude_source_fields"`
-
 	// the table description (optional)
 	Description string `json:"description,omitempty"`
 	// the default null value for the table (may be overriden for specific columns
@@ -66,7 +65,7 @@ func TableSchemaFromProto(p *proto.Schema) *TableSchema {
 
 // MapRow maps a row from a map of source fields to a map of target fields, applying the schema
 // and respecting the automap and exclude fields
-func (r *TableSchema) MapRow(rowMap map[string]string) (map[string]interface{}, error) {
+func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{}, error) {
 	var res = make(map[string]interface{}, len(r.Columns))
 
 	schemaMap := r.AsMap()
@@ -74,7 +73,7 @@ func (r *TableSchema) MapRow(rowMap map[string]string) (map[string]interface{}, 
 	if r.AutoMapSourceFields {
 		// build map of excluded fields
 		excludeMap := utils.SliceToLookup(r.ExcludeSourceFields)
-		for k, v := range rowMap {
+		for k, v := range sourceMap {
 			// if. this field is NOT excluded, and we do not have a schema for it, add it to the result as is
 			_, exclude := excludeMap[k]
 			_, haveSchema := schemaMap[k]
@@ -93,7 +92,7 @@ func (r *TableSchema) MapRow(rowMap map[string]string) (map[string]interface{}, 
 			sourceName = c.SourceName
 		}
 		//
-		if v, ok := rowMap[sourceName]; !ok {
+		if v, ok := sourceMap[sourceName]; !ok {
 			if c.Required {
 				return nil, fmt.Errorf("source field '%s' not found in row", sourceName)
 			}
@@ -122,6 +121,7 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (string, 
 	//if arrayType, isArray := strings.CutSuffix(ty, "[]"); isArray{
 	//	return  mapArrayValue(valString, arrayType)
 	//}
+	// todo use duckdb to map
 
 	// now format the string according to the type
 	switch ty {
@@ -204,7 +204,7 @@ func (r *TableSchema) InitialiseFromInferredSchema(inferredSchema *TableSchema) 
 	}
 }
 
-func (r *TableSchema) isNullValue(c *ColumnSchema, v interface{}) bool {
+func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
 	nullValue := r.NullValue
 	if c.NullValue != "" {
 		nullValue = c.NullValue
@@ -256,54 +256,72 @@ func (r *TableSchema) EnsureComplete() error {
 	return nil
 }
 
-// MergeWithCommonSchema merges the table schema with the common fields schema
-// if this schema contains definitions for any common fields, the only thing that will be used is the source name
+// MergeWithCommonSchema merges the table schema with the common fields schema.
+// The resulting schema will contain:
+// - All fields from this schema
+// - For common fields, Type and Required are taken from the common schema, and Description if not already set
+// - Any common fields not in this schema are added
+// The original schema is not modified.
 func (r *TableSchema) MergeWithCommonSchema() *TableSchema {
-	// get the common fields schema
+	// Get the common fields schema
 	commonFieldsSchema := CommonFieldsSchema()
+	if commonFieldsSchema == nil {
+		// Defensive programming - should never happen but just in case
+		return r
+	}
 
-	// create a new schema our top level properties and the common fields - we will add our columns next
-	var merged = &TableSchema{
+	// Start with a copy of our schema
+	merged := &TableSchema{
 		Name:                r.Name,
-		Columns:             commonFieldsSchema.Columns,
+		Columns:             make([]*ColumnSchema, len(r.Columns)),
 		AutoMapSourceFields: r.AutoMapSourceFields,
 		ExcludeSourceFields: r.ExcludeSourceFields,
 		Description:         r.Description,
 		NullValue:           r.NullValue,
 	}
 
-	commonFieldsMap := merged.AsMap()
-
-	for _, c := range r.Columns {
-		// for the common fields, set the type and required from
-		if commonColumn, ok := commonFieldsMap[c.ColumnName]; ok {
-			// mutate the common column in the merged schema
-			commonColumn.SourceName = c.SourceName
-			commonColumn.TimeFormat = c.TimeFormat
-			continue
+	// Copy our columns
+	for i, col := range r.Columns {
+		merged.Columns[i] = &ColumnSchema{
+			ColumnName:  col.ColumnName,
+			SourceName:  col.SourceName,
+			Type:        col.Type,
+			Required:    col.Required,
+			Description: col.Description,
+			NullValue:   col.NullValue,
 		}
-
-		merged.Columns = append(merged.Columns, &ColumnSchema{
-			ColumnName: c.ColumnName,
-			// NOTE: do not set the source from the table schema - just use the column name
-			// - the source in the table config relates to the mapping from raw row to mapped rown
-			// this schema will be used to convert the JSONL (i.e. the mapped row) to parquet
-			SourceName: c.ColumnName,
-			Type:       c.Type,
-			Required:   c.Required,
-		})
 	}
 
-	merged.AutoMapSourceFields = r.AutoMapSourceFields
+	// Create map for efficient lookup
+	mergedMap := merged.AsMap()
+
+	// Process common fields
+	for _, commonCol := range commonFieldsSchema.Columns {
+		if existingCol, exists := mergedMap[commonCol.ColumnName]; exists {
+			// Column exists - always use Type and Required from common schema
+			existingCol.Type = commonCol.Type
+			existingCol.Required = commonCol.Required
+			// Set Description only if not already set
+			if existingCol.Description == "" {
+				existingCol.Description = commonCol.Description
+			}
+			// Set SourceName only if not already set
+			if existingCol.SourceName == "" {
+				existingCol.SourceName = commonCol.SourceName
+			}
+		} else {
+			// Column doesn't exist - add the common column
+			merged.Columns = append(merged.Columns, commonCol)
+		}
+	}
+
 	return merged
 }
 
-// TODO TACTICAL
-// return a copy with the source fields set the the fcolumn names - this is used to create the parquet schema
+// WithSourceFieldsCleared returns a copy with the source fields set the the fcolumn names - this is used to create the parquet schema
 // SourceName refers to one of 2 things depdending on where the schema is used
 // 1. When the schemas is used by a mapper, SourceName refers to the field name in the raw row data
 // 2. When the schema is used by the JSONL conversion, SourceName refers to the column name in the JSONL
-
 func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
 	res := &TableSchema{
 		Name:                r.Name,
