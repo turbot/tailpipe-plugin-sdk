@@ -32,9 +32,8 @@ func TestIdentifier(t *testing.T, c Collector) {
 }
 
 func TestSchema(t *testing.T, c Collector) {
-	rowSchema, err := c.GetSchema()
-	assert.Nil(t, err)
+	rowSchema := c.GetSchema()
 	assert.NotNil(t, rowSchema)
-	err = rowSchema.Validate()
+	err := rowSchema.Validate()
 	assert.Nil(t, err)
 }

@@ -249,7 +249,7 @@ func (f *TableFactory) populateSchemas() (err error) {
 		collector := ctor()
 
 		// get the schema for the table row type
-		s, err := collector.GetSchema()
+		s := collector.GetSchema()
 		if err != nil {
 			errs = append(errs, err)
 			continue

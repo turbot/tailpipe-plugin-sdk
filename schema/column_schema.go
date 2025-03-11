@@ -13,16 +13,15 @@ type ColumnType struct {
 	ChildFields []*ColumnSchema
 }
 
+// TODO #custom why the JSON tags
 type ColumnSchema struct {
-	// TODO split into 2 properties - SourceName and JSONSourceName or something
-	// SourceName refers to one of 2 things depdending on where the schema is used
-	// 1. When the schemas is used by a mapper, SourceName refers to the field name in the raw row data
-	// 2. When the schema is used by the JSONL conversion, SourceName refers to the column name in the JSONL
+	// SourceName refers to the column name in the JSONL
 	SourceName string `json:"-"`
+	// ColumnName refers to the column name in the parquet
 	ColumnName string `json:"name,omitempty"`
 	// DuckDB type for the column
 	Type string `json:"type"`
-	// for struct and struct[]
+	// struct schema for for struct and struct[]
 	StructFields []*ColumnSchema `json:"struct_fields,omitempty"`
 	// the column description (optional)
 	Description string `json:"description,omitempty"`
@@ -30,16 +29,24 @@ type ColumnSchema struct {
 	Required bool `json:"required"`
 	// The null value for the column
 	NullValue string `json:"null_value,omitempty"`
+	// The format of the time field so it can be recognized and analyzed properly.
+	// Tailpipe uses strptime to parse time.
+	// See the strptime documentation for available modifiers: https://linux.die.net/man/3/strptime
+	TimeFormat string `json:"time_format,omitempty"`
+	// a custom select clause for the column
+	SelectClause string `json:"select_clause,omitempty"`
 }
 
 func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 	p := &proto.ColumnSchema{
-		SourceName:  c.SourceName,
-		ColumnName:  c.ColumnName,
-		Type:        c.Type,
-		Description: c.Description,
-		Required:    c.Required,
-		NullValue:   c.NullValue,
+		SourceName:   c.SourceName,
+		ColumnName:   c.ColumnName,
+		Type:         c.Type,
+		Description:  c.Description,
+		Required:     c.Required,
+		NullValue:    c.NullValue,
+		TimeFormat:   c.TimeFormat,
+		SelectClause: c.SelectClause,
 	}
 	for _, child := range c.StructFields {
 		p.ChildFields = append(p.ChildFields, child.toProto())
@@ -74,12 +81,14 @@ func (c *ColumnSchema) structDef() string {
 // ColumnFromProto creates a new ColumnSchema from proto
 func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
 	c := &ColumnSchema{
-		SourceName:  p.SourceName,
-		ColumnName:  p.ColumnName,
-		Type:        p.Type,
-		Description: p.Description,
-		Required:    p.Required,
-		NullValue:   p.NullValue,
+		SourceName:   p.SourceName,
+		ColumnName:   p.ColumnName,
+		Type:         p.Type,
+		Description:  p.Description,
+		Required:     p.Required,
+		NullValue:    p.NullValue,
+		TimeFormat:   p.TimeFormat,
+		SelectClause: p.SelectClause,
 	}
 	for _, child := range p.ChildFields {
 		c.StructFields = append(c.StructFields, ColumnFromProto(child))

@@ -175,36 +175,36 @@ func (c *CommonFields) Validate() error {
 	var invalidFields []string
 	// ensure required fields are set
 	if c.TpID == "" {
-		missingFields = append(missingFields, "TpID")
+		missingFields = append(missingFields, "tp_id")
 	}
 	if c.TpSourceType == "" {
-		missingFields = append(missingFields, "TpSourceType")
+		missingFields = append(missingFields, "tp_source_type")
 	}
 	if c.TpIngestTimestamp.IsZero() {
-		missingFields = append(missingFields, "TpIngestTimestamp")
+		missingFields = append(missingFields, "tp_ingest_timestamp")
 	}
 	if c.TpTimestamp.IsZero() {
-		missingFields = append(missingFields, "TpTimestamp")
+		missingFields = append(missingFields, "tp_timestamp")
 	}
 	if c.TpTable == "" {
-		missingFields = append(missingFields, "TpTable")
+		missingFields = append(missingFields, "tp_table")
 	}
 	if c.TpPartition == "" {
-		missingFields = append(missingFields, "TpPartition")
+		missingFields = append(missingFields, "tp_partition")
 	}
 	if c.TpIndex == "" {
-		missingFields = append(missingFields, "TpIndex")
+		missingFields = append(missingFields, "tp_index")
 	} else {
 		// handles instances where tp_index is the same value with different casing (as seen on Azure data with subscription_id being either upper or lower case)
 		// when tp_index is differential in casing it causes data to not be set against the partition correctly
 		c.TpIndex = strings.ToLower(c.TpIndex)
 	}
 	if c.TpDate.IsZero() {
-		missingFields = append(missingFields, "TpDate")
+		missingFields = append(missingFields, "tp_date")
 	}
 	// verify that the date is a date and not a datetime
 	if !c.TpDate.Equal(c.TpDate.Truncate(24 * time.Hour)) {
-		invalidFields = append(invalidFields, "TpDate")
+		invalidFields = append(invalidFields, "tp_date")
 	}
 	var missingFieldsStr, invalidFieldsStr string
 	if len(missingFields) > 0 {
@@ -357,6 +357,65 @@ func (c *CommonFields) AsMap() map[string]string {
 	}
 
 	return result
+}
+
+// MergeWith merges the current CommonFields with another CommonFields instance.
+// If a field in the current instance is not populated, it will be populated from the other instance.
+func (c *CommonFields) MergeWith(other CommonFields) {
+	if c.TpID == "" {
+		c.TpID = other.TpID
+	}
+	if c.TpSourceType == "" {
+		c.TpSourceType = other.TpSourceType
+	}
+	if c.TpIngestTimestamp.IsZero() {
+		c.TpIngestTimestamp = other.TpIngestTimestamp
+	}
+	if c.TpTimestamp.IsZero() {
+		c.TpTimestamp = other.TpTimestamp
+	}
+	if c.TpTable == "" {
+		c.TpTable = other.TpTable
+	}
+	if c.TpPartition == "" {
+		c.TpPartition = other.TpPartition
+	}
+	if c.TpIndex == "" {
+		c.TpIndex = other.TpIndex
+	}
+	if c.TpDate.IsZero() {
+		c.TpDate = other.TpDate
+	}
+	if c.TpSourceIP == nil {
+		c.TpSourceIP = other.TpSourceIP
+	}
+	if c.TpDestinationIP == nil {
+		c.TpDestinationIP = other.TpDestinationIP
+	}
+	if c.TpSourceName == nil {
+		c.TpSourceName = other.TpSourceName
+	}
+	if c.TpSourceLocation == nil {
+		c.TpSourceLocation = other.TpSourceLocation
+	}
+	if len(c.TpAkas) == 0 {
+		c.TpAkas = other.TpAkas
+	}
+	if len(c.TpIps) == 0 {
+		c.TpIps = other.TpIps
+	}
+	if len(c.TpTags) == 0 {
+		c.TpTags = other.TpTags
+	}
+	if len(c.TpDomains) == 0 {
+		c.TpDomains = other.TpDomains
+	}
+	if len(c.TpEmails) == 0 {
+		c.TpEmails = other.TpEmails
+	}
+	if len(c.TpUsernames) == 0 {
+		c.TpUsernames = other.TpUsernames
+	}
 }
 
 // TODO improve these descriptions https://github.com/turbot/tailpipe-plugin-sdk/issues/83

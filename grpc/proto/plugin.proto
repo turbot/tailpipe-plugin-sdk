@@ -110,6 +110,8 @@ message Schema {
   string null_value = 5;
   // the table name
   string name = 6;
+  // is this a custom table
+  bool custom_table = 7;
 }
 
 message ColumnSchema {
@@ -127,6 +129,10 @@ message ColumnSchema {
   bool required = 6;
   // the null value to use for the column
   string null_value = 7;
+  // the time format to use to parse the column
+  string time_format = 8;
+  // the custom select clause to use to map the column
+  string select_clause = 9;
 }
 
 message ConfigData {

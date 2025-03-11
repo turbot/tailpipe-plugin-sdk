@@ -28,19 +28,13 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
-func (l *DynamicRow) Enrich(sourceCommonFields schema.CommonFields) error {
-
+func (l *DynamicRow) Enrich(sourceEnrichmentFields schema.SourceEnrichment) error {
 	// we expect the columns to be initialised by a previous call to InitialiseFromMap
 	if l.Columns == nil {
 		return fmt.Errorf("the DynamicRow struct has not been initialised with a map of columns")
 	}
-
-	// apply source common fields
-	for k, v := range sourceCommonFields.AsMap() {
-		if _, ok := l.Columns[k]; !ok {
-			l.Columns[k] = v
-		}
-	}
+	// merge our common fields with the source enrichment fields
+	l.CommonFields.MergeWith(sourceEnrichmentFields.CommonFields)
 
 	// auto populate id and timestamp
 	l.TpID = xid.New().String()

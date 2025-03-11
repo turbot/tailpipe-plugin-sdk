@@ -88,10 +88,8 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 	}()
 
 	// return the schema (if available - this may be partial for dynamic tables, in which case the CLI will infer the full schema)
-	s, err := collector.GetSchema()
-	if err != nil {
-		return nil, nil, err
-	}
+	s := collector.GetSchema()
+
 	return fromTime, s, nil
 }
 

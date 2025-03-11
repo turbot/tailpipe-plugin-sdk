@@ -17,6 +17,11 @@ type TableSchema struct {
 	AutoMapSourceFields bool `json:"automap_source_fields"`
 	// should we exclude any source fields from the output (only applicable if automap_source_fields is true)
 	ExcludeSourceFields []string `json:"exclude_source_fields"`
+	// is this a custom table - this inkudes 'predefined' custom tables which use the custom table mechanism to define
+	// a fixed table - such as nginx access logs
+	// this is used when building the select query - we use a different query for custom tables
+	CustomTable bool `json:"custom_table"`
+
 	// the table description (optional)
 	Description string `json:"description,omitempty"`
 	// the default null value for the table (may be overriden for specific columns
@@ -31,6 +36,7 @@ func (r *TableSchema) ToProto() *proto.Schema {
 		ExcludeSourceFields: r.ExcludeSourceFields,
 		Description:         r.Description,
 		NullValue:           r.NullValue,
+		CustomTable:         r.CustomTable,
 	}
 
 	for i, c := range r.Columns {
@@ -48,7 +54,7 @@ func (r *TableSchema) AsMap() map[string]*ColumnSchema {
 	return res
 }
 
-func RowSchemaFromProto(p *proto.Schema) *TableSchema {
+func TableSchemaFromProto(p *proto.Schema) *TableSchema {
 	var res = &TableSchema{
 		Name:                p.Name,
 		Columns:             make([]*ColumnSchema, 0, len(p.Columns)),
@@ -56,6 +62,7 @@ func RowSchemaFromProto(p *proto.Schema) *TableSchema {
 		ExcludeSourceFields: p.ExcludeSourceFields,
 		Description:         p.Description,
 		NullValue:           p.NullValue,
+		CustomTable:         p.CustomTable,
 	}
 	for _, c := range p.Columns {
 		res.Columns = append(res.Columns, ColumnFromProto(c))
@@ -272,10 +279,12 @@ func (r *TableSchema) MergeWithCommonSchema() *TableSchema {
 	commonFieldsMap := merged.AsMap()
 
 	for _, c := range r.Columns {
-		// for the common fields, just set the source form the configured schema
+		// for the common fields, set the type and required from
 		if commonColumn, ok := commonFieldsMap[c.ColumnName]; ok {
 			// mutate the common column in the merged schema
 			commonColumn.SourceName = c.SourceName
+			commonColumn.TimeFormat = c.TimeFormat
+			commonColumn.SelectClause = c.SelectClause
 			continue
 		}
 
