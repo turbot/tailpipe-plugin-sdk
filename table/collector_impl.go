@@ -59,6 +59,7 @@ type CollectorImpl[R types.RowStruct] struct {
 	chunkCountMap map[string]int
 
 	writer ChunkWriter
+	schema *schema.TableSchema
 }
 
 func NewCollectorImpl[R types.RowStruct](table Table[R]) *CollectorImpl[R] {
@@ -85,6 +86,30 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 	c.writer = NewJSONLWriter(jsonPath)
 
 	slog.Info("Initialise collector", "table", c.Table.Identifier(), "partition", req.PartitionName, "jsonPath", jsonPath)
+
+	return c.initSchema()
+}
+
+func (c *CollectorImpl[R]) initSchema() error {
+
+	// if the table is a custom table, ask it for its schema
+	if ct, ok := any(c.Table).(CustomTable); ok {
+		c.schema = ct.GetSchema()
+		return nil
+	}
+
+	// otherwise, return the schema from the row struct
+	rowStruct := utils.InstanceOf[R]()
+	s, err := schema.SchemaFromStruct(rowStruct)
+	if err != nil {
+		return fmt.Errorf("error getting schema from struct: %w", err)
+	}
+
+	// if the table implements DescriptionProvider, use this to populate the table description
+	if getDesc, ok := c.Table.(schema.DescriptionProvider); ok {
+		s.Description = getDesc.GetDescription()
+	}
+	c.schema = s
 	return nil
 }
 
@@ -93,31 +118,14 @@ func (c *CollectorImpl[R]) Identifier() string {
 }
 
 // GetSchema returns the schema of the table
-func (c *CollectorImpl[R]) GetSchema() (*schema.TableSchema, error) {
-	// if the table is a custom table, ask it for its schema
-	if ct, ok := any(c.Table).(CustomTable); ok {
+func (c *CollectorImpl[R]) GetSchema() *schema.TableSchema {
 
-		// TODO #dynamic - we now just do the field mapping in the JSONL conversion
-		//// the schema on the custom table will already have been 'resolved'
-		//// (i.e. the configured custom table schema will have been merged with the comm fields struct schema)
-		//// TACTICAL clear source fields as theses were for mapping
-		//customSchema := ct.GetSchema().WithSourceFieldsCleared()
+	// TODO #dynamic - we now just do the field mapping in the JSONL conversion
+	//// the schema on the custom table will already have been 'resolved'
+	//// (i.e. the configured custom table schema will have been merged with the comm fields struct schema)
+	//// TACTICAL clear source fields as theses were for mapping
 
-		return ct.GetSchema(), nil
-	}
-
-	// otherwise, return the schema from the row struct
-	rowStruct := utils.InstanceOf[R]()
-	s, err := schema.SchemaFromStruct(rowStruct)
-	if err != nil {
-		return nil, fmt.Errorf("error getting schema from struct: %w", err)
-	}
-
-	// if the table implements DescriptionProvider, use this to populate the table description
-	if getDesc, ok := c.Table.(schema.DescriptionProvider); ok {
-		s.Description = getDesc.GetDescription()
-	}
-	return s, nil
+	return c.schema
 }
 
 // GetFromTime returns the 'resolved' from time of the source

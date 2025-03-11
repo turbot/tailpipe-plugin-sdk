@@ -70,7 +70,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		req.ConnectionData = connectionData
 	}
 	if pr.CustomTableSchema != nil {
-		req.CustomTableSchema = schema.RowSchemaFromProto(pr.CustomTableSchema)
+		req.CustomTableSchema = schema.TableSchemaFromProto(pr.CustomTableSchema)
 	}
 
 	return req, nil

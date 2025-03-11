@@ -18,6 +18,8 @@ func (c *CustomTableImpl) Initialize(format formats.Format, customTableSchema *s
 	c.Format = format
 	// merge the custom table schema with the common fields schema
 	c.Schema = customTableSchema.MergeWithCommonSchema()
+	// set the table to be custom (we execute different parquet conversion queries for custom tables)
+	c.Schema.CustomTable = true
 }
 
 // GetSchema implements the CustomTable interface
@@ -27,7 +29,7 @@ func (c *CustomTableImpl) GetSchema() *schema.TableSchema {
 
 func (c *CustomTableImpl) EnrichRow(row *types.DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*types.DynamicRow, error) {
 	// tell the row to enrich itself using any mappings specified in the source format
-	err := row.Enrich(sourceEnrichmentFields.CommonFields)
+	err := row.Enrich(sourceEnrichmentFields)
 	if err != nil {
 		return nil, err
 	}
