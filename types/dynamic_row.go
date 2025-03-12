@@ -156,22 +156,9 @@ func (l *DynamicRow) validateTime(t interface{}) error {
 		return errors.New(missingFieldError)
 	}
 
-	// check if the field is a string
-	tStr, ok := t.(string)
-	if !ok {
+	timeValue, ok := t.(time.Time)
+	if !ok || timeValue.IsZero() {
 		return errors.New(invalidFieldError)
-	}
-	if tStr == "" {
-		return errors.New(missingFieldError)
-	}
-	// try to parse the time
-	ingestTimestamp, err := time.Parse(time.RFC3339, tStr)
-	if err != nil {
-		return errors.New(invalidFieldError)
-	}
-
-	if ingestTimestamp.IsZero() {
-		return errors.New(missingFieldError)
 	}
 
 	return nil
