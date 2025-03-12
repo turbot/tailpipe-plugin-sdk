@@ -51,7 +51,7 @@ func (g *Grok) GetProperties() map[string]string {
 
 	properties["layout"] = g.Layout
 
-	if g.Patterns != nil && len(g.Patterns) > 0 {
+	if len(g.Patterns) > 0 {
 		for key, value := range g.Patterns {
 			properties[fmt.Sprintf("pattern: %s", key)] = value
 		}

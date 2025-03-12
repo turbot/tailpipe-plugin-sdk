@@ -142,7 +142,7 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 		// we assume (and validate) that the select clause a DuckDB function name, with a parameter, e.g. UPPER(?) or STRING_SPLIT(?, ',')
 		// TODO verify the select clause contains 1 param '?'
 
-		query := fmt.Sprintf("SELECT %s", column.SelectClause)
+		query := fmt.Sprintf("SELECT %s", column.SelectClause) //nolint:gosec // TODO KAI this is temporary
 		row := db.QueryRow(query, valString)
 		var val interface{}
 		err = row.Scan(&val)

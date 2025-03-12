@@ -6,13 +6,10 @@ import (
 
 	"github.com/satyrius/gonx"
 	"github.com/turbot/pipe-fittings/v2/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type GonxMapper[T MapInitialisedRow] struct {
 	parsers []*gonx.Parser
-	// TODOKAI REMOVE SCHEMA
-	schema *schema.TableSchema
 }
 
 func NewGonxMapper[T MapInitialisedRow](formats ...string) *GonxMapper[T] {
