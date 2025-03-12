@@ -287,6 +287,7 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 	// put data into an array as that is what mappers expect
 	mappedRow, err := c.mapRow(ctx, e.Row)
 	if err != nil {
+		slog.Error("error mapping row", "error", err)
 		return fmt.Errorf("error mapping artifact: %w", err)
 	}
 
@@ -297,6 +298,12 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 	sourceEnrichment.CommonFields.TpPartition = c.req.PartitionName
 
 	// enrich the row
+	if d, ok := any(mappedRow).(*types.DynamicRow); ok {
+		t, ok := d.GetSourceValue("timestamp")
+		if !ok || t == "" {
+			slog.Warn("no timestamp found in row, using current time", "row", mappedRow)
+		}
+	}
 	enrichedRow, err := c.Table.EnrichRow(mappedRow, sourceEnrichment)
 	if err != nil {
 		return err

@@ -97,11 +97,7 @@ func (l *DynamicRow) Validate() error {
 	// Validate time fields
 	for field := range timeFields {
 		if err := l.validateTime(l.OutputColumns[field]); err != nil {
-			if err.Error() == missingFieldError {
-				missingFields = append(missingFields, field)
-			} else {
-				invalidFields = append(invalidFields, field)
-			}
+			missingFields = append(missingFields, field)
 		}
 	}
 
@@ -148,7 +144,6 @@ func (l *DynamicRow) Validate() error {
 	return nil
 }
 
-var invalidFieldError = "invalid field"
 var missingFieldError = "missing field"
 
 func (l *DynamicRow) validateTime(t interface{}) error {
@@ -158,7 +153,7 @@ func (l *DynamicRow) validateTime(t interface{}) error {
 
 	timeValue, ok := t.(time.Time)
 	if !ok || timeValue.IsZero() {
-		return errors.New(invalidFieldError)
+		return errors.New(missingFieldError)
 	}
 
 	return nil

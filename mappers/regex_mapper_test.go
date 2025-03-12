@@ -54,7 +54,7 @@ func TestRegexMapper(t *testing.T) {
 		{
 			name: "Valid input",
 			args: args{
-				input: `127.0.0.1 - frank [10/Oct/2000:13:55:36 -0700] "GET /apache_pb.gif HTTP/1.0" 200 2326`,
+				input: `nova-api.log.1.2017-05-16_13:53:08 2017-05-16 00:00:00.008 25746 INFO nova.osapi_compute.wsgi.server [req-38101a0b-2096-447d-96ea-a692162415ae 113d3a99c3da401fbd62cc2caa5b96d2 54fadb412c4e40cdbaed9335e4c35a9e - - -] 10.11.10.1 "GET /v2/54fadb412c4e40cdbaed9335e4c35a9e/servers/detail HTTP/1.1" status: 200 len: 1893 time: 0.2477829`,
 			},
 			want: &WebLogRow{
 				IPAddress: "127.0.0.1",
@@ -194,7 +194,7 @@ func TestRegexMapper(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			mapper, err := NewRegexMapper[*WebLogRow](`(?P<ip>\d+\.\d+\.\d+\.\d+) - (?P<user>[a-zA-Z0-9_-]+) \[(?P<timestamp>\d{2}/[A-Za-z]+/\d{4}:\d{2}:\d{2}:\d{2} [-+]\d{4})\] "(?P<request>[^"]+)" (?P<status>\d+|-) (?P<size>\d+|-)`)
+			mapper, err := NewRegexMapper[*WebLogRow](`^(nova-[\w-]+\.log(?:\.\d+)?\.[\d-]+_[\d:]+)\s+([\d-]+\s+[\d:.]+)\s+(\d+)\s+(\w+)\s+([\w.-]+)\s+\[(?:req-([^\s]+)\s+([^\s]+)\s+([^\s]+)\s+-\s+-\s+-|-)]\s+(?:(\d+\.\d+\.\d+\.\d+)\s+"(GET|POST|PUT|DELETE)\s+([^\s]+)\s+HTTP\/[\d.]+"\s+status:\s+(\d+)\s+len:\s+(\d+)\s+time:\s+[\d.]+|(?:\[instance:\s+([^\]]+)\])?\s*(.*))?$`)
 			if tt.name == "Invalid regex pattern" {
 				mapper, err = NewRegexMapper[*WebLogRow](`(?P<ip>\d+\.\d+\.\d+\.\d+) (?P<user>[a-zA-Z0-9_-]+) \[(?P<timestamp>\d{2}/[A-Za-z]+/\d{4}:\d{2}:\d{2}:\d{2} [-+]\d{4})\] "(?P<request>[^"]+)" (?P<status>\d+|-) (?P<size>\d+|-)`)
 			}

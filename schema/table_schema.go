@@ -162,8 +162,8 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 		if err != nil {
 			return valString, fmt.Errorf("error parsing time value '%s' for column '%s': %w", valString, column.ColumnName, err)
 		}
-
-		return t, nil
+		// TODO until we update ParseTimeto not return a pointer, dereference
+		return *t, nil
 
 	default:
 
