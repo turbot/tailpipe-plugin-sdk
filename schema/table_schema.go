@@ -170,38 +170,14 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 		// if it is an array, treat as a single value in an array
 		// if it needs splitting, the config should specify a select clause
 		if strings.HasSuffix(ty, "[]") {
-			vals := strings.Split(valString, ",")
-			// trim spaces
-			for i, v := range vals {
-				vals[i] = strings.TrimSpace(v)
-			}
 			// return as a slice
-			return vals, nil
+			return []any{valString}, nil
 		}
 
 		// for all other types, just return the string and rely on
 		return valString, nil
 	}
 }
-
-//func mapArrayValue(valString, ty string) (any, error) {
-//	var res []any
-//	// TODO should we split on commas and trim spaces? https://github.com/turbot/tailpipe-plugin-sdk/issues/102
-//	switch ty {
-//	case "TIMESTAMP", "DATE", "TIME":
-//		t, err := helpers.ParseTime(valString)
-//		if err != nil {
-//			return "", err
-//		}
-//		// format the time as a string
-//		res = append(res, t.Format(time.RFC3339))
-//	default:
-//		res = append(res, valString)
-//
-//	}
-//
-//	return fmt.Sprintf("[%s]", valString), nil
-//}
 
 // InitialiseFromInferredSchema populates this schema using an inferred row schema
 // this is called from the CLI when we are trying to determine the full schema after receiving the first JSONL file

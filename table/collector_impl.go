@@ -90,11 +90,15 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 	return c.initSchema()
 }
 
+// initSchema populates the schema stroed by the collector - this will be returned from the Collect call
 func (c *CollectorImpl[R]) initSchema() error {
 
 	// if the table is a custom table, ask it for its schema
 	if ct, ok := any(c.Table).(CustomTable); ok {
-		c.schema = ct.GetSchema()
+		// NOTE: for custom tables, the SourceColumn field is used for mapping _within_ the plugin,
+		// not by the CLI for JSONL conversion
+		// so for this schema, which will be used by the CLI, set SourceName to be the sam eas the ColumnName
+		c.schema = ct.GetSchema().WithSourceFieldsCleared()
 		return nil
 	}
 
@@ -119,12 +123,6 @@ func (c *CollectorImpl[R]) Identifier() string {
 
 // GetSchema returns the schema of the table
 func (c *CollectorImpl[R]) GetSchema() *schema.TableSchema {
-
-	// TODO #dynamic - we now just do the field mapping in the JSONL conversion
-	//// the schema on the custom table will already have been 'resolved'
-	//// (i.e. the configured custom table schema will have been merged with the comm fields struct schema)
-	//// TACTICAL clear source fields as theses were for mapping
-
 	return c.schema
 }
 
@@ -307,15 +305,10 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 	if err != nil {
 		return err
 	}
-
-	// for non-dynamic tables, validate that the enriched row has required fields
-	// TODO #dynamic - custom tables must be validated after JSONL conversion)
-	if _, ok := any(c.Table).(CustomTable); !ok {
-		// validate that the enriched row has required fields
-		if err := enrichedRow.Validate(); err != nil {
-			// TODO #errors we need to include the raw row information in the error
-			return err
-		}
+	// validate that the enriched row has required fields
+	if err := enrichedRow.Validate(); err != nil {
+		// TODO #errors we need to include the raw row information in the error
+		return err
 	}
 
 	// buffer the enriched row and write to JSON file if buffer is full

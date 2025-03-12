@@ -13,28 +13,27 @@ type ColumnType struct {
 	ChildFields []*ColumnSchema
 }
 
-// TODO #custom why the JSON tags
 type ColumnSchema struct {
 	// SourceName refers to the column name in the JSONL
-	SourceName string `json:"-"`
+	SourceName string
 	// ColumnName refers to the column name in the parquet
-	ColumnName string `json:"name,omitempty"`
+	ColumnName string
 	// DuckDB type for the column
-	Type string `json:"type"`
+	Type string
 	// struct schema for for struct and struct[]
-	StructFields []*ColumnSchema `json:"struct_fields,omitempty"`
+	StructFields []*ColumnSchema
 	// the column description (optional)
-	Description string `json:"description,omitempty"`
+	Description string
 	// is the column required
-	Required bool `json:"required"`
+	Required bool
 	// The null value for the column
-	NullValue string `json:"null_value,omitempty"`
+	NullValue string
 	// The format of the time field so it can be recognized and analyzed properly.
 	// Tailpipe uses strptime to parse time.
 	// See the strptime documentation for available modifiers: https://linux.die.net/man/3/strptime
-	TimeFormat string `json:"time_format,omitempty"`
+	TimeFormat string
 	// a custom select clause for the column
-	SelectClause string `json:"select_clause,omitempty"`
+	SelectClause string
 }
 
 func (c *ColumnSchema) toProto() *proto.ColumnSchema {
