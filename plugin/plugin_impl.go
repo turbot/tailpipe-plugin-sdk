@@ -88,7 +88,9 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 	}()
 
 	// return the schema (if available - this may be partial for dynamic tables, in which case the CLI will infer the full schema)
-	s := collector.GetSchema()
+	// NOT: we clear the source field mappings and set them all to the colum names - this is because for dynamic tables
+	// we do the source-output mappings within the plugin, NOT during JSONL conversion
+	s := collector.GetSchema().WithSourceFieldsCleared()
 
 	return fromTime, s, nil
 }
