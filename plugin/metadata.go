@@ -13,13 +13,13 @@ func PrintMetadata(pluginFunc PluginFunc) int {
 	// create the plugin
 	p, err := pluginFunc()
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to create plugin: %s\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to create plugin: %s\n", err) //nolint:forbidigo // expected ui output
 		os.Exit(1)
 	}
 	// describe the plugin
 	describeResponse, err := p.Describe(context.Background(), &proto.DescribeRequest{})
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to describe plugin: %s\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to describe plugin: %s\n", err) //nolint:forbidigo // expected ui output
 		return 1
 	}
 
@@ -35,11 +35,11 @@ func PrintMetadata(pluginFunc PluginFunc) int {
 	// serialize to JSON
 	installedVersionJson, err := json.Marshal(v)
 	if err != nil {
-		_, _ = fmt.Fprintf(os.Stderr, "Failed to marshal metadata: %s\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "Failed to marshal metadata: %s\n", err) //nolint:forbidigo // expected ui output
 		return 1
 	}
 
 	// write to stdout
-	fmt.Println(string(installedVersionJson))
+	fmt.Println(string(installedVersionJson)) //nolint:forbidigo // expected ui output
 	return 0
 }

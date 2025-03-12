@@ -1,9 +1,9 @@
 package schema
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
@@ -48,7 +48,7 @@ func (r *TableSchema) AsMap() map[string]*ColumnSchema {
 	return res
 }
 
-func RowSchemaFromProto(p *proto.Schema) *TableSchema {
+func TableSchemaFromProto(p *proto.Schema) *TableSchema {
 	var res = &TableSchema{
 		Name:                p.Name,
 		Columns:             make([]*ColumnSchema, 0, len(p.Columns)),
@@ -65,15 +65,16 @@ func RowSchemaFromProto(p *proto.Schema) *TableSchema {
 
 // MapRow maps a row from a map of source fields to a map of target fields, applying the schema
 // and respecting the automap and exclude fields
-func (r *TableSchema) MapRow(rowMap map[string]string) (map[string]string, error) {
-	var res = make(map[string]string, len(r.Columns))
+func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{}, error) {
+	var res = make(map[string]interface{}, len(r.Columns))
 
 	schemaMap := r.AsMap()
 
+	// TODO need to think about automapping/test
 	if r.AutoMapSourceFields {
 		// build map of excluded fields
 		excludeMap := utils.SliceToLookup(r.ExcludeSourceFields)
-		for k, v := range rowMap {
+		for k, v := range sourceMap {
 			// if. this field is NOT excluded, and we do not have a schema for it, add it to the result as is
 			_, exclude := excludeMap[k]
 			_, haveSchema := schemaMap[k]
@@ -87,73 +88,96 @@ func (r *TableSchema) MapRow(rowMap map[string]string) (map[string]string, error
 
 	// now add all explicitly defined columns
 	for _, c := range r.Columns {
+		// default source name to column name
 		sourceName := c.ColumnName
 		if c.SourceName != "" {
 			sourceName = c.SourceName
 		}
 		//
-		if v, ok := rowMap[sourceName]; !ok {
+		v, ok := sourceMap[sourceName]
+		if !ok {
 			if c.Required {
-				return nil, fmt.Errorf("source field '%s' not found in row", sourceName)
+				return nil, fmt.Errorf("column '%s' is required, but source field '%s' not found in row", c.ColumnName, sourceName)
 			}
 			// if the field is not required, we just skip it
-		} else {
-			// check for null value
-			// by default, treat an empty string as a null value, but this may be overridden by the config
-			if !r.isNullValue(c, v) {
-
-				// map the value - this handles nulls and correct formatting arrays and times
-				val, err := r.mapValue(c, v)
-				if err != nil {
-					return nil, err
-				}
-				res[c.ColumnName] = val
-			}
+			continue
 		}
+
+		// so we have a value for this column - is it null?
+		if r.isNullValue(c, v) {
+			// if the valkue matches the null string, exclude it - it will appear as null in the parquet
+			continue
+		}
+
+		// so we have a non null value
+
+		// map the value - this handles type conversion for arrays and time, and applying custom transforms
+		val, err := r.mapValue(c, v)
+		if err != nil {
+			return nil, err
+		}
+		res[c.ColumnName] = val
+
 	}
 	return res, nil
 }
 
-func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (string, error) {
+func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interface{}, error) {
 	ty := column.Type
 
 	//// treat arrays separately
 	//if arrayType, isArray := strings.CutSuffix(ty, "[]"); isArray{
 	//	return  mapArrayValue(valString, arrayType)
 	//}
+	// todo use duckdb to map
+
+	// if a select clause is provided, use that
+	if column.SelectClause != "" {
+		db, err := sql.Open("duckdb", "")
+		if err != nil {
+			return "", fmt.Errorf("error opening duckdb connection: %w", err)
+		}
+		defer db.Close()
+		// use the select clause to map the value
+		// we assume (and validate) that the select clause a DuckDB function name, with a parameter, e.g. UPPER(?) or STRING_SPLIT(?, ',')
+		// TODO verify the select clause contains 1 param '?'
+
+		query := fmt.Sprintf("SELECT %s", column.SelectClause) //nolint:gosec // TODO KAI this is temporary
+		row := db.QueryRow(query, valString)
+		var val interface{}
+		err = row.Scan(&val)
+		if err != nil {
+			return "", fmt.Errorf("error executing select clause '%s' for column '%s': %w", column.SelectClause, column.ColumnName, err)
+		}
+		return val, nil
+	}
+	// if the type is a date time, parse it
 
 	// now format the string according to the type
 	switch ty {
 	case "TIMESTAMP", "DATE", "TIME":
+		// todo kai apply time format - only parse if format specified?
+		// TODO this duplicates what we already do for tp_timestamp in dynamicrow enrich  -
 		t, err := helpers.ParseTime(valString)
 		if err != nil {
 			return valString, fmt.Errorf("error parsing time value '%s' for column '%s': %w", valString, column.ColumnName, err)
 		}
-		// format the time as a string
-		return t.Format(time.RFC3339), nil
+
+		return t, nil
+
 	default:
+
+		// if it is an array, treat as a single value in an array
+		// if it needs splitting, the config should specify a select clause
+		if strings.HasSuffix(ty, "[]") {
+			// return as a slice
+			return []any{valString}, nil
+		}
+
+		// for all other types, just return the string and rely on
 		return valString, nil
 	}
 }
-
-//func mapArrayValue(valString, ty string) (any, error) {
-//	var res []any
-//	// TODO should we split on commas and trim spaces? https://github.com/turbot/tailpipe-plugin-sdk/issues/102
-//	switch ty {
-//	case "TIMESTAMP", "DATE", "TIME":
-//		t, err := helpers.ParseTime(valString)
-//		if err != nil {
-//			return "", err
-//		}
-//		// format the time as a string
-//		res = append(res, t.Format(time.RFC3339))
-//	default:
-//		res = append(res, valString)
-//
-//	}
-//
-//	return fmt.Sprintf("[%s]", valString), nil
-//}
 
 // InitialiseFromInferredSchema populates this schema using an inferred row schema
 // this is called from the CLI when we are trying to determine the full schema after receiving the first JSONL file
@@ -202,6 +226,7 @@ func (r *TableSchema) InitialiseFromInferredSchema(inferredSchema *TableSchema) 
 }
 
 func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
+	// TODO KAI check default
 	nullValue := r.NullValue
 	if c.NullValue != "" {
 		nullValue = c.NullValue
@@ -253,53 +278,72 @@ func (r *TableSchema) EnsureComplete() error {
 	return nil
 }
 
-// MergeWithCommonSchema merges the table schema with the common fields schema
-// if this schema contains definitions for any common fields, the only thing that will be used is the source name
+// MergeWithCommonSchema merges the table schema with the common fields schema.
+// The resulting schema will contain:
+// - All fields from this schema
+// - For common fields, Type and Required are taken from the common schema, and Description if not already set
+// - Any common fields not in this schema are added
+// The original schema is not modified.
 func (r *TableSchema) MergeWithCommonSchema() *TableSchema {
-	// get the common fields schema
+	// Get the common fields schema
 	commonFieldsSchema := CommonFieldsSchema()
+	if commonFieldsSchema == nil {
+		// Defensive programming - should never happen but just in case
+		return r
+	}
 
-	// create a new schema our top level properties and the common fields - we will add our columns next
-	var merged = &TableSchema{
+	// Start with a copy of our schema
+	merged := &TableSchema{
 		Name:                r.Name,
-		Columns:             commonFieldsSchema.Columns,
+		Columns:             make([]*ColumnSchema, len(r.Columns)),
 		AutoMapSourceFields: r.AutoMapSourceFields,
 		ExcludeSourceFields: r.ExcludeSourceFields,
 		Description:         r.Description,
 		NullValue:           r.NullValue,
 	}
 
-	commonFieldsMap := merged.AsMap()
-
-	for _, c := range r.Columns {
-		// for the common fields, just set the source form the configured schema
-		if commonColumn, ok := commonFieldsMap[c.ColumnName]; ok {
-			// mutate the common column in the merged schema
-			commonColumn.SourceName = c.SourceName
-			continue
+	// Copy our columns
+	for i, col := range r.Columns {
+		merged.Columns[i] = &ColumnSchema{
+			ColumnName:  col.ColumnName,
+			SourceName:  col.SourceName,
+			Type:        col.Type,
+			Required:    col.Required,
+			Description: col.Description,
+			NullValue:   col.NullValue,
 		}
-
-		merged.Columns = append(merged.Columns, &ColumnSchema{
-			ColumnName: c.ColumnName,
-			// NOTE: do not set the source from the table schema - just use the column name
-			// - the source in the table config relates to the mapping from raw row to mapped rown
-			// this schema will be used to convert the JSONL (i.e. the mapped row) to parquet
-			SourceName: c.ColumnName,
-			Type:       c.Type,
-			Required:   c.Required,
-		})
 	}
 
-	merged.AutoMapSourceFields = r.AutoMapSourceFields
+	// Create map for efficient lookup
+	mergedMap := merged.AsMap()
+
+	// Process common fields
+	for _, commonCol := range commonFieldsSchema.Columns {
+		if existingCol, exists := mergedMap[commonCol.ColumnName]; exists {
+			// Column exists - always use Type and Required from common schema
+			existingCol.Type = commonCol.Type
+			existingCol.Required = commonCol.Required
+			// Set Description only if not already set
+			if existingCol.Description == "" {
+				existingCol.Description = commonCol.Description
+			}
+			// Set SourceName only if not already set
+			if existingCol.SourceName == "" {
+				existingCol.SourceName = commonCol.SourceName
+			}
+		} else {
+			// Column doesn't exist - add the common column
+			merged.Columns = append(merged.Columns, commonCol)
+		}
+	}
+
 	return merged
 }
 
-// TODO TACTICAL
-// return a copy with the source fields set the the fcolumn names - this is used to create the parquet schema
+// WithSourceFieldsCleared returns a copy with the source fields set the the fcolumn names - this is used to create the parquet schema
 // SourceName refers to one of 2 things depdending on where the schema is used
 // 1. When the schemas is used by a mapper, SourceName refers to the field name in the raw row data
 // 2. When the schema is used by the JSONL conversion, SourceName refers to the column name in the JSONL
-
 func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
 	res := &TableSchema{
 		Name:                r.Name,

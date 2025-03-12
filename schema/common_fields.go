@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 )
 
 const DefaultIndex = "default"
@@ -17,116 +18,117 @@ func CommonFieldsSchema() *TableSchema {
 		Name: "common_fields",
 		Columns: []*ColumnSchema{
 			{
-				ColumnName:  "tp_timestamp",
-				SourceName:  "tp_timestamp",
+				ColumnName:  constants.TpTimestamp,
+				SourceName:  constants.TpTimestamp,
 				Type:        "TIMESTAMP",
-				Description: DefaultCommonFieldDescriptions["tp_timestamp"],
+				Description: DefaultCommonFieldDescriptions[constants.TpTimestamp],
 				Required:    true,
 			},
 			{
-				ColumnName:  "tp_id",
-				SourceName:  "tp_id",
+				ColumnName:  constants.TpID,
+				SourceName:  constants.TpID,
 				Type:        "VARCHAR",
-				Description: DefaultCommonFieldDescriptions["tp_id"],
+				Description: DefaultCommonFieldDescriptions[constants.TpID],
+				Required:    true,
 			},
 			{
-				ColumnName:  "tp_source_type",
-				SourceName:  "tp_source_type",
+				ColumnName:  constants.TpSourceType,
+				SourceName:  constants.TpSourceType,
 				Type:        "VARCHAR",
-				Description: DefaultCommonFieldDescriptions["tp_source_type"],
+				Description: DefaultCommonFieldDescriptions[constants.TpSourceType],
 			},
 			{
-				ColumnName:  "tp_ingest_timestamp",
-				SourceName:  "tp_ingest_timestamp",
+				ColumnName:  constants.TpIngestTimestamp,
+				SourceName:  constants.TpIngestTimestamp,
 				Type:        "TIMESTAMP",
-				Description: DefaultCommonFieldDescriptions["tp_ingest_timestamp"],
+				Description: DefaultCommonFieldDescriptions[constants.TpIngestTimestamp],
 			},
 			// Hive fields
 			{
-				ColumnName:  "tp_table",
-				SourceName:  "tp_table",
+				ColumnName:  constants.TpTable,
+				SourceName:  constants.TpTable,
 				Type:        "VARCHAR",
-				Description: DefaultCommonFieldDescriptions["tp_table"],
+				Description: DefaultCommonFieldDescriptions[constants.TpTable],
 			},
 			{
-				ColumnName:  "tp_partition",
-				SourceName:  "tp_partition",
+				ColumnName:  constants.TpPartition,
+				SourceName:  constants.TpPartition,
 				Type:        "VARCHAR",
-				Description: DefaultCommonFieldDescriptions["tp_partition"],
+				Description: DefaultCommonFieldDescriptions[constants.TpPartition],
 			},
 			{
-				ColumnName:  "tp_index",
-				SourceName:  "tp_index",
+				ColumnName:  constants.TpIndex,
+				SourceName:  constants.TpIndex,
 				Type:        "VARCHAR",
-				Description: DefaultCommonFieldDescriptions["tp_index"],
+				Description: DefaultCommonFieldDescriptions[constants.TpIndex],
 			},
 			{
-				ColumnName:  "tp_date",
-				SourceName:  "tp_date",
+				ColumnName:  constants.TpDate,
+				SourceName:  constants.TpDate,
 				Type:        "DATE",
-				Description: DefaultCommonFieldDescriptions["tp_date"],
+				Description: DefaultCommonFieldDescriptions[constants.TpDate],
 			},
 			// Optional fields
 			{
-				ColumnName:  "tp_source_ip",
-				SourceName:  "tp_source_ip",
+				ColumnName:  constants.TpSourceIP,
+				SourceName:  constants.TpSourceIP,
 				Type:        "VARCHAR",
-				Description: DefaultCommonFieldDescriptions["tp_source_ip"],
+				Description: DefaultCommonFieldDescriptions[constants.TpSourceIP],
 			},
 			{
-				ColumnName:  "tp_destination_ip",
-				SourceName:  "tp_destination_ip",
+				ColumnName:  constants.TpDestinationIP,
+				SourceName:  constants.TpDestinationIP,
 				Type:        "VARCHAR",
-				Description: DefaultCommonFieldDescriptions["tp_destination_ip"],
+				Description: DefaultCommonFieldDescriptions[constants.TpDestinationIP],
 			},
 			{
-				ColumnName:  "tp_source_name",
-				SourceName:  "tp_source_name",
+				ColumnName:  constants.TpSourceName,
+				SourceName:  constants.TpSourceName,
 				Type:        "VARCHAR",
-				Description: DefaultCommonFieldDescriptions["tp_source_name"],
+				Description: DefaultCommonFieldDescriptions[constants.TpSourceName],
 			},
 			{
-				ColumnName:  "tp_source_location",
-				SourceName:  "tp_source_location",
+				ColumnName:  constants.TpSourceLocation,
+				SourceName:  constants.TpSourceLocation,
 				Type:        "VARCHAR",
-				Description: DefaultCommonFieldDescriptions["tp_source_location"],
+				Description: DefaultCommonFieldDescriptions[constants.TpSourceLocation],
 			},
 			// Searchable fields (arrays)
 			{
-				ColumnName:  "tp_akas",
-				SourceName:  "tp_akas",
+				ColumnName:  constants.TpAkas,
+				SourceName:  constants.TpAkas,
 				Type:        "VARCHAR[]",
-				Description: DefaultCommonFieldDescriptions["tp_akas"],
+				Description: DefaultCommonFieldDescriptions[constants.TpAkas],
 			},
 			{
-				ColumnName:  "tp_ips",
-				SourceName:  "tp_ips",
+				ColumnName:  constants.TpIps,
+				SourceName:  constants.TpIps,
 				Type:        "VARCHAR[]",
-				Description: DefaultCommonFieldDescriptions["tp_ips"],
+				Description: DefaultCommonFieldDescriptions[constants.TpIps],
 			},
 			{
-				ColumnName:  "tp_tags",
-				SourceName:  "tp_tags",
+				ColumnName:  constants.TpTags,
+				SourceName:  constants.TpTags,
 				Type:        "VARCHAR[]",
-				Description: DefaultCommonFieldDescriptions["tp_tags"],
+				Description: DefaultCommonFieldDescriptions[constants.TpTags],
 			},
 			{
-				ColumnName:  "tp_domains",
-				SourceName:  "tp_domains",
+				ColumnName:  constants.TpDomains,
+				SourceName:  constants.TpDomains,
 				Type:        "VARCHAR[]",
-				Description: DefaultCommonFieldDescriptions["tp_domains"],
+				Description: DefaultCommonFieldDescriptions[constants.TpDomains],
 			},
 			{
-				ColumnName:  "tp_emails",
-				SourceName:  "tp_emails",
+				ColumnName:  constants.TpEmails,
+				SourceName:  constants.TpEmails,
 				Type:        "VARCHAR[]",
-				Description: DefaultCommonFieldDescriptions["tp_emails"],
+				Description: DefaultCommonFieldDescriptions[constants.TpEmails],
 			},
 			{
-				ColumnName:  "tp_usernames",
-				SourceName:  "tp_usernames",
+				ColumnName:  constants.TpUsernames,
+				SourceName:  constants.TpUsernames,
 				Type:        "VARCHAR[]",
-				Description: DefaultCommonFieldDescriptions["tp_usernames"],
+				Description: DefaultCommonFieldDescriptions[constants.TpUsernames],
 			},
 		},
 	}
@@ -161,12 +163,6 @@ type CommonFields struct {
 	TpUsernames []string `json:"tp_usernames,omitempty"`
 }
 
-func CommonFieldsFromMap(source map[string]string) CommonFields {
-	var c CommonFields
-	c.InitialiseFromMap(source)
-	return c
-}
-
 // Validate implements the Validatable interface and is used to validate that the required fields have been set
 // it can also be overridden by RowStruct implementations to perform additional validation - in this case
 // CommonFields.Validate() should be called first
@@ -175,36 +171,36 @@ func (c *CommonFields) Validate() error {
 	var invalidFields []string
 	// ensure required fields are set
 	if c.TpID == "" {
-		missingFields = append(missingFields, "TpID")
+		missingFields = append(missingFields, constants.TpID)
 	}
 	if c.TpSourceType == "" {
-		missingFields = append(missingFields, "TpSourceType")
+		missingFields = append(missingFields, constants.TpSourceType)
 	}
 	if c.TpIngestTimestamp.IsZero() {
-		missingFields = append(missingFields, "TpIngestTimestamp")
+		missingFields = append(missingFields, constants.TpIngestTimestamp)
 	}
 	if c.TpTimestamp.IsZero() {
-		missingFields = append(missingFields, "TpTimestamp")
+		missingFields = append(missingFields, constants.TpTimestamp)
 	}
 	if c.TpTable == "" {
-		missingFields = append(missingFields, "TpTable")
+		missingFields = append(missingFields, constants.TpTable)
 	}
 	if c.TpPartition == "" {
-		missingFields = append(missingFields, "TpPartition")
+		missingFields = append(missingFields, constants.TpPartition)
 	}
 	if c.TpIndex == "" {
-		missingFields = append(missingFields, "TpIndex")
+		missingFields = append(missingFields, constants.TpIndex)
 	} else {
 		// handles instances where tp_index is the same value with different casing (as seen on Azure data with subscription_id being either upper or lower case)
 		// when tp_index is differential in casing it causes data to not be set against the partition correctly
 		c.TpIndex = strings.ToLower(c.TpIndex)
 	}
 	if c.TpDate.IsZero() {
-		missingFields = append(missingFields, "TpDate")
+		missingFields = append(missingFields, constants.TpDate)
 	}
 	// verify that the date is a date and not a datetime
 	if !c.TpDate.Equal(c.TpDate.Truncate(24 * time.Hour)) {
-		invalidFields = append(invalidFields, "TpDate")
+		invalidFields = append(invalidFields, constants.TpDate)
 	}
 	var missingFieldsStr, invalidFieldsStr string
 	if len(missingFields) > 0 {
@@ -226,134 +222,130 @@ func (c *CommonFields) Validate() error {
 	return nil
 }
 
-// GetCommonFields implements RowStruct
-func (c *CommonFields) GetCommonFields() CommonFields {
-	// just return ourselves
-	return *c
-}
-
 // InitialiseFromMap initializes a CommonFields struct using a source map
 func (c *CommonFields) InitialiseFromMap(source map[string]string) {
 	const timeFormat = time.RFC3339
 
 	// Mandatory fields
-	if value, ok := source["tp_id"]; ok {
+	if value, ok := source[constants.TpID]; ok {
 		c.TpID = value
 	}
-	if value, ok := source["tp_source_type"]; ok {
+	if value, ok := source[constants.TpSourceType]; ok {
 		c.TpSourceType = value
 	}
-	if value, ok := source["tp_ingest_timestamp"]; ok {
+	if value, ok := source[constants.TpIngestTimestamp]; ok {
 		if t, err := time.Parse(timeFormat, value); err == nil {
 			c.TpIngestTimestamp = t
 		}
 	}
-	if value, ok := source["tp_timestamp"]; ok {
+	if value, ok := source[constants.TpTimestamp]; ok {
 		if t, err := time.Parse(timeFormat, value); err == nil {
 			c.TpTimestamp = t
 		}
 	}
 
 	// Hive fields
-	if value, ok := source["tp_table"]; ok {
+	if value, ok := source[constants.TpTable]; ok {
 		c.TpTable = value
 	}
-	if value, ok := source["tp_partition"]; ok {
+	if value, ok := source[constants.TpPartition]; ok {
 		c.TpPartition = value
 	}
-	if value, ok := source["tp_index"]; ok {
+	if value, ok := source[constants.TpIndex]; ok {
 		c.TpIndex = value
 	}
-	if value, ok := source["tp_date"]; ok {
+	if value, ok := source[constants.TpDate]; ok {
 		if t, err := time.Parse(timeFormat, value); err == nil {
 			c.TpDate = t
 		}
 	}
 
 	// Optional fields
-	if value, ok := source["tp_source_ip"]; ok {
+	if value, ok := source[constants.TpSourceIP]; ok {
 		c.TpSourceIP = &value
 	}
-	if value, ok := source["tp_destination_ip"]; ok {
+	if value, ok := source[constants.TpDestinationIP]; ok {
 		c.TpDestinationIP = &value
 	}
-	if value, ok := source["tp_source_name"]; ok {
+	if value, ok := source[constants.TpSourceName]; ok {
 		c.TpSourceName = &value
 	}
-	if value, ok := source["tp_source_location"]; ok {
+	if value, ok := source[constants.TpSourceLocation]; ok {
 		c.TpSourceLocation = &value
 	}
 
 	// Searchable fields (slices)
-	if value, ok := source["tp_akas"]; ok {
+	if value, ok := source[constants.TpAkas]; ok {
 		c.TpAkas = strings.Split(value, ",")
 	}
-	if value, ok := source["tp_ips"]; ok {
+	if value, ok := source[constants.TpIps]; ok {
 		c.TpIps = strings.Split(value, ",")
 	}
-	if value, ok := source["tp_tags"]; ok {
+	if value, ok := source[constants.TpTags]; ok {
 		c.TpTags = strings.Split(value, ",")
 	}
-	if value, ok := source["tp_domains"]; ok {
+	if value, ok := source[constants.TpDomains]; ok {
 		c.TpDomains = strings.Split(value, ",")
 	}
-	if value, ok := source["tp_emails"]; ok {
+	if value, ok := source[constants.TpEmails]; ok {
 		c.TpEmails = strings.Split(value, ",")
 	}
-	if value, ok := source["tp_usernames"]; ok {
+	if value, ok := source[constants.TpUsernames]; ok {
 		c.TpUsernames = strings.Split(value, ",")
 	}
 }
 
+// TODO KAI make this map[string] inteface then dynamic row can add directly to output fields
+// but would mean we need a proto common+_fields type
 // AsMap converts the CommonFields struct into a map[string]string.
 func (c *CommonFields) AsMap() map[string]string {
 	result := make(map[string]string)
 	const timeFormat = time.RFC3339
 
 	// Mandatory fields
-	result["tp_id"] = c.TpID
-	result["tp_source_type"] = c.TpSourceType
-	result["tp_ingest_timestamp"] = c.TpIngestTimestamp.Format(timeFormat)
-	result["tp_timestamp"] = c.TpTimestamp.Format(timeFormat)
+	result[constants.TpID] = c.TpID
+	result[constants.TpSourceType] = c.TpSourceType
+	result[constants.TpIngestTimestamp] = c.TpIngestTimestamp.Format(timeFormat)
+	result[constants.TpTimestamp] = c.TpTimestamp.Format(timeFormat)
 
 	// Hive fields
-	result["tp_table"] = c.TpTable
-	result["tp_partition"] = c.TpPartition
-	result["tp_index"] = c.TpIndex
-	result["tp_date"] = c.TpDate.Format(timeFormat)
+	result[constants.TpTable] = c.TpTable
+	result[constants.TpPartition] = c.TpPartition
+	result[constants.TpIndex] = c.TpIndex
+	result[constants.TpDate] = c.TpDate.Format(timeFormat)
 
 	// Optional fields
 	if c.TpSourceIP != nil {
-		result["tp_source_ip"] = *c.TpSourceIP
+		result[constants.TpSourceIP] = *c.TpSourceIP
 	}
 	if c.TpDestinationIP != nil {
-		result["tp_destination_ip"] = *c.TpDestinationIP
+		result[constants.TpDestinationIP] = *c.TpDestinationIP
 	}
 	if c.TpSourceName != nil {
-		result["tp_source_name"] = *c.TpSourceName
+		result[constants.TpSourceName] = *c.TpSourceName
 	}
 	if c.TpSourceLocation != nil {
-		result["tp_source_location"] = *c.TpSourceLocation
+		result[constants.TpSourceLocation] = *c.TpSourceLocation
 	}
 
 	// Searchable fields
 	if len(c.TpAkas) > 0 {
-		result["tp_akas"] = strings.Join(c.TpAkas, ",")
+		result[constants.TpAkas] = strings.Join(c.TpAkas, ",")
 	}
 	if len(c.TpIps) > 0 {
-		result["tp_ips"] = strings.Join(c.TpIps, ",")
+		result[constants.TpIps] = strings.Join(c.TpIps, ",")
 	}
 	if len(c.TpTags) > 0 {
-		result["tp_tags"] = strings.Join(c.TpTags, ",")
+		result[constants.TpTags] = strings.Join(c.TpTags, ",")
 	}
 	if len(c.TpDomains) > 0 {
-		result["tp_domains"] = strings.Join(c.TpDomains, ",")
+		result[constants.TpDomains] = strings.Join(c.TpDomains, ",")
 	}
 	if len(c.TpEmails) > 0 {
-		result["tp_emails"] = strings.Join(c.TpEmails, ",")
+		result[constants.TpEmails] = strings.Join(c.TpEmails, ",")
 	}
 	if len(c.TpUsernames) > 0 {
-		result["tp_usernames"] = strings.Join(c.TpUsernames, ",")
+		result[constants.TpUsernames] = strings.Join(c.TpUsernames, ",")
 	}
 
 	return result
@@ -361,24 +353,24 @@ func (c *CommonFields) AsMap() map[string]string {
 
 // TODO improve these descriptions https://github.com/turbot/tailpipe-plugin-sdk/issues/83
 var DefaultCommonFieldDescriptions = map[string]string{
-	"tp_id":               "A unique identifier for the row.",
-	"tp_source_type":      "The name of the source that collected the row.",
-	"tp_ingest_timestamp": "The timestamp in UTC when the row was ingested into the system.",
-	"tp_timestamp":        "The original timestamp in UTC when the event or log entry was generated.",
-	"tp_table":            "The name of the table.",
-	"tp_partition":        "The name of the partition as defined in the Tailpipe configuration file.",
-	"tp_index":            "The name of the optional index used to partition the data.",
-	"tp_date":             "The original date when the event or log entry was generated in YYYY-MM-DD format.",
-	"tp_source_ip":        "The IP address of the source.",
-	"tp_destination_ip":   "The IP address of the destination.",
-	"tp_source_name":      "The name or identifier of the source generating the row, such as a service name.",
-	"tp_source_location":  "The geographic or network location of the source, such as a region.",
-	"tp_akas":             "A list of associated globally unique identifier strings (also known as).",
-	"tp_ips":              "A list of associated IP addresses.",
-	"tp_tags":             "A list of associated tags or labels.",
-	"tp_domains":          "A list of associated domain names.",
-	"tp_emails":           "A list of associated email addresses.",
-	"tp_usernames":        "A list of associated usernames or identities.",
+	constants.TpID:              "A unique identifier for the row.",
+	constants.TpSourceType:      "The name of the source that collected the row.",
+	constants.TpIngestTimestamp: "The timestamp in UTC when the row was ingested into the system.",
+	constants.TpTimestamp:       "The original timestamp in UTC when the event or log entry was generated.",
+	constants.TpTable:           "The name of the table.",
+	constants.TpPartition:       "The name of the partition as defined in the Tailpipe configuration file.",
+	constants.TpIndex:           "The name of the optional index used to partition the data.",
+	constants.TpDate:            "The original date when the event or log entry was generated in YYYY-MM-DD format.",
+	constants.TpSourceIP:        "The IP address of the source.",
+	constants.TpDestinationIP:   "The IP address of the destination.",
+	constants.TpSourceName:      "The name or identifier of the source generating the row, such as a service name.",
+	constants.TpSourceLocation:  "The geographic or network location of the source, such as a region.",
+	constants.TpAkas:            "A list of associated globally unique identifier strings (also known as).",
+	constants.TpIps:             "A list of associated IP addresses.",
+	constants.TpTags:            "A list of associated tags or labels.",
+	constants.TpDomains:         "A list of associated domain names.",
+	constants.TpEmails:          "A list of associated email addresses.",
+	constants.TpUsernames:       "A list of associated usernames or identities.",
 }
 
 func IsCommonField(name string) bool {

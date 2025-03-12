@@ -20,5 +20,4 @@ type DynamicTableConfig interface {
 
 type RowStruct interface {
 	Validate() error
-	GetCommonFields() schema.CommonFields
 }

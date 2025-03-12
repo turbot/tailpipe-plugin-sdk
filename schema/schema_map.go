@@ -21,7 +21,7 @@ func SchemaMapFromProto(p map[string]*proto.Schema) SchemaMap {
 	var res = make(SchemaMap, len(p))
 
 	for k, v := range p {
-		res[k] = RowSchemaFromProto(v)
+		res[k] = TableSchemaFromProto(v)
 	}
 	return res
 }

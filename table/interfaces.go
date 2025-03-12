@@ -40,7 +40,7 @@ type Collector interface {
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
 	Collect(context.Context) (int, int, error)
-	GetSchema() (*schema.TableSchema, error)
+	GetSchema() *schema.TableSchema
 	GetFromTime() *row_source.ResolvedFromTime
 }
 

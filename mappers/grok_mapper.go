@@ -12,13 +12,10 @@ import (
 	"github.com/elastic/go-grok"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type GrokMapper[T MapInitialisedRow] struct {
 	parser *grok.Grok
-
-	schema *schema.TableSchema
 }
 
 // NewGrokMapper creates a new GrokMapper which contains a grok parser for each layout.
@@ -48,9 +45,6 @@ func (c *GrokMapper[T]) Identifier() string {
 	return "grok_mapper"
 }
 
-func (c *GrokMapper[T]) SetSchema(schema *schema.TableSchema) {
-	c.schema = schema
-}
 
 func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, error) {
 	var empty T
@@ -75,7 +69,7 @@ func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, 
 
 	// Map parsed fields to the row struct
 	row := utils.InstanceOf[T]()
-	if err := row.InitialiseFromMap(rowMap, c.schema); err != nil {
+	if err := row.InitialiseFromMap(rowMap); err != nil {
 		return empty, fmt.Errorf("error initializing row from map: %w", err)
 	}
 
