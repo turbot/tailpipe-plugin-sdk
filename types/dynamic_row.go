@@ -17,56 +17,58 @@ import (
 
 type DynamicRow struct {
 	// the source columns as a string map (the format output by the mappers)
-	sourceColumns map[string]string
+	SourceColumns map[string]string
+
 	// the output columns, as a map of string to interface{} - the result of enrichment and type conversion
 	OutputColumns map[string]interface{}
 }
 
 func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 	// just assign the source columns
-	l.sourceColumns = m
+	l.SourceColumns = m
+	l.OutputColumns = make(map[string]interface{})
 	return nil
 }
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
 func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFields schema.SourceEnrichment) error {
 	// we expect the columns to be initialised by a previous call to InitialiseFromMap
-	if l.sourceColumns == nil {
+	if l.SourceColumns == nil {
 		return fmt.Errorf("the DynamicRow struct has not been initialised with a map of columns")
 	}
 
-	// apply source common fields
+	// merge in source common fields
 	for k, v := range sourceEnrichmentFields.CommonFields.AsMap() {
-		if _, ok := l.sourceColumns[k]; !ok {
-			l.sourceColumns[k] = v
+		if _, ok := l.SourceColumns[k]; !ok {
+			l.SourceColumns[k] = v
 		}
 	}
 
 	const timeFormat = time.RFC3339
 
-	// auto populate id and timestamp
-	l.sourceColumns[constants.TpID] = xid.New().String()
-	l.sourceColumns[constants.TpIngestTimestamp] = time.Now().Format(timeFormat)
+	// auto populate id and ingest timestamp
+	l.SourceColumns[constants.TpID] = xid.New().String()
+	l.SourceColumns[constants.TpIngestTimestamp] = time.Now().Format(timeFormat)
 
 	// if no index is set, set the the default
-	if l.sourceColumns[constants.TpIndex] == "" {
-		l.sourceColumns[constants.TpIndex] = schema.DefaultIndex
+	if l.SourceColumns[constants.TpIndex] == "" {
+		l.SourceColumns[constants.TpIndex] = schema.DefaultIndex
 	}
 
 	// if we have a tp_timestamp, parse it and update the field
-	if timestampStr, ok := l.sourceColumns[constants.TpTimestamp]; ok {
+	if timestampStr, ok := l.SourceColumns[constants.TpTimestamp]; ok {
 		timestamp, err := helpers.ParseTime(timestampStr)
 		if err != nil {
 			return fmt.Errorf("error parsing tp_timestamp: %w", err)
 		}
 
-		l.sourceColumns[constants.TpTimestamp] = timestamp.Format(timeFormat)
+		l.SourceColumns[constants.TpTimestamp] = timestamp.Format(timeFormat)
 		// also set the date
-		l.sourceColumns[constants.TpDate] = timestamp.Truncate(24 * time.Hour).Format(timeFormat)
+		l.SourceColumns[constants.TpDate] = timestamp.Truncate(24 * time.Hour).Format(timeFormat)
 	}
 
 	// now ask the schema to map the row for uas
-	outputColumns, err := tableSchema.MapRow(l.sourceColumns)
+	outputColumns, err := tableSchema.MapRow(l.SourceColumns)
 	if err != nil {
 		return fmt.Errorf("error mapping row: %w", err)
 	}

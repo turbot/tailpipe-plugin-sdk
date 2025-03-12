@@ -1,6 +1,7 @@
 package schema
 
 import (
+	"database/sql"
 	"fmt"
 	"strings"
 	"time"
@@ -87,6 +88,7 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 	// now add all explicitly defined columns
 	for _, c := range r.Columns {
+		// default source name to column name
 		sourceName := c.ColumnName
 		if c.SourceName != "" {
 			sourceName = c.SourceName
@@ -94,14 +96,13 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 		//
 		if v, ok := sourceMap[sourceName]; !ok {
 			if c.Required {
-				return nil, fmt.Errorf("source field '%s' not found in row", sourceName)
+				return nil, fmt.Errorf("column '%s' is required, but source field '%s' not found in row", c.ColumnName, sourceName)
 			}
 			// if the field is not required, we just skip it
 		} else {
 			// check for null value
 			// by default, treat an empty string as a null value, but this may be overridden by the config
 			if !r.isNullValue(c, v) {
-
 				// map the value - this handles nulls and correct formatting arrays and times
 				val, err := r.mapValue(c, v)
 				if err != nil {
@@ -114,7 +115,7 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 	return res, nil
 }
 
-func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (string, error) {
+func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interface{}, error) {
 	ty := column.Type
 
 	//// treat arrays separately
@@ -122,6 +123,28 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (string, 
 	//	return  mapArrayValue(valString, arrayType)
 	//}
 	// todo use duckdb to map
+
+	// if a select clause is provided, use that
+	if column.SelectClause != "" {
+		db, err := sql.Open("duckdb", "")
+		if err != nil {
+			return "", fmt.Errorf("error opening duckdb connection: %w", err)
+		}
+		defer db.Close()
+		// use the select clause to map the value
+		// we assume (and validate) that the select clause a DuckDB function name, with a parameter, e.g. 'UPPER(?)'
+		// TODO verify the select clause contains 1 param '?'
+
+		query := fmt.Sprintf("SELECT %s", column.SelectClause)
+		row := db.QueryRow(query, valString)
+		var val interface{}
+		err = row.Scan(&val)
+		if err != nil {
+			return "", fmt.Errorf("error executing select clause '%s' for column '%s': %w", column.SelectClause, column.ColumnName, err)
+		}
+		return val, nil
+	}
+	// if the type is a date time, parse it
 
 	// now format the string according to the type
 	switch ty {
@@ -135,6 +158,18 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (string, 
 	//	TODO array, struct
 	default:
 
+		// if it is an array of any kind, default to split on commas
+		if strings.HasSuffix(ty, "[]") {
+			vals := strings.Split(valString, ",")
+			// trim spaces
+			for i, v := range vals {
+				vals[i] = strings.TrimSpace(v)
+			}
+			// return as a slice
+			return vals, nil
+		}
+
+		// for all other types, just return the string and rely on
 		return valString, nil
 	}
 }
