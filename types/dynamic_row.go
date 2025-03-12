@@ -4,20 +4,20 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/rs/xid"
+	"golang.org/x/exp/maps"
 	"strings"
 	"time"
 
-	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 
-	"github.com/rs/xid"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type DynamicRow struct {
 	// the source columns as a string map (the format output by the mappers)
-	SourceColumns map[string]string
+	sourceColumns map[string]string
 
 	// the output columns, as a map of string to interface{} - the result of enrichment and type conversion
 	OutputColumns map[string]interface{}
@@ -25,7 +25,7 @@ type DynamicRow struct {
 
 func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 	// just assign the source columns
-	l.SourceColumns = m
+	l.sourceColumns = m
 	l.OutputColumns = make(map[string]interface{})
 	return nil
 }
@@ -33,47 +33,43 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 // Enrich uses the provided mappings to populate the common fields from mapped column values
 func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFields schema.SourceEnrichment) error {
 	// we expect the columns to be initialised by a previous call to InitialiseFromMap
-	if l.SourceColumns == nil {
+	if l.sourceColumns == nil {
 		return fmt.Errorf("the DynamicRow struct has not been initialised with a map of columns")
 	}
 
 	// merge in source common fields
+	// TODO - when CommonFields.AsMap returns map[string]any, we can apply this directly to OutputColumns
+	// NOTE: these have precedence over any source related tp columns which are already populated
+	// from the source data - this is by design
 	for k, v := range sourceEnrichmentFields.CommonFields.AsMap() {
-		if _, ok := l.SourceColumns[k]; !ok {
-			l.SourceColumns[k] = v
+		if _, ok := l.sourceColumns[k]; !ok {
+			l.sourceColumns[k] = v
 		}
-	}
-
-	const timeFormat = time.RFC3339
-
-	// auto populate id and ingest timestamp
-	l.SourceColumns[constants.TpID] = xid.New().String()
-	l.SourceColumns[constants.TpIngestTimestamp] = time.Now().Format(timeFormat)
-
-	// if no index is set, set the the default
-	if l.SourceColumns[constants.TpIndex] == "" {
-		l.SourceColumns[constants.TpIndex] = schema.DefaultIndex
-	}
-
-	// if we have a tp_timestamp, parse it and update the field
-	if timestampStr, ok := l.SourceColumns[constants.TpTimestamp]; ok {
-		timestamp, err := helpers.ParseTime(timestampStr)
-		if err != nil {
-			return fmt.Errorf("error parsing tp_timestamp: %w", err)
-		}
-
-		l.SourceColumns[constants.TpTimestamp] = timestamp.Format(timeFormat)
-		// also set the date
-		l.SourceColumns[constants.TpDate] = timestamp.Truncate(24 * time.Hour).Format(timeFormat)
 	}
 
 	// now ask the schema to map the row for uas
-	outputColumns, err := tableSchema.MapRow(l.SourceColumns)
+	outputColumns, err := tableSchema.MapRow(l.sourceColumns)
 	if err != nil {
 		return fmt.Errorf("error mapping row: %w", err)
 	}
-	// set the output columns
+	// merge the output columns with our current output columns, with the rows current out columns having precedence
+	// (the plugin may have added some columns to the row)
+	maps.Copy(outputColumns, l.OutputColumns)
 	l.OutputColumns = outputColumns
+
+	// auto populate id and ingest timestamp
+	l.OutputColumns[constants.TpID] = xid.New().String()
+	l.OutputColumns[constants.TpIngestTimestamp] = time.Now()
+
+	// if no index is set, set the the default
+	if tpIndex, ok := l.OutputColumns[constants.TpIndex].(string); !ok || tpIndex == "" {
+		l.OutputColumns[constants.TpIndex] = schema.DefaultIndex
+	}
+
+	// if we have a tp_timestamp, populate the tp_date
+	if tpTimestamp, ok := l.OutputColumns[constants.TpTimestamp].(time.Time); ok && !tpTimestamp.IsZero() {
+		l.OutputColumns[constants.TpDate] = tpTimestamp.Truncate(24 * time.Hour)
+	}
 
 	return nil
 }
@@ -184,4 +180,9 @@ func (l *DynamicRow) validateTime(t interface{}) error {
 // MarshalJSON overrides JSON serialization to include the dynamic columns
 func (l *DynamicRow) MarshalJSON() ([]byte, error) {
 	return json.Marshal(l.OutputColumns)
+}
+
+func (l *DynamicRow) GetSourceValue(s string) (string, bool) {
+	v, ok := l.sourceColumns[s]
+	return v, ok
 }

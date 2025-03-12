@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
@@ -71,6 +70,7 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 	schemaMap := r.AsMap()
 
+	// TODO need to think about automapping/test
 	if r.AutoMapSourceFields {
 		// build map of excluded fields
 		excludeMap := utils.SliceToLookup(r.ExcludeSourceFields)
@@ -94,23 +94,30 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 			sourceName = c.SourceName
 		}
 		//
-		if v, ok := sourceMap[sourceName]; !ok {
+		v, ok := sourceMap[sourceName]
+		if !ok {
 			if c.Required {
 				return nil, fmt.Errorf("column '%s' is required, but source field '%s' not found in row", c.ColumnName, sourceName)
 			}
 			// if the field is not required, we just skip it
-		} else {
-			// check for null value
-			// by default, treat an empty string as a null value, but this may be overridden by the config
-			if !r.isNullValue(c, v) {
-				// map the value - this handles nulls and correct formatting arrays and times
-				val, err := r.mapValue(c, v)
-				if err != nil {
-					return nil, err
-				}
-				res[c.ColumnName] = val
-			}
+			continue
 		}
+
+		// so we have a value for this column - is it null?
+		if r.isNullValue(c, v) {
+			// if the valkue matches the null string, exclude it - it will appear as null in the parquet
+			continue
+		}
+
+		// so we have a non null value
+
+		// map the value - this handles type conversion for arrays and time, and applying custom transforms
+		val, err := r.mapValue(c, v)
+		if err != nil {
+			return nil, err
+		}
+		res[c.ColumnName] = val
+
 	}
 	return res, nil
 }
@@ -132,7 +139,7 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 		}
 		defer db.Close()
 		// use the select clause to map the value
-		// we assume (and validate) that the select clause a DuckDB function name, with a parameter, e.g. 'UPPER(?)'
+		// we assume (and validate) that the select clause a DuckDB function name, with a parameter, e.g. UPPER(?) or STRING_SPLIT(?, ',')
 		// TODO verify the select clause contains 1 param '?'
 
 		query := fmt.Sprintf("SELECT %s", column.SelectClause)
@@ -149,16 +156,19 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 	// now format the string according to the type
 	switch ty {
 	case "TIMESTAMP", "DATE", "TIME":
+		// todo kai apply time format - only parse if format specified?
+		// TODO this duplicates what we already do for tp_timestamp in dynamicrow enrich  -
 		t, err := helpers.ParseTime(valString)
 		if err != nil {
 			return valString, fmt.Errorf("error parsing time value '%s' for column '%s': %w", valString, column.ColumnName, err)
 		}
-		// format the time as a string
-		return t.Format(time.RFC3339), nil
-	//	TODO array, struct
+
+		return t, nil
+
 	default:
 
-		// if it is an array of any kind, default to split on commas
+		// if it is an array, treat as a single value in an array
+		// if it needs splitting, the config should specify a select clause
 		if strings.HasSuffix(ty, "[]") {
 			vals := strings.Split(valString, ",")
 			// trim spaces
@@ -240,6 +250,7 @@ func (r *TableSchema) InitialiseFromInferredSchema(inferredSchema *TableSchema) 
 }
 
 func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
+	// TODO KAI check default
 	nullValue := r.NullValue
 	if c.NullValue != "" {
 		nullValue = c.NullValue
