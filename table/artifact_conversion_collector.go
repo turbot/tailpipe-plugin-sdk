@@ -44,7 +44,7 @@ func (c *ArtifactConversionCollector) UpdateCollectionState(ctx context.Context,
 	panic("implement me")
 }
 
-func NewArtifactConversionCollector() *ArtifactConversionCollector {
+func NewArtifactConversionCollector(Table[*types.DynamicRow]) *ArtifactConversionCollector {
 	return &ArtifactConversionCollector{
 		// TODO
 		//tableName:  tableDef.Name,
@@ -73,8 +73,8 @@ func (c *ArtifactConversionCollector) Identifier() string {
 
 // GetSchema returns the schema of the table if available
 // for dynamic tables, the schema is only available at this if the config contains a schema
-func (c *ArtifactConversionCollector) GetSchema() (*schema.TableSchema, error) {
-	return c.req.CustomTableSchema, nil
+func (c *ArtifactConversionCollector) GetSchema() *schema.TableSchema {
+	return c.req.CustomTableSchema
 }
 
 func (c *ArtifactConversionCollector) GetFromTime() *row_source.ResolvedFromTime {
@@ -183,7 +183,7 @@ func (c *ArtifactConversionCollector) initSource(ctx context.Context, configData
 
 	// get the source metadata for this source type
 	// (this returns an error if the source is not supported by the table)
-	sourceMetadata := &SourceMetadata[*DynamicRow]{
+	sourceMetadata := &SourceMetadata[*types.DynamicRow]{
 		SourceName: requestedSource,
 	}
 

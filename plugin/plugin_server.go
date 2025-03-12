@@ -63,16 +63,8 @@ func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*
 }
 
 // Describe returns the schema for the plugin
-func (s PluginServer) Describe(_ context.Context) (*proto.DescribeResponse, error) {
-	describeResponse, err := s.impl.Describe()
-	if err != nil {
-		return nil, err
-	}
-
-	// convert the response to proto
-	resp := describeResponse.ToProto()
-
-	return resp, nil
+func (s PluginServer) Describe(ctx context.Context, req *proto.DescribeRequest) (*proto.DescribeResponse, error) {
+	return s.impl.Describe(ctx, req)
 }
 
 func (s PluginServer) UpdateCollectionState(ctx context.Context, req *proto.UpdateCollectionStateRequest) (*proto.Empty, error) {

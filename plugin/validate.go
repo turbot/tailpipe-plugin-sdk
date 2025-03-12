@@ -1,7 +1,9 @@
 package plugin
 
 import (
+	"context"
 	"github.com/stretchr/testify/assert"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"testing"
@@ -29,7 +31,7 @@ func Validate(t *testing.T, ctor func() (TailpipePlugin, error)) {
 }
 
 func TestDescribe(t *testing.T, p TailpipePlugin) {
-	schema, err := p.Describe()
+	schema, err := p.Describe(context.Background(), &proto.DescribeRequest{})
 	assert.Nil(t, err)
 	assert.NotNil(t, schema)
 	assert.NotEmpty(t, schema)

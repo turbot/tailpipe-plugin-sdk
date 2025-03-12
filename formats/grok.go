@@ -3,11 +3,13 @@ package formats
 import (
 	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type Grok struct {
+	Name        string `hcl:",label"`
+	Description string `hcl:"description,optional"`
 	// the layout of the log line
 	// NOTE that as will contain grok patterns, this property is included in constants.GrokConfigProperties
 	// meaning and '{' will be auto-escaped in the hcl
@@ -17,23 +19,55 @@ type Grok struct {
 	Patterns map[string]string `hcl:"patterns,optional"`
 }
 
-func (c *Grok) Validate() error {
+func NewGrok() Format {
+	return &Grok{}
+}
+
+func (g *Grok) Validate() error {
 	return nil
 }
 
-func (c *Grok) Identifier() string {
+// Identifier returns the format type identifier
+func (g *Grok) Identifier() string {
 	return constants.SourceFormatGrok
 }
 
-func NewCustomFormat(formatData *types.FormatConfigData) (*Grok, error) {
-	if len(formatData.GetHcl()) > 0 {
-		var err error
-		format, err := parse.ParseConfig[*Grok](formatData)
-		if err != nil {
-			return nil, fmt.Errorf("error parsing config: %w", err)
-		}
+// GetName returns the name of this format instance
+func (g *Grok) GetName() string {
+	return g.Name
+}
 
-		return format, nil
+// SetName sets the name of this format instance
+func (g *Grok) SetName(name string) {
+	g.Name = name
+}
+
+func (g *Grok) GetDescription() string {
+	return g.Description
+}
+
+func (g *Grok) GetProperties() map[string]string {
+	properties := make(map[string]string)
+
+	properties["layout"] = g.Layout
+
+	if len(g.Patterns) > 0 {
+		for key, value := range g.Patterns {
+			properties[fmt.Sprintf("pattern: %s", key)] = value
+		}
 	}
-	return &Grok{}, nil
+
+	return properties
+}
+
+func (g *Grok) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
+	return mappers.NewGrokMapper[*types.DynamicRow](g.Layout, g.Patterns)
+}
+
+func (g *Grok) GetRegex() (string, error) {
+	mapper, err := mappers.NewGrokMapper[*types.DynamicRow](g.Layout, g.Patterns)
+	if err != nil {
+		return "", err
+	}
+	return mapper.GetRegex()
 }

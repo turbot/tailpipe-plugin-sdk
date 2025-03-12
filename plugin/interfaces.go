@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
@@ -17,7 +18,7 @@ type TailpipePlugin interface {
 
 	// Describe returns the duck DB schema for all tables
 	// this must be implemented by the plugin implementation
-	Describe() (DescribeResponse, error)
+	Describe(ctx context.Context, req *proto.DescribeRequest) (*proto.DescribeResponse, error)
 
 	// AddObserver adda an observer to the plugin to receive status events
 	// this is implemented by plugin.PluginImpl and should not be overridden

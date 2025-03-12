@@ -1,12 +1,15 @@
 package types
 
 import (
+	"fmt"
 	"github.com/hashicorp/hcl/v2"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
 type FormatConfigData struct {
 	*ConfigDataImpl
+	Name string
 }
 
 func NewFormatConfigData(hcl []byte, decRange hcl.Range, formatType string) *FormatConfigData {
@@ -18,4 +21,13 @@ func NewFormatConfigData(hcl []byte, decRange hcl.Range, formatType string) *For
 			ConfigType:   constants.ConfigTypeFormat,
 		},
 	}
+}
+
+func FormatConfigDataFromProto(data *proto.FormatData) (*FormatConfigData, error) {
+	configData, err := ConfigDataFromProto[*FormatConfigData](data.Config)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing format config data: %w", err)
+	}
+	configData.Name = data.Name
+	return configData, nil
 }

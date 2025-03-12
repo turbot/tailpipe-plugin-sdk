@@ -4,18 +4,18 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
+	"regexp"
 	"regexp/syntax"
+	"unsafe"
 
 	"github.com/elastic/go-grok"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type GrokMapper[T MapInitialisedRow] struct {
 	parser *grok.Grok
-
-	schema *schema.TableSchema
 }
 
 // NewGrokMapper creates a new GrokMapper which contains a grok parser for each layout.
@@ -45,9 +45,7 @@ func (c *GrokMapper[T]) Identifier() string {
 	return "grok_mapper"
 }
 
-func (c *GrokMapper[T]) SetSchema(schema *schema.TableSchema) {
-	c.schema = schema
-}
+
 func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, error) {
 	var empty T
 
@@ -71,9 +69,37 @@ func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, 
 
 	// Map parsed fields to the row struct
 	row := utils.InstanceOf[T]()
-	if err := row.InitialiseFromMap(rowMap, c.schema); err != nil {
+	if err := row.InitialiseFromMap(rowMap); err != nil {
 		return empty, fmt.Errorf("error initializing row from map: %w", err)
 	}
 
 	return row, nil
+}
+
+func (c *GrokMapper[T]) GetRegex() (_ string, err error) {
+	if c.parser == nil {
+		return "", fmt.Errorf("no parser configured")
+	}
+	// unfortunately the regex field in the grok parser is private so we need to use reflection to get it
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("failed to get regex from grok parser: %w", helpers.ToError(r))
+		}
+	}()
+	parserValue := reflect.ValueOf(c.parser).Elem()
+	regexField := parserValue.FieldByName("re")
+
+	// Ensure the field is valid and addressable
+	if !regexField.IsValid() || !regexField.CanAddr() {
+		return "", fmt.Errorf("could not find or access regex field in grok.Grok")
+	}
+
+	// Ensure the field is of the correct type
+	if regexField.Type() != reflect.TypeOf(&regexp.Regexp{}) {
+		return "", fmt.Errorf("regex field is not of type *regexp.Regexp")
+	}
+
+	// Get the value of the regex field
+	regexPtr := (*regexp.Regexp)(unsafe.Pointer(regexField.UnsafeAddr()))
+	return regexPtr.String(), nil
 }

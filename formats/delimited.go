@@ -5,9 +5,13 @@ import (
 	"strings"
 
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/mappers"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type Delimited struct {
+	Name        string `hcl:",label"`
+	Description string `hcl:"description,optional"`
 	// Option to skip type detection for CSV parsing and assume all columns to be of type VARCHAR
 	AllVarchar *bool
 
@@ -68,86 +72,175 @@ type Delimited struct {
 	TimestampFormat *string
 }
 
-func (c *Delimited) Validate() error {
+func NewDelimited() Format {
+	return &Delimited{}
+}
+
+func (d *Delimited) Validate() error {
 	return nil
 }
 
-func (c *Delimited) Identifier() string {
+// GetName returns the name of this format instance
+func (d *Delimited) GetName() string {
+	return d.Name
+}
+
+// SetName sets the name of this format instance
+func (d *Delimited) SetName(name string) {
+	d.Name = name
+}
+
+// GetDescription returns the description of this format instance
+func (d *Delimited) GetDescription() string {
+	return d.Description
+}
+
+// GetProperties returns the format as a string which can be included in the introspection response
+
+func (d *Delimited) GetProperties() map[string]string {
+	properties := make(map[string]string)
+
+	if d.AllVarchar != nil {
+		properties["all_varchar"] = fmt.Sprintf("%v", *d.AllVarchar)
+	}
+	if d.AllowQuotedNulls != nil {
+		properties["allow_quoted_nulls"] = fmt.Sprintf("%v", *d.AllowQuotedNulls)
+	}
+	if d.DecimalSeparator != nil {
+		properties["decimal_separator"] = *d.DecimalSeparator
+	}
+	if d.Delimiter != nil {
+		properties["delimiter"] = *d.Delimiter
+	}
+	if d.Escape != nil {
+		properties["escape"] = *d.Escape
+	}
+	if d.Filename != nil {
+		properties["filename"] = fmt.Sprintf("%v", *d.Filename)
+	}
+	if d.ForceNotNull != nil && len(*d.ForceNotNull) > 0 {
+		properties["force_not_null"] = strings.Join(*d.ForceNotNull, ",")
+	}
+	if d.Header != nil {
+		properties["header"] = fmt.Sprintf("%v", *d.Header)
+	}
+	if d.IgnoreErrors != nil {
+		properties["ignore_errors"] = fmt.Sprintf("%v", *d.IgnoreErrors)
+	}
+	if d.MaxLineSize != nil {
+		properties["max_line_size"] = fmt.Sprintf("%d", *d.MaxLineSize)
+	}
+	if d.NewLine != nil {
+		properties["new_line"] = *d.NewLine
+	}
+	if d.NormalizeNames != nil {
+		properties["normalize_names"] = fmt.Sprintf("%v", *d.NormalizeNames)
+	}
+	if d.NullPadding != nil {
+		properties["null_padding"] = fmt.Sprintf("%v", *d.NullPadding)
+	}
+	if d.NullStr != nil {
+		properties["null_str"] = *d.NullStr
+	}
+	if d.Quote != nil {
+		properties["quote"] = *d.Quote
+	}
+	if d.SampleSize != nil {
+		properties["sample_size"] = fmt.Sprintf("%d", *d.SampleSize)
+	}
+	if d.TimestampFormat != nil {
+		properties["timestamp_format"] = *d.TimestampFormat
+	}
+
+	return properties
+}
+
+// Identifier returns the format type identifier
+func (d *Delimited) Identifier() string {
 	return constants.SourceFormatDelimited
+}
+
+func (d *Delimited) GetRegex() (string, error) {
+	// the delimited format does not support regex
+	return "N/A", nil
+}
+
+func (d *Delimited) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
+	panic("implement me")
 }
 
 // GetCsvOpts converts the Delimited configuration into a slice of CSV options strings
 // in the format expected by DuckDb read_csv function
-func (c *Delimited) GetCsvOpts() []string {
+func (d *Delimited) GetCsvOpts() []string {
 	var opts []string
 
-	if c.AllVarchar != nil {
-		opts = append(opts, fmt.Sprintf("all_varchar=%v", *c.AllVarchar))
+	if d.AllVarchar != nil {
+		opts = append(opts, fmt.Sprintf("all_varchar=%v", *d.AllVarchar))
 	}
 
-	if c.AllowQuotedNulls != nil {
-		opts = append(opts, fmt.Sprintf("allow_quoted_nulls=%v", *c.AllowQuotedNulls))
+	if d.AllowQuotedNulls != nil {
+		opts = append(opts, fmt.Sprintf("allow_quoted_nulls=%v", *d.AllowQuotedNulls))
 	}
 
-	if c.DecimalSeparator != nil {
-		opts = append(opts, fmt.Sprintf("decimal_separator='%s'", *c.DecimalSeparator))
+	if d.DecimalSeparator != nil {
+		opts = append(opts, fmt.Sprintf("decimal_separator='%s'", *d.DecimalSeparator))
 	}
 
-	if c.Delimiter != nil {
-		opts = append(opts, fmt.Sprintf("delimiter='%s'", *c.Delimiter))
+	if d.Delimiter != nil {
+		opts = append(opts, fmt.Sprintf("delimiter='%s'", *d.Delimiter))
 	}
 
-	if c.Escape != nil {
-		opts = append(opts, fmt.Sprintf("escape='%s'", *c.Escape))
+	if d.Escape != nil {
+		opts = append(opts, fmt.Sprintf("escape='%s'", *d.Escape))
 	}
 
-	if c.Filename != nil {
-		opts = append(opts, fmt.Sprintf("filename=%v", *c.Filename))
+	if d.Filename != nil {
+		opts = append(opts, fmt.Sprintf("filename=%v", *d.Filename))
 	}
 
-	if c.ForceNotNull != nil && len(*c.ForceNotNull) > 0 {
-		forceNotNullValues := strings.Join(*c.ForceNotNull, ",")
+	if d.ForceNotNull != nil && len(*d.ForceNotNull) > 0 {
+		forceNotNullValues := strings.Join(*d.ForceNotNull, ",")
 		opts = append(opts, fmt.Sprintf("force_not_null=%s", forceNotNullValues))
 	}
 
-	if c.Header != nil {
-		opts = append(opts, fmt.Sprintf("header=%v", *c.Header))
+	if d.Header != nil {
+		opts = append(opts, fmt.Sprintf("header=%v", *d.Header))
 	}
 
-	if c.IgnoreErrors != nil {
-		opts = append(opts, fmt.Sprintf("ignore_errors=%v", *c.IgnoreErrors))
+	if d.IgnoreErrors != nil {
+		opts = append(opts, fmt.Sprintf("ignore_errors=%v", *d.IgnoreErrors))
 	}
 
-	if c.MaxLineSize != nil {
-		opts = append(opts, fmt.Sprintf("max_line_size=%d", *c.MaxLineSize))
+	if d.MaxLineSize != nil {
+		opts = append(opts, fmt.Sprintf("max_line_size=%d", *d.MaxLineSize))
 	}
 
-	if c.NewLine != nil {
-		opts = append(opts, fmt.Sprintf("new_line='%s'", *c.NewLine))
+	if d.NewLine != nil {
+		opts = append(opts, fmt.Sprintf("new_line='%s'", *d.NewLine))
 	}
 
-	if c.NormalizeNames != nil {
-		opts = append(opts, fmt.Sprintf("normalize_names=%v", *c.NormalizeNames))
+	if d.NormalizeNames != nil {
+		opts = append(opts, fmt.Sprintf("normalize_names=%v", *d.NormalizeNames))
 	}
 
-	if c.NullPadding != nil {
-		opts = append(opts, fmt.Sprintf("null_padding=%v", *c.NullPadding))
+	if d.NullPadding != nil {
+		opts = append(opts, fmt.Sprintf("null_padding=%v", *d.NullPadding))
 	}
 
-	if c.NullStr != nil {
-		opts = append(opts, fmt.Sprintf("null_str='%s'", *c.NullStr))
+	if d.NullStr != nil {
+		opts = append(opts, fmt.Sprintf("null_str='%s'", *d.NullStr))
 	}
 
-	if c.Quote != nil {
-		opts = append(opts, fmt.Sprintf("quote='%s'", *c.Quote))
+	if d.Quote != nil {
+		opts = append(opts, fmt.Sprintf("quote='%s'", *d.Quote))
 	}
 
-	if c.SampleSize != nil {
-		opts = append(opts, fmt.Sprintf("sample_size=%d", *c.SampleSize))
+	if d.SampleSize != nil {
+		opts = append(opts, fmt.Sprintf("sample_size=%d", *d.SampleSize))
 	}
 
-	if c.TimestampFormat != nil {
-		opts = append(opts, fmt.Sprintf("timestamp_format='%s'", *c.TimestampFormat))
+	if d.TimestampFormat != nil {
+		opts = append(opts, fmt.Sprintf("timestamp_format='%s'", *d.TimestampFormat))
 	}
 
 	return opts

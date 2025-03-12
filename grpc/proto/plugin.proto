@@ -37,7 +37,7 @@ message CollectRequest {
   // if this is custom table, schema contains the source format and table schema
   Schema custom_table_schema  = 8;
   // the source format
-  ConfigData source_format = 9;
+  FormatData source_format = 9;
   // optional: the reattach config to connect to the plugin providing the source
   SourcePluginReattach source_plugin = 10;
   // the collection start time
@@ -54,13 +54,32 @@ message UpdateCollectionStateRequest {
 }
 
 message DescribeRequest {
+  repeated FormatData custom_formats = 1;
 }
 
 message DescribeResponse {
+  string plugin = 1;
   // Map of schemas keyed by collection name
-  map<string, Schema> schemas = 1;
-  map<string, SourceMetadata> sources = 2;
+  map<string, Schema> schemas = 2;
+  map<string, SourceMetadata> sources = 3;
+  map<string, FormatDescription> formats_presets = 4;
+  // map string to array of custom format descriptions
+  map<string, FormatDescription> custom_formats = 5;
+  // list of all format types provided by the plugin
+  repeated string format_types = 6;
+}
 
+message FormatDescription {
+  // format type
+  string type = 1;
+  // format instance name
+  string name = 2;
+  // format description
+  string description = 3;
+  // format properties
+  map<string, string> properties = 4;
+  // regex
+  string regex = 5;
 }
 
 message CollectResponse {
@@ -108,7 +127,17 @@ message ColumnSchema {
   bool required = 6;
   // the null value to use for the column
   string null_value = 7;
+  // the time format to use to parse the column
+  string time_format = 8;
+  // the custom select clause to use to map the column
+  string select_clause = 9;
 }
+
+message FormatData {
+  ConfigData config = 1;
+  string Name = 2;
+}
+
 
 message ConfigData {
   // the name of the config target

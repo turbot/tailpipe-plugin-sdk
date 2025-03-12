@@ -55,7 +55,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 
 	if pr.SourceFormat != nil {
-		sourceFormat, err := ConfigDataFromProto[*FormatConfigData](pr.SourceFormat)
+		sourceFormat, err := FormatConfigDataFromProto(pr.SourceFormat)
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +70,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		req.ConnectionData = connectionData
 	}
 	if pr.CustomTableSchema != nil {
-		req.CustomTableSchema = schema.RowSchemaFromProto(pr.CustomTableSchema)
+		req.CustomTableSchema = schema.TableSchemaFromProto(pr.CustomTableSchema)
 	}
 
 	return req, nil
