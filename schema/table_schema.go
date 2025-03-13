@@ -70,16 +70,16 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 	schemaMap := r.AsMap()
 
-	// TODO need to think about automapping/test
 	if r.AutoMapSourceFields {
 		// build map of excluded fields
 		excludeMap := utils.SliceToLookup(r.ExcludeSourceFields)
 		for k, v := range sourceMap {
-			// if. this field is NOT excluded, and we do not have a schema for it, add it to the result as is
+			// if. this field is NOT excluded, we do not have a schema for it, and it is not null,  add it to the result as is
 			_, exclude := excludeMap[k]
 			_, haveSchema := schemaMap[k]
+			isNull := r.NullValue != "" && v == r.NullValue
 
-			if !exclude && !haveSchema {
+			if !exclude && !haveSchema && !isNull {
 				// just set the value
 				res[k] = v
 			}
@@ -105,7 +105,7 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 		// so we have a value for this column - is it null?
 		if r.isNullValue(c, v) {
-			// if the valkue matches the null string, exclude it - it will appear as null in the parquet
+			// if the value matches the null string, skip it
 			continue
 		}
 
@@ -117,8 +117,8 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 			return nil, err
 		}
 		res[c.ColumnName] = val
-
 	}
+
 	return res, nil
 }
 
