@@ -71,6 +71,8 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 		l.OutputColumns[constants.TpDate] = tpTimestamp.Truncate(24 * time.Hour)
 	}
 
+	// put the source fields into the output columns
+	l.OutputColumns[constants.TpSourceColumns] = l.sourceColumns
 	return nil
 }
 

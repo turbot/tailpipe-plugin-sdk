@@ -6,8 +6,6 @@ import (
 	"log/slog"
 	"regexp"
 
-	"github.com/turbot/tailpipe-plugin-sdk/types"
-
 	"github.com/turbot/pipe-fittings/v2/utils"
 )
 
@@ -60,18 +58,11 @@ func (c *RegexMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T,
 		}
 	}
 
+	// Map parsed fields to the row struct
 	row := utils.InstanceOf[T]()
 	if err = row.InitialiseFromMap(rowMap); err != nil {
 		return empty, fmt.Errorf("error initialising row from map: %w", err)
 	}
-	// Map parsed fields to the row struct
-	if d, ok := any(row).(*types.DynamicRow); ok {
-		t, ok := d.GetSourceValue("timestamp")
-		if !ok || t == "" {
-			slog.Warn("no timestamp found in row, using current time", "row", row, "input", input, "result", rowMap)
-		}
-	}
-	// for pattern debugging purposes, if there were no matches, we want to log the input and the result
 	if len(rowMap) == 0 {
 		slog.Warn("grok mapper - no matches found", "layout", c.pattern, "input", input)
 	}

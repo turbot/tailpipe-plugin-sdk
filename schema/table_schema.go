@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"database/sql"
 	"fmt"
 	"strings"
 
@@ -132,25 +131,25 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 	// todo use duckdb to map
 
 	// if a select clause is provided, use that
-	if column.SelectClause != "" {
-		db, err := sql.Open("duckdb", "")
-		if err != nil {
-			return "", fmt.Errorf("error opening duckdb connection: %w", err)
-		}
-		defer db.Close()
-		// use the select clause to map the value
-		// we assume (and validate) that the select clause a DuckDB function name, with a parameter, e.g. UPPER(?) or STRING_SPLIT(?, ',')
-		// TODO verify the select clause contains 1 param '?'
-
-		query := fmt.Sprintf("SELECT %s", column.SelectClause) //nolint:gosec // TODO KAI this is temporary
-		row := db.QueryRow(query, valString)
-		var val interface{}
-		err = row.Scan(&val)
-		if err != nil {
-			return "", fmt.Errorf("error executing select clause '%s' for column '%s': %w", column.SelectClause, column.ColumnName, err)
-		}
-		return val, nil
-	}
+	//if column.Transform != "" {
+	//	db, err := sql.Open("duckdb", "")
+	//	if err != nil {
+	//		return "", fmt.Errorf("error opening duckdb connection: %w", err)
+	//	}
+	//	defer db.Close()
+	//	// use the select clause to map the value
+	//	// we assume (and validate) that the select clause a DuckDB function name, with a parameter, e.g. UPPER(?) or STRING_SPLIT(?, ',')
+	//	// TODO verify the select clause contains 1 param '?'
+	//
+	//	query := fmt.Sprintf("SELECT %s", column.Transform) //nolint:gosec // TODO KAI this is temporary
+	//	row := db.QueryRow(query, valString)
+	//	var val interface{}
+	//	err = row.Scan(&val)
+	//	if err != nil {
+	//		return "", fmt.Errorf("error executing select clause '%s' for column '%s': %w", column.Transform, column.ColumnName, err)
+	//	}
+	//	return val, nil
+	//}
 	// if the type is a date time, parse it
 
 	// now format the string according to the type

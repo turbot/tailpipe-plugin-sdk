@@ -19,4 +19,7 @@ const (
 	TpDomains         = "tp_domains"
 	TpEmails          = "tp_emails"
 	TpUsernames       = "tp_usernames"
+
+	// source columns - passed to the CLI to apply sql functions but excluded from parquet
+	TpSourceColumns = "tp_source_columns"
 )
