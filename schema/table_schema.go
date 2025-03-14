@@ -9,17 +9,91 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
+// ConversionSchema is a specialised TableSchema which also contains a list of all source columns
+type ConversionSchema struct {
+	TableSchema
+	// the source columns - these are the columns in the source data
+	SourceColumns map[string]*ColumnSchema
+}
+
+// NewConversionSchema populates a ConversionSchema schema using a table schema and an inferred row schema
+// this is called from the CLI after receiving the first JSONL file
+// it either adds all fields in the inferred schema (if AutoMapSourceFields is true) or
+// just populate missing types if AutoMapSourceFields is false
+func NewConversionSchema(tableSchema, inferredSchema *TableSchema) *ConversionSchema {
+	// initialize the conversion schema from the table schema def
+	r := &ConversionSchema{
+		TableSchema:   *tableSchema,
+		SourceColumns: make(map[string]*ColumnSchema),
+	}
+
+	//get the table schema as a map
+	schemaMap := r.AsMap()
+	excludedMap := helpers.SliceToLookup(r.ExcludeSourceFields)
+
+	for _, inferredColumn := range inferredSchema.Columns {
+		// skip common fields (which will already be in our schema)
+		if IsCommonField(inferredColumn.ColumnName) {
+			// add the source field from the table def which will have the correct type
+			// (we may have inferred the wrong type from the JSON)
+			r.SourceColumns[inferredColumn.ColumnName] = schemaMap[inferredColumn.ColumnName]
+			// nothing else to do - the scherma def already has this column
+			continue
+		}
+
+		// store source columns
+		r.SourceColumns[inferredColumn.ColumnName] = inferredColumn
+
+		// if we are in autoMap mode, include column in output as long as it is not excluded
+		if r.AutoMapSourceFields {
+			// skip any excluded fields
+			if _, excluded := excludedMap[inferredColumn.ColumnName]; excluded {
+				continue
+			}
+			// we already have this column - does it have a type?
+			if columnSchema, haveColumn := schemaMap[inferredColumn.ColumnName]; haveColumn && columnSchema.Type == "" {
+				columnSchema.Type = inferredColumn.Type
+			} else {
+				// we do not have this column - add it add this column
+				r.Columns = append(r.Columns, inferredColumn)
+			}
+		} else {
+			// so we are NOT in automap mode
+
+			// we only want update the column type if we have this column in the schema and it does not have a type
+			if columnSchema, haveColumn := schemaMap[inferredColumn.ColumnName]; haveColumn && columnSchema.Type == "" {
+				schemaMap[inferredColumn.ColumnName].Type = inferredColumn.Type
+			}
+		}
+	}
+
+	// add all output columsn without a transform as a source column
+	for _, column := range r.Columns {
+		if column.Transform != "" {
+			continue
+		}
+		// if we have a source column, skip it
+		if _, ok := r.SourceColumns[column.ColumnName]; ok {
+			continue
+		}
+
+		r.SourceColumns[column.ColumnName] = column
+	}
+
+	return r
+}
+
 type TableSchema struct {
-	Name    string          `json:"name,omitempty"`
-	Columns []*ColumnSchema `json:"columns"`
+	Name    string
+	Columns []*ColumnSchema
 	// should we include ALL source fields in addition to any defined columns, or ONLY include the columns defined
-	AutoMapSourceFields bool `json:"automap_source_fields"`
+	AutoMapSourceFields bool
 	// should we exclude any source fields from the output (only applicable if automap_source_fields is true)
-	ExcludeSourceFields []string `json:"exclude_source_fields"`
+	ExcludeSourceFields []string
 	// the table description (optional)
-	Description string `json:"description,omitempty"`
+	Description string
 	// the default null value for the table (may be overriden for specific columns
-	NullValue string `json:"null_value,omitempty"`
+	NullValue string
 }
 
 func (r *TableSchema) ToProto() *proto.Schema {
@@ -123,35 +197,6 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interface{}, error) {
 	ty := column.Type
-
-	//// treat arrays separately
-	//if arrayType, isArray := strings.CutSuffix(ty, "[]"); isArray{
-	//	return  mapArrayValue(valString, arrayType)
-	//}
-	// todo use duckdb to map
-
-	// if a select clause is provided, use that
-	//if column.Transform != "" {
-	//	db, err := sql.Open("duckdb", "")
-	//	if err != nil {
-	//		return "", fmt.Errorf("error opening duckdb connection: %w", err)
-	//	}
-	//	defer db.Close()
-	//	// use the select clause to map the value
-	//	// we assume (and validate) that the select clause a DuckDB function name, with a parameter, e.g. UPPER(?) or STRING_SPLIT(?, ',')
-	//	// TODO verify the select clause contains 1 param '?'
-	//
-	//	query := fmt.Sprintf("SELECT %s", column.Transform) //nolint:gosec // TODO KAI this is temporary
-	//	row := db.QueryRow(query, valString)
-	//	var val interface{}
-	//	err = row.Scan(&val)
-	//	if err != nil {
-	//		return "", fmt.Errorf("error executing select clause '%s' for column '%s': %w", column.Transform, column.ColumnName, err)
-	//	}
-	//	return val, nil
-	//}
-	// if the type is a date time, parse it
-
 	// now format the string according to the type
 	switch ty {
 	case "TIMESTAMP", "DATE", "TIME":
@@ -175,52 +220,6 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 
 		// for all other types, just return the string and rely on
 		return valString, nil
-	}
-}
-
-// InitialiseFromInferredSchema populates this schema using an inferred row schema
-// this is called from the CLI when we are trying to determine the full schema after receiving the first JSONL file
-// it either adds all fields in the inferred schema (if AutoMapSourceFields is true) or
-// just populate missing types if AutoMapSourceFields is false
-func (r *TableSchema) InitialiseFromInferredSchema(inferredSchema *TableSchema) {
-	// TODO test this https://github.com/turbot/tailpipe/issues/108
-	// if we are in autoMap mode, we use the inferred schema in full
-	if r.AutoMapSourceFields {
-		// store our own schema as a map
-		selfMap := r.AsMap()
-		excludedMap := utils.SliceToLookup(r.ExcludeSourceFields)
-		for _, c := range inferredSchema.Columns {
-			// skip common fields (which will already be in our schema)
-			if IsCommonField(c.ColumnName) {
-				continue
-			}
-			// skip any excluded fields
-			if _, excluded := excludedMap[c.ColumnName]; excluded {
-				continue
-			}
-			// we already have this column - does it have a type?
-			if columnSchema, haveColumn := selfMap[c.ColumnName]; haveColumn {
-				if columnSchema.Type == "" {
-					columnSchema.Type = c.Type
-				}
-			} else {
-				// we do not have this column - add it add this column
-				r.Columns = append(r.Columns, c)
-			}
-		}
-	} else {
-		// we are not automapping - just the type for any columns missing a type
-		inferredMap := inferredSchema.AsMap()
-
-		for _, c := range r.Columns {
-			if c.Type == "" {
-				columnSchema, ok := inferredMap[c.ColumnName]
-				if !ok {
-					return
-				}
-				c.Type = columnSchema.Type
-			}
-		}
 	}
 }
 
@@ -303,14 +302,7 @@ func (r *TableSchema) MergeWithCommonSchema() *TableSchema {
 
 	// Copy our columns
 	for i, col := range r.Columns {
-		merged.Columns[i] = &ColumnSchema{
-			ColumnName:  col.ColumnName,
-			SourceName:  col.SourceName,
-			Type:        col.Type,
-			Required:    col.Required,
-			Description: col.Description,
-			NullValue:   col.NullValue,
-		}
+		merged.Columns[i] = col.Clone()
 	}
 
 	// Create map for efficient lookup
@@ -354,12 +346,10 @@ func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
 	}
 
 	for i, c := range r.Columns {
-		res.Columns[i] = &ColumnSchema{
-			ColumnName: c.ColumnName,
-			SourceName: c.ColumnName,
-			Type:       c.Type,
-			Required:   c.Required,
-		}
+		clone := c.Clone()
+		// set the source name to the column name
+		clone.SourceName = clone.ColumnName
+		res.Columns[i] = clone
 	}
 	return res
 }

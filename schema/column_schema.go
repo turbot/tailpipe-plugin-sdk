@@ -77,6 +77,19 @@ func (c *ColumnSchema) structDef() string {
 	return str.String()
 }
 
+func (c *ColumnSchema) Clone() *ColumnSchema {
+	return &ColumnSchema{
+		ColumnName:  c.ColumnName,
+		SourceName:  c.SourceName,
+		Type:        c.Type,
+		Required:    c.Required,
+		Description: c.Description,
+		NullValue:   c.NullValue,
+		TimeFormat:  c.TimeFormat,
+		Transform:   c.Transform,
+	}
+}
+
 // ColumnFromProto creates a new ColumnSchema from proto
 func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
 	c := &ColumnSchema{
