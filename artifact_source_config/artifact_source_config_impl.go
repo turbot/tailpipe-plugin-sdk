@@ -68,9 +68,9 @@ func (b *ArtifactSourceConfigImpl) DefaultTo(other ArtifactSourceConfig) {
 	}
 }
 
-// AsProto converts ArtifactSourceConfigImpl to its Protobuf representation.
+// ToProto converts ArtifactSourceConfigImpl to its Protobuf representation.
 // used to pass default config to an external-plugin source
-func (b *ArtifactSourceConfigImpl) AsProto() *proto.ArtifactSourceConfig {
+func (b *ArtifactSourceConfigImpl) ToProto() *proto.ArtifactSourceConfig {
 	return &proto.ArtifactSourceConfig{
 		FileLayout: typehelpers.SafeString(b.FileLayout),
 		Patterns:   b.Patterns,

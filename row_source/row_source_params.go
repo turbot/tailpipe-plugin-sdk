@@ -15,17 +15,17 @@ type RowSourceParams struct {
 	CollectionTempDir   string
 }
 
-func (r *RowSourceParams) AsProto() *proto.RowSourceParams {
+func (r *RowSourceParams) ToProto() *proto.RowSourceParams {
 	res := &proto.RowSourceParams{
 		CollectionStatePath: r.CollectionStatePath,
 		FromTime:            timestamppb.New(r.From),
 		CollectionTempDir:   r.CollectionTempDir,
 	}
 	if r.SourceConfigData != nil {
-		res.SourceData = r.SourceConfigData.AsProto()
+		res.SourceData = r.SourceConfigData.ToProto()
 	}
 	if r.ConnectionData != nil {
-		res.ConnectionData = r.ConnectionData.AsProto()
+		res.ConnectionData = r.ConnectionData.ToProto()
 	}
 	return res
 }

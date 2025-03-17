@@ -9,7 +9,8 @@ import (
 
 type FormatConfigData struct {
 	*ConfigDataImpl
-	Name string
+	Name           string
+	ReattachConfig *SourcePluginReattach
 }
 
 func NewFormatConfigData(hcl []byte, decRange hcl.Range, formatType string) *FormatConfigData {
@@ -21,6 +22,13 @@ func NewFormatConfigData(hcl []byte, decRange hcl.Range, formatType string) *For
 			ConfigType:   constants.ConfigTypeFormat,
 		},
 	}
+}
+
+func (d *FormatConfigData) SetReattach(pr *proto.SourcePluginReattach) {
+	if pr == nil {
+		return
+	}
+	d.ReattachConfig = ReattachFromProto(pr)
 }
 
 func FormatConfigDataFromProto(data *proto.FormatData) (*FormatConfigData, error) {

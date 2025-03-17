@@ -42,6 +42,9 @@ message CollectRequest {
   SourcePluginReattach source_plugin = 10;
   // the collection start time
   google.protobuf.Timestamp from_time = 11;
+  // optional: the reattach config to connect to the plugin providing the format
+  SourcePluginReattach format_plugin = 12;
+
 }
 
 message UpdateCollectionStateRequest {
@@ -55,6 +58,8 @@ message UpdateCollectionStateRequest {
 
 message DescribeRequest {
   repeated FormatData custom_formats = 1;
+  // only include the specified format types - no other descriptions will be returned
+  bool custom_formats_only  = 2;
 }
 
 message DescribeResponse {
@@ -273,8 +278,9 @@ message SourcePluginReattach {
   ReattachConfig reattach_config = 1;
   string source_type      = 2;
   string plugin           = 3;
-
 }
+
+
 message ReattachConfig {
   string protocol         = 1;
   int64  protocol_version = 2;

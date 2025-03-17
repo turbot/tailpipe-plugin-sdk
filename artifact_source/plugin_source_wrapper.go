@@ -69,11 +69,11 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params *row_source.RowSo
 	}
 	// now call into the source plugin to initialise the source
 	req := &proto.InitSourceRequest{
-		SourceParams: params.AsProto(),
+		SourceParams: params.ToProto(),
 	}
 
 	if w.defaultConfig != nil {
-		req.DefaultConfig = w.defaultConfig.AsProto()
+		req.DefaultConfig = w.defaultConfig.ToProto()
 	}
 
 	resp, err := w.client.InitSource(req)

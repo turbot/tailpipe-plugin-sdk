@@ -60,6 +60,10 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 			return nil, err
 		}
 		req.SourceFormat = sourceFormat
+		// NOTE: add the (possibly nil) FormatPluginReattach to the source data
+		if pr.FormatPlugin != nil {
+			sourceFormat.SetReattach(pr.FormatPlugin)
+		}
 	}
 
 	if pr.ConnectionData != nil {

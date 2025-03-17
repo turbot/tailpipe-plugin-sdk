@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/turbot/pipe-fittings/v2/app_specific"
+	"github.com/turbot/pipe-fittings/v2/ociinstaller"
 	"github.com/turbot/pipe-fittings/v2/versionfile"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"os"
@@ -26,11 +28,18 @@ func PrintMetadata(pluginFunc PluginFunc) int {
 	// convert the describe response to a metadata map
 	metadata := DescribeResponseFromProto(describeResponse).AsMetadataMap()
 
+	// OciInstaller
+	app_specific.DefaultImageRepoActualURL = "ghcr.io/turbot/tailpipe"
+	app_specific.DefaultImageRepoDisplayURL = "hub.tailpipe.io"
+	imageRef := ociinstaller.NewImageRef(p.Identifier()).DisplayImageRef()
+
 	// build an installed version object
 	v := &versionfile.InstalledVersion{
-		Name:          p.Identifier(),
+		Name:          imageRef,
 		StructVersion: versionfile.InstalledVersionStructVersion,
 		Metadata:      metadata,
+		// The PrintMetadata mechanism is in place to allow locally built plugins to report their version to we just put 'local' here
+		Version: "local",
 	}
 	// serialize to JSON
 	installedVersionJson, err := json.Marshal(v)
