@@ -31,6 +31,10 @@ func (d *FormatConfigData) SetReattach(pr *proto.SourcePluginReattach) {
 	d.ReattachConfig = ReattachFromProto(pr)
 }
 
+func (d *FormatConfigData) FullName() string {
+	return d.InstanceType + "." + d.Name
+}
+
 func FormatConfigDataFromProto(data *proto.FormatData) (*FormatConfigData, error) {
 	configData, err := ConfigDataFromProto[*FormatConfigData](data.Config)
 	if err != nil {

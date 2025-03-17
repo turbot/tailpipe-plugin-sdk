@@ -42,7 +42,7 @@ func NewPluginFormatWrapper(formatData *types.FormatConfigData, sourcePlugin *ty
 
 	slog.Debug("PluginFormatWrapper - describe response", "response", describeResp.CustomFormats, "formatData.InstanceType", formatData.InstanceType, "describeResp.CustomFormats[formatData.InstanceType]", describeResp.CustomFormats[formatData.InstanceType])
 	// we expect the first format to be the one we asked for
-	desc, ok := describeResp.CustomFormats[formatData.InstanceType]
+	desc, ok := describeResp.CustomFormats[formatData.FullName()]
 	if !ok {
 		return nil, fmt.Errorf("plugin returned no description returned for format %s", formatData.InstanceType)
 	}
