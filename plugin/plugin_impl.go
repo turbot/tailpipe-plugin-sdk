@@ -111,7 +111,6 @@ func (p *PluginImpl) Describe(_ context.Context, req *proto.DescribeRequest) (*p
 	// this property will be set when we are resolving the regex for a format
 	if req.CustomFormatsOnly {
 		resp := &DescribeResponse{
-			Plugin:        p.Identifier(),
 			CustomFormats: customFormatDescriptions,
 		}
 		return resp.ToProto(), nil

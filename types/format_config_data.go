@@ -11,6 +11,7 @@ import (
 type FormatConfigData struct {
 	*ConfigDataImpl
 	Name           string
+	PresetName     string
 	ReattachConfig *SourcePluginReattach
 }
 
@@ -25,6 +26,12 @@ func NewFormatConfigData(hcl []byte, decRange hcl.Range, formatType string) *For
 	}
 }
 
+func NewPresetFormatConfigData(presetName string) *FormatConfigData {
+	return &FormatConfigData{
+		PresetName: presetName,
+	}
+}
+
 func (d *FormatConfigData) SetReattach(pr *proto.SourcePluginReattach) {
 	if pr == nil {
 		return
@@ -36,11 +43,17 @@ func (d *FormatConfigData) FullName() string {
 	return d.InstanceType + "." + d.Name
 }
 
-func FormatConfigDataFromProto(data *proto.FormatData) (*FormatConfigData, error) {
-	configData, err := ConfigDataFromProto[*FormatConfigData](data.Config)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing format config data: %w", err)
+func FormatConfigDataFromProto(fd *proto.FormatData) (*FormatConfigData, error) {
+	if fd.Preset != "" {
+		return &FormatConfigData{
+			PresetName: fd.Preset,
+		}, nil
 	}
-	configData.Name = data.Name
+
+	configData, err := ConfigDataFromProto[*FormatConfigData](fd.Config)
+	if err != nil {
+		return nil, fmt.Errorf("error parsing format config fd: %w", err)
+	}
+	configData.Name = fd.Name
 	return configData, nil
 }

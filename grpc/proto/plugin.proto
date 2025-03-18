@@ -44,8 +44,6 @@ message CollectRequest {
   google.protobuf.Timestamp from_time = 11;
   // optional: the reattach config to connect to the plugin providing the format
   SourcePluginReattach format_plugin = 12;
-  // optional: the format preset name
-  string format_preset = 13;
 }
 
 message UpdateCollectionStateRequest {
@@ -141,6 +139,7 @@ message ColumnSchema {
 message FormatData {
   ConfigData config = 1;
   string Name = 2;
+  string Preset = 3;
 }
 
 

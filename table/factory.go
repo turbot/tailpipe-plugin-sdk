@@ -251,23 +251,23 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 }
 
 func (f *TableFactory) getFormatForTable(req *types.CollectRequest, customTable CustomTable) (formats.Format, error) {
-	// if a preset was provided, use it
-	if req.FormatPreset != "" {
-		preset, ok := f.formatPresets[req.FormatPreset]
-		if !ok {
-			return nil, fmt.Errorf("format preset not found: %s", req.FormatPreset)
-		}
-		return preset, nil
-	}
-
 	format := customTable.GetDefaultFormat()
 	// if a format was provided, parse it
 	if req.SourceFormat != nil {
-		var err error
-		format, err = formats.ParseFormat(req.SourceFormat, f.formatMap)
-		if err != nil {
-			slog.Warn("error parsing format", "error", err)
-			return nil, err
+		// is there preset or format config
+		if req.SourceFormat.PresetName != "" {
+			preset, ok := f.formatPresets[req.SourceFormat.PresetName]
+			if !ok {
+				return nil, fmt.Errorf("format preset not found: %s", req.SourceFormat.PresetName)
+			}
+			format = preset
+		} else {
+			var err error
+			format, err = formats.ParseFormat(req.SourceFormat, f.formatMap)
+			if err != nil {
+				slog.Warn("error parsing format", "error", err)
+				return nil, err
+			}
 		}
 
 		// if a formatPlugin was provided, create a FormatPluginWrapper
