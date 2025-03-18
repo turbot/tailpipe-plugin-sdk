@@ -26,8 +26,14 @@ func NewPluginFormatWrapper(formatData *types.FormatConfigData, sourcePlugin *ty
 
 	// convert formatData back to proto
 	fp := &proto.FormatData{
-		Name:   formatData.Name,
-		Config: formatData.ToProto(),
+		Name: formatData.Name,
+	}
+
+	// there will either be a preset name or a config
+	if formatData.PresetName == "" {
+		fp.Config = formatData.ToProto()
+	} else {
+		fp.Preset = formatData.PresetName
 	}
 
 	// describe the format

@@ -254,6 +254,11 @@ func (f *TableFactory) getFormatForTable(req *types.CollectRequest, customTable 
 	format := customTable.GetDefaultFormat()
 	// if a format was provided, parse it
 	if req.SourceFormat != nil {
+		// if a formatPlugin was provided, create a FormatPluginWrapper
+		if req.SourceFormat.ReattachConfig != nil {
+			return formats.NewPluginFormatWrapper(req.SourceFormat, req.SourceFormat.ReattachConfig)
+		}
+
 		// is there preset or format config
 		if req.SourceFormat.PresetName != "" {
 			preset, ok := f.formatPresets[req.SourceFormat.PresetName]
@@ -270,10 +275,6 @@ func (f *TableFactory) getFormatForTable(req *types.CollectRequest, customTable 
 			}
 		}
 
-		// if a formatPlugin was provided, create a FormatPluginWrapper
-		if req.SourceFormat.ReattachConfig != nil {
-			return formats.NewPluginFormatWrapper(req.SourceFormat, req.SourceFormat.ReattachConfig)
-		}
 	}
 
 	// we're done
