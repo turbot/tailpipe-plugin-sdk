@@ -113,7 +113,6 @@ func (p *PluginImpl) Describe(_ context.Context, req *proto.DescribeRequest) (*p
 	}
 
 	resp := &DescribeResponse{
-		Plugin:        p.Identifier(),
 		Schemas:       schemas,
 		Sources:       sources,
 		FormatPresets: formatDescriptions,

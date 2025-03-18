@@ -28,7 +28,7 @@ func PrintMetadata(pluginFunc PluginFunc) int {
 
 	// build an installed version object
 	v := &versionfile.InstalledVersion{
-		Name:          describeResponse.GetPlugin(),
+		Name:          p.Identifier(),
 		StructVersion: versionfile.InstalledVersionStructVersion,
 		Metadata:      metadata,
 	}

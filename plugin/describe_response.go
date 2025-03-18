@@ -8,7 +8,6 @@ import (
 )
 
 type DescribeResponse struct {
-	Plugin        string
 	Schemas       schema.SchemaMap
 	Sources       row_source.SourceMetadataMap
 	FormatPresets formats.FormatDescriptionMap
@@ -18,7 +17,6 @@ type DescribeResponse struct {
 
 func (d *DescribeResponse) ToProto() *proto.DescribeResponse {
 	return &proto.DescribeResponse{
-		Plugin:         d.Plugin,
 		Schemas:        d.Schemas.ToProto(),
 		Sources:        d.Sources.ToProto(),
 		FormatsPresets: d.FormatPresets.ToProto(),
