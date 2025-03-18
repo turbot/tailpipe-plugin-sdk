@@ -1,6 +1,7 @@
 package formats
 
 import (
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -31,6 +32,11 @@ func (r *Regex) Identifier() string {
 // GetName returns the name of this format instance
 func (r *Regex) GetName() string {
 	return r.Name
+}
+
+// GetFullName returns the full name (type.name) of this format instance
+func (r *Regex) GetFullName() string {
+	return fmt.Sprintf("%s.%s", r.Identifier(), r.Name)
 }
 
 // SetName sets the name of this format instance

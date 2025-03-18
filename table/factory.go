@@ -251,25 +251,23 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 }
 
 func (f *TableFactory) getFormatForTable(req *types.CollectRequest, customTable CustomTable) (formats.Format, error) {
-	// if a formatPlugin was provided, create a FormatPluginWrapper
-	if req.SourceFormat.ReattachConfig != nil {
-		return formats.NewPluginFormatWrapper(req.SourceFormat, req.SourceFormat.ReattachConfig)
-	}
-
-	supportedFormats := customTable.GetSupportedFormats()
-	// if no format was provided, use the default format
-	format := supportedFormats.DefaultFormat
-
+	format := customTable.GetDefaultFormat()
 	// if a format was provided, parse it
 	if req.SourceFormat != nil {
-
 		var err error
-		format, err = formats.ParseFormat(req.SourceFormat, supportedFormats.Formats)
+		format, err = formats.ParseFormat(req.SourceFormat, f.formatMap)
 		if err != nil {
 			slog.Warn("error parsing format", "error", err)
 			return nil, err
 		}
+
+		// if a formatPlugin was provided, create a FormatPluginWrapper
+		if req.SourceFormat.ReattachConfig != nil {
+			return formats.NewPluginFormatWrapper(req.SourceFormat, req.SourceFormat.ReattachConfig)
+		}
 	}
+
+	// we're done
 	return format, nil
 }
 
@@ -303,12 +301,12 @@ func (f *TableFactory) populateSchemas() (err error) {
 	for _, ctor := range f.customTableMap {
 		// create an instance of the table to get the identifier
 		customTable := ctor()
-		// for custom tables, we need to initialize the table with the table def and format before we can get the schema
-		// get the defaults
-		format := customTable.GetSupportedFormats().DefaultFormat
+		// for custom tables, we need to initialize the table  before we can get the schema
+
 		tableDef := customTable.GetTableDefinition()
 		// initialize the table
-		customTable.Initialize(format, tableDef)
+		// (pass nil for the format as we are only interested in the schema)
+		customTable.Initialize(nil, tableDef)
 		// now get the schema
 		s, _ := customTable.GetSchema()
 		// only add the schema if it is not nil (which would not be expected - as we should at least have the common row schema)

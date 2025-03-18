@@ -7,6 +7,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
+// FormatConfigData is an sdk type which is mapped from the proto.FormatData
 type FormatConfigData struct {
 	*ConfigDataImpl
 	Name           string
