@@ -22,6 +22,8 @@ type CollectRequest struct {
 	SourceData *SourceConfigData
 	// the source format to use (with raw config)
 	SourceFormat *FormatConfigData
+	// The name of the format preset to use (if any)
+	FormatPreset string
 	// the raw hcl of the connection
 	ConnectionData *ConnectionConfigData
 	// the collection start time
@@ -50,6 +52,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		ExecutionId:         pr.ExecutionId,
 		CollectionTempDir:   pr.CollectionTempDir,
 		CollectionStatePath: pr.CollectionStatePath,
+		FormatPreset:        pr.FormatPreset,
 		SourceData:          sourceData,
 		From:                pr.FromTime.AsTime(),
 	}
@@ -75,6 +78,11 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 	}
 	if pr.CustomTableSchema != nil {
 		req.CustomTableSchema = schema.TableSchemaFromProto(pr.CustomTableSchema)
+	}
+
+	// if both format AND format preset are set, we need to return an error
+	if req.SourceFormat != nil && req.FormatPreset != "" {
+		return nil, fmt.Errorf("both format and format preset are set - only one is allowed")
 	}
 
 	return req, nil

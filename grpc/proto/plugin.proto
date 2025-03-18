@@ -36,15 +36,16 @@ message CollectRequest {
   ConfigData connection_data = 7;
   // if this is custom table, schema contains the source format and table schema
   Schema custom_table_schema  = 8;
-  // the source format
+  // optional: the source format
   FormatData source_format = 9;
   // optional: the reattach config to connect to the plugin providing the source
   SourcePluginReattach source_plugin = 10;
-  // the collection start time
+  // optional: the collection start time
   google.protobuf.Timestamp from_time = 11;
   // optional: the reattach config to connect to the plugin providing the format
   SourcePluginReattach format_plugin = 12;
-
+  // optional: the format preset name
+  string format_preset = 13;
 }
 
 message UpdateCollectionStateRequest {
