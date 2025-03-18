@@ -102,36 +102,34 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 // Describe implements TailpipePlugin
 func (p *PluginImpl) Describe(_ context.Context, req *proto.DescribeRequest) (*proto.DescribeResponse, error) {
 
-	formatDescriptions, customFormatDescriptions, formatTypes, err := table.Factory.DescribeFormats(req.CustomFormats)
+	formatPresets, customFormatDescriptions, formatTypes, err := table.Factory.DescribeFormats(req.CustomFormats)
 	if err != nil {
 		return nil, err
+	}
+
+	resp := &DescribeResponse{
+		FormatPresets: formatPresets,
+		CustomFormats: customFormatDescriptions,
 	}
 
 	// if the request is for custom formats only, we return just the custom formats
 	// this property will be set when we are resolving the regex for a format
 	if req.CustomFormatsOnly {
-		resp := &DescribeResponse{
-			CustomFormats: customFormatDescriptions,
-		}
 		return resp.ToProto(), nil
 	}
 
-	schemas, err := table.Factory.GetSchema()
+	// so we want all describe information -  add in all the other details
+	resp.FormatTypes = formatTypes
+	resp.Schemas, err = table.Factory.GetSchema()
 	if err != nil {
 		return nil, err
 	}
 
-	sources, err := row_source.Factory.DescribeSources()
+	resp.Sources, err = row_source.Factory.DescribeSources()
 	if err != nil {
 		return nil, err
 	}
-	resp := &DescribeResponse{
-		Schemas:       schemas,
-		Sources:       sources,
-		FormatPresets: formatDescriptions,
-		CustomFormats: customFormatDescriptions,
-		FormatTypes:   formatTypes,
-	}
+
 	return resp.ToProto(), nil
 }
 

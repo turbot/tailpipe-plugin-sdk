@@ -6,7 +6,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"log/slog"
 )
 
 // PluginFormatWrapper is an implementation of Format which wraps a GRPC plugin which implements the format
@@ -24,33 +23,41 @@ func NewPluginFormatWrapper(formatData *types.FormatConfigData, sourcePlugin *ty
 		return nil, err
 	}
 
-	// convert formatData back to proto
-	fp := &proto.FormatData{
-		Name: formatData.Name,
+	// describe the format
+	describeReq := &proto.DescribeRequest{
+		CustomFormatsOnly: true,
 	}
 
 	// there will either be a preset name or a config
+	// if we have config include it in the describe request
+	// all presets will be returned so no need ot add the preset if we have one
 	if formatData.PresetName == "" {
-		fp.Config = formatData.ToProto()
-	} else {
-		fp.Preset = formatData.PresetName
+		// convert formatData back to proto
+		fp := &proto.FormatData{
+			Name:   formatData.Name,
+			Config: formatData.ToProto(),
+		}
+		describeReq.CustomFormats = []*proto.FormatData{fp}
 	}
 
-	// describe the format
-	describeReq := &proto.DescribeRequest{
-		CustomFormats:     []*proto.FormatData{fp},
-		CustomFormatsOnly: true,
-	}
 	describeResp, err := res.client.Describe(describeReq)
 	if err != nil {
 		return nil, err
 	}
 
-	slog.Debug("PluginFormatWrapper - describe response", "response", describeResp.CustomFormats, "formatData.InstanceType", formatData.InstanceType, "describeResp.CustomFormats[formatData.InstanceType]", describeResp.CustomFormats[formatData.InstanceType])
-	// we expect the first format to be the one we asked for
-	desc, ok := describeResp.CustomFormats[formatData.FullName()]
+	var desc *proto.FormatDescription
+	var ok bool
+
+	if formatData.PresetName != "" {
+		// we have a preset name, so we need to find the format in the describe response
+		desc, ok = describeResp.FormatsPresets[formatData.PresetName]
+	} else {
+		// we expect the first format to be the one we asked for
+		desc, ok = describeResp.CustomFormats[formatData.FullName()]
+	}
+
 	if !ok {
-		return nil, fmt.Errorf("plugin returned no description returned for format %s", formatData.InstanceType)
+		return nil, fmt.Errorf("plugin returned no description for format %s", formatData.FullName())
 	}
 	res.describeResponse = FormatDescriptionFromProto(desc)
 
