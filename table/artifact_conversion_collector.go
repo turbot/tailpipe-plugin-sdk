@@ -73,8 +73,8 @@ func (c *ArtifactConversionCollector) Identifier() string {
 
 // GetSchema returns the schema of the table if available
 // for dynamic tables, the schema is only available at this if the config contains a schema
-func (c *ArtifactConversionCollector) GetSchema() *schema.TableSchema {
-	return c.req.CustomTableSchema
+func (c *ArtifactConversionCollector) GetSchema() (*schema.TableSchema, error) {
+	return c.req.CustomTableSchema, nil
 }
 
 func (c *ArtifactConversionCollector) GetFromTime() *row_source.ResolvedFromTime {

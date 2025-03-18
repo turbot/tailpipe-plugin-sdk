@@ -15,7 +15,7 @@ type Config interface {
 
 // DynamicTableConfig is an interface that all dynamic table configuration structs must implement
 type DynamicTableConfig interface {
-	GetSchema() *schema.TableSchema
+	GetSchema() (*schema.TableSchema, error)
 }
 
 type RowStruct interface {

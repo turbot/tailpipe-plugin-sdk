@@ -59,7 +59,6 @@ type CollectorImpl[R types.RowStruct] struct {
 	chunkCountMap map[string]int
 
 	writer ChunkWriter
-	schema *schema.TableSchema
 }
 
 func NewCollectorImpl[R types.RowStruct](table Table[R]) *CollectorImpl[R] {
@@ -87,33 +86,6 @@ func (c *CollectorImpl[R]) Init(ctx context.Context, req *types.CollectRequest) 
 
 	slog.Info("Initialise collector", "table", c.Table.Identifier(), "partition", req.PartitionName, "jsonPath", jsonPath)
 
-	return c.initSchema()
-}
-
-// initSchema populates the schema stroed by the collector - this will be returned from the Collect call
-func (c *CollectorImpl[R]) initSchema() error {
-
-	// if the table is a custom table, ask it for its schema
-	if ct, ok := any(c.Table).(CustomTable); ok {
-		// NOTE: for custom tables, the SourceColumn field is used for mapping _within_ the plugin,
-		// not by the CLI for JSONL conversion
-		// so for this schema, which will be used by the CLI, set SourceName to be the sam eas the ColumnName
-		c.schema = ct.GetSchema().WithSourceFieldsCleared()
-		return nil
-	}
-
-	// otherwise, return the schema from the row struct
-	rowStruct := utils.InstanceOf[R]()
-	s, err := schema.SchemaFromStruct(rowStruct)
-	if err != nil {
-		return fmt.Errorf("error getting schema from struct: %w", err)
-	}
-
-	// if the table implements DescriptionProvider, use this to populate the table description
-	if getDesc, ok := c.Table.(schema.DescriptionProvider); ok {
-		s.Description = getDesc.GetDescription()
-	}
-	c.schema = s
 	return nil
 }
 
@@ -122,8 +94,32 @@ func (c *CollectorImpl[R]) Identifier() string {
 }
 
 // GetSchema returns the schema of the table
-func (c *CollectorImpl[R]) GetSchema() *schema.TableSchema {
-	return c.schema
+func (c *CollectorImpl[R]) GetSchema() (*schema.TableSchema, error) {
+	// if the table is a custom table, ask it for its schema
+	if ct, ok := any(c.Table).(CustomTable); ok {
+		// NOTE: for custom tables, the SourceColumn field is used for mapping _within_ the plugin,
+		// not by the CLI for JSONL conversion
+		s, err := ct.GetSchema()
+		if err != nil {
+			return nil, fmt.Errorf("error getting schema from custom table: %w", err)
+		}
+		// so for this schema, which will be used by the CLI, set SourceName to be the same as the ColumnName
+		return s.WithSourceFieldsCleared(), nil
+	}
+
+	// otherwise, return the schema from the row struct
+	rowStruct := utils.InstanceOf[R]()
+	s, err := schema.SchemaFromStruct(rowStruct)
+	if err != nil {
+		return nil, fmt.Errorf("error getting schema from struct: %w", err)
+	}
+
+	// if the table implements DescriptionProvider, use this to populate the table description
+	if getDesc, ok := c.Table.(schema.DescriptionProvider); ok {
+		s.Description = getDesc.GetDescription()
+	}
+
+	return s, nil
 }
 
 // GetFromTime returns the 'resolved' from time of the source

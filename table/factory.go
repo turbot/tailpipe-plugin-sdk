@@ -244,7 +244,7 @@ func (f *TableFactory) populateSchemas() (err error) {
 		collector := ctor()
 
 		// get the schema for the table row type
-		s := collector.GetSchema()
+		s, err := collector.GetSchema()
 		if err != nil {
 			errs = append(errs, err)
 			continue
@@ -262,7 +262,7 @@ func (f *TableFactory) populateSchemas() (err error) {
 		// initialize the table
 		customTable.Initialize(format, tableDef)
 		// now get the schema
-		s := customTable.GetSchema()
+		s, _ := customTable.GetSchema()
 		// only add the schema if it is not nil (which would not be expected - as we should at least have the common row schema)
 		if s != nil {
 			f.schemaMap[customTable.Identifier()] = s

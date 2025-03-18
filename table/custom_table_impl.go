@@ -21,8 +21,8 @@ func (c *CustomTableImpl) Initialize(format formats.Format, customTableSchema *s
 }
 
 // GetSchema implements the CustomTable interface
-func (c *CustomTableImpl) GetSchema() *schema.TableSchema {
-	return c.Schema
+func (c *CustomTableImpl) GetSchema() (*schema.TableSchema, error) {
+	return c.Schema, nil
 }
 
 func (c *CustomTableImpl) EnrichRow(row *types.DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*types.DynamicRow, error) {
