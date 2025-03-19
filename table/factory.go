@@ -315,8 +315,7 @@ func (f *TableFactory) populateSchemas() (err error) {
 
 		tableDef := customTable.GetTableDefinition()
 		// initialize the table
-		// (pass nil for the format as we are only interested in the schema)
-		customTable.Initialize(nil, tableDef)
+		customTable.Initialize(customTable.GetDefaultFormat(), tableDef)
 		// now get the schema
 		s, _ := customTable.GetSchema()
 		// only add the schema if it is not nil (which would not be expected - as we should at least have the common row schema)

@@ -77,11 +77,6 @@ func (w *PluginFormatWrapper) GetName() string {
 	return w.describeResponse.Name
 }
 
-// GetFullName returns the full name (type.name) of this format instance
-func (w *PluginFormatWrapper) GetFullName() string {
-	return fmt.Sprintf("%s.%s", w.Identifier(), w.GetName())
-}
-
 func (w *PluginFormatWrapper) SetName(string) {
 	// not required for wrapper
 }

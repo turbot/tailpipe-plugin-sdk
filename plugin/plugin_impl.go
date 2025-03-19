@@ -101,7 +101,6 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 
 // Describe implements TailpipePlugin
 func (p *PluginImpl) Describe(_ context.Context, req *proto.DescribeRequest) (*proto.DescribeResponse, error) {
-
 	formatPresets, customFormatDescriptions, formatTypes, err := table.Factory.DescribeFormats(req.CustomFormats)
 	if err != nil {
 		return nil, err

@@ -138,8 +138,8 @@ message ColumnSchema {
 
 message FormatData {
   ConfigData config = 1;
-  string Name = 2;
-  string Preset = 3;
+  string name = 2;
+  string preset = 3;
 }
 
 
@@ -279,7 +279,6 @@ message SourcePluginReattach {
   string source_type      = 2;
   string plugin           = 3;
 }
-
 
 message ReattachConfig {
   string protocol         = 1;

@@ -11,7 +11,6 @@ type Format interface {
 
 	GetName() string
 	SetName(name string)
-	GetFullName() string
 	GetMapper() (mappers.Mapper[*types.DynamicRow], error)
 	GetRegex() (string, error)
 	GetDescription() string

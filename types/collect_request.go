@@ -20,7 +20,7 @@ type CollectRequest struct {
 	CollectionStatePath string
 	// the source to use (with raw config)
 	SourceData *SourceConfigData
-	// the source format to use (with either raw hcl config, ot the preset name)
+	// the source format to use (with either raw hcl config, or the preset name)
 	SourceFormat *FormatConfigData
 	// the raw hcl of the connection
 	ConnectionData *ConnectionConfigData
