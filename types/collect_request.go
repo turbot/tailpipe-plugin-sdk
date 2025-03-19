@@ -20,7 +20,7 @@ type CollectRequest struct {
 	CollectionStatePath string
 	// the source to use (with raw config)
 	SourceData *SourceConfigData
-	// the source format to use (with raw config)
+	// the source format to use (with either raw hcl config, or the preset name)
 	SourceFormat *FormatConfigData
 	// the raw hcl of the connection
 	ConnectionData *ConnectionConfigData
@@ -60,6 +60,11 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 			return nil, err
 		}
 		req.SourceFormat = sourceFormat
+
+		// NOTE: add the (possibly nil) FormatPluginReattach to the source data
+		if pr.FormatPlugin != nil {
+			req.SourceFormat.SetReattach(pr.FormatPlugin)
+		}
 	}
 
 	if pr.ConnectionData != nil {
@@ -70,6 +75,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		req.ConnectionData = connectionData
 	}
 	if pr.CustomTableSchema != nil {
+
 		req.CustomTableSchema = schema.TableSchemaFromProto(pr.CustomTableSchema)
 	}
 

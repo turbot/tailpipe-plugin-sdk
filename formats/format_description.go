@@ -8,7 +8,7 @@ func (f FormatDescriptionMap) ToProto() map[string]*proto.FormatDescription {
 	pb := map[string]*proto.FormatDescription{}
 
 	for name, formatDescription := range f {
-		pb[name] = formatDescription.AsProto()
+		pb[name] = formatDescription.ToProto()
 	}
 	return pb
 }
@@ -41,7 +41,7 @@ func FormatDescriptionFromProto(pb *proto.FormatDescription) *FormatDescription 
 	}
 }
 
-func (f *FormatDescription) AsProto() *proto.FormatDescription {
+func (f *FormatDescription) ToProto() *proto.FormatDescription {
 	return &proto.FormatDescription{
 		Type:        f.Type,
 		Name:        f.Name,

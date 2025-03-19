@@ -63,5 +63,6 @@ func (d *DescribeResponse) AsMetadataMap() map[string][]string {
 	}
 
 	metadata["format_types"] = d.FormatTypes
+
 	return metadata
 }

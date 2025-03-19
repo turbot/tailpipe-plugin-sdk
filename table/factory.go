@@ -134,7 +134,7 @@ func (f *TableFactory) DescribeFormats(customFormatConfigs []*proto.FormatData) 
 		presetDescriptions[name] = presetDescription
 
 	}
-	// now parse custom formats adnd add them to the map (they take precedence
+	// now parse custom formats add add them to the map (they take precedence)
 	customFormats, errs := f.parseCustomFormats(customFormatConfigs)
 
 	for _, format := range customFormats {
@@ -184,7 +184,7 @@ func (f *TableFactory) parseCustomFormats(customFormatConfigs []*proto.FormatDat
 			errs[formatConfig.Config.Target] = err
 			continue
 		}
-		format, err := f.GetFormat(formatData)
+		format, err := formats.ParseFormat(formatData, f.formatMap)
 		if err != nil {
 			errs[formatConfig.Config.Target] = err
 			continue
@@ -192,12 +192,6 @@ func (f *TableFactory) parseCustomFormats(customFormatConfigs []*proto.FormatDat
 		res = append(res, format)
 	}
 	return res, errs
-}
-
-// GetFormat returns a format instance for the given format config
-func (f *TableFactory) GetFormat(formatConfig *types.FormatConfigData) (formats.Format, error) {
-	// Try to parse the format using the map of registered format ctors
-	return formats.ParseFormat(formatConfig, f.formatMap)
 }
 
 // registerCollector just store the constructor in an array
@@ -223,6 +217,68 @@ func (f *TableFactory) registerFormat(formatType string, formatFunc func() forma
 
 func (f *TableFactory) registerCustomTable(name string, ctor func() CustomTable) {
 	f.customTableMap[name] = ctor
+}
+
+func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, customCtor func() CustomTable) (Collector, error) {
+	customTable := customCtor()
+	format, err := f.getFormatForTable(req, customTable)
+	if err != nil {
+		return nil, err
+	}
+
+	// if we now do not have a format, return an error
+	if format == nil {
+		slog.Warn("no supported format provided in config and table does not define a default format", "table", req.TableName)
+		return nil, fmt.Errorf("no supported format found for table %s", req.TableName)
+	}
+	// the table may provide a table definition - default to this
+	tableDef := customTable.GetTableDefinition()
+
+	// if a table definition was provided in the req, use it
+	if req.CustomTableSchema != nil {
+		tableDef = req.CustomTableSchema
+	}
+	// now initialize the custom table with the format and table definition
+	customTable.Initialize(format, tableDef)
+
+	// now create the appropriate type of collector
+	switch format.Identifier() {
+	case constants.SourceFormatDelimited, constants.SourceFormatJson, constants.SourceFormatJsonLines:
+		return NewArtifactConversionCollector(customTable), nil
+	default:
+		return NewCollectorImpl[*types.DynamicRow](customTable), nil
+	}
+}
+
+func (f *TableFactory) getFormatForTable(req *types.CollectRequest, customTable CustomTable) (formats.Format, error) {
+	format := customTable.GetDefaultFormat()
+	// if a format was provided, parse it
+	if req.SourceFormat != nil {
+		// if a formatPlugin was provided, create a FormatPluginWrapper
+		if req.SourceFormat.ReattachConfig != nil {
+			return formats.NewPluginFormatWrapper(req.SourceFormat, req.SourceFormat.ReattachConfig)
+		}
+
+		// is there preset or format config
+		if req.SourceFormat.PresetName != "" {
+			preset, ok := f.formatPresets[req.SourceFormat.PresetName]
+			if !ok {
+				return nil, fmt.Errorf("format preset not found: %s", req.SourceFormat.PresetName)
+			}
+			format = preset
+		} else {
+			var err error
+			format, err = formats.ParseFormat(req.SourceFormat, f.formatMap)
+			if err != nil {
+				slog.Warn("error parsing format", "error", err)
+				return nil, err
+			}
+		}
+
+	}
+
+	// we're done
+	return format, nil
 }
 
 // populateSchemas builds the map of table constructors and schemas
@@ -255,12 +311,11 @@ func (f *TableFactory) populateSchemas() (err error) {
 	for _, ctor := range f.customTableMap {
 		// create an instance of the table to get the identifier
 		customTable := ctor()
-		// for custom tables, we need to initialize the table with the table def and format before we can get the schem
-		// get the defaults
-		format := customTable.GetSupportedFormats().DefaultFormat
+		// for custom tables, we need to initialize the table  before we can get the schema
+
 		tableDef := customTable.GetTableDefinition()
 		// initialize the table
-		customTable.Initialize(format, tableDef)
+		customTable.Initialize(customTable.GetDefaultFormat(), tableDef)
 		// now get the schema
 		s, _ := customTable.GetSchema()
 		// only add the schema if it is not nil (which would not be expected - as we should at least have the common row schema)
@@ -273,44 +328,4 @@ func (f *TableFactory) populateSchemas() (err error) {
 		return errors.Join(errs...)
 	}
 	return nil
-}
-
-func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, customCtor func() CustomTable) (Collector, error) {
-	customTable := customCtor()
-	supportedFormats := customTable.GetSupportedFormats()
-	// if no format was provided, use the default format
-	format := supportedFormats.DefaultFormat
-
-	// if a format was provided, parse it
-	if req.SourceFormat != nil {
-		var err error
-		format, err = formats.ParseFormat(req.SourceFormat, supportedFormats.Formats)
-		if err != nil {
-			slog.Warn("error parsing format", "error", err)
-			return nil, err
-		}
-	}
-
-	// if we now do not have a format, return an error
-	if format == nil {
-		slog.Warn("no supported format provided in config and table does not define a default format", "table", req.TableName)
-		return nil, fmt.Errorf("no supported format found for table %s", req.TableName)
-	}
-	// the table may provide a table definition - default to this
-	tableDef := customTable.GetTableDefinition()
-
-	// if a table definition was provided in the req, use it
-	if req.CustomTableSchema != nil {
-		tableDef = req.CustomTableSchema
-	}
-	// now initialize the custom table with the format and table definition
-	customTable.Initialize(format, tableDef)
-
-	// now create the appropriate type of collector
-	switch format.Identifier() {
-	case constants.SourceFormatDelimited, constants.SourceFormatJson, constants.SourceFormatJsonLines:
-		return NewArtifactConversionCollector(customTable), nil
-	default:
-		return NewCollectorImpl[*types.DynamicRow](customTable), nil
-	}
 }

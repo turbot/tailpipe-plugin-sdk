@@ -15,7 +15,7 @@ type CustomTable interface {
 	Table[*types.DynamicRow]
 	Initialize(formats.Format, *schema.TableSchema)
 	GetSchema() (*schema.TableSchema, error)
-	GetSupportedFormats() *formats.SupportedFormats
+	GetDefaultFormat() formats.Format
 	GetTableDefinition() *schema.TableSchema
 }
 
