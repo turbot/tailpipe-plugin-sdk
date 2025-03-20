@@ -8,11 +8,15 @@ import (
 )
 
 type DescribeResponse struct {
+	// proto fields
 	Schemas       schema.SchemaMap
 	Sources       row_source.SourceMetadataMap
 	FormatPresets formats.FormatDescriptionMap
 	CustomFormats formats.FormatDescriptionMap
 	FormatTypes   []string
+
+	// non-proto fields - should be populated by PluginManager before returning
+	PluginName string
 }
 
 func (d *DescribeResponse) ToProto() *proto.DescribeResponse {
