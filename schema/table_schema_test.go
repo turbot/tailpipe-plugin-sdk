@@ -47,7 +47,7 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				col := merged.AsMap()["tp_id"]
 				assert.NotNil(t, col)
 				assert.Equal(t, "custom_source", col.SourceName, "should keep custom source")
-				assert.Equal(t, constants.ColumnDataTypeVarchar, col.Type, "should use common type")
+				assert.Equal(t, constants.DuckDbTypeVarchar, col.Type, "should use common type")
 				assert.True(t, col.Required, "should use common required")
 				assert.Equal(t, "custom description", col.Description, "should keep custom description")
 			},
@@ -64,7 +64,7 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				col := merged.AsMap()["tp_id"]
 				assert.NotNil(t, col)
 				assert.Equal(t, "custom_source", col.SourceName, "should keep custom source")
-				assert.Equal(t, constants.ColumnDataTypeVarchar, col.Type, "should use common type")
+				assert.Equal(t, constants.DuckDbTypeVarchar, col.Type, "should use common type")
 				assert.True(t, col.Required, "should use common required")
 				assert.NotEmpty(t, col.Description, "should use common description")
 			},
@@ -95,7 +95,7 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				{
 					ColumnName:  "custom_field",
 					SourceName:  "custom_source",
-					Type:        constants.ColumnDataTypeVarchar,
+					Type:        constants.DuckDbTypeVarchar,
 					Required:    true,
 					Description: "custom description",
 				},
@@ -105,14 +105,14 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				commonCol := merged.AsMap()["tp_id"]
 				assert.NotNil(t, commonCol)
 				assert.Equal(t, "custom_source", commonCol.SourceName)
-				assert.Equal(t, constants.ColumnDataTypeVarchar, commonCol.Type)
+				assert.Equal(t, constants.DuckDbTypeVarchar, commonCol.Type)
 				assert.True(t, commonCol.Required)
 
 				// Check custom field
 				customCol := merged.AsMap()["custom_field"]
 				assert.NotNil(t, customCol)
 				assert.Equal(t, "custom_source", customCol.SourceName)
-				assert.Equal(t, constants.ColumnDataTypeVarchar, customCol.Type)
+				assert.Equal(t, constants.DuckDbTypeVarchar, customCol.Type)
 				assert.True(t, customCol.Required)
 				assert.Equal(t, "custom description", customCol.Description)
 

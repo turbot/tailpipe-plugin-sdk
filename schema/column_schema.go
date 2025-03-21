@@ -55,10 +55,10 @@ func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 }
 
 func (c *ColumnSchema) FullType() string {
-	if c.Type == constants.ColumnDataTypeStruct {
+	if c.Type == constants.DuckDbTypeStruct {
 		return c.structDef()
 	}
-	if c.Type == constants.ColumnDataTypeStructArray {
+	if c.Type == constants.CDuckDbTypeStructArray {
 		return fmt.Sprintf("%s[]", c.structDef())
 	}
 	return c.Type
@@ -66,7 +66,7 @@ func (c *ColumnSchema) FullType() string {
 
 func (c *ColumnSchema) structDef() string {
 	var str strings.Builder
-	str.WriteString(constants.ColumnDataTypeStruct)
+	str.WriteString(constants.DuckDbTypeStruct)
 	str.WriteString("(")
 	for i, column := range c.StructFields {
 		if i > 0 {
