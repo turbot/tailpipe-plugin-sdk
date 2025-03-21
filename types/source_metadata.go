@@ -1,4 +1,4 @@
-package row_source
+package types
 
 import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 

@@ -3,8 +3,10 @@ package row_source
 import (
 	"context"
 	"fmt"
+
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // PluginSourceWrapperIdentifier is the source name for the plugin source wrapper
@@ -77,8 +79,8 @@ func (b *RowSourceFactory) GetSources() map[string]func() RowSource {
 	return b.sourceFuncs
 }
 
-func (b *RowSourceFactory) DescribeSources() (SourceMetadataMap, error) {
-	var res = make(SourceMetadataMap)
+func (b *RowSourceFactory) DescribeSources() (types.SourceMetadataMap, error) {
+	var res = make(types.SourceMetadataMap)
 	for k, f := range b.sourceFuncs {
 		// skip the plugin source wrapper
 		if k == PluginSourceWrapperIdentifier {
@@ -89,7 +91,7 @@ func (b *RowSourceFactory) DescribeSources() (SourceMetadataMap, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to get source description: %w", err)
 		}
-		res[k] = &SourceMetadata{
+		res[k] = &types.SourceMetadata{
 			Name:        source.Identifier(),
 			Description: desc,
 		}
