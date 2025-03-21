@@ -126,6 +126,17 @@ func TestParseParquetTag(t *testing.T) {
 			},
 			wantErr: false,
 		},
+		{
+			name: "type passed in uppercase",
+			args: args{
+				tag: "name=foo,type=VARCHAR",
+			},
+			want: &ParquetTag{
+				Name: "foo",
+				Type: "varchar",
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
