@@ -4,8 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
 )
 
 func Test_MergeWithCommonSchema(t *testing.T) {
@@ -38,7 +36,7 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				{
 					ColumnName:  "tp_id",
 					SourceName:  "custom_source",
-					Type:        "INTEGER", // should be overridden
+					Type:        "integer", // should be overridden
 					Required:    false,     // should be overridden
 					Description: "custom description",
 				},
@@ -47,7 +45,7 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				col := merged.AsMap()["tp_id"]
 				assert.NotNil(t, col)
 				assert.Equal(t, "custom_source", col.SourceName, "should keep custom source")
-				assert.Equal(t, constants.DuckDbTypeVarchar, col.Type, "should use common type")
+				assert.Equal(t, "varchar", col.Type, "should use common type")
 				assert.True(t, col.Required, "should use common required")
 				assert.Equal(t, "custom description", col.Description, "should keep custom description")
 			},
@@ -64,7 +62,7 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				col := merged.AsMap()["tp_id"]
 				assert.NotNil(t, col)
 				assert.Equal(t, "custom_source", col.SourceName, "should keep custom source")
-				assert.Equal(t, constants.DuckDbTypeVarchar, col.Type, "should use common type")
+				assert.Equal(t, "varchar", col.Type, "should use common type")
 				assert.True(t, col.Required, "should use common required")
 				assert.NotEmpty(t, col.Description, "should use common description")
 			},
@@ -95,7 +93,7 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				{
 					ColumnName:  "custom_field",
 					SourceName:  "custom_source",
-					Type:        constants.DuckDbTypeVarchar,
+					Type:        "varchar",
 					Required:    true,
 					Description: "custom description",
 				},
@@ -105,14 +103,14 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				commonCol := merged.AsMap()["tp_id"]
 				assert.NotNil(t, commonCol)
 				assert.Equal(t, "custom_source", commonCol.SourceName)
-				assert.Equal(t, constants.DuckDbTypeVarchar, commonCol.Type)
+				assert.Equal(t, "varchar", commonCol.Type)
 				assert.True(t, commonCol.Required)
 
 				// Check custom field
 				customCol := merged.AsMap()["custom_field"]
 				assert.NotNil(t, customCol)
 				assert.Equal(t, "custom_source", customCol.SourceName)
-				assert.Equal(t, constants.DuckDbTypeVarchar, customCol.Type)
+				assert.Equal(t, "varchar", customCol.Type)
 				assert.True(t, customCol.Required)
 				assert.Equal(t, "custom description", customCol.Description)
 

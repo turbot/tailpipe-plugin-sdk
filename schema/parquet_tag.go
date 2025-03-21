@@ -2,11 +2,9 @@ package schema
 
 import (
 	"fmt"
-	"golang.org/x/exp/maps"
-
 	"strings"
 
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"golang.org/x/exp/maps"
 )
 
 // ParquetTag represents the components of a parquet tag
@@ -63,26 +61,26 @@ var validDuckDBTypes = map[string]struct{}{
 	// TODO #schema STRUCT/LIST/ https://github.com/turbot/tailpipe-plugin-sdk/issues/21
 	// TODO #schema test all types for parquet conversion https://github.com/turbot/tailpipe-plugin-sdk/issues/22
 
-	constants.DuckDbTypeBoolean:   {},
-	constants.DuckDbTypeTinyInt:   {},
-	constants.DuckDbTypeSmallInt:  {},
-	constants.DuckDbTypeInteger:   {},
-	constants.DuckDbTypeBigInt:    {},
-	constants.DuckDbTypeUTinyInt:  {},
-	constants.DuckDbTypeUSmallInt: {},
-	constants.DuckDbTypeUInteger:  {},
-	constants.DuckDbTypeUBigInt:   {},
-	constants.DuckDbTypeFloat:     {},
-	constants.DuckDbTypeDouble:    {},
-	constants.DuckDbTypeVarchar:   {},
-	constants.DuckDbTypeBlob:      {},
-	constants.DuckDbTypeDate:      {},
-	constants.DuckDbTypeTimestamp: {},
-	constants.DuckDbTypeTime:      {},
-	constants.DuckDbTypeInterval:  {},
-	constants.DuckDbTypeDecimal:   {},
-	constants.DuckDbTypeUUID:      {},
-	constants.DuckDbTypeJson:      {},
+	"boolean":   {},
+	"tinyint":   {},
+	"smallint":  {},
+	"integer":   {},
+	"bigint":    {},
+	"utinyint":  {},
+	"usmallint": {},
+	"uinteger":  {},
+	"ubigint":   {},
+	"float":     {},
+	"double":    {},
+	"varchar":   {},
+	"blob":      {},
+	"date":      {},
+	"timestamp": {},
+	"time":      {},
+	"interval":  {},
+	"decimal":   {},
+	"uuid":      {},
+	"json":      {},
 }
 
 func (t *ParquetTag) validate() (*ParquetTag, error) {

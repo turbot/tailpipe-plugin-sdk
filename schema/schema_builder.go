@@ -7,10 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"golang.org/x/exp/maps"
 	"github.com/iancoleman/strcase"
-
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"golang.org/x/exp/maps"
 )
 
 const maxNesting = 10
@@ -154,7 +152,7 @@ func (b *SchemaBuilder) schemaFromType(t reflect.Type) (*TableSchema, error) {
 		}
 
 		// if the field is an anonymous struct, MERGE the child fields into the parent
-		if field.Anonymous && c.Type == constants.DuckDbTypeStruct {
+		if field.Anonymous && c.Type == "struct" {
 			for _, child := range c.StructFields {
 				res[child.ColumnName] = schemaWithOrder{child, idx}
 				idx++
@@ -190,38 +188,38 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 
 	switch t.Kind() {
 	case reflect.Bool:
-		c.Type = constants.DuckDbTypeBoolean
+		c.Type = "boolean"
 	case reflect.Int8:
-		c.Type = constants.DuckDbTypeTinyInt
+		c.Type = "tinyint"
 	case reflect.Int16:
-		c.Type = constants.DuckDbTypeSmallInt
+		c.Type = "smallint"
 	case reflect.Int32:
-		c.Type = constants.DuckDbTypeInteger
+		c.Type = "integer"
 	case reflect.Int, reflect.Int64:
-		c.Type = constants.DuckDbTypeBigInt
+		c.Type = "bigint"
 	case reflect.Uint8:
-		c.Type = constants.DuckDbTypeUTinyInt
+		c.Type = "utinyint"
 	case reflect.Uint16:
-		c.Type = constants.DuckDbTypeUSmallInt
+		c.Type = "usmallint"
 	case reflect.Uint32:
-		c.Type = constants.DuckDbTypeUInteger
+		c.Type = "uinteger"
 	case reflect.Uint, reflect.Uint64:
-		c.Type = constants.DuckDbTypeUBigInt
+		c.Type = "ubigint"
 	case reflect.Float32:
-		c.Type = constants.DuckDbTypeFloat
+		c.Type = "float"
 	case reflect.Float64:
-		c.Type = constants.DuckDbTypeDouble
+		c.Type = "double"
 	case reflect.String:
-		c.Type = constants.DuckDbTypeVarchar
+		c.Type = "varchar"
 	case reflect.Slice, reflect.Array:
 		if t.Elem().Kind() == reflect.Uint8 {
-			c.Type = constants.DuckDbTypeBlob
+			c.Type = "blob"
 			break
 		}
 		// TODO TACTICAL: the parquet conversion cannot handle struct arrays so treat as JSON
 		// https://github.com/turbot/tailpipe-plugin-sdk/issues/55
 		if isStruct(t.Elem()) {
-			c.Type = constants.DuckDbTypeJson
+			c.Type = "json"
 			break
 		}
 		listType, err := b.getColumnSchemaType(t.Elem())
@@ -230,13 +228,13 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 		}
 		c.Type = fmt.Sprintf("%s[]", listType.Type)
 		// for struct types, we need to wrap the child fields in a new ColumnSchema
-		if listType.Type == constants.DuckDbTypeStruct {
+		if listType.Type == "struct" {
 			c.ChildFields = listType.ChildFields
 		}
 	case reflect.Struct:
 		// check if this is a time.Time
 		if t == reflect.TypeOf(time.Time{}) {
-			c.Type = constants.DuckDbTypeTimestamp
+			c.Type = "timestamp"
 			break
 		}
 		// get the struct schema and convert into a DuckDB struct
@@ -245,13 +243,12 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 			return c, err
 		}
 		// convert the schema into a DuckDB struct definition
-		c.Type = constants.DuckDbTypeStruct
+		c.Type = "struct"
 		c.ChildFields = schema.Columns
 	case reflect.Map:
 		// TODO we do not currently support maps https://github.com/turbot/tailpipe-plugin-sdk/issues/55
-		c.Type = constants.DuckDbTypeJson
+		c.Type = "json"
 	default:
-
 		return c, fmt.Errorf("unsupported type %s", t)
 	}
 	return c, nil
