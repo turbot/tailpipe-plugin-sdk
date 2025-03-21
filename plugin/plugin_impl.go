@@ -101,14 +101,17 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 
 // Describe implements TailpipePlugin
 func (p *PluginImpl) Describe(_ context.Context, req *proto.DescribeRequest) (*proto.DescribeResponse, error) {
-	formatPresets, customFormatDescriptions, formatTypes, err := table.Factory.DescribeFormats(req.CustomFormats)
-	if err != nil {
-		return nil, err
+	if req.CustomFormatsOnly {
+		resp, err := table.Factory.DescribeCustomFormats(req)
+		if err != nil {
+			return nil, err
+		}
+		return resp.ToProto(), nil
 	}
 
-	resp := &DescribeResponse{
-		FormatPresets: formatPresets,
-		CustomFormats: customFormatDescriptions,
+	resp, err := table.Factory.DescribeFormats(req)
+	if err != nil {
+		return nil, err
 	}
 
 	// if the request is for custom formats only, we return just the custom formats
@@ -118,7 +121,6 @@ func (p *PluginImpl) Describe(_ context.Context, req *proto.DescribeRequest) (*p
 	}
 
 	// so we want all describe information -  add in all the other details
-	resp.FormatTypes = formatTypes
 	resp.Schemas, err = table.Factory.GetSchema()
 	if err != nil {
 		return nil, err

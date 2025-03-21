@@ -1,18 +1,16 @@
-package plugin
+package types
 
 import (
-	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
 type DescribeResponse struct {
 	// proto fields
 	Schemas       schema.SchemaMap
-	Sources       row_source.SourceMetadataMap
-	FormatPresets formats.FormatDescriptionMap
-	CustomFormats formats.FormatDescriptionMap
+	Sources       SourceMetadataMap
+	FormatPresets FormatDescriptionMap
+	CustomFormats FormatDescriptionMap
 	FormatTypes   []string
 
 	// non-proto fields - should be populated by PluginManager before returning
@@ -38,13 +36,13 @@ func DescribeResponseFromProto(resp *proto.DescribeResponse) *DescribeResponse {
 		res.Schemas = schema.SchemaMapFromProto(resp.Schemas)
 	}
 	if resp.Sources != nil {
-		res.Sources = row_source.SourceMetadataMapFromProto(resp.Sources)
+		res.Sources = SourceMetadataMapFromProto(resp.Sources)
 	}
 	if resp.FormatsPresets != nil {
-		res.FormatPresets = formats.FormatMapFromProto(resp.FormatsPresets)
+		res.FormatPresets = FormatMapFromProto(resp.FormatsPresets)
 	}
 	if resp.CustomFormats != nil {
-		res.CustomFormats = formats.FormatMapFromProto(resp.CustomFormats)
+		res.CustomFormats = FormatMapFromProto(resp.CustomFormats)
 	}
 	res.FormatTypes = resp.FormatTypes
 

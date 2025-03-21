@@ -4,11 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+
 	"github.com/turbot/pipe-fittings/v2/app_specific"
 	"github.com/turbot/pipe-fittings/v2/ociinstaller"
 	"github.com/turbot/pipe-fittings/v2/versionfile"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"os"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 func PrintMetadata(pluginFunc PluginFunc) int {
@@ -26,7 +28,7 @@ func PrintMetadata(pluginFunc PluginFunc) int {
 	}
 
 	// convert the describe response to a metadata map
-	metadata := DescribeResponseFromProto(describeResponse).AsMetadataMap()
+	metadata := types.DescribeResponseFromProto(describeResponse).AsMetadataMap()
 
 	// OciInstaller
 	app_specific.DefaultImageRepoActualURL = "ghcr.io/turbot/tailpipe"

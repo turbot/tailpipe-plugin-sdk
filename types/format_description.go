@@ -1,4 +1,4 @@
-package formats
+package types
 
 import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 

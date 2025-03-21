@@ -10,9 +10,9 @@ import (
 // FormatConfigData is an sdk type which is mapped from the proto.FormatData
 type FormatConfigData struct {
 	*ConfigDataImpl
-	Name           string
-	PresetName     string
-	ReattachConfig *SourcePluginReattach
+	Name       string
+	PresetName string
+	Regex      string
 }
 
 func NewFormatConfigData(hcl []byte, decRange hcl.Range, formatType string) *FormatConfigData {
@@ -26,21 +26,20 @@ func NewFormatConfigData(hcl []byte, decRange hcl.Range, formatType string) *For
 	}
 }
 
-func (d *FormatConfigData) SetReattach(pr *proto.SourcePluginReattach) {
-	if pr == nil {
-		return
-	}
-	d.ReattachConfig = ReattachFromProto(pr)
-}
-
 func (d *FormatConfigData) FullName() string {
 	return d.InstanceType + "." + d.Name
 }
 
 func FormatConfigDataFromProto(fd *proto.FormatData) (*FormatConfigData, error) {
-	if fd.Preset != "" {
+	// one of PresetName, Regex or Config will be set
+	if fd.PresetName != "" {
 		return &FormatConfigData{
-			PresetName: fd.Preset,
+			PresetName: fd.PresetName,
+		}, nil
+	}
+	if fd.Regex != "" {
+		return &FormatConfigData{
+			Regex: fd.Regex,
 		}, nil
 	}
 

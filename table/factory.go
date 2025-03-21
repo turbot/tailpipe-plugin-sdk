@@ -119,55 +119,62 @@ func (f *TableFactory) Initialized() bool {
 	return len(f.collectorFuncMap) > 0
 }
 
-// DescribeFormats returns a map of format instances -
-func (f *TableFactory) DescribeFormats(customFormatConfigs []*proto.FormatData) (presetDescriptions, customFormatDescriptions formats.FormatDescriptionMap, formatTypes []string, err error) {
-	presetDescriptions = make(formats.FormatDescriptionMap)
-	customFormatDescriptions = make(formats.FormatDescriptionMap)
-
-	// Add format presets
-	for name, preset := range f.formatPresets {
-		presetDescription := f.describeFormat(preset)
-		presetDescriptions[name] = presetDescription
-
+// DescribeCustomFormats describes the custom formats which are provided in the request
+func (f *TableFactory) DescribeCustomFormats(req *proto.DescribeRequest) (*types.DescribeResponse, error) {
+	resp := &types.DescribeResponse{
+		CustomFormats: make(types.FormatDescriptionMap),
 	}
-	// now parse custom formats add add them to the map (they take precedence)
-	customFormats, errs := f.parseCustomFormats(customFormatConfigs)
+
+	// now parse custom formats
+	customFormats, errs := f.parseCustomFormats(req.CustomFormats)
 	if len(errs) > 0 {
 		errString := fmt.Sprintf("%d custom format parsing %s:\n", len(errs), utils.Pluralize("error", len(errs)))
 		for formatName, err := range errs {
 			errString += fmt.Sprintf("%s: %s\n", formatName, err.Error())
 		}
 		err := errors.New(errString)
-		return nil, nil, nil, err
+		return nil, err
 	}
 
 	for _, format := range customFormats {
 		formatDescription := f.describeFormat(format)
 		// add the format to the map
 		formatFullName := fmt.Sprintf("%s.%s", format.Identifier(), format.GetName())
-
-		customFormatDescriptions[formatFullName] = formatDescription
+		resp.CustomFormats[formatFullName] = formatDescription
 	}
-	// now add the errors for any formats that failed to parse
-	for _, err := range errs {
-		customFormatDescriptions[err.Error()] = &formats.FormatDescription{
-			Type:        "error",
-			Name:        err.Error(),
-			Description: err.Error(),
-		}
-	}
-	formatTypes = maps.Keys(f.formatMap)
 
-	return presetDescriptions, customFormatDescriptions, formatTypes, nil
+	return resp, nil
 }
 
-func (f *TableFactory) describeFormat(format formats.Format) *formats.FormatDescription {
+// DescribeFormats describes the formats available for the plugin, including provided custom formats
+func (f *TableFactory) DescribeFormats(req *proto.DescribeRequest) (*types.DescribeResponse, error) {
+	// first describe the formats provided by the request
+	resp, err := f.DescribeCustomFormats(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// add format presets
+	resp.FormatPresets = make(types.FormatDescriptionMap)
+	for name, preset := range f.formatPresets {
+		presetDescription := f.describeFormat(preset)
+		resp.FormatPresets[name] = presetDescription
+
+	}
+
+	// add format types
+	resp.FormatTypes = maps.Keys(f.formatMap)
+
+	return resp, nil
+}
+
+func (f *TableFactory) describeFormat(format formats.Format) *types.FormatDescription {
 	regex, err := format.GetRegex()
 	if err != nil {
 		regex = fmt.Sprintf("failed to convert pattern to regex: %s", err.Error())
 	}
 
-	return &formats.FormatDescription{
+	return &types.FormatDescription{
 		Type:        format.Identifier(),
 		Name:        format.GetName(),
 		Properties:  format.GetProperties(),
@@ -183,6 +190,20 @@ func (f *TableFactory) parseCustomFormats(customFormatConfigs []*proto.FormatDat
 	var res []formats.Format
 	var errs = make(map[string]error)
 	for _, formatConfig := range customFormatConfigs {
+		// handle preset
+		if formatConfig.PresetName != "" {
+			if preset, ok := f.formatPresets[formatConfig.PresetName]; ok {
+				res = append(res, preset)
+			} else {
+				errs[formatConfig.PresetName] = fmt.Errorf("preset format not found: %s", formatConfig.PresetName)
+			}
+			continue
+		}
+		if formatConfig.Regex != "" {
+			// unexpected as normally a regex is only set when have already described a format
+			errs[formatConfig.Regex] = fmt.Errorf("regex format cannot be used when describing custom formats")
+			continue
+		}
 		formatData, err := types.FormatConfigDataFromProto(formatConfig)
 		if err != nil {
 			errs[formatConfig.Config.Target] = err
@@ -257,34 +278,28 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 }
 
 func (f *TableFactory) getFormatForTable(req *types.CollectRequest, customTable CustomTable) (formats.Format, error) {
-	format := customTable.GetDefaultFormat()
-	// if a format was provided, parse it
-	if req.SourceFormat != nil {
-		// if a formatPlugin was provided, create a FormatPluginWrapper
-		if req.SourceFormat.ReattachConfig != nil {
-			return formats.NewPluginFormatWrapper(req.SourceFormat, req.SourceFormat.ReattachConfig)
-		}
-
-		// is there preset or format config
-		if req.SourceFormat.PresetName != "" {
-			preset, ok := f.formatPresets[req.SourceFormat.PresetName]
-			if !ok {
-				return nil, fmt.Errorf("format preset not found: %s", req.SourceFormat.PresetName)
-			}
-			format = preset
-		} else {
-			var err error
-			format, err = formats.ParseFormat(req.SourceFormat, f.formatMap)
-			if err != nil {
-				slog.Warn("error parsing format", "error", err)
-				return nil, err
-			}
-		}
-
+	// if no format was provided use default
+	if req.SourceFormat == nil {
+		return customTable.GetDefaultFormat(), nil
+	}
+	// if a regex was provided, use it
+	if req.SourceFormat.Regex != "" {
+		return &formats.Regex{
+			Layout: req.SourceFormat.Regex,
+		}, nil
 	}
 
-	// we're done
-	return format, nil
+	// if there is a preset, resolve it
+	if req.SourceFormat.PresetName != "" {
+		preset, ok := f.formatPresets[req.SourceFormat.PresetName]
+		if !ok {
+			return nil, fmt.Errorf("format preset not found: %s", req.SourceFormat.PresetName)
+		}
+		return preset, nil
+	}
+
+	// parse the format config
+	return formats.ParseFormat(req.SourceFormat, f.formatMap)
 }
 
 // populateSchemas builds the map of table constructors and schemas
