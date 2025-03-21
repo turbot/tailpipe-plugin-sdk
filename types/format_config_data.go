@@ -26,12 +26,6 @@ func NewFormatConfigData(hcl []byte, decRange hcl.Range, formatType string) *For
 	}
 }
 
-func NewPresetFormatConfigData(presetName string) *FormatConfigData {
-	return &FormatConfigData{
-		PresetName: presetName,
-	}
-}
-
 func (d *FormatConfigData) SetReattach(pr *proto.SourcePluginReattach) {
 	if pr == nil {
 		return
