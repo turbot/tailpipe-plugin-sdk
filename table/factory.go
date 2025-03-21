@@ -51,13 +51,7 @@ func RegisterFormat[T formats.Format]() {
 	Factory.registerFormat(f.Identifier(), formatFunc)
 }
 func RegisterFormatPresets(presets ...formats.Format) {
-	// convert the presets to a slice of formats.Format
-	presetIfs := make([]formats.Format, len(presets))
-	for i, preset := range presets {
-		presetIfs[i] = preset
-	}
-
-	Factory.registerFormatPresets(presetIfs...)
+	Factory.registerFormatPresets(presets...)
 }
 
 type TableFactory struct {
