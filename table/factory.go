@@ -45,17 +45,19 @@ func RegisterTable[R types.RowStruct, T Table[R]]() {
 	Factory.registerCollector(t.Identifier(), collectorFunc)
 }
 
-func RegisterFormat[T formats.Format](presets ...T) {
+func RegisterFormat[T formats.Format]() {
 	f := utils.InstanceOf[T]()
-
 	formatFunc := func() formats.Format { return f }
+	Factory.registerFormat(f.Identifier(), formatFunc)
+}
+func RegisterFormatPresets(presets ...formats.Format) {
 	// convert the presets to a slice of formats.Format
 	presetIfs := make([]formats.Format, len(presets))
 	for i, preset := range presets {
 		presetIfs[i] = preset
 	}
 
-	Factory.registerFormat(f.Identifier(), formatFunc, presetIfs)
+	Factory.registerFormatPresets(presetIfs...)
 }
 
 type TableFactory struct {
@@ -204,15 +206,17 @@ func (f *TableFactory) registerCollector(name string, ctor func() Collector) {
 	f.collectorFuncMap[name] = ctor
 }
 
-func (f *TableFactory) registerFormat(formatType string, formatFunc func() formats.Format, presets []formats.Format) {
+func (f *TableFactory) registerFormat(formatType string, formatFunc func() formats.Format) {
 	// build the format full name (i.e. type.name)
 	// this is used as the key in the format map
 	f.formatMap[formatType] = formatFunc
+}
+
+func (f *TableFactory) registerFormatPresets(presets ...formats.Format) {
 	for _, preset := range presets {
-		presetFullName := fmt.Sprintf("%s.%s", formatType, preset.GetName())
+		presetFullName := fmt.Sprintf("%s.%s", preset.Identifier(), preset.GetName())
 		f.formatPresets[presetFullName] = preset
 	}
-
 }
 
 func (f *TableFactory) registerCustomTable(name string, ctor func() CustomTable) {
