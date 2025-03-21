@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"strings"
 )
@@ -54,10 +55,10 @@ func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 }
 
 func (c *ColumnSchema) FullType() string {
-	if c.Type == "STRUCT" {
+	if c.Type == constants.DuckDbTypeStruct {
 		return c.structDef()
 	}
-	if c.Type == "STRUCT[]" {
+	if c.Type == constants.CDuckDbTypeStructArray {
 		return fmt.Sprintf("%s[]", c.structDef())
 	}
 	return c.Type
@@ -65,7 +66,8 @@ func (c *ColumnSchema) FullType() string {
 
 func (c *ColumnSchema) structDef() string {
 	var str strings.Builder
-	str.WriteString("STRUCT(")
+	str.WriteString(constants.DuckDbTypeStruct)
+	str.WriteString("(")
 	for i, column := range c.StructFields {
 		if i > 0 {
 			str.WriteString(", ")

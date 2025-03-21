@@ -94,8 +94,8 @@ type SimpleStructWithTags struct {
 	StringFieldNameOverridden        string `parquet:"name=renamed_string_field"`
 	StringFieldNameJSONTag           string `json:"json_tag_only"`
 	StringFieldNameJSONAndParquetTag string `parquet:"name=parquet_tag" json:"json_tag_and_parquet_tag"`
-	IntegerFieldTypeOverridden       int    `parquet:"type=INTEGER"`
-	Int16FieldBothOverridden         int16  `parquet:"name=renamed_int_16_field,type=INTEGER"`
+	IntegerFieldTypeOverridden       int    `parquet:"type=integer"`
+	Int16FieldBothOverridden         int16  `parquet:"name=renamed_int_16_field,type=integer"`
 }
 
 type StructWithDeeplyNestedStructArray struct {
@@ -126,20 +126,20 @@ func TestSchemaFromStruct(t *testing.T) {
 			},
 			want: &TableSchema{
 				Columns: []*ColumnSchema{
-					{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-					{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
-					{SourceName: "Int16Field", ColumnName: "int_16_field", Type: "SMALLINT"},
-					{SourceName: "Int32Field", ColumnName: "int_32_field", Type: "INTEGER"},
-					{SourceName: "Int64Field", ColumnName: "int_64_field", Type: "BIGINT"},
-					{SourceName: "Float32Field", ColumnName: "float_32_field", Type: "FLOAT"},
-					{SourceName: "Float64Field", ColumnName: "float_64_field", Type: "DOUBLE"},
-					{SourceName: "BooleanField", ColumnName: "boolean_field", Type: "BOOLEAN"},
-					{SourceName: "ByteField", ColumnName: "byte_field", Type: "UTINYINT"},
-					{SourceName: "Uint16Field", ColumnName: "uint_16_field", Type: "USMALLINT"},
-					{SourceName: "Uint32Field", ColumnName: "uint_32_field", Type: "UINTEGER"},
-					{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "UBIGINT"},
-					{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "BLOB"},
-					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "VARCHAR[]"},
+					{SourceName: "StringField", ColumnName: "string_field", Type: "varchar"},
+					{SourceName: "IntegerField", ColumnName: "integer_field", Type: "bigint"},
+					{SourceName: "Int16Field", ColumnName: "int_16_field", Type: "smallint"},
+					{SourceName: "Int32Field", ColumnName: "int_32_field", Type: "integer"},
+					{SourceName: "Int64Field", ColumnName: "int_64_field", Type: "bigint"},
+					{SourceName: "Float32Field", ColumnName: "float_32_field", Type: "float"},
+					{SourceName: "Float64Field", ColumnName: "float_64_field", Type: "double"},
+					{SourceName: "BooleanField", ColumnName: "boolean_field", Type: "boolean"},
+					{SourceName: "ByteField", ColumnName: "byte_field", Type: "utinyint"},
+					{SourceName: "Uint16Field", ColumnName: "uint_16_field", Type: "usmallint"},
+					{SourceName: "Uint32Field", ColumnName: "uint_32_field", Type: "uinteger"},
+					{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "ubigint"},
+					{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "blob"},
+					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "varchar[]"},
 				},
 			},
 			wantErr: false,
@@ -151,20 +151,20 @@ func TestSchemaFromStruct(t *testing.T) {
 			},
 			want: &TableSchema{
 				Columns: []*ColumnSchema{
-					{SourceName: "TimeField", ColumnName: "time_field", Type: "TIMESTAMP"},
+					{SourceName: "TimeField", ColumnName: "time_field", Type: "timestamp"},
 					{
 						SourceName: "StructField",
 						ColumnName: "struct_field",
-						Type:       "STRUCT",
+						Type:       "struct",
 						StructFields: []*ColumnSchema{
-							{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-							{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
+							{SourceName: "StringField", ColumnName: "string_field", Type: "varchar"},
+							{SourceName: "IntegerField", ColumnName: "integer_field", Type: "bigint"},
 							{
 								SourceName: "InnerStructField",
 								ColumnName: "inner_struct_field",
-								Type:       "STRUCT",
+								Type:       "struct",
 								StructFields: []*ColumnSchema{
-									{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
+									{SourceName: "StringField", ColumnName: "string_field", Type: "varchar"},
 								},
 							},
 						},
@@ -172,57 +172,57 @@ func TestSchemaFromStruct(t *testing.T) {
 					{
 						SourceName: "StringToStringMap",
 						ColumnName: "string_to_string_map",
-						Type:       "JSON",
+						Type:       "json",
 						StructFields: []*ColumnSchema{
-							{Type: "VARCHAR"},
-							{Type: "VARCHAR"},
+							{Type: "varchar"},
+							{Type: "varchar"},
 						},
 					},
 					{
 						SourceName: "StructSliceField",
 						ColumnName: "struct_slice_field",
-						Type:       "JSON",
+						Type:       "json",
 					},
 
 					{
 						SourceName: "StringToStructMap",
 						ColumnName: "string_to_struct_map",
-						Type:       "JSON", StructFields: []*ColumnSchema{
-							{Type: "VARCHAR"},
-							{
-								Type: "STRUCT",
-								StructFields: []*ColumnSchema{
-									{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-									{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
-									{
-										SourceName: "InnerStructField",
-										ColumnName: "inner_struct_field",
-										Type:       "STRUCT",
-										StructFields: []*ColumnSchema{
-											{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-										},
+						Type:       "json", StructFields: []*ColumnSchema{
+						{Type: "varchar"},
+						{
+							Type: "struct",
+							StructFields: []*ColumnSchema{
+								{SourceName: "StringField", ColumnName: "string_field", Type: "varchar"},
+								{SourceName: "IntegerField", ColumnName: "integer_field", Type: "bigint"},
+								{
+									SourceName: "InnerStructField",
+									ColumnName: "inner_struct_field",
+									Type:       "struct",
+									StructFields: []*ColumnSchema{
+										{SourceName: "StringField", ColumnName: "string_field", Type: "varchar"},
 									},
 								},
 							},
 						},
 					},
+					},
 					{
 						SourceName: "StringToStructSliceMap",
 						ColumnName: "string_to_struct_slice_map",
-						Type:       "JSON",
+						Type:       "json",
 						StructFields: []*ColumnSchema{
-							{Type: "VARCHAR"},
+							{Type: "varchar"},
 							{
-								Type: "STRUCT[]",
+								Type: "struct[]",
 								StructFields: []*ColumnSchema{
-									{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-									{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
+									{SourceName: "StringField", ColumnName: "string_field", Type: "varchar"},
+									{SourceName: "IntegerField", ColumnName: "integer_field", Type: "bigint"},
 									{
 										SourceName: "InnerStructField",
 										ColumnName: "inner_struct_field",
-										Type:       "STRUCT",
+										Type:       "struct",
 										StructFields: []*ColumnSchema{
-											{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
+											{SourceName: "StringField", ColumnName: "string_field", Type: "varchar"},
 										},
 									},
 								},
@@ -240,21 +240,21 @@ func TestSchemaFromStruct(t *testing.T) {
 			},
 			want: &TableSchema{
 				Columns: []*ColumnSchema{
-					{SourceName: "StringField", ColumnName: "string_field", Type: "VARCHAR"},
-					{SourceName: "IntegerField", ColumnName: "integer_field", Type: "BIGINT"},
-					{SourceName: "Int16Field", ColumnName: "int_16_field", Type: "SMALLINT"},
-					{SourceName: "Int32Field", ColumnName: "int_32_field", Type: "INTEGER"},
-					{SourceName: "Int64Field", ColumnName: "int_64_field", Type: "BIGINT"},
-					{SourceName: "Float32Field", ColumnName: "float_32_field", Type: "FLOAT"},
-					{SourceName: "Float64Field", ColumnName: "float_64_field", Type: "DOUBLE"},
-					{SourceName: "BooleanField", ColumnName: "boolean_field", Type: "BOOLEAN"},
-					{SourceName: "ByteField", ColumnName: "byte_field", Type: "UTINYINT"},
-					{SourceName: "Uint16Field", ColumnName: "uint_16_field", Type: "USMALLINT"},
-					{SourceName: "Uint32Field", ColumnName: "uint_32_field", Type: "UINTEGER"},
-					{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "UBIGINT"},
-					{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "BLOB"},
-					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "VARCHAR[]"},
-					{SourceName: "TopLevelStringField", ColumnName: "top_level_string_field", Type: "VARCHAR"},
+					{SourceName: "StringField", ColumnName: "string_field", Type: "varchar"},
+					{SourceName: "IntegerField", ColumnName: "integer_field", Type: "bigint"},
+					{SourceName: "Int16Field", ColumnName: "int_16_field", Type: "smallint"},
+					{SourceName: "Int32Field", ColumnName: "int_32_field", Type: "integer"},
+					{SourceName: "Int64Field", ColumnName: "int_64_field", Type: "bigint"},
+					{SourceName: "Float32Field", ColumnName: "float_32_field", Type: "float"},
+					{SourceName: "Float64Field", ColumnName: "float_64_field", Type: "double"},
+					{SourceName: "BooleanField", ColumnName: "boolean_field", Type: "boolean"},
+					{SourceName: "ByteField", ColumnName: "byte_field", Type: "utinyint"},
+					{SourceName: "Uint16Field", ColumnName: "uint_16_field", Type: "usmallint"},
+					{SourceName: "Uint32Field", ColumnName: "uint_32_field", Type: "uinteger"},
+					{SourceName: "Uint64Field", ColumnName: "uint_64_field", Type: "ubigint"},
+					{SourceName: "ByteSliceField", ColumnName: "byte_slice_field", Type: "blob"},
+					{SourceName: "StringSliceField", ColumnName: "string_slice_field", Type: "varchar[]"},
+					{SourceName: "TopLevelStringField", ColumnName: "top_level_string_field", Type: "varchar"},
 				},
 			},
 
@@ -291,11 +291,11 @@ func TestSchemaFromStruct(t *testing.T) {
 			},
 			want: &TableSchema{
 				Columns: []*ColumnSchema{
-					{SourceName: "StringFieldNameOverridden", ColumnName: "renamed_string_field", Type: "VARCHAR"},
-					{SourceName: "json_tag_only", ColumnName: "json_tag_only", Type: "VARCHAR"},
-					{SourceName: "json_tag_and_parquet_tag", ColumnName: "parquet_tag", Type: "VARCHAR"},
-					{SourceName: "IntegerFieldTypeOverridden", ColumnName: "integer_field_type_overridden", Type: "INTEGER"},
-					{SourceName: "Int16FieldBothOverridden", ColumnName: "renamed_int_16_field", Type: "INTEGER"},
+					{SourceName: "StringFieldNameOverridden", ColumnName: "renamed_string_field", Type: "varchar"},
+					{SourceName: "json_tag_only", ColumnName: "json_tag_only", Type: "varchar"},
+					{SourceName: "json_tag_and_parquet_tag", ColumnName: "parquet_tag", Type: "varchar"},
+					{SourceName: "IntegerFieldTypeOverridden", ColumnName: "integer_field_type_overridden", Type: "integer"},
+					{SourceName: "Int16FieldBothOverridden", ColumnName: "renamed_int_16_field", Type: "integer"},
 				},
 			},
 			wantErr: false,
@@ -311,7 +311,7 @@ func TestSchemaFromStruct(t *testing.T) {
 					{
 						SourceName: "StructArrayField",
 						ColumnName: "struct_array_field",
-						Type:       "JSON",
+						Type:       "json",
 					},
 				},
 			},
@@ -329,11 +329,11 @@ func TestSchemaFromStruct(t *testing.T) {
 					{
 						SourceName: "StructWithNestedStructArray",
 						ColumnName: "struct_with_nested_struct_array",
-						Type:       "STRUCT",
+						Type:       "struct",
 						StructFields: []*ColumnSchema{
 							{SourceName: "StructArrayField",
 								ColumnName: "struct_array_field",
-								Type:       "JSON"},
+								Type:       "json"},
 						},
 					},
 				},
@@ -365,7 +365,7 @@ func TestSchemaFromStruct(t *testing.T) {
 				if c.SourceName != w.SourceName {
 					t.Errorf("Column %s SourceName = %v, want SourceName %v", c.ColumnName, c.SourceName, w.SourceName)
 				}
-				if c.Type == "ARRAY" || c.Type == "STRUCT" {
+				if c.Type == "array" || c.Type == "struct" {
 					if !reflect.DeepEqual(c.StructFields, w.StructFields) {
 						t.Errorf("Column %s = %v, want StructFields %v", c.ColumnName, c.StructFields, w.StructFields)
 					}

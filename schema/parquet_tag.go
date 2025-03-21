@@ -5,6 +5,8 @@ import (
 	"golang.org/x/exp/maps"
 
 	"strings"
+
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 )
 
 // ParquetTag represents the components of a parquet tag
@@ -46,7 +48,7 @@ func ParseParquetTag(tag string) (*ParquetTag, error) {
 		case "name":
 			pt.Name = value
 		case "type":
-			pt.Type = value
+			pt.Type = strings.ToLower(value)
 		default:
 			return nil, fmt.Errorf("invalid parquet tag: %s, key '%s' not recognized", tag, key)
 		}
@@ -61,34 +63,34 @@ var validDuckDBTypes = map[string]struct{}{
 	// TODO #schema STRUCT/LIST/ https://github.com/turbot/tailpipe-plugin-sdk/issues/21
 	// TODO #schema test all types for parquet conversion https://github.com/turbot/tailpipe-plugin-sdk/issues/22
 
-	"BOOLEAN":   {},
-	"TINYINT":   {},
-	"SMALLINT":  {},
-	"INTEGER":   {},
-	"BIGINT":    {},
-	"UTINYINT":  {},
-	"USMALLINT": {},
-	"UINTEGER":  {},
-	"UBIGINT":   {},
-	"FLOAT":     {},
-	"DOUBLE":    {},
-	"VARCHAR":   {},
-	"BLOB":      {},
-	"DATE":      {},
-	"TIMESTAMP": {},
-	"TIME":      {},
-	"INTERVAL":  {},
-	"DECIMAL":   {},
-	"UUID":      {},
-	"JSON":      {},
+	constants.DuckDbTypeBoolean:   {},
+	constants.DuckDbTypeTinyInt:   {},
+	constants.DuckDbTypeSmallInt:  {},
+	constants.DuckDbTypeInteger:   {},
+	constants.DuckDbTypeBigInt:    {},
+	constants.DuckDbTypeUTinyInt:  {},
+	constants.DuckDbTypeUSmallInt: {},
+	constants.DuckDbTypeUInteger:  {},
+	constants.DuckDbTypeUBigInt:   {},
+	constants.DuckDbTypeFloat:     {},
+	constants.DuckDbTypeDouble:    {},
+	constants.DuckDbTypeVarchar:   {},
+	constants.DuckDbTypeBlob:      {},
+	constants.DuckDbTypeDate:      {},
+	constants.DuckDbTypeTimestamp: {},
+	constants.DuckDbTypeTime:      {},
+	constants.DuckDbTypeInterval:  {},
+	constants.DuckDbTypeDecimal:   {},
+	constants.DuckDbTypeUUID:      {},
+	constants.DuckDbTypeJson:      {},
 }
 
 func (t *ParquetTag) validate() (*ParquetTag, error) {
 	// TODO #validation validate name is duckdb compliant? https://github.com/turbot/tailpipe-plugin-sdk/issues/70
 
 	if t.Type != "" {
-		// Convert type to upper case for case-insensitive comparison
-		normalizedType := strings.ToUpper(t.Type)
+		// Convert type to lower case for case-insensitive comparison
+		normalizedType := strings.ToLower(t.Type)
 		if _, valid := validDuckDBTypes[normalizedType]; !valid {
 			return nil, fmt.Errorf("invalid parquet tag: 'type' must be one of %v", maps.Keys(validDuckDBTypes))
 		}
