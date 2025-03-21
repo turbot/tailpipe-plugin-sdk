@@ -120,13 +120,13 @@ func (f *TableFactory) Initialized() bool {
 }
 
 // DescribeCustomFormats describes the custom formats which are provided in the request
-func (f *TableFactory) DescribeCustomFormats(req *proto.DescribeRequest) (*types.DescribeResponse, error) {
+func (f *TableFactory) DescribeCustomFormats(customFormatData []*proto.FormatData) (*types.DescribeResponse, error) {
 	resp := &types.DescribeResponse{
 		CustomFormats: make(types.FormatDescriptionMap),
 	}
 
 	// now parse custom formats
-	customFormats, errs := f.parseCustomFormats(req.CustomFormats)
+	customFormats, errs := f.parseCustomFormats(customFormatData)
 	if len(errs) > 0 {
 		errString := fmt.Sprintf("%d custom format parsing %s:\n", len(errs), utils.Pluralize("error", len(errs)))
 		for formatName, err := range errs {
@@ -147,9 +147,9 @@ func (f *TableFactory) DescribeCustomFormats(req *proto.DescribeRequest) (*types
 }
 
 // DescribeFormats describes the formats available for the plugin, including provided custom formats
-func (f *TableFactory) DescribeFormats(req *proto.DescribeRequest) (*types.DescribeResponse, error) {
+func (f *TableFactory) DescribeFormats(customFormatData ...*proto.FormatData) (*types.DescribeResponse, error) {
 	// first describe the formats provided by the request
-	resp, err := f.DescribeCustomFormats(req)
+	resp, err := f.DescribeCustomFormats(customFormatData)
 	if err != nil {
 		return nil, err
 	}
