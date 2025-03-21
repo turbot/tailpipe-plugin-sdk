@@ -51,14 +51,17 @@ func NewPluginFormatWrapper(formatData *types.FormatConfigData, sourcePlugin *ty
 	if formatData.PresetName != "" {
 		// we have a preset name, so we need to find the format in the describe response
 		desc, ok = describeResp.FormatsPresets[formatData.PresetName]
+		if !ok {
+			return nil, fmt.Errorf("plugin returned no description for format preset %s", formatData.PresetName)
+		}
 	} else {
 		// we expect the first format to be the one we asked for
 		desc, ok = describeResp.CustomFormats[formatData.FullName()]
+		if !ok {
+			return nil, fmt.Errorf("plugin returned no description for format %s", formatData.FullName())
+		}
 	}
 
-	if !ok {
-		return nil, fmt.Errorf("plugin returned no description for format %s", formatData.FullName())
-	}
 	res.describeResponse = FormatDescriptionFromProto(desc)
 
 	return res, nil
