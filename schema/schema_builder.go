@@ -216,6 +216,8 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 			c.Type = "blob"
 			break
 		}
+		// TODO TACTICAL: the parquet conversion cannot handle struct arrays so treat as JSON
+		// https://github.com/turbot/tailpipe-plugin-sdk/issues/55
 		if isStruct(t.Elem()) {
 			c.Type = "json"
 			break
@@ -225,21 +227,26 @@ func (b *SchemaBuilder) getColumnSchemaType(t reflect.Type) (ColumnType, error) 
 			return c, err
 		}
 		c.Type = fmt.Sprintf("%s[]", listType.Type)
+		// for struct types, we need to wrap the child fields in a new ColumnSchema
 		if listType.Type == "struct" {
 			c.ChildFields = listType.ChildFields
 		}
 	case reflect.Struct:
+		// check if this is a time.Time
 		if t == reflect.TypeOf(time.Time{}) {
 			c.Type = "timestamp"
 			break
 		}
+		// get the struct schema and convert into a DuckDB struct
 		schema, err := b.schemaFromType(t)
 		if err != nil {
 			return c, err
 		}
+		// convert the schema into a DuckDB struct definition
 		c.Type = "struct"
 		c.ChildFields = schema.Columns
 	case reflect.Map:
+		// TODO we do not currently support maps https://github.com/turbot/tailpipe-plugin-sdk/issues/55
 		c.Type = "json"
 	default:
 		return c, fmt.Errorf("unsupported type %s", t)

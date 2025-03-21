@@ -23,7 +23,7 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				for _, commonCol := range commonSchema.Columns {
 					col := mergedMap[commonCol.ColumnName]
 					assert.NotNil(t, col)
-					assert.Equal(t, "varchar", col.Type)
+					assert.Equal(t, commonCol.Type, col.Type)
 					assert.Equal(t, commonCol.Required, col.Required)
 					assert.Equal(t, commonCol.Description, col.Description)
 					assert.Equal(t, commonCol.SourceName, col.SourceName)
@@ -36,7 +36,7 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 				{
 					ColumnName:  "tp_id",
 					SourceName:  "custom_source",
-					Type:        "varchar", // should be overridden
+					Type:        "integer", // should be overridden
 					Required:    false,     // should be overridden
 					Description: "custom description",
 				},
