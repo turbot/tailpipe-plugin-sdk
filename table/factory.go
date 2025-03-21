@@ -136,6 +136,14 @@ func (f *TableFactory) DescribeFormats(customFormatConfigs []*proto.FormatData) 
 	}
 	// now parse custom formats add add them to the map (they take precedence)
 	customFormats, errs := f.parseCustomFormats(customFormatConfigs)
+	if len(errs) > 0 {
+		errString := fmt.Sprintf("%d custom format parsing %s:\n", len(errs), utils.Pluralize("error", len(errs)))
+		for formatName, err := range errs {
+			errString += fmt.Sprintf("%s: %s\n", formatName, err.Error())
+		}
+		err := errors.New(errString)
+		return nil, nil, nil, err
+	}
 
 	for _, format := range customFormats {
 		formatDescription := f.describeFormat(format)
