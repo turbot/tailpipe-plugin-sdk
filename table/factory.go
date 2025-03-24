@@ -40,7 +40,7 @@ func RegisterCustomTable[T CustomTable](opts ...TableOption) {
 func RegisterTable[R types.RowStruct, T Table[R]]() {
 	t := utils.InstanceOf[T]()
 	collectorFunc := func() Collector {
-		return NewCollectorImpl[R](t)
+		return NewRowEnrichmentCollector[R](t)
 	}
 	Factory.registerCollector(t.Identifier(), collectorFunc)
 }
@@ -273,7 +273,7 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 	case constants.SourceFormatDelimited, constants.SourceFormatJson, constants.SourceFormatJsonLines:
 		return NewArtifactConversionCollector(customTable), nil
 	default:
-		return NewCollectorImpl[*types.DynamicRow](customTable), nil
+		return NewRowEnrichmentCollector[*types.DynamicRow](customTable), nil
 	}
 }
 

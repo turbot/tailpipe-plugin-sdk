@@ -2,8 +2,12 @@ package table
 
 import (
 	"context"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
@@ -14,7 +18,6 @@ import (
 type ArtifactConversionCollector struct {
 	CollectorImpl[*types.DynamicRow]
 
-	tableName string
 	// the source format
 	//formatData *proto.ConfigData
 	// the table config
@@ -34,20 +37,20 @@ func NewArtifactConversionCollector(Table[*types.DynamicRow]) *ArtifactConversio
 func (c *ArtifactConversionCollector) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
 
+	// get the source metadata for this source type
+	// (this returns an error if the source is not supported by the table)
+	sourceMetadata := c.getSourceMetadata()
+
+	if err := c.initSource(ctx, req, sourceMetadata); err != nil {
+		return err
+	}
+
 	// TODO #validate validate no extractor
 	// TODO #validate validate table name does not clash
 
-	slog.Info("tableName RowSourceImpl: Collect", "table", c.tableName)
-	if err := c.initSource(ctx, req); err != nil {
-		return err
-	}
 	slog.Info("Start collection")
 
 	return nil
-}
-
-func (c *ArtifactConversionCollector) Identifier() string {
-	return c.tableName
 }
 
 // GetSchema returns the schema of the table if available
@@ -146,6 +149,15 @@ func (c *ArtifactConversionCollector) Notify(ctx context.Context, event events.E
 	default:
 		// ignore
 		return nil
+	}
+}
+
+func (c *ArtifactConversionCollector) getSourceMetadata() *SourceMetadata[*types.DynamicRow] {
+	return &SourceMetadata[*types.DynamicRow]{
+		SourceName: constants.ArtifactSourceIdentifier,
+		// set a null loader so we don't receive row events - instead we implement ArtifactToJsonConverter
+		// to convert the artifact to JSONL directly
+		Options: []row_source.RowSourceOption{artifact_source.WithArtifactLoader(artifact_loader.NewNullLoader())},
 	}
 }
 
