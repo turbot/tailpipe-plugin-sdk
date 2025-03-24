@@ -70,7 +70,6 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 	schemaMap := r.AsMap()
 
-	// TODO need to think about automapping/test
 	if r.AutoMapSourceFields {
 		// build map of excluded fields
 		excludeMap := utils.SliceToLookup(r.ExcludeSourceFields)
@@ -142,7 +141,7 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 		// we assume (and validate) that the select clause a DuckDB function name, with a parameter, e.g. UPPER(?) or STRING_SPLIT(?, ',')
 		// TODO verify the select clause contains 1 param '?'
 
-		query := fmt.Sprintf("SELECT %s", column.SelectClause) //nolint:gosec // TODO KAI this is temporary
+		query := fmt.Sprintf("select %s", column.SelectClause) //nolint:gosec // TODO KAI this is temporary
 		row := db.QueryRow(query, valString)
 		var val interface{}
 		err = row.Scan(&val)
@@ -155,7 +154,7 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 
 	// now format the string according to the type
 	switch ty {
-	case "TIMESTAMP", "DATE", "TIME":
+	case "timestamp", "date", "time":
 		// todo kai apply time format - only parse if format specified?
 		// TODO this duplicates what we already do for tp_timestamp in dynamicrow enrich  -
 		t, err := helpers.ParseTime(valString)

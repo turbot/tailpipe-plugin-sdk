@@ -18,6 +18,8 @@ func (c *CustomTableImpl) Initialize(format formats.Format, customTableSchema *s
 	c.Format = format
 	// merge the custom table schema with the common fields schema
 	c.Schema = customTableSchema.MergeWithCommonSchema()
+	// ensure the schema types are normalised to the lower case
+	c.Schema.NormaliseColumnTypes()
 }
 
 // GetSchema implements the CustomTable interface

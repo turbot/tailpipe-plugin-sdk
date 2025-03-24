@@ -8,6 +8,7 @@ import (
 	"strings"
 )
 
+// TODO LOWER CASE SQL KEYWORDS
 type CsvHeaderMode string
 
 const (
