@@ -364,3 +364,10 @@ func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
 	}
 	return res
 }
+
+// NormaliseColumnTypes normalises the column types to lower case
+func (r *TableSchema) NormaliseColumnTypes() {
+	for _, c := range r.Columns {
+		c.NormaliseColumnTypes()
+	}
+}

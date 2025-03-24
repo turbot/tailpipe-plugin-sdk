@@ -78,6 +78,14 @@ func (c *ColumnSchema) structDef() string {
 	return str.String()
 }
 
+// NormaliseColumnTypes normalises the column types to lower case, including all child fields
+func (c *ColumnSchema) NormaliseColumnTypes() {
+	c.Type = strings.ToLower(c.Type)
+	for _, child := range c.StructFields {
+		child.NormaliseColumnTypes()
+	}
+}
+
 // ColumnFromProto creates a new ColumnSchema from proto
 func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
 	c := &ColumnSchema{
