@@ -3,7 +3,6 @@ package table
 import (
 	"context"
 	"log/slog"
-	"sync"
 	"time"
 
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -32,22 +31,10 @@ type CollectorImpl[R types.RowStruct] struct {
 
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
-	rowWg               sync.WaitGroup
 	status              *events.Status
 	lastStatusEventTime time.Time
 
 	req *types.CollectRequest
-	// row buffer keyed by execution id
-	// each row buffer is used to write a JSONL file
-	rowBufferMap map[string][]any
-	// mutex for row buffer map AND rowCountMap
-	rowBufferLock sync.RWMutex
-	// map of row counts keyed by execution id
-	rowCountMap map[string]int
-	// map of chunks written keyed by execution id
-	chunkCountMap map[string]int
-
-	writer ChunkWriter
 }
 
 func (c *CollectorImpl[R]) Identifier() string {

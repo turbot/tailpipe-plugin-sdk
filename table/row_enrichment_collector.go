@@ -4,19 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
-	"sync"
-	"time"
-
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
-	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"log/slog"
+	"sync"
 )
 
 // JSONLChunkSize the number of  rows to write in each JSONL file
@@ -26,23 +23,13 @@ const JSONLChunkSize = 10000
 // RowEnrichmentCollector is a generic implementation of the Collector interface
 // it is responsible for coordinating the collection process and reporting status
 // R is the type of the row struct
-// S is the type of the partition config
-// T is the type of the table
-// U is the type of the connection
 type RowEnrichmentCollector[R types.RowStruct] struct {
 	CollectorImpl[R]
 
-	Table  Table[R]
-	source row_source.RowSource
-	mapper mappers.Mapper[R]
-
 	// wait group to wait for all rows to be processed
 	// this is incremented each time we receive a row event and decremented when we have processed it
-	rowWg               sync.WaitGroup
-	status              *events.Status
-	lastStatusEventTime time.Time
+	rowWg sync.WaitGroup
 
-	req *types.CollectRequest
 	// row buffer keyed by execution id
 	// each row buffer is used to write a JSONL file
 	rowBufferMap map[string][]any
@@ -57,7 +44,9 @@ type RowEnrichmentCollector[R types.RowStruct] struct {
 }
 
 func NewRowEnrichmentCollector[R types.RowStruct](table Table[R]) *RowEnrichmentCollector[R] {
-	return &RowEnrichmentCollector[R]{Table: table}
+	return &RowEnrichmentCollector[R]{
+		CollectorImpl: CollectorImpl[R]{Table: table},
+	}
 }
 
 func (c *RowEnrichmentCollector[R]) Init(ctx context.Context, req *types.CollectRequest) error {
