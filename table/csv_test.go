@@ -56,13 +56,12 @@ import (
 //				sourceFile: "data.csv",
 //				destFile:   "output.jsonl",
 //				opts: []CsvToJsonOpts{
-//					WithCsvSchema(&schema.RowSchema{
+//					WithCsvSchema(&schema.TableSchema{
 //						Columns: []*schema.ColumnSchema{
-//							{ ColumnName: "column1"},
-//							{ ColumnName: "column2"},
+//							{ColumnName: "column1"},
+//							{ColumnName: "column2"},
 //						},
 //						Mode: schema.ModeFull,
-//
 //					}),
 //				},
 //			},
@@ -77,7 +76,7 @@ import (
 //					WithCsvDelimiter("|"),
 //					WithCsvHeaderMode(CsvHeaderModeOff),
 //					WithCsvComment(";"),
-//					WithCsvSchema(&schema.RowSchema{
+//					WithCsvSchema(&schema.TableSchema{
 //						Columns: []*schema.ColumnSchema{
 //							{SourceName: "colA", ColumnName: "columnA"},
 //							{SourceName: "colB", ColumnName: "columnB"},
@@ -114,27 +113,27 @@ import (
 //		})
 //	}
 //}
-
-func TestCsvToJsonQuery(t *testing.T) {
-	type args struct {
-		sourceFile string
-		//destFile   string
-		//mappings   map[string]string
-		opts []CsvToJsonOpts
-	}
-	var tests []struct {
-		name string
-		args args
-		want string
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := GetReadCsvChunkQueryFormat(tt.args.sourceFile, tt.args.opts...); got != tt.want {
-				t.Errorf("GetReadCsvChunkQueryFormat() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
+//
+//func TestCsvToJsonQuery(t *testing.T) {
+//	type args struct {
+//		sourceFile string
+//		//destFile   string
+//		//mappings   map[string]string
+//		opts []CsvToJsonOpts
+//	}
+//	var tests []struct {
+//		name string
+//		args args
+//		want string
+//	}
+//	for _, tt := range tests {
+//		t.Run(tt.name, func(t *testing.T) {
+//			if got := GetReadCsvChunkQueryFormat(tt.args.sourceFile, tt.args.opts...); got != tt.want {
+//				t.Errorf("GetReadCsvChunkQueryFormat() = %v, want %v", got, tt.want)
+//			}
+//		})
+//	}
+//}
 
 //
 //// test
