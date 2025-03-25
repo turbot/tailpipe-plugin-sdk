@@ -3,10 +3,15 @@ package events
 import (
 	"sync"
 	"sync/atomic"
+	"time"
 
 	"github.com/turbot/tailpipe-plugin-sdk/error_types"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
+
+// how often to send status events
+
+const StatusUpdateInterval = 250 * time.Millisecond
 
 type Status struct {
 	Base

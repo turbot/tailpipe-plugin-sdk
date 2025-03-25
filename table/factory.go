@@ -262,6 +262,7 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 	tableDef := customTable.GetTableDefinition()
 
 	// if a table definition was provided in the req, use it
+	slog.Debug("getCustomTableCollector", "req.CustomTableSchema ", req.CustomTableSchema, " req.CustomTableSchema != nil", req.CustomTableSchema != nil)
 	if req.CustomTableSchema != nil {
 		tableDef = req.CustomTableSchema
 	}

@@ -6,31 +6,37 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
+	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
+	"sync"
+	"time"
 )
 
 // ArtifactConversionCollector is a collector that converts artifacts directly to JSONL
 // S is the table config type
 type ArtifactConversionCollector struct {
-	CollectorImpl[*types.DynamicRow]
+	observable.ObservableImpl
 
-	// the source format
-	//formatData *proto.ConfigData
-	// the table config
-	Format parse.Config
+	table  CustomTable
+	req    *types.CollectRequest
+	source row_source.RowSource
 
-	req *types.CollectRequest
+	// wait group to wait for all artifacts to be processed
+	// this is incremented each time we receive an artifact event and decremented when we have processed it
+	artifactWg sync.WaitGroup
+	status     *events.Status
+
+	lastStatusEventTime time.Time
+	rowCount            int64
+	chunkCount          int64
 }
 
-func NewArtifactConversionCollector(Table[*types.DynamicRow]) *ArtifactConversionCollector {
+func NewArtifactConversionCollector(table CustomTable) *ArtifactConversionCollector {
 	return &ArtifactConversionCollector{
-		// TODO
-		//tableName:  tableDef.Name,
-		//formatData: formatData,
+		table: table,
 	}
 }
 
@@ -53,10 +59,19 @@ func (c *ArtifactConversionCollector) Init(ctx context.Context, req *types.Colle
 	return nil
 }
 
+func (c *ArtifactConversionCollector) Identifier() string {
+	return c.table.Identifier()
+}
+
+// GetFromTime returns the 'resolved' from time of the source
+func (c *ArtifactConversionCollector) GetFromTime() *row_source.ResolvedFromTime {
+	return c.source.GetFromTime()
+}
+
 // GetSchema returns the schema of the table if available
 // for dynamic tables, the schema is only available at this if the config contains a schema
 func (c *ArtifactConversionCollector) GetSchema() (*schema.TableSchema, error) {
-	return c.req.CustomTableSchema, nil
+	return c.table.GetSchema()
 }
 
 //func (c *ArtifactConversionCollector) initialiseConfig(tableConfigData types.ConfigData) error {
@@ -117,6 +132,7 @@ func (c *ArtifactConversionCollector) Collect(ctx context.Context) (int, int, er
 	}
 
 	slog.Info("Source collection complete - waiting for enrichment")
+	c.artifactWg.Wait()
 	defer slog.Info("Enrichment complete")
 
 	// notify observers of final status
@@ -125,11 +141,8 @@ func (c *ArtifactConversionCollector) Collect(ctx context.Context) (int, int, er
 	}
 
 	// return the number of rows processed
-	// TODO K
-	//c.rowBufferLock.RLock()
-	//defer c.rowBufferLock.RUnlock()
-	//return c.rowCount, c.chunkCount, nil
-	return 0, 0, nil
+	return int(c.rowCount), int(c.chunkCount), nil
+
 }
 
 // Notify implements observable.Observer
@@ -149,6 +162,47 @@ func (c *ArtifactConversionCollector) Notify(ctx context.Context, event events.E
 	default:
 		// ignore
 		return nil
+	}
+}
+
+func (c *ArtifactConversionCollector) initSource(ctx context.Context, req *types.CollectRequest, sourceMetadata *SourceMetadata[*types.DynamicRow]) error {
+	params := &row_source.RowSourceParams{
+		SourceConfigData:    req.SourceData,
+		ConnectionData:      req.ConnectionData,
+		CollectionStatePath: req.CollectionStatePath,
+		From:                req.From,
+		CollectionTempDir:   req.CollectionTempDir,
+	}
+
+	// ask factory to create and initialise the source for us
+	// NOTE: we pass the original
+	source, err := row_source.Factory.GetRowSource(ctx, params, sourceMetadata.Options...)
+	if err != nil {
+		return err
+	}
+
+	c.source = source
+	// there will not be a mapper
+
+	// add ourselves as an observer to our Source
+	return c.source.AddObserver(c)
+
+}
+
+// updateStatus updates the status counters with the latest event
+// it also sends raises status event periodically (determined by statusUpdateInterval)
+// note: we will send a final status event when the collection completes
+func (c *ArtifactConversionCollector) updateStatus(ctx context.Context, e events.Event) {
+	c.status.Update(e)
+
+	// send a status event periodically
+	if time.Since(c.lastStatusEventTime) > events.StatusUpdateInterval {
+		// notify observers
+		if err := c.NotifyObservers(ctx, c.status); err != nil {
+			slog.Error("tableName RowSourceImpl: error notifying observers of status", "error", err)
+		}
+		// update lastStatusEventTime
+		c.lastStatusEventTime = time.Now()
 	}
 }
 
@@ -186,7 +240,7 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 	//c.rowCountMap[e.ExecutionId] += rowCount
 	//c.chunkCountMap[e.ExecutionId]+= chunkCount
 	//c.rowBufferLock.Unlock()
-
+	slog.Info("ArtifactConversionCollector: artifact downloaded", "artifact", e.Info.Name, "executionId", e.ExecutionId)
 	//TODO K delete local artifact
 	return nil
 
