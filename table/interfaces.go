@@ -10,7 +10,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// CustomTable is a generic interface representing a plugin table definition with a format
+// CustomTable is an interface representing a plugin table definition with a format
 type CustomTable interface {
 	Table[*types.DynamicRow]
 	Initialize(formats.Format, *schema.TableSchema)
