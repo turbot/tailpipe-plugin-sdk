@@ -337,3 +337,24 @@ message SourceCollectRequest{
   // unique identifier for collection execution
   string execution_id = 1;
 }
+
+// RowErrors is an aggregation of row errors
+message RowErrors {
+  int64 total = 1;
+
+  // source -> operation
+  map<string, RowErrorsByOperation> errors = 2;
+}
+
+message RowErrorsByOperation {
+  // operation -> error aggregate
+  map<string, OperationErrorAggregate> operation_errors = 1;
+}
+
+// aggregate of missing/invalid fields, messages and a row count
+message OperationErrorAggregate {
+  repeated string missing_fields = 1;
+  repeated string invalid_fields = 2;
+  repeated string messages = 3;
+  int64 count = 4;
+}
