@@ -6,8 +6,10 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/dustin/go-humanize"
 	"golang.org/x/exp/maps"
 
+	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -137,6 +139,67 @@ func (r *RowErrors) Add(err RowError) {
 	operationErrors.Update(err)
 
 	r.errors[source][operation] = operationErrors
+}
+
+// Errors returns one row per source, with a summary of the errors
+// e.g. "source: 100 rows failed mapping with 2 missing fields: field1, field2"
+// or "source: 100 rows failed with 2 errors" if there are multiple error messages which are not related to missing/invalid fields
+// or "source: 100 rows failed with error: message" if there is only one error message for the source
+func (r *RowErrors) Errors() []string {
+	r.mut.RLock()
+	defer r.mut.RUnlock()
+
+	var results []string
+	for source, operationMap := range r.errors {
+		var rowCount int64
+		messages := make(map[string]struct{})
+		fields := make(map[string]struct{})
+		fieldErrorTypes := make(map[string]struct{})
+		operations := make([]string, 0, len(operationMap))
+
+		for operation, operationErrors := range operationMap {
+			operations = append(operations, string(operation))
+
+			rowCount += operationErrors.count
+
+			// de-dupe messages and fields
+			for message := range operationErrors.messages {
+				messages[message] = struct{}{}
+			}
+
+			for field := range operationErrors.missingFields {
+				fieldErrorTypes["missing"] = struct{}{}
+				fields[field] = struct{}{}
+			}
+
+			for field := range operationErrors.invalidFields {
+				fieldErrorTypes["invalid"] = struct{}{}
+				fields[field] = struct{}{}
+			}
+
+		}
+
+		// these are for displaying in error string
+		operationsDisplay := strings.Join(operations, "/")
+		fieldErrorTypesDisplay := strings.Join(maps.Keys(fieldErrorTypes), "/")
+		fieldsDisplay := strings.Join(maps.Keys(fields), ", ")
+
+		// determine the error message to display for the source
+		switch {
+		case len(fields) > 0:
+			results = append(results, fmt.Sprintf("%s: %s %s failed %s with %s fields: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, fieldErrorTypesDisplay, fieldsDisplay))
+		case len(messages) == 1:
+			// single error message so display it
+			msgText := maps.Keys(messages)[0]
+			results = append(results, fmt.Sprintf("%s: %s %s failed with error: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgText))
+		case len(messages) > 1:
+			// multiple error messages so just display the count
+			msgCount := len(messages)
+			results = append(results, fmt.Sprintf("%s: %s %s failed with %d errors", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgCount))
+		}
+	}
+
+	return results
 }
 
 // ToProto converts the RowErrors to a protobuf representation
