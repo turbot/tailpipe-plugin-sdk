@@ -111,6 +111,7 @@ func NewRowErrors() RowErrors {
 	return RowErrors{
 		errors: make(map[string]map[RowOperationType]operationErrorAggregate),
 		Total:  0,
+		mut:    &sync.RWMutex{},
 	}
 }
 
