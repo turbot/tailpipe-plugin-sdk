@@ -74,7 +74,7 @@ type operationErrorAggregate struct {
 	missingFields map[string]struct{}
 	invalidFields map[string]struct{}
 	messages      map[string]struct{}
-	count         int
+	count         int64
 }
 
 func (o operationErrorAggregate) Update(err RowError) {
@@ -101,7 +101,7 @@ func (o operationErrorAggregate) Update(err RowError) {
 type RowErrors struct {
 	// source/operation/error message/count
 	errors map[string]map[RowOperationType]operationErrorAggregate
-	Total  int
+	Total  int64
 
 	mut *sync.RWMutex
 }
@@ -145,7 +145,7 @@ func (r *RowErrors) ToProto() *proto.RowErrors {
 	defer r.mut.RUnlock()
 
 	out := &proto.RowErrors{
-		Total:  int64(r.Total),
+		Total:  r.Total,
 		Errors: make(map[string]*proto.RowErrorsByOperation),
 	}
 
@@ -153,7 +153,7 @@ func (r *RowErrors) ToProto() *proto.RowErrors {
 		operationErrorsMap := make(map[string]*proto.OperationErrorAggregate)
 		for operation, operationErrors := range operationMap {
 			operationErrorsMap[string(operation)] = &proto.OperationErrorAggregate{
-				Count:         int64(operationErrors.count),
+				Count:         operationErrors.count,
 				MissingFields: maps.Keys(operationErrors.missingFields),
 				InvalidFields: maps.Keys(operationErrors.invalidFields),
 				Messages:      maps.Keys(operationErrors.messages),
@@ -171,7 +171,7 @@ func (r *RowErrors) ToProto() *proto.RowErrors {
 func RowErrorsFromProto(proto *proto.RowErrors) *RowErrors {
 	r := &RowErrors{}
 
-	r.Total = int(proto.Total)
+	r.Total = proto.Total
 	r.errors = make(map[string]map[RowOperationType]operationErrorAggregate)
 
 	for source, sourceErrors := range proto.Errors {
@@ -183,7 +183,7 @@ func RowErrorsFromProto(proto *proto.RowErrors) *RowErrors {
 				missingFields: make(map[string]struct{}),
 				invalidFields: make(map[string]struct{}),
 				messages:      make(map[string]struct{}),
-				count:         int(opAgg.Count),
+				count:         opAgg.Count,
 			}
 
 			for _, field := range opAgg.MissingFields {
