@@ -79,7 +79,7 @@ type operationErrorAggregate struct {
 	count         int64
 }
 
-func (o operationErrorAggregate) Update(err RowError) {
+func (o *operationErrorAggregate) Update(err RowError) {
 	var rowError *RowErrorWithMessage
 	var rowErrorWithFields *RowErrorWithFields
 
@@ -202,11 +202,11 @@ func (r *RowErrors) Errors() []string {
 		case len(messages) == 1:
 			// single error message so display it
 			msgText := maps.Keys(messages)[0]
-			results = append(results, fmt.Sprintf("%s: %s %s failed with error: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgText))
+			results = append(results, fmt.Sprintf("%s: %s %s failed %s with error: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, msgText))
 		case len(messages) > 1:
 			// multiple error messages so just display the count
 			msgCount := len(messages)
-			results = append(results, fmt.Sprintf("%s: %s %s failed with %d errors", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgCount))
+			results = append(results, fmt.Sprintf("%s: %s %s failed %s with %d errors", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, msgCount))
 		}
 	}
 
