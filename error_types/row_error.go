@@ -243,7 +243,7 @@ func (r *RowErrors) ToProto() *proto.RowErrors {
 
 // RowErrorsFromProto converts a protobuf representation to a RowErrors
 func RowErrorsFromProto(proto *proto.RowErrors) *RowErrors {
-	r := &RowErrors{}
+	r := NewRowErrors()
 
 	r.Total = proto.Total
 	r.errors = make(map[string]map[RowOperationType]operationErrorAggregate)
@@ -277,7 +277,7 @@ func RowErrorsFromProto(proto *proto.RowErrors) *RowErrors {
 		r.errors[source] = operationMap
 	}
 
-	return r
+	return &r
 }
 
 // EnsureRowError ensures that the error is a RowError, if not it converts it to a RowErrorWithMessage
