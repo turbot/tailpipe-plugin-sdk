@@ -4,6 +4,7 @@ import (
 	"sync"
 	"sync/atomic"
 
+	"github.com/turbot/tailpipe-plugin-sdk/error_types"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -19,6 +20,7 @@ type Status struct {
 	RowsReceived             int64
 	RowsEnriched             int64
 	Errors                   int64
+	RowErrors                error_types.RowErrors
 
 	// we only need the mutex when updating string fields (i.e. LatestArtifactLocation)
 	// we use atomic operations for all int fields
@@ -28,6 +30,7 @@ type Status struct {
 func NewStatusEvent(executionId string) *Status {
 	return &Status{
 		ExecutionId: executionId,
+		RowErrors:   error_types.NewRowErrors(),
 	}
 }
 
@@ -44,6 +47,7 @@ func (r *Status) ToProto() *proto.Event {
 				RowsReceived:             r.RowsReceived,
 				RowsEnriched:             r.RowsEnriched,
 				Errors:                   r.Errors,
+				RowErrors:                r.RowErrors.ToProto(),
 			},
 		},
 	}
@@ -67,8 +71,19 @@ func (r *Status) Update(event Event) {
 		atomic.AddInt64(&r.Errors, 1)
 	}
 }
+
 func (r *Status) OnRowEnriched() {
 	atomic.AddInt64(&r.RowsEnriched, 1)
+}
+
+// OnRowError increments the error count and adds the error to the RowErrors
+// This happens from CLI side, so no need to pass events
+func (r *Status) OnRowError(err error_types.RowError) {
+	// TODO: verify we should still increment Errors here
+	atomic.AddInt64(&r.Errors, 1)
+	r.mut.Lock()
+	defer r.mut.Unlock()
+	r.RowErrors.Add(err)
 }
 
 func (r *Status) Equals(status *Status) bool {

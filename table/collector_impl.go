@@ -8,9 +8,11 @@ import (
 	"sync"
 	"time"
 
+	gtypes "github.com/turbot/go-kit/types"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
+	"github.com/turbot/tailpipe-plugin-sdk/error_types"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
 	"github.com/turbot/tailpipe-plugin-sdk/mappers"
@@ -284,27 +286,30 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 	c.rowWg.Add(1)
 	defer c.rowWg.Done()
 
+	sourceEnrichment := e.SourceEnrichment
+	sourceLocation := gtypes.SafeString(sourceEnrichment.CommonFields.TpSourceLocation)
+
 	// put data into an array as that is what mappers expect
 	mappedRow, err := c.mapRow(ctx, e.Row)
 	if err != nil {
-		return fmt.Errorf("error mapping artifact: %w", err)
+		// call onRowError to update status with the row error, we do not return error to source
+		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeMapping, err)
 	}
 
 	// add table and partition to the enrichment fields
-
-	sourceEnrichment := e.SourceEnrichment
 	sourceEnrichment.CommonFields.TpTable = c.req.TableName
 	sourceEnrichment.CommonFields.TpPartition = c.req.PartitionName
 
 	// enrich the row
 	enrichedRow, err := c.Table.EnrichRow(mappedRow, sourceEnrichment)
 	if err != nil {
-		return err
+		// call onRowError to update status with the row error, we do not return error to source
+		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeEnrichment, err)
 	}
 	// validate that the enriched row has required fields
-	if err := enrichedRow.Validate(); err != nil {
-		// TODO #errors we need to include the raw row information in the error
-		return err
+	if err = enrichedRow.Validate(); err != nil {
+		// call onRowError to update status with the row error, we do not return error to source
+		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeValidation, err)
 	}
 
 	// buffer the enriched row and write to JSON file if buffer is full
@@ -362,6 +367,23 @@ func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R) error {
 		return c.writeChunk(ctx, rowCount, rowsToWrite)
 	}
 
+	return nil
+}
+
+// onRowError is called when a row operation (map/enrich/validate) fails, it updates our status but doesn't return an error back to source
+func (c *CollectorImpl[R]) onRowError(ctx context.Context, source string, operation error_types.RowOperationType, err error) error {
+	// if called without an error do nothing
+	if err == nil {
+		return nil
+	}
+
+	// ensure is a RowError (or convert to one)
+	out := error_types.EnsureRowError(source, operation, err)
+
+	// update status
+	c.status.OnRowError(out)
+
+	// don't return error back to source, we update this in status
 	return nil
 }
 

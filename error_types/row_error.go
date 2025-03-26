@@ -106,6 +106,7 @@ type RowErrors struct {
 	mut *sync.RWMutex
 }
 
+// NewRowErrors creates a new RowErrors correctly, should always be used to create a new RowErrors
 func NewRowErrors() RowErrors {
 	return RowErrors{
 		errors: make(map[string]map[RowOperationType]operationErrorAggregate),
@@ -121,17 +122,20 @@ func (r *RowErrors) Add(err RowError) {
 	// increment error count
 	r.Total++
 
+	source := err.GetSource()
+	operation := err.GetOperation()
+
 	// get or create the map for the source
-	if _, ok := r.errors[err.GetSource()]; !ok {
-		r.errors[err.GetSource()] = make(map[RowOperationType]operationErrorAggregate)
+	if _, ok := r.errors[source]; !ok {
+		r.errors[source] = make(map[RowOperationType]operationErrorAggregate)
 	}
 
 	// get operationErrorAggregate for the operation
-	operationErrors := r.errors[err.GetSource()][err.GetOperation()]
+	operationErrors := r.errors[source][operation]
 
 	operationErrors.Update(err)
 
-	r.errors[err.GetSource()][err.GetOperation()] = operationErrors
+	r.errors[source][operation] = operationErrors
 }
 
 // ToProto converts the RowErrors to a protobuf representation
@@ -162,7 +166,7 @@ func (r *RowErrors) ToProto() *proto.RowErrors {
 	return out
 }
 
-// FromProto converts a protobuf representation to a RowErrors
+// RowErrorsFromProto converts a protobuf representation to a RowErrors
 func RowErrorsFromProto(proto *proto.RowErrors) *RowErrors {
 	r := &RowErrors{}
 
@@ -199,4 +203,17 @@ func RowErrorsFromProto(proto *proto.RowErrors) *RowErrors {
 	}
 
 	return r
+}
+
+// EnsureRowError ensures that the error is a RowError, if not it converts it to a RowErrorWithMessage
+func EnsureRowError(source string, operation RowOperationType, err error) RowError {
+	var rowError RowError
+	if !errors.As(err, &rowError) {
+		return &RowErrorWithMessage{
+			Source:    source,
+			Operation: operation,
+			Message:   err.Error(),
+		}
+	}
+	return rowError
 }

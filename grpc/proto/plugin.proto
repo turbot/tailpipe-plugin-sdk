@@ -204,6 +204,7 @@ message EventStatus {
   int64 rows_received = 7;
   int64 rows_enriched = 8;
   int64 errors = 9;
+  RowErrors row_errors = 10;
 }
 
 message EventComplete {
