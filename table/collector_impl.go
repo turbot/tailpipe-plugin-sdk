@@ -3,14 +3,15 @@ package table
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"sync"
+	"time"
+
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"log/slog"
-	"sync"
-	"time"
 )
 
 type CollectorImpl[R types.RowStruct] struct {
@@ -52,12 +53,10 @@ func (c *CollectorImpl[R]) Collect(ctx context.Context) (int64, int32, error) {
 
 	// notify observers of final status
 	if err := c.NotifyObservers(ctx, c.status); err != nil {
-		slog.Error("tableName RowSourceImpl: error notifying observers of status", "error", err)
+		return 0, 0, fmt.Errorf("error notifying observers of final status: %w", err)
 	}
 
-	// return the number of rows processed
 	return c.rowCount, c.chunkCount, nil
-
 }
 
 // GetFromTime returns the 'resolved' from time of the source

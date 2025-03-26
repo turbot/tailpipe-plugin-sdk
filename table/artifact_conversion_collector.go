@@ -4,21 +4,22 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log/slog"
+	"path/filepath"
+	"strings"
+	"sync/atomic"
 
 	_ "github.com/marcboeker/go-duckdb/v2"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"log/slog"
-	"path/filepath"
-	"strings"
-	"sync/atomic"
 )
 
 // ArtifactConversionCollector is a collector that converts artifacts directly to JSONL
@@ -224,4 +225,24 @@ func (c *ArtifactConversionCollector) getReadArtifactSql(sourceFile string) (str
 	default:
 		return "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
 	}
+}
+
+func (c *ArtifactConversionCollector) onChunk(ctx context.Context, chunkNumber int32) error {
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	// construct proto event
+	e := events.NewChunkEvent(executionId, chunkNumber)
+
+	if err = c.NotifyObservers(ctx, e); err != nil {
+		return fmt.Errorf("error notifying observers of chunk: %w", err)
+	}
+
+	// tell source to save collection state
+	if err := c.source.SaveCollectionState(); err != nil {
+		return fmt.Errorf("error saving collection state: %w", err)
+	}
+	return nil
 }
