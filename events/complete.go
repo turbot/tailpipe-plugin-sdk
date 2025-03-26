@@ -7,12 +7,12 @@ import (
 type Complete struct {
 	Base
 	ExecutionId   string
-	RowCount      int
-	ChunksWritten int
+	RowCount      int64
+	ChunksWritten int32
 	Err           error
 }
 
-func NewCompletedEvent(executionId string, rowCount int, chunksWritten int, err error) *Complete {
+func NewCompletedEvent(executionId string, rowCount int64, chunksWritten int32, err error) *Complete {
 	return &Complete{
 		ExecutionId:   executionId,
 		RowCount:      rowCount,
@@ -31,8 +31,8 @@ func (c *Complete) ToProto() *proto.Event {
 		Event: &proto.Event_CompleteEvent{
 			CompleteEvent: &proto.EventComplete{
 				ExecutionId: c.ExecutionId,
-				RowCount:    int64(c.RowCount),
-				ChunkCount:  int32(c.ChunksWritten), //nolint:gosec // TODO check integer overflow conversion
+				RowCount:    c.RowCount,
+				ChunkCount:  c.ChunksWritten,
 				Error:       errString,
 			},
 		},
