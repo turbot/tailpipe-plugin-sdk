@@ -48,7 +48,7 @@ type RowEnrichmentCollector[R types.RowStruct] struct {
 	rowBufferLock sync.Mutex
 	rowBuffer     []any
 	rowCount      int64
-	chunkCount    int64
+	chunkCount    int32
 	writer        ChunkWriter
 }
 
@@ -126,7 +126,7 @@ func (c *RowEnrichmentCollector[R]) GetSchema() (*schema.TableSchema, error) {
 }
 
 // Collect executes the collection process. Tell our source to start collection
-func (c *RowEnrichmentCollector[R]) Collect(ctx context.Context) (int, int, error) {
+func (c *RowEnrichmentCollector[R]) Collect(ctx context.Context) (int64, int32, error) {
 	slog.Info("Start collection", "table", c.table.Identifier(), "partition", c.req.PartitionName)
 
 	// create empty status event
@@ -151,7 +151,7 @@ func (c *RowEnrichmentCollector[R]) Collect(ctx context.Context) (int, int, erro
 		slog.Error("RowEnrichmentCollector: error notifying observers of status", "error", err)
 	}
 
-	return c.writeRemainingRows(ctx, c.req.ExecutionId)
+	return c.writeRemainingRows(ctx)
 }
 
 // Notify implements observable.Observer
@@ -266,21 +266,16 @@ func (c *RowEnrichmentCollector[R]) onRowEnriched(ctx context.Context, row R) er
 	c.rowBufferLock.Unlock()
 
 	if numRowsToWrite := len(rowsToWrite); numRowsToWrite > 0 {
-		return c.writeChunk(ctx, int(atomic.LoadInt64(&c.rowCount)), rowsToWrite)
+		return c.writeChunk(ctx, rowsToWrite)
 	}
 
 	return nil
 }
 
 // writeChunk writes a chunk of rows to a JSONL file
-func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowCount int, rowsToWrite []any) error {
-	// determine chunk number from rowCountMap
-	chunkNumber := rowCount / JSONLChunkSize
+func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite []any) error {
+	chunkNumber := atomic.LoadInt32(&c.chunkCount)
 
-	// check for final partial chunk
-	if rowCount%JSONLChunkSize > 0 {
-		chunkNumber++
-	}
 	slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", len(rowsToWrite))
 
 	// convert row to a JSONL file
@@ -291,7 +286,7 @@ func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowCount int
 	}
 
 	// increment the chunk count
-	atomic.AddInt64(&c.chunkCount, 1)
+	atomic.AddInt32(&c.chunkCount, 1)
 
 	// notify observers, passing the collection state data
 	return c.onChunk(ctx, chunkNumber)
@@ -299,7 +294,7 @@ func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowCount int
 
 // onChunk is called by the we have written a chunk of enriched rows to a [JSONL/CSV] file
 // notify observers of the chunk
-func (c *RowEnrichmentCollector[R]) onChunk(ctx context.Context, chunkNumber int) error {
+func (c *RowEnrichmentCollector[R]) onChunk(ctx context.Context, chunkNumber int32) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -319,19 +314,19 @@ func (c *RowEnrichmentCollector[R]) onChunk(ctx context.Context, chunkNumber int
 	return nil
 }
 
-func (c *RowEnrichmentCollector[R]) writeRemainingRows(ctx context.Context, executionId string) (int, int, error) {
+func (c *RowEnrichmentCollector[R]) writeRemainingRows(ctx context.Context) (int64, int32, error) {
 	// NOTE: not need for atomic operation here as this will only be called once after everything is done
 
 	// tell our writer to write any remaining rows
 	if len(c.rowBuffer) > 0 {
-		if err := c.writeChunk(ctx, int(c.rowCount), c.rowBuffer); err != nil {
+		if err := c.writeChunk(ctx, c.rowBuffer); err != nil {
 			slog.Error("failed to write final chunk", "error", err)
 			return 0, 0, fmt.Errorf("failed to write final chunk: %w", err)
 		}
 		c.chunkCount++
 	}
 
-	return int(c.rowCount), int(c.chunkCount), nil
+	return c.rowCount, c.chunkCount, nil
 }
 
 // updateStatus updates the status counters with the latest event

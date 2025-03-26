@@ -39,3 +39,7 @@ func (c *CustomTableImpl) EnrichRow(row *types.DynamicRow, sourceEnrichmentField
 func (c *CustomTableImpl) GetDefaultFormat() formats.Format {
 	return nil
 }
+
+func (c *CustomTableImpl) GetFormat() formats.Format {
+	return c.Format
+}

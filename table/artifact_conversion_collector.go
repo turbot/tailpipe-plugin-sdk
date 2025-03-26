@@ -2,17 +2,27 @@ package table
 
 import (
 	"context"
+	"database/sql"
+	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/formats"
+	"log/slog"
+	"path/filepath"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	_ "github.com/marcboeker/go-duckdb/v2"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"log/slog"
-	"sync"
-	"time"
 )
 
 // ArtifactConversionCollector is a collector that converts artifacts directly to JSONL
@@ -31,7 +41,10 @@ type ArtifactConversionCollector struct {
 
 	lastStatusEventTime time.Time
 	rowCount            int64
-	chunkCount          int64
+	chunkCount          int32
+	destPath            string
+	executionId         string
+	db                  *sql.DB
 }
 
 func NewArtifactConversionCollector(table CustomTable) *ArtifactConversionCollector {
@@ -42,6 +55,16 @@ func NewArtifactConversionCollector(table CustomTable) *ArtifactConversionCollec
 
 func (c *ArtifactConversionCollector) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	c.executionId = executionId
+	db, err := c.initDb()
+	if err != nil {
+		return err
+	}
+	c.db = db
 
 	// get the source metadata for this source type
 	// (this returns an error if the source is not supported by the table)
@@ -50,6 +73,14 @@ func (c *ArtifactConversionCollector) Init(ctx context.Context, req *types.Colle
 	if err := c.initSource(ctx, req, sourceMetadata); err != nil {
 		return err
 	}
+
+	// if the plugin overrides this function it must call the base implementation
+	// get JSONL path
+	jsonPath, err := filepaths.EnsureJSONLPath(req.CollectionTempDir)
+	if err != nil {
+		return fmt.Errorf("error getting JSONL path: %w", err)
+	}
+	c.destPath = jsonPath
 
 	// TODO #validate validate no extractor
 	// TODO #validate validate table name does not clash
@@ -68,59 +99,13 @@ func (c *ArtifactConversionCollector) GetFromTime() *row_source.ResolvedFromTime
 	return c.source.GetFromTime()
 }
 
-// GetSchema returns the schema of the table if available
-// for dynamic tables, the schema is only available at this if the config contains a schema
+// GetSchema returns the schema of the table
 func (c *ArtifactConversionCollector) GetSchema() (*schema.TableSchema, error) {
 	return c.table.GetSchema()
 }
 
-//func (c *ArtifactConversionCollector) initialiseConfig(tableConfigData types.ConfigData) error {
-//	// default to empty config
-//	//cfg := utils.InstanceOf()
-//
-//	if len(tableConfigData.GetHcl()) > 0 {
-//
-//		cfg, err := parse.ParseConfig(tableConfigData)
-//		if err != nil {
-//			return fmt.Errorf("error parsing config: %w", err)
-//		}
-//
-//		slog.Info("tableName RowSourceImpl: config parsed", "config", c)
-//		c.Format = cfg
-//	}
-//
-//	// validate config
-//	if err := c.Format.Validate(); err != nil {
-//		return fmt.Errorf("invalid partition config: %w", err)
-//	}
-//
-//	return nil
-//}
-//
-//func (c *ArtifactConversionCollector) initialiseFormat(tableConfigData types.ConfigData) error {
-//	// default to empty config
-//	//cfg := utils.InstanceOf()
-//
-//	if len(tableConfigData.GetHcl()) > 0 {
-//		cfg, err := parse.ParseConfig(tableConfigData)
-//		if err != nil {
-//			return fmt.Errorf("error parsing config: %w", err)
-//		}
-//
-//		slog.Info("tableName RowSourceImpl: config parsed", "config", c)
-//		c.Format = cfg
-//	}
-//
-//	// validate config
-//	if err := c.Format.Validate(); err != nil {
-//		return fmt.Errorf("invalid partition config: %w", err)
-//	}
-//
-//	return nil
-//}
-
 // Collect executes the collection process. Tell our source to start collection
-func (c *ArtifactConversionCollector) Collect(ctx context.Context) (int, int, error) {
+func (c *ArtifactConversionCollector) Collect(ctx context.Context) (int64, int32, error) {
 	// create empty status event#
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
 
@@ -141,7 +126,7 @@ func (c *ArtifactConversionCollector) Collect(ctx context.Context) (int, int, er
 	}
 
 	// return the number of rows processed
-	return int(c.rowCount), int(c.chunkCount), nil
+	return c.rowCount, c.chunkCount, nil
 
 }
 
@@ -154,7 +139,7 @@ func (c *ArtifactConversionCollector) Notify(ctx context.Context, event events.E
 	switch e := event.(type) {
 	case *events.ArtifactDownloaded:
 		// handle artifact downloaded event - we only act on this if the table implements ArtifactToJsonConverter
-		return c.handleArtifactDownloaded(ctx, e)
+		return c.handleArtifactDownloaded(e)
 
 	case *events.Error:
 		slog.Error("ArtifactConversionCollector: error event received", "error", e.Err)
@@ -163,6 +148,19 @@ func (c *ArtifactConversionCollector) Notify(ctx context.Context, event events.E
 		// ignore
 		return nil
 	}
+}
+
+func (c *ArtifactConversionCollector) initDb() (*sql.DB, error) {
+	db, err := sql.Open("duckdb", "")
+	if err != nil {
+		return nil, fmt.Errorf("error opening duckdb: %w", err)
+	}
+	// instrall JSON extension
+	if _, err := db.Exec("install 'json'; load 'json';"); err != nil {
+		return nil, fmt.Errorf("error installing json extension: %w", err)
+	}
+	return db, nil
+
 }
 
 func (c *ArtifactConversionCollector) initSource(ctx context.Context, req *types.CollectRequest, sourceMetadata *SourceMetadata[*types.DynamicRow]) error {
@@ -209,39 +207,84 @@ func (c *ArtifactConversionCollector) updateStatus(ctx context.Context, e events
 func (c *ArtifactConversionCollector) getSourceMetadata() *SourceMetadata[*types.DynamicRow] {
 	return &SourceMetadata[*types.DynamicRow]{
 		SourceName: constants.ArtifactSourceIdentifier,
-		// set a null loader so we don't receive row events - instead we implement ArtifactToJsonConverter
+		// set a null loader so we don't receive row events - instead we handle the artifact downloaded event
 		// to convert the artifact to JSONL directly
 		Options: []row_source.RowSourceOption{artifact_source.WithArtifactLoader(artifact_loader.NewNullLoader())},
 	}
 }
 
-func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Context, e *events.ArtifactDownloaded) error {
-	// TODO K
-	//executionId, err := context_values.ExecutionIdFromContext(ctx)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//// get chunk count
-	//c.rowBufferLock.Lock()
-	//chunkNumber := c.chunkCountMap[e.ExecutionId]
-	//c.rowBufferLock.Unlock()
-	//
-	//
-	//chunkCount, rowCount, err := q.ArtifactToJSON(ctx, e.Info.Name, executionId, chunkNumber, c.Config)
-	//if err != nil {
-	//	return err
-	//}
-	//
-	//// TODO onchunks
-	//
-	//// update rows and chunks written
-	//c.rowBufferLock.Lock()
-	//c.rowCountMap[e.ExecutionId] += rowCount
-	//c.chunkCountMap[e.ExecutionId]+= chunkCount
-	//c.rowBufferLock.Unlock()
-	slog.Info("ArtifactConversionCollector: artifact downloaded", "artifact", e.Info.Name, "executionId", e.ExecutionId)
-	//TODO K delete local artifact
-	return nil
+func (c *ArtifactConversionCollector) handleArtifactDownloaded(e *events.ArtifactDownloaded) error {
+	query, err := c.getQuery(e.Info.Name)
+	if err != nil {
+		slog.Error("ArtifactConversionCollector: error getting query", "error", err)
+		return err
+	}
+	// execute the query
+	row := c.db.QueryRow(query)
+	var rowCount int64
 
+	if err = row.Scan(&rowCount); err != nil {
+		return err
+	}
+
+	// now update chunk count and row count
+	atomic.AddInt32(&c.chunkCount, 1)
+	atomic.AddInt64(&c.rowCount, rowCount)
+
+	slog.Info("ArtifactConversionCollector: artifact converted", "artifact", e.Info.Name, "rowCount", rowCount, "chunkCount", c.chunkCount)
+	//TODO K delete local artifact
+
+	return nil
+}
+
+func (c *ArtifactConversionCollector) getQuery(sourceFile string) (string, error) {
+	chunkNumber := atomic.LoadInt32(&c.chunkCount)
+	// generate the filename
+	destFile := filepath.Join(c.destPath, ExecutionIdToJsonlFileName(c.executionId, chunkNumber))
+
+	// build the select clause
+	// use the raw table schema from the request, rather than the CustomTable schema, which includes all common columns
+	tableSchema := c.req.CustomTableSchema
+
+	var selectClauses []string
+	// if we are automapping then we select all columns, as well as mapped columns
+	if tableSchema.AutoMapSourceFields {
+		selectClauses = append(selectClauses, "*")
+	}
+
+	for _, column := range tableSchema.Columns {
+		selectClauses = append(selectClauses, fmt.Sprintf("%s as %s", column.SourceName, column.ColumnName))
+	}
+	selectString := strings.Join(selectClauses, ",\n    ")
+
+	// build the read function sql based on the format
+	getReadArtifactSql, err := c.getReadArtifactSql(sourceFile)
+	if err != nil {
+		return "", err
+	}
+
+	queryFormat := `create temp table temp_data as 
+select
+    %s
+from %s;
+
+copy temp_data to '%s' (
+    format json
+);
+
+select count(*) as row_count from temp_data;`
+
+	return fmt.Sprintf(queryFormat, selectString, getReadArtifactSql, destFile), nil
+}
+
+func (c *ArtifactConversionCollector) getReadArtifactSql(sourceFile string) (string, error) {
+	switch f := c.table.GetFormat().(type) {
+	case *formats.JsonLines:
+		return fmt.Sprintf("read_json('%s')", sourceFile), nil
+	case *formats.Delimited:
+		options := f.GetCsvOpts()
+		return fmt.Sprintf("read_csv('%s', %s)", sourceFile, strings.Join(options, ", ")), nil
+	default:
+		return "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
+	}
 }

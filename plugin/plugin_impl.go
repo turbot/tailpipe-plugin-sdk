@@ -239,6 +239,6 @@ func (p *PluginImpl) Impl() *PluginImpl {
 	return p
 }
 
-func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, rowCount int, chunksWritten int, err error) error {
+func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, rowCount int64, chunksWritten int32, err error) error {
 	return p.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, err))
 }

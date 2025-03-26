@@ -17,6 +17,7 @@ type CustomTable interface {
 	GetSchema() (*schema.TableSchema, error)
 	GetDefaultFormat() formats.Format
 	GetTableDefinition() *schema.TableSchema
+	GetFormat() formats.Format
 }
 
 // Table is a generic interface representing a plugin table definition
@@ -38,7 +39,7 @@ type Collector interface {
 
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string
-	Collect(context.Context) (int, int, error)
+	Collect(context.Context) (int64, int32, error)
 	GetSchema() (*schema.TableSchema, error)
 	GetFromTime() *row_source.ResolvedFromTime
 }
@@ -49,5 +50,5 @@ type ArtifactToJsonConverter[S parse.Config] interface {
 }
 
 type ChunkWriter interface {
-	WriteChunk(ctx context.Context, rows []any, chunkNumber int) error
+	WriteChunk(ctx context.Context, rows []any, chunkNumber int32) error
 }

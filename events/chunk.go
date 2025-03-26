@@ -7,10 +7,10 @@ import (
 type Chunk struct {
 	Base
 	ExecutionId string
-	ChunkNumber int
+	ChunkNumber int32
 }
 
-func NewChunkEvent(executionId string, chunkNumber int) *Chunk {
+func NewChunkEvent(executionId string, chunkNumber int32) *Chunk {
 	return &Chunk{
 		ExecutionId: executionId,
 		ChunkNumber: chunkNumber,
@@ -23,7 +23,7 @@ func (r *Chunk) ToProto() *proto.Event {
 		Event: &proto.Event_ChunkWrittenEvent{
 			ChunkWrittenEvent: &proto.EventChunkWritten{
 				ExecutionId: r.ExecutionId,
-				ChunkNumber: int32(r.ChunkNumber), //nolint:gosec // TODO check integer overflow conversion
+				ChunkNumber: r.ChunkNumber,
 			},
 		},
 	}

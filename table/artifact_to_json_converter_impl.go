@@ -38,7 +38,7 @@ package table
 //	for {
 //		//cConstruct the output file path
 //		absChunkIdx := chunkNumber + chunkIdx
-//		outputFile := ExecutionIdToFileName(executionId, absChunkIdx)
+//		outputFile := ExecutionIdToJsonlFileName(executionId, absChunkIdx)
 //		// TODO get inbox path
 //		// build select query - format with the offset
 //		selectQuery := fmt.Sprintf(queryFormat, offset)
@@ -55,7 +55,7 @@ package table
 //			if isEndOfFileError(err) {
 //				fmt.Println("No more rows to process. Stopping.")
 //				// get the row count from the previous
-//				prevFilename := ExecutionIdToFileName(executionId, absChunkIdx-1)
+//				prevFilename := ExecutionIdToJsonlFileName(executionId, absChunkIdx-1)
 //				finalChunkRowCount, err := c.getRowCount(prevFilename, db)
 //				if err != nil {
 //					return 0, 0, fmt.Errorf("failed to get row count: %w", err)
