@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
 	"github.com/turbot/tailpipe-plugin-sdk/mappers"
-	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -27,28 +25,16 @@ const JSONLChunkSize = 10000
 // it is responsible for coordinating the collection process and reporting status
 // R is the type of the row struct
 type RowEnrichmentCollector[R types.RowStruct] struct {
-	observable.ObservableImpl
+	CollectorImpl[R]
 
-	req    *types.CollectRequest
 	table  Table[R]
-	source row_source.RowSource
-
-	// wait group to wait for all rows to be processed
-	// this is incremented each time we receive a row event and decremented when we have processed it
-	rowWg  sync.WaitGroup
-	status *events.Status
-
-	lastStatusEventTime time.Time
-
+	req    *types.CollectRequest
 	mapper mappers.Mapper[R]
-
 	// row buffer keyed by execution id
 	// each row buffer is used to write a JSONL file
 	// mutex to protect the row buffer
 	rowBufferLock sync.Mutex
 	rowBuffer     []any
-	rowCount      int64
-	chunkCount    int32
 	writer        ChunkWriter
 }
 
@@ -61,25 +47,33 @@ func NewRowEnrichmentCollector[R types.RowStruct](table Table[R]) *RowEnrichment
 
 func (c *RowEnrichmentCollector[R]) Init(ctx context.Context, req *types.CollectRequest) error {
 	c.req = req
-
 	// get the source metadata for this source type
 	// (this returns an error if the source is not supported by the table)
-	sourceMetadata, err := getSourceMetadata(req.SourceData, c.table)
+	sourceMetadata, err := c.getSourceMetadata(req.SourceData)
 	if err != nil {
 		return err
 	}
 
+	// set mapper if source metadata specifies one
+	if mapper := sourceMetadata.Mapper; mapper != nil {
+		c.mapper = mapper
+	}
+
+	// create the source
 	if err := c.initSource(ctx, req, sourceMetadata); err != nil {
 		return err
 	}
 
-	// if the plugin overrides this function it must call the base implementation
-	// get JSONL path
+	// add ourselves as an observer to our source
+	if err := c.source.AddObserver(c); err != nil {
+		return err
+	}
+
+	// create writer
 	jsonPath, err := filepaths.EnsureJSONLPath(req.CollectionTempDir)
 	if err != nil {
 		return fmt.Errorf("error getting JSONL path: %w", err)
 	}
-	// create writer
 	c.writer = NewJSONLWriter(jsonPath)
 
 	slog.Info("Initialise collector", "table", c.table.Identifier(), "partition", req.PartitionName, "jsonPath", jsonPath)
@@ -89,11 +83,6 @@ func (c *RowEnrichmentCollector[R]) Init(ctx context.Context, req *types.Collect
 
 func (c *RowEnrichmentCollector[R]) Identifier() string {
 	return c.table.Identifier()
-}
-
-// GetFromTime returns the 'resolved' from time of the source
-func (c *RowEnrichmentCollector[R]) GetFromTime() *row_source.ResolvedFromTime {
-	return c.source.GetFromTime()
 }
 
 // GetSchema returns the schema of the table
@@ -127,30 +116,12 @@ func (c *RowEnrichmentCollector[R]) GetSchema() (*schema.TableSchema, error) {
 
 // Collect executes the collection process. Tell our source to start collection
 func (c *RowEnrichmentCollector[R]) Collect(ctx context.Context) (int64, int32, error) {
-	slog.Info("Start collection", "table", c.table.Identifier(), "partition", c.req.PartitionName)
-
-	// create empty status event
-	c.status = events.NewStatusEvent(c.req.ExecutionId)
-
-	// tell our source to collect
-	// this is a blocking call, but we will receive and process row events during the execution
-	err := c.source.Collect(ctx)
-	if err != nil {
+	// call base method to Collect rows from the source
+	if _, _, err := c.CollectorImpl.Collect(ctx); err != nil {
 		return 0, 0, err
 	}
 
-	slog.Info("Source collection complete - waiting for enrichment")
-
-	// wait for all rows to be processed
-	c.rowWg.Wait()
-
-	defer slog.Info("Enrichment complete")
-
-	// notify observers of final status
-	if err := c.NotifyObservers(ctx, c.status); err != nil {
-		slog.Error("RowEnrichmentCollector: error notifying observers of status", "error", err)
-	}
-
+	// write any remaining rows in the buffer to the JSONL file
 	return c.writeRemainingRows(ctx)
 }
 
@@ -175,36 +146,49 @@ func (c *RowEnrichmentCollector[R]) Notify(ctx context.Context, event events.Eve
 	}
 }
 
-func (c *RowEnrichmentCollector[R]) initSource(ctx context.Context, req *types.CollectRequest, sourceMetadata *SourceMetadata[R]) error {
-	params := &row_source.RowSourceParams{
-		SourceConfigData:    req.SourceData,
-		ConnectionData:      req.ConnectionData,
-		CollectionStatePath: req.CollectionStatePath,
-		From:                req.From,
-		CollectionTempDir:   req.CollectionTempDir,
-	}
-
-	// ask factory to create and initialise the source for us
-	// NOTE: we pass the original
-	source, err := row_source.Factory.GetRowSource(ctx, params, sourceMetadata.Options...)
+// ask table for it;s supported sources and put into map for ease of lookup
+func (c *RowEnrichmentCollector[R]) getSourceMetadata(sourceConfig *types.SourceConfigData) (*SourceMetadata[R], error) {
+	supportedSources, err := c.table.GetSourceMetadata()
 	if err != nil {
-		return err
+		return nil, err
+	}
+	// convert to a map for easy lookup
+	supportedSourceMap := make(map[string]*SourceMetadata[R])
+	for _, s := range supportedSources {
+		supportedSourceMap[s.SourceName] = s
 	}
 
-	c.source = source
+	// get the supported sources for the table
+	requestedSource := sourceConfig.InstanceType
+	// validate the requested source type is supported by this table
+	sourceMetadata, ok := supportedSourceMap[requestedSource]
+	if !ok {
+		// the table may specify `artifact` as a supported source, meaning any artifact source is supported
+		// this would cause the above check to fail, as the requestedSource would be the name of a specific artifact source
+		// whereas the map will have an entry keyed by `artifact`
 
-	// set mapper if source metadata specifies one
-	if mapper := sourceMetadata.Mapper; mapper != nil {
-		c.mapper = mapper
+		// is the requested source an artifact source?
+		// TODO #core how can we tell if any  given source is an artifact source?
+		// // we need to ask it - either via the local source or if it is tremote we can connect to it and ask
+		if row_source.IsArtifactSource(requestedSource) {
+			// check whether the supported sources map has an entry for 'artifact'
+			sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]
+		}
+
+		// if we still don't have a source metadata, return an error
+		if !ok {
+			return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, c.table.Identifier())
+		}
 	}
-	// add ourselves as an observer to our Source
-	return c.source.AddObserver(c)
+
+	return sourceMetadata, nil
 }
 
 // handleRowExtractedEvent is invoked when a RowExtracted event is received - map, enrich and publish the row
 func (c *RowEnrichmentCollector[R]) handleRowExtractedEvent(ctx context.Context, e *events.RowExtracted) error {
-	c.rowWg.Add(1)
-	defer c.rowWg.Done()
+	// increment the collection wait group
+	c.collectionWg.Add(1)
+	defer c.collectionWg.Done()
 
 	// put data into an array as that is what mappers expect
 	mappedRow, err := c.mapRow(ctx, e.Row)
@@ -274,12 +258,13 @@ func (c *RowEnrichmentCollector[R]) onRowEnriched(ctx context.Context, row R) er
 
 // writeChunk writes a chunk of rows to a JSONL file
 func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite []any) error {
-	chunkNumber := atomic.LoadInt32(&c.chunkCount)
+	// load the current chunk count
+	chunkCount := atomic.LoadInt32(&c.chunkCount)
 
-	slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", len(rowsToWrite))
+	slog.Debug("writing chunk to JSONL file", "chunk", chunkCount, "rows", len(rowsToWrite))
 
 	// convert row to a JSONL file
-	err := c.writer.WriteChunk(ctx, rowsToWrite, chunkNumber)
+	err := c.writer.WriteChunk(ctx, rowsToWrite, chunkCount)
 	if err != nil {
 		slog.Error("failed to write JSONL file", "error", err)
 		return fmt.Errorf("failed to write JSONL file: %w", err)
@@ -288,30 +273,8 @@ func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite 
 	// increment the chunk count
 	atomic.AddInt32(&c.chunkCount, 1)
 
-	// notify observers, passing the collection state data
-	return c.onChunk(ctx, chunkNumber)
-}
-
-// onChunk is called by the we have written a chunk of enriched rows to a [JSONL/CSV] file
-// notify observers of the chunk
-func (c *RowEnrichmentCollector[R]) onChunk(ctx context.Context, chunkNumber int32) error {
-	executionId, err := context_values.ExecutionIdFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	// construct proto event
-	e := events.NewChunkEvent(executionId, chunkNumber)
-
-	if err = c.NotifyObservers(ctx, e); err != nil {
-		return fmt.Errorf("error notifying observers of chunk: %w", err)
-	}
-
-	// tell source to save collection state
-	if err := c.source.SaveCollectionState(); err != nil {
-		return fmt.Errorf("error saving collection state: %w", err)
-	}
-	return nil
+	// notify observers of the chunk just written (i.e. the un-incremented value)
+	return c.onChunk(ctx, chunkCount)
 }
 
 func (c *RowEnrichmentCollector[R]) writeRemainingRows(ctx context.Context) (int64, int32, error) {
@@ -344,42 +307,4 @@ func (c *RowEnrichmentCollector[R]) updateStatus(ctx context.Context, e events.E
 		// update lastStatusEventTime
 		c.lastStatusEventTime = time.Now()
 	}
-}
-
-// ask table for it;s supported sources and put into map for ease of lookup
-func getSourceMetadata[R types.RowStruct](sourceConfig *types.SourceConfigData, table Table[R]) (*SourceMetadata[R], error) {
-	supportedSources, err := table.GetSourceMetadata()
-	if err != nil {
-		return nil, err
-	}
-	// convert to a map for easy lookup
-	supportedSourceMap := make(map[string]*SourceMetadata[R])
-	for _, s := range supportedSources {
-		supportedSourceMap[s.SourceName] = s
-	}
-
-	// get the supported sources for the table
-	requestedSource := sourceConfig.InstanceType
-	// validate the requested source type is supported by this table
-	sourceMetadata, ok := supportedSourceMap[requestedSource]
-	if !ok {
-		// the table may specify `artifact` as a supported source, meaning any artifact source is supported
-		// this would cause the above check to fail, as the requestedSource would be the name of a specific artifact source
-		// whereas the map will have an entry keyed by `artifact`
-
-		// is the requested source an artifact source?
-		// TODO #core how can we tell if any  given source is an artifact source?
-		// // we need to ask it - either via the local source or if it is tremote we can connect to it and ask
-		if row_source.IsArtifactSource(requestedSource) {
-			// check whether the supported sources map has an entry for 'artifact'
-			sourceMetadata, ok = supportedSourceMap[constants.ArtifactSourceIdentifier]
-		}
-
-		// if we still don't have a source metadata, return an error
-		if !ok {
-			return nil, fmt.Errorf("source type %s not supported by table %s", requestedSource, table.Identifier())
-		}
-	}
-
-	return sourceMetadata, nil
 }

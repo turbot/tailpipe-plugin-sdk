@@ -241,6 +241,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 
 		// close wait group whether there is an error or not
 		a.artifactExtractWg.Done()
+
 		if err != nil {
 			a.NotifyError(ctx, executionId, err)
 		}

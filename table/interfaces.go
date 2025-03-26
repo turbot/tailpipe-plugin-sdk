@@ -42,6 +42,7 @@ type Collector interface {
 	Collect(context.Context) (int64, int32, error)
 	GetSchema() (*schema.TableSchema, error)
 	GetFromTime() *row_source.ResolvedFromTime
+	Close()
 }
 
 type ArtifactToJsonConverter[S parse.Config] interface {
