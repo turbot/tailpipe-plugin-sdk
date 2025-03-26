@@ -85,8 +85,19 @@ func (o operationErrorAggregate) Update(err RowError) {
 
 	switch {
 	case errors.As(err, &rowError):
+		if o.messages == nil {
+			o.messages = make(map[string]struct{})
+		}
 		o.messages[rowError.Message] = struct{}{}
 	case errors.As(err, &rowErrorWithFields):
+		if o.missingFields == nil {
+			o.missingFields = make(map[string]struct{})
+		}
+
+		if o.invalidFields == nil {
+			o.invalidFields = make(map[string]struct{})
+		}
+
 		for _, field := range rowErrorWithFields.MissingFields {
 			o.missingFields[field] = struct{}{}
 		}
