@@ -145,28 +145,36 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 	// generate the filename
 	destFile := filepath.Join(c.destPath, ExecutionIdToJsonlFileName(c.req.ExecutionId, chunkCount))
 
-	query, err := c.getQuery(e.Info.Name, destFile)
+	rowCount, err := c.executeConversionQuery(e, destFile)
 	if err != nil {
-		slog.Error("ArtifactConversionCollector: error getting query", "error", err)
 		return err
 	}
-	// execute the query
-	row := c.db.QueryRow(query)
-	var rowCount int64
-
-	if err = row.Scan(&rowCount); err != nil {
-		return err
-	}
-
-	// now update chunk count and row count
-	atomic.AddInt32(&c.chunkCount, 1)
-	atomic.AddInt64(&c.rowCount, rowCount)
 
 	slog.Info("ArtifactConversionCollector: artifact converted", "artifact", e.Info.Name, "rowCount", rowCount, "chunkCount", c.chunkCount)
 	//TODO K delete local artifact
 
 	// notify observers of the chunk just written (i.e. the un-incremented value)
 	return c.onChunk(ctx, chunkCount)
+}
+
+func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactDownloaded, destFile string) (int64, error) {
+	query, err := c.getQuery(e.Info.Name, destFile)
+	if err != nil {
+		slog.Error("ArtifactConversionCollector: error getting query", "error", err)
+		return 0, err
+	}
+	// execute the query
+	row := c.db.QueryRow(query)
+	var rowCount int64
+
+	if err = row.Scan(&rowCount); err != nil {
+		return 0, err
+	}
+
+	// now update chunk count and row count
+	atomic.AddInt32(&c.chunkCount, 1)
+	atomic.AddInt64(&c.rowCount, rowCount)
+	return rowCount, nil
 }
 
 func (c *ArtifactConversionCollector) getQuery(sourceFile string, destFile string) (string, error) {
