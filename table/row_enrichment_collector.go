@@ -28,7 +28,6 @@ type RowEnrichmentCollector[R types.RowStruct] struct {
 	CollectorImpl[R]
 
 	table  Table[R]
-	req    *types.CollectRequest
 	mapper mappers.Mapper[R]
 	// row buffer keyed by execution id
 	// each row buffer is used to write a JSONL file
@@ -234,7 +233,8 @@ func (c *RowEnrichmentCollector[R]) mapRow(ctx context.Context, rawRow any) (R, 
 	return c.mapper.Map(ctx, rawRow)
 }
 
-// onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full
+// onRowEnriched is called when a row has been enriched. It buffers the row and writes to JSONL file if buffer is full.
+// The function is thread-safe and handles concurrent access to the row buffer.
 func (c *RowEnrichmentCollector[R]) onRowEnriched(ctx context.Context, row R) error {
 	// update status
 	c.status.OnRowEnriched()

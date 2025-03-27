@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 )
 
 // JSONLWriter implements [ChunkWriter] and writes rows to JSONL files
