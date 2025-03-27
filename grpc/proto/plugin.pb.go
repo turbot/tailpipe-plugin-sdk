@@ -1394,6 +1394,7 @@ type EventStatus struct {
 	RowsEnriched             int64                  `protobuf:"varint,8,opt,name=rows_enriched,json=rowsEnriched,proto3" json:"rows_enriched,omitempty"`
 	Errors                   int64                  `protobuf:"varint,9,opt,name=errors,proto3" json:"errors,omitempty"`
 	RowErrors                *RowErrors             `protobuf:"bytes,10,opt,name=row_errors,json=rowErrors,proto3" json:"row_errors,omitempty"`
+	SourceErrors             []string               `protobuf:"bytes,11,rep,name=source_errors,json=sourceErrors,proto3" json:"source_errors,omitempty"`
 	unknownFields            protoimpl.UnknownFields
 	sizeCache                protoimpl.SizeCache
 }
@@ -1494,6 +1495,13 @@ func (x *EventStatus) GetErrors() int64 {
 func (x *EventStatus) GetRowErrors() *RowErrors {
 	if x != nil {
 		return x.RowErrors
+	}
+	return nil
+}
+
+func (x *EventStatus) GetSourceErrors() []string {
+	if x != nil {
+		return x.SourceErrors
 	}
 	return nil
 }
@@ -2798,7 +2806,7 @@ const file_plugin_proto_rawDesc = "" +
 	"\n" +
 	"EventError\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x14\n" +
-	"\x05error\x18\x02 \x01(\tR\x05error\"\xd0\x03\n" +
+	"\x05error\x18\x02 \x01(\tR\x05error\"\xf5\x03\n" +
 	"\vEventStatus\x120\n" +
 	"\x14latest_artifact_path\x18\x01 \x01(\tR\x12latestArtifactPath\x121\n" +
 	"\x14artifacts_discovered\x18\x02 \x01(\x03R\x13artifactsDiscovered\x121\n" +
@@ -2811,7 +2819,8 @@ const file_plugin_proto_rawDesc = "" +
 	"\x06errors\x18\t \x01(\x03R\x06errors\x12/\n" +
 	"\n" +
 	"row_errors\x18\n" +
-	" \x01(\v2\x10.proto.RowErrorsR\trowErrors\"\x83\x02\n" +
+	" \x01(\v2\x10.proto.RowErrorsR\trowErrors\x12#\n" +
+	"\rsource_errors\x18\v \x03(\tR\fsourceErrors\"\x83\x02\n" +
 	"\rEventComplete\x12!\n" +
 	"\fexecution_id\x18\x01 \x01(\tR\vexecutionId\x12\x1b\n" +
 	"\trow_count\x18\x02 \x01(\x03R\browCount\x12\x1f\n" +

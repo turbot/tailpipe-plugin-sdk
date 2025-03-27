@@ -205,6 +205,7 @@ message EventStatus {
   int64 rows_enriched = 8;
   int64 errors = 9;
   RowErrors row_errors = 10;
+  repeated string source_errors = 11;
 }
 
 message EventComplete {

@@ -162,20 +162,14 @@ func (c *CollectorImpl[R]) Collect(ctx context.Context) (int, int, error) {
 // it receives events from the source
 // it handles ONLY Row and Error events
 func (c *CollectorImpl[R]) Notify(ctx context.Context, event events.Event) error {
-	// update the status counts
+	// update the status
 	c.updateStatus(ctx, event)
 
+	// NOTE: we do not pass error events to CLI - we have added to the status instead
 	switch e := event.(type) {
-
 	case *events.RowExtracted:
 		// handle row event - map, enrich and publish the row
 		return c.handleRowExtractedEvent(ctx, e)
-	case *events.Error:
-		// TODO determine whether this is a non-fatal error (in which case send an error event??) or a fatal error https://github.com/turbot/tailpipe-plugin-sdk/issues/72
-		// in which case we need to terminate execution
-
-		slog.Error("CollectorImpl: error event received", "error", e.Err)
-		return c.NotifyObservers(context.Background(), e)
 	default:
 		// ignore
 		// TODO pass other events through to observers

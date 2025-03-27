@@ -11,26 +11,42 @@ import (
 type Status struct {
 	Base
 	ExecutionId              string
-	LatestArtifactLocation   string // *
+	LatestArtifactLocation   string
 	ArtifactsDiscovered      int64
 	ArtifactsDownloaded      int64
-	ArtifactsDownloadedBytes int64 // *
+	ArtifactsDownloadedBytes int64
 	ArtifactsExtracted       int64
-	ArtifactErrors           int64 // *
+	SourceErrors             []string
 	RowsReceived             int64
 	RowsEnriched             int64
-	Errors                   int64
-	RowErrors                error_types.RowErrors
+	// deprecated
+	Errors    int64
+	RowErrors *error_types.RowErrors
 
 	// we only need the mutex when updating string fields (i.e. LatestArtifactLocation)
 	// we use atomic operations for all int fields
-	mut sync.Mutex
+	mut *sync.Mutex
 }
 
 func NewStatusEvent(executionId string) *Status {
 	return &Status{
 		ExecutionId: executionId,
 		RowErrors:   error_types.NewRowErrors(),
+		mut:         &sync.Mutex{},
+	}
+}
+func StatusFromProto(event *proto.EventStatus) *Status {
+	return &Status{
+		LatestArtifactLocation:   event.LatestArtifactPath,
+		ArtifactsDiscovered:      event.ArtifactsDiscovered,
+		ArtifactsDownloaded:      event.ArtifactsDownloaded,
+		ArtifactsDownloadedBytes: event.ArtifactsDownloadedBytes,
+		ArtifactsExtracted:       event.ArtifactsExtracted,
+		RowsReceived:             event.RowsReceived,
+		RowsEnriched:             event.RowsEnriched,
+		Errors:                   event.Errors,
+		RowErrors:                error_types.RowErrorsFromProto(event.RowErrors),
+		SourceErrors:             event.SourceErrors,
 	}
 }
 
@@ -43,11 +59,11 @@ func (r *Status) ToProto() *proto.Event {
 				ArtifactsDownloaded:      r.ArtifactsDownloaded,
 				ArtifactsDownloadedBytes: r.ArtifactsDownloadedBytes,
 				ArtifactsExtracted:       r.ArtifactsExtracted,
-				ArtifactErrors:           r.ArtifactErrors,
 				RowsReceived:             r.RowsReceived,
 				RowsEnriched:             r.RowsEnriched,
 				Errors:                   r.Errors,
 				RowErrors:                r.RowErrors.ToProto(),
+				SourceErrors:             r.SourceErrors,
 			},
 		},
 	}
@@ -68,7 +84,10 @@ func (r *Status) Update(event Event) {
 	case *RowExtracted:
 		atomic.AddInt64(&r.RowsReceived, 1)
 	case *Error:
-		atomic.AddInt64(&r.Errors, 1)
+		// error events are only raised for source errors (currently)
+		r.mut.Lock()
+		r.SourceErrors = append(r.SourceErrors, t.Err.Error())
+		r.mut.Unlock()
 	}
 }
 
@@ -79,22 +98,7 @@ func (r *Status) OnRowEnriched() {
 // OnRowError increments the error count and adds the error to the RowErrors
 // This happens from CLI side, so no need to pass events
 func (r *Status) OnRowError(err error_types.RowError) {
-	// TODO: verify we should still increment Errors here
-	atomic.AddInt64(&r.Errors, 1)
 	r.mut.Lock()
 	defer r.mut.Unlock()
 	r.RowErrors.Add(err)
-}
-
-func (r *Status) Equals(status *Status) bool {
-	if status == nil {
-		return false
-	}
-
-	return r.ArtifactsDiscovered == status.ArtifactsDiscovered &&
-		r.ArtifactsDownloaded == status.ArtifactsDownloaded &&
-		r.ArtifactsExtracted == status.ArtifactsExtracted &&
-		r.RowsEnriched == status.RowsEnriched &&
-		r.Errors == status.Errors
-
 }

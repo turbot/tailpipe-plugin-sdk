@@ -151,8 +151,8 @@ type RowErrors struct {
 }
 
 // NewRowErrors creates a new RowErrors correctly, should always be used to create a new RowErrors
-func NewRowErrors() RowErrors {
-	return RowErrors{
+func NewRowErrors() *RowErrors {
+	return &RowErrors{
 		errors: make(map[string]map[RowOperationType]operationErrorAggregate),
 		Total:  0,
 		mut:    &sync.RWMutex{},
@@ -308,7 +308,7 @@ func RowErrorsFromProto(proto *proto.RowErrors) *RowErrors {
 		r.errors[source] = operationMap
 	}
 
-	return &r
+	return r
 }
 
 // EnsureRowError ensures that the error is a RowError, if not it converts it to a RowErrorWithMessage
