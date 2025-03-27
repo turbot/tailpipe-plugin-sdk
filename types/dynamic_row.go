@@ -2,7 +2,6 @@ package types
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -98,13 +97,18 @@ func (l *DynamicRow) Validate() error {
 
 	// Validate time fields
 	for field := range timeFields {
-		// if field is missing, add to missingFields
+		// if field is missing from source, add to missingFields
 		if _, ok := l.sourceColumns[field]; !ok {
 			missingFields = append(missingFields, field)
 			continue
 		}
-		// if field is invalid, add to invalidFields
-		if err := l.validateTime(l.OutputColumns[field]); err != nil {
+
+		// if field is missing from output columns or invalid add to relevant collection
+		missing, invalid := l.validateTime(l.OutputColumns[field])
+		if missing {
+			missingFields = append(missingFields, field)
+		}
+		if invalid {
 			invalidFields = append(invalidFields, field)
 		}
 	}
@@ -139,13 +143,22 @@ func (l *DynamicRow) Validate() error {
 	return nil
 }
 
-func (l *DynamicRow) validateTime(t interface{}) error {
+// validateTime validates the time field returning two bools
+// - the first bool is true if the time is missing
+// - the second bool is true if the time is invalid
+func (l *DynamicRow) validateTime(t interface{}) (bool, bool) {
+	if t == nil {
+		return true, false
+	}
 	timeValue, ok := t.(time.Time)
-	if !ok || timeValue.IsZero() {
-		return errors.New("invalid")
+	if !ok {
+		return false, true
+	}
+	if timeValue.IsZero() {
+		return true, false
 	}
 
-	return nil
+	return false, false
 }
 
 // MarshalJSON overrides JSON serialization to include the dynamic columns
