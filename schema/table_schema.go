@@ -130,7 +130,6 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 	}
 
 	if len(missingFields) > 0 || len(invalidFields) > 0 {
-		// TODO: #error Confirm with Kai how to obtain Source here
 		return nil, error_types.NewRowErrorWithFields(missingFields, invalidFields)
 	}
 
