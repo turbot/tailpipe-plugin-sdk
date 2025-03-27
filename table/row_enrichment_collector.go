@@ -3,6 +3,10 @@ package table
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"sync"
+	"sync/atomic"
+
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -11,10 +15,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"log/slog"
-	"sync"
-	"sync/atomic"
-	"time"
 )
 
 // JSONLChunkSize the number of  rows to write in each JSONL file
@@ -29,12 +29,16 @@ type RowEnrichmentCollector[R types.RowStruct] struct {
 
 	table  Table[R]
 	mapper mappers.Mapper[R]
-	// row buffer keyed by execution id
-	// each row buffer is used to write a JSONL file
-	// mutex to protect the row buffer
-	rowBufferLock sync.Mutex
-	rowBuffer     []any
-	writer        ChunkWriter
+	// buffer to store the enriched rows before writing each JSONL
+	rowBuffer []any
+	// mutex for row buffer map
+	rowBufferLock sync.RWMutex
+	// how may rows have we written
+	rowCount int64
+	// how may chunks have we written - used only for status reporting
+	chunkCount int32
+
+	writer ChunkWriter
 }
 
 func NewRowEnrichmentCollector[R types.RowStruct](table Table[R]) *RowEnrichmentCollector[R] {
@@ -233,15 +237,18 @@ func (c *RowEnrichmentCollector[R]) mapRow(ctx context.Context, rawRow any) (R, 
 	return c.mapper.Map(ctx, rawRow)
 }
 
-// onRowEnriched is called when a row has been enriched. It buffers the row and writes to JSONL file if buffer is full.
-// The function is thread-safe and handles concurrent access to the row buffer.
+// onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full
 func (c *RowEnrichmentCollector[R]) onRowEnriched(ctx context.Context, row R) error {
 	// update status
 	c.status.OnRowEnriched()
 
-	atomic.AddInt64(&c.rowCount, 1)
-
 	c.rowBufferLock.Lock()
+	// add row to row buffer
+	c.rowBuffer = append(c.rowBuffer, row)
+	// increment the count
+	c.rowCount++
+
+	// determine whethe rwe need to write a jsonl file - is buffer full
 	var rowsToWrite []any
 	if len(c.rowBuffer) == JSONLChunkSize {
 		rowsToWrite = c.rowBuffer
@@ -258,13 +265,19 @@ func (c *RowEnrichmentCollector[R]) onRowEnriched(ctx context.Context, row R) er
 
 // writeChunk writes a chunk of rows to a JSONL file
 func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite []any) error {
-	// load the current chunk count
-	chunkCount := atomic.LoadInt32(&c.chunkCount)
+	rowCount := atomic.LoadInt64(&c.rowCount)
+	// determine chunk number from rowCountMap
+	chunkNumber := int32(rowCount / JSONLChunkSize)
 
-	slog.Debug("writing chunk to JSONL file", "chunk", chunkCount, "rows", len(rowsToWrite))
+	// check for final partial chunk
+	if rowCount%JSONLChunkSize > 0 {
+		chunkNumber++
+	}
+
+	slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", len(rowsToWrite))
 
 	// convert row to a JSONL file
-	err := c.writer.WriteChunk(ctx, rowsToWrite, chunkCount)
+	err := c.writer.WriteChunk(ctx, rowsToWrite, chunkNumber)
 	if err != nil {
 		slog.Error("failed to write JSONL file", "error", err)
 		return fmt.Errorf("failed to write JSONL file: %w", err)
@@ -273,12 +286,12 @@ func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite 
 	// increment the chunk count
 	atomic.AddInt32(&c.chunkCount, 1)
 
-	// notify observers of the chunk just written (i.e. the un-incremented value)
-	return c.onChunk(ctx, chunkCount)
+	// notify observers, passing the collection state data
+	return c.onChunk(ctx, chunkNumber)
 }
 
 func (c *RowEnrichmentCollector[R]) writeRemainingRows(ctx context.Context) (int64, int32, error) {
-	// NOTE: not need for atomic operation here as this will only be called once after everything is done
+	// NOTE: no need for atomic operation here as this will only be called once after everything is done
 
 	// tell our writer to write any remaining rows
 	if len(c.rowBuffer) > 0 {
@@ -286,25 +299,7 @@ func (c *RowEnrichmentCollector[R]) writeRemainingRows(ctx context.Context) (int
 			slog.Error("failed to write final chunk", "error", err)
 			return 0, 0, fmt.Errorf("failed to write final chunk: %w", err)
 		}
-		c.chunkCount++
 	}
 
 	return c.rowCount, c.chunkCount, nil
-}
-
-// updateStatus updates the status counters with the latest event
-// it also sends raises status event periodically (determined by statusUpdateInterval)
-// note: we will send a final status event when the collection completes
-func (c *RowEnrichmentCollector[R]) updateStatus(ctx context.Context, e events.Event) {
-	c.status.Update(e)
-
-	// send a status event periodically
-	if time.Since(c.lastStatusEventTime) > events.StatusUpdateInterval {
-		// notify observers
-		if err := c.NotifyObservers(ctx, c.status); err != nil {
-			slog.Error("tableName RowSourceImpl: error notifying observers of status", "error", err)
-		}
-		// update lastStatusEventTime
-		c.lastStatusEventTime = time.Now()
-	}
 }
