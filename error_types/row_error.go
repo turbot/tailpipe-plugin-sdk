@@ -7,10 +7,9 @@ import (
 	"sync"
 
 	"github.com/dustin/go-humanize"
-	"golang.org/x/exp/maps"
-
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"golang.org/x/exp/maps"
 )
 
 type RowOperationType string
