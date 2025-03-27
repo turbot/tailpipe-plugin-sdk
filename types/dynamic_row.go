@@ -4,14 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/rs/xid"
-	"golang.org/x/exp/maps"
 	"strings"
 	"time"
 
-	"github.com/turbot/pipe-fittings/v2/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/rs/xid"
+	"golang.org/x/exp/maps"
 
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"github.com/turbot/tailpipe-plugin-sdk/error_types"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
@@ -34,6 +34,7 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFields schema.SourceEnrichment) error {
 	// we expect the columns to be initialised by a previous call to InitialiseFromMap
 	if l.sourceColumns == nil {
+		// pass this back as a normal error, it should be converted to a RowErrorWithMessage by a caller which can populate the source
 		return fmt.Errorf("the DynamicRow struct has not been initialised with a map of columns")
 	}
 
@@ -50,7 +51,8 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 	// now ask the schema to map the row for uas
 	outputColumns, err := tableSchema.MapRow(l.sourceColumns)
 	if err != nil {
-		return fmt.Errorf("error mapping row: %w", err)
+		// err will be error_types.RowErrorWithFields
+		return err
 	}
 	// merge the output columns with our current output columns, with the rows current out columns having precedence
 	// (the plugin may have added some columns to the row)
@@ -96,12 +98,14 @@ func (l *DynamicRow) Validate() error {
 
 	// Validate time fields
 	for field := range timeFields {
+		// if field is missing, add to missingFields
+		if _, ok := l.sourceColumns[field]; !ok {
+			missingFields = append(missingFields, field)
+			continue
+		}
+		// if field is invalid, add to invalidFields
 		if err := l.validateTime(l.OutputColumns[field]); err != nil {
-			if err.Error() == missingFieldError {
-				missingFields = append(missingFields, field)
-			} else {
-				invalidFields = append(invalidFields, field)
-			}
+			invalidFields = append(invalidFields, field)
 		}
 	}
 
@@ -127,38 +131,18 @@ func (l *DynamicRow) Validate() error {
 		}
 	}
 
-	var missingFieldsStr, invalidFieldsStr string
-	if len(missingFields) > 0 {
-		missingFieldsStr = fmt.Sprintf("missing required %s: %s", utils.Pluralize("field", len(missingFields)), strings.Join(missingFields, ", "))
-	}
-	if len(invalidFields) > 0 {
-		invalidFieldsStr = fmt.Sprintf("invalid fields: %s", strings.Join(invalidFields, ", "))
+	if len(missingFields) > 0 || len(invalidFields) > 0 {
+		// return a RowErrorWithFields with the missing and invalid fields
+		return error_types.NewRowErrorWithFields(missingFields, invalidFields)
 	}
 
-	// Concatenate the messages without extra spaces
-	errorMsg := missingFieldsStr
-	if missingFieldsStr != "" && invalidFieldsStr != "" {
-		errorMsg += " "
-	}
-	errorMsg += invalidFieldsStr
-
-	if errorMsg != "" {
-		return fmt.Errorf("row validation failed: %s", errorMsg)
-	}
 	return nil
 }
 
-var invalidFieldError = "invalid field"
-var missingFieldError = "missing field"
-
 func (l *DynamicRow) validateTime(t interface{}) error {
-	if t == nil {
-		return errors.New(missingFieldError)
-	}
-
 	timeValue, ok := t.(time.Time)
 	if !ok || timeValue.IsZero() {
-		return errors.New(invalidFieldError)
+		return errors.New("invalid")
 	}
 
 	return nil

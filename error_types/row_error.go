@@ -24,6 +24,9 @@ type RowError interface {
 	error
 	GetSource() string
 	GetOperation() RowOperationType
+
+	setSource(string)
+	setOperation(RowOperationType)
 }
 
 type RowErrorWithMessage struct {
@@ -40,15 +43,21 @@ func (r *RowErrorWithMessage) GetOperation() RowOperationType {
 	return r.Operation
 }
 
+func (r *RowErrorWithMessage) setSource(source string) {
+	r.Source = source
+}
+
+func (r *RowErrorWithMessage) setOperation(operation RowOperationType) {
+	r.Operation = operation
+}
+
 func (r *RowErrorWithMessage) Error() string {
 	return r.Message
 }
 
-func NewRowErrorWithMessage(source string, operation RowOperationType, message string) *RowErrorWithMessage {
+func NewRowErrorWithMessage(message string) *RowErrorWithMessage {
 	return &RowErrorWithMessage{
-		Source:    source,
-		Operation: operation,
-		Message:   message,
+		Message: message,
 	}
 }
 
@@ -67,6 +76,14 @@ func (r *RowErrorWithFields) GetOperation() RowOperationType {
 	return r.Operation
 }
 
+func (r *RowErrorWithFields) setSource(source string) {
+	r.Source = source
+}
+
+func (r *RowErrorWithFields) setOperation(operation RowOperationType) {
+	r.Operation = operation
+}
+
 func (r *RowErrorWithFields) Error() string {
 	switch {
 	case len(r.MissingFields) > 0 && len(r.InvalidFields) > 0:
@@ -79,10 +96,8 @@ func (r *RowErrorWithFields) Error() string {
 	return ""
 }
 
-func NewRowErrorWithFields(source string, operation RowOperationType, missingFields, invalidFields []string) *RowErrorWithFields {
+func NewRowErrorWithFields(missingFields, invalidFields []string) *RowErrorWithFields {
 	return &RowErrorWithFields{
-		Source:        source,
-		Operation:     operation,
 		MissingFields: missingFields,
 		InvalidFields: invalidFields,
 	}
@@ -306,5 +321,15 @@ func EnsureRowError(source string, operation RowOperationType, err error) RowErr
 			Message:   err.Error(),
 		}
 	}
+
+	// if the error is a RowError, ensure the source and operation are set
+	if rowError.GetSource() == "" {
+		rowError.setSource(source)
+	}
+
+	if rowError.GetOperation() == "" {
+		rowError.setOperation(operation)
+	}
+
 	return rowError
 }

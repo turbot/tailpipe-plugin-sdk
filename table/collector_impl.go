@@ -288,6 +288,9 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 
 	sourceEnrichment := e.SourceEnrichment
 	sourceLocation := gtypes.SafeString(sourceEnrichment.CommonFields.TpSourceLocation)
+	if sourceLocation == "" {
+		sourceLocation = gtypes.SafeString(sourceEnrichment.CommonFields.TpSourceName)
+	}
 
 	// put data into an array as that is what mappers expect
 	mappedRow, err := c.mapRow(ctx, e.Row)
@@ -371,7 +374,7 @@ func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R) error {
 }
 
 // onRowError is called when a row operation (map/enrich/validate) fails, it updates our status but doesn't return an error back to source
-func (c *CollectorImpl[R]) onRowError(ctx context.Context, source string, operation error_types.RowOperationType, err error) error {
+func (c *CollectorImpl[R]) onRowError(_ context.Context, source string, operation error_types.RowOperationType, err error) error {
 	// if called without an error do nothing
 	if err == nil {
 		return nil
