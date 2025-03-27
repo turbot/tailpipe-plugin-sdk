@@ -45,6 +45,14 @@ func (r *RowErrorWithMessage) Error() string {
 	return r.Message
 }
 
+func NewRowErrorWithMessage(source string, operation RowOperationType, message string) *RowErrorWithMessage {
+	return &RowErrorWithMessage{
+		Source:    source,
+		Operation: operation,
+		Message:   message,
+	}
+}
+
 type RowErrorWithFields struct {
 	Source        string
 	Operation     RowOperationType
@@ -70,6 +78,15 @@ func (r *RowErrorWithFields) Error() string {
 		return fmt.Sprintf("invalid fields: %s", strings.Join(r.InvalidFields, ","))
 	}
 	return ""
+}
+
+func NewRowErrorWithFields(source string, operation RowOperationType, missingFields, invalidFields []string) *RowErrorWithFields {
+	return &RowErrorWithFields{
+		Source:        source,
+		Operation:     operation,
+		MissingFields: missingFields,
+		InvalidFields: invalidFields,
+	}
 }
 
 type operationErrorAggregate struct {
