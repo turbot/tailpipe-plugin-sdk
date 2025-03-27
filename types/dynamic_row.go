@@ -20,6 +20,8 @@ type DynamicRow struct {
 
 	// the output columns, as a map of string to interface{} - the result of enrichment and type conversion
 	OutputColumns map[string]interface{}
+
+	schema *schema.TableSchema
 }
 
 func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
@@ -31,6 +33,9 @@ func (l *DynamicRow) InitialiseFromMap(m map[string]string) error {
 
 // Enrich uses the provided mappings to populate the common fields from mapped column values
 func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFields schema.SourceEnrichment) error {
+	// store the schema - we will use in validation
+	l.schema = tableSchema
+
 	// we expect the columns to be initialised by a previous call to InitialiseFromMap
 	if l.sourceColumns == nil {
 		// pass this back as a normal error, it should be converted to a RowErrorWithMessage by a caller which can populate the source
@@ -79,8 +84,9 @@ func (l *DynamicRow) Validate() error {
 	var missingFields []string
 	var invalidFields []string
 
+	//
 	// Define time fields that need validation
-	timeFields := map[string]bool{
+	requiredTimeFields := map[string]bool{
 		constants.TpIngestTimestamp: true,
 		constants.TpTimestamp:       true,
 		constants.TpDate:            true,
@@ -95,8 +101,21 @@ func (l *DynamicRow) Validate() error {
 		constants.TpIndex:      true,
 	}
 
+	// can we validate this row?
+	// if any required fields have transform functions, we cannot validate at this point
+	// - we must wait until after the transform has been executed by the CLI - the CLI will do the validation
+	requiredFields := append(maps.Keys(requiredStringFields), maps.Keys(requiredTimeFields)...)
+	schemaMap := l.schema.AsMap()
+	for _, field := range requiredFields {
+		if schemaMap[field].Transform != "" {
+			// this field has a transform function - we cannot validate at this point
+			return nil
+		}
+	}
+
+	// OK so we can validate
 	// Validate time fields
-	for field := range timeFields {
+	for field := range requiredTimeFields {
 		// if field is missing from source, add to missingFields
 		if _, ok := l.sourceColumns[field]; !ok {
 			missingFields = append(missingFields, field)

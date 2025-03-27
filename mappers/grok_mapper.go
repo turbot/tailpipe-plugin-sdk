@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"regexp"
 	"regexp/syntax"
@@ -16,12 +17,15 @@ import (
 
 type GrokMapper[T MapInitialisedRow] struct {
 	parser *grok.Grok
+	layout string
 }
 
 // NewGrokMapper creates a new GrokMapper which contains a grok parser for each layout.
 // patterns is a map of pattern names to grok patterns.
 func NewGrokMapper[T MapInitialisedRow](layout string, patterns map[string]string) (*GrokMapper[T], error) {
-	res := &GrokMapper[T]{}
+	res := &GrokMapper[T]{
+		layout: layout,
+	}
 
 	g := grok.New()
 	if err := g.AddPatterns(patterns); err != nil {
@@ -44,7 +48,6 @@ func NewGrokMapper[T MapInitialisedRow](layout string, patterns map[string]strin
 func (c *GrokMapper[T]) Identifier() string {
 	return "grok_mapper"
 }
-
 
 func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, error) {
 	var empty T
@@ -72,7 +75,10 @@ func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, 
 	if err := row.InitialiseFromMap(rowMap); err != nil {
 		return empty, fmt.Errorf("error initializing row from map: %w", err)
 	}
-
+	// for pattern debugging purposes, if there were no matches, we want to log the input and the result
+	if len(result) == 0 {
+		slog.Warn("grok mapper - no matches found", "layout", c.layout, "input", input)
+	}
 	return row, nil
 }
 

@@ -3,13 +3,15 @@ package mappers
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
 
 	"github.com/turbot/pipe-fittings/v2/utils"
 )
 
 type RegexMapper[T MapInitialisedRow] struct {
-	re *regexp.Regexp
+	re      *regexp.Regexp
+	pattern string
 }
 
 // NewRegexMapper creates a new RegexMapper with the provided pattern.
@@ -18,7 +20,10 @@ func NewRegexMapper[T MapInitialisedRow](pattern string) (*RegexMapper[T], error
 	if err != nil {
 		return nil, fmt.Errorf("error compiling regex pattern: %w", err)
 	}
-	return &RegexMapper[T]{re: re}, nil
+	return &RegexMapper[T]{
+		re:      re,
+		pattern: pattern,
+	}, nil
 }
 
 func (c *RegexMapper[T]) Identifier() string {
@@ -43,7 +48,7 @@ func (c *RegexMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T,
 	// Parse the input string
 	match := c.re.FindStringSubmatch(input)
 	if match == nil {
-		return empty, fmt.Errorf("error parsing log line, didn't match regex pattern %s", c.re.String())
+		return empty, fmt.Errorf("error parsing log line:\n%s\n\n, didn't match regex pattern%s", input, c.re.String())
 	}
 
 	rowMap := make(map[string]string)
@@ -53,12 +58,13 @@ func (c *RegexMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T,
 		}
 	}
 
-	// if we have a schema, apply the schema to map any required
-
 	// Map parsed fields to the row struct
 	row := utils.InstanceOf[T]()
 	if err = row.InitialiseFromMap(rowMap); err != nil {
 		return empty, fmt.Errorf("error initialising row from map: %w", err)
+	}
+	if len(rowMap) == 0 {
+		slog.Warn("grok mapper - no matches found", "layout", c.pattern, "input", input)
 	}
 
 	return row, nil
