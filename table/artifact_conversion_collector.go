@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
 
 	_ "github.com/marcboeker/go-duckdb/v2"
+	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
@@ -22,6 +22,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"golang.org/x/exp/maps"
 )
 
 // ArtifactConversionCollector is a collector that converts artifacts directly to JSONL
@@ -168,13 +169,13 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 
 func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactDownloaded, destFile string) (int64, error) {
 	// First create temp table and get its columns
-	tempTableQuery, err := c.getTempTableQuery(e.Info)
+	tempTableQuery, err := c.getTempTableQuery(e.Info.Name)
 	if err != nil {
+		slog.Error("ArtifactConversionCollector: error getting temp table query", "error", err)
 		return 0, err
 	}
 
-	// the temp table read the artifact into a temp table and returns the columns as a string
-	// execute this first to get the columns
+	// execute the query to create the temp table and get the columns
 	var columnsStr string
 	if err := c.db.QueryRow(tempTableQuery).Scan(&columnsStr); err != nil {
 		return 0, err
@@ -183,10 +184,12 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 
 	// Now that we have the columns, generate and execute the copy query
 	copyQuery := c.getCopyQuery(destFile, columns, e.Info)
+
+	// Execute copy query and get row count
 	row := c.db.QueryRow(copyQuery)
 	var rowCount int64
 
-	if err := row.Scan(&rowCount); err != nil {
+	if err = row.Scan(&rowCount); err != nil {
 		return 0, err
 	}
 
@@ -196,26 +199,11 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 	return rowCount, nil
 }
 
-func (c *ArtifactConversionCollector) getReadArtifactSql(info *types.DownloadedArtifactInfo) (string, error) {
-	var readArtifactSql string
-	switch f := c.table.GetFormat().(type) {
-	case *formats.JsonLines:
-		readArtifactSql = fmt.Sprintf("read_json('%s')", info.Name)
-	case *formats.Delimited:
-		options := f.GetCsvOpts()
-		readArtifactSql = fmt.Sprintf("read_csv('%s', %s)", info.Name, strings.Join(options, ", "))
-	default:
-		return "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
-	}
-	return readArtifactSql, nil
-}
-
 // getTempTableQuery generates the SQL query to create the temp table and return its columns as an array
-func (c *ArtifactConversionCollector) getTempTableQuery(info *types.DownloadedArtifactInfo) (string, error) {
-	// Get the read function SQL based on format
-	readArtifactSql, err := c.getReadArtifactSql(info)
+func (c *ArtifactConversionCollector) getTempTableQuery(sourceFile string) (string, error) {
+	readArtifactSql, s, err := c.getReadArtifactSql(sourceFile)
 	if err != nil {
-		return "", err
+		return s, err
 	}
 
 	return fmt.Sprintf(`-- Create temp table from source data
@@ -228,9 +216,80 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 		readArtifactSql), nil
 }
 
+func (c *ArtifactConversionCollector) getReadArtifactSql(sourceFile string) (string, string, error) {
+	// Get the read function SQL based on format
+	var readArtifactSql string
+	switch f := c.table.GetFormat().(type) {
+	case *formats.JsonLines:
+		readArtifactSql = fmt.Sprintf("read_json('%s')", sourceFile)
+	case *formats.Delimited:
+		options := f.GetCsvOpts()
+		readArtifactSql = fmt.Sprintf("read_csv('%s', %s)", sourceFile, strings.Join(options, ", "))
+	default:
+		return "", "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
+	}
+	return readArtifactSql, "", nil
+}
+
+// getCopyQuery generates the SQL query to transform, copy and count the data
+func (c *ArtifactConversionCollector) getCopyQuery(destFile string, columns []string, sourceInfo *types.DownloadedArtifactInfo) string {
+	// Create a map of the existing column names
+	selectColumnMap := utils.SliceToLookup(columns)
+
+	// Build mapped columns clause
+	var mappedColumnsClause string
+	if len(c.req.CustomTableSchema.Columns) > 0 {
+		var clauses []string
+		for _, column := range c.req.CustomTableSchema.Columns {
+			if column.SourceName != column.ColumnName {
+				clauses = append(clauses, fmt.Sprintf("%s as %s", column.SourceName, column.ColumnName))
+				// remove this from the map of other columns to select
+				delete(selectColumnMap, column.SourceName)
+			}
+		}
+		mappedColumnsClause = strings.Join(clauses, ",\n\t")
+	}
+
+	// Build remaining columns clause if auto-mapping is enabled
+	var remainingColumnsClause string
+	if c.req.CustomTableSchema.AutoMapSourceFields {
+		if len(selectColumnMap) > 0 {
+			remainingColumnsClause = strings.Join(maps.Keys(selectColumnMap), ",\n\t")
+			// Only add the comma if we have mapped columns
+			if mappedColumnsClause != "" {
+				remainingColumnsClause = ",\n\t" + remainingColumnsClause
+			}
+		}
+	}
+
+	// Build common fields clauses
+	commonFieldsClauses := c.getCommonFieldsSelectClauses(sourceInfo)
+
+	// Build the query
+	query := fmt.Sprintf(`-- Transform and copy data to destination
+copy (select
+    %s
+	%s
+	%s
+from temp_data)
+to '%s' (
+    format json
+);
+
+-- Get row count
+select count(*) as row_count from temp_data;`,
+
+		mappedColumnsClause,
+		remainingColumnsClause,
+		commonFieldsClauses,
+		destFile)
+
+	return query
+}
+
 // getCommonFieldsSelectClauses generates the SQL clauses for common fields
 func (c *ArtifactConversionCollector) getCommonFieldsSelectClauses(sourceInfo *types.DownloadedArtifactInfo) []string {
-	var commonFieldsClauses []string = []string{
+	var commonFieldsClauses = []string{
 		fmt.Sprintf("'%s' as tp_table", sourceInfo.SourceEnrichment.CommonFields.TpTable),
 		fmt.Sprintf("'%s' as tp_partition", sourceInfo.SourceEnrichment.CommonFields.TpPartition),
 		"case\n        when tp_timestamp is not null\n        then date_trunc('day', tp_timestamp::TIMESTAMP)\n    end as tp_date",
@@ -255,142 +314,6 @@ func (c *ArtifactConversionCollector) getCommonFieldsSelectClauses(sourceInfo *t
 	return commonFieldsClauses
 }
 
-// getCopyQuery generates the SQL query to transform, copy and count the data
-func (c *ArtifactConversionCollector) getCopyQuery(destFile string, columns []string, sourceInfo *types.DownloadedArtifactInfo) string {
-	// Build mapped columns clause
-	var mappedColumnsClause string
-	if len(c.req.CustomTableSchema.Columns) > 0 {
-		var clauses []string
-		// Get sorted source names for deterministic output
-		sourceNames := make([]string, 0, len(c.req.CustomTableSchema.Columns))
-		for _, column := range c.req.CustomTableSchema.Columns {
-			if column.SourceName != "" {
-				sourceNames = append(sourceNames, column.SourceName)
-			}
-		}
-		sort.Strings(sourceNames)
-
-		for _, sourceName := range sourceNames {
-			var columnName string
-			for _, column := range c.req.CustomTableSchema.Columns {
-				if column.SourceName == sourceName {
-					columnName = column.ColumnName
-					break
-				}
-			}
-			if sourceName != "" && sourceName != columnName {
-				clauses = append(clauses, fmt.Sprintf("%s as %s", sourceName, columnName))
-			} else {
-				clauses = append(clauses, columnName)
-			}
-		}
-		mappedColumnsClause = strings.Join(clauses, ",\n    ")
-	}
-
-	// Build remaining columns clause if auto-mapping is enabled
-	var remainingColumnsClause string
-	if c.req.CustomTableSchema.AutoMapSourceFields {
-		// Create a map of columns to exclude
-		excludeColumns := make(map[string]bool)
-		excludeColumns["tp_index"] = true
-		excludeColumns["tp_timestamp"] = true
-		excludeColumns["tp_date"] = true
-		excludeColumns["tp_id"] = true
-		excludeColumns["tp_ingest_timestamp"] = true
-		for _, column := range c.req.CustomTableSchema.Columns {
-			if column.SourceName != "" {
-				excludeColumns[column.SourceName] = true
-			}
-		}
-
-		// If we have columns from the temp table, use them
-		// Filter out excluded columns
-		var remainingColumns []string
-		for _, col := range columns {
-			if !excludeColumns[col] {
-				remainingColumns = append(remainingColumns, col)
-			}
-		}
-
-		if len(remainingColumns) > 0 {
-			sort.Strings(remainingColumns)
-			remainingColumnsSelect := strings.Join(remainingColumns, ",\n    ")
-			// Only add the comma if we have mapped columns
-			if mappedColumnsClause != "" {
-				remainingColumnsClause = ",\n    " + remainingColumnsSelect
-			} else {
-				remainingColumnsClause = remainingColumnsSelect
-			}
-		}
-	}
-
-	// Build common fields clauses
-	commonFieldsClauses := c.getCommonFieldsSelectClauses(sourceInfo)
-
-	// Build the query
-	query := fmt.Sprintf(`-- Transform and copy data to destination
-copy (select
-    %s%s%s
-from temp_data)
-to '%s' (
-    format json
-);
-
--- Get row count
-select count(*) as row_count from temp_data;`,
-		mappedColumnsClause,
-		remainingColumnsClause,
-		func() string {
-			if mappedColumnsClause != "" || remainingColumnsClause != "" {
-				return ",\n    " + strings.Join(commonFieldsClauses, ",\n    ")
-			}
-			return strings.Join(commonFieldsClauses, ",\n    ")
-		}(),
-		destFile)
-
-	return query
-}
-
-// getConversionQuery creates SQL queries to convert a source file to a destination JSON file
-// It returns two queries:
-// 1. A query to create the temp table and handle drop statements
-// 2. A query to copy and count the data
-func (c *ArtifactConversionCollector) getConversionQuery(sourceInfo *types.DownloadedArtifactInfo, destFile string, tableSchema *schema.TableSchema, format formats.Format) (string, string, error) {
-	// Get the read function SQL based on format
-	var readArtifactSql string
-	switch f := format.(type) {
-	case *formats.JsonLines:
-		readArtifactSql = fmt.Sprintf("read_json('%s')", sourceInfo.Name)
-	case *formats.Delimited:
-		options := f.GetCsvOpts()
-		readArtifactSql = fmt.Sprintf("read_csv('%s', %s)", sourceInfo.Name, strings.Join(options, ", "))
-	default:
-		return "", "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
-	}
-
-	// Build map of mapped columns
-	mappedColumns := make(map[string]string)
-	for _, column := range tableSchema.Columns {
-		if column.SourceName != "" {
-			mappedColumns[column.SourceName] = column.ColumnName
-		}
-	}
-
-	// Get the temp table query
-	tempTableQuery := fmt.Sprintf(`-- Create temp table from source data
-create temp table temp_data as
-select *
-from %s;
-
--- Return the columns as an array
-select string_agg(name, ',') from pragma_table_info('temp_data');`, readArtifactSql)
-
-	// Get the copy query - we'll get the columns from the temp table when we execute it
-	copyQuery := c.getCopyQuery(destFile, nil, sourceInfo)
-
-	return tempTableQuery, copyQuery, nil
-}
-
 func (c *ArtifactConversionCollector) onChunk(ctx context.Context, chunkNumber int32) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
@@ -409,4 +332,127 @@ func (c *ArtifactConversionCollector) onChunk(ctx context.Context, chunkNumber i
 		return fmt.Errorf("error saving collection state: %w", err)
 	}
 	return nil
+}
+
+// GetTempTableQuery generates the SQL query to create the temp table and return its columns as an array
+func GetTempTableQuery(readArtifactSql string) string {
+	return fmt.Sprintf(`-- Create temp table from source data
+create temp table temp_data as
+select *
+from %s;
+
+-- Return the columns as an array
+select array_agg(name) from pragma_table_info('temp_data');`,
+		readArtifactSql)
+}
+
+// GetCopyQuery generates the SQL query to transform, copy and count the data
+func GetCopyQuery(destFile string, columns []string, mappedColumns map[string]string, autoMapSourceFields bool) string {
+	// Build mapped columns clause
+	var mappedColumnsClause string
+	if len(mappedColumns) > 0 {
+		var clauses []string
+		for sourceName, columnName := range mappedColumns {
+			if sourceName != columnName {
+				clauses = append(clauses, fmt.Sprintf("%s as %s", sourceName, columnName))
+			} else {
+				clauses = append(clauses, sourceName)
+			}
+		}
+		mappedColumnsClause = strings.Join(clauses, ",\n\t")
+	}
+
+	// Build remaining columns clause if auto-mapping is enabled
+	var remainingColumnsClause string
+	if autoMapSourceFields {
+		// Create a map of columns to exclude
+		excludeColumns := make(map[string]bool)
+		excludeColumns["tp_index"] = true
+		excludeColumns["tp_timestamp"] = true
+		excludeColumns["tp_date"] = true
+		excludeColumns["tp_id"] = true
+		excludeColumns["tp_ingest_timestamp"] = true
+		for sourceName := range mappedColumns {
+			excludeColumns[sourceName] = true
+		}
+
+		// If we have a single "*" column, use it directly
+		if len(columns) == 1 && columns[0] == "*" {
+			remainingColumnsClause = "*"
+		} else {
+			// Otherwise, filter out excluded columns
+			var remainingColumns []string
+			for _, col := range columns {
+				if !excludeColumns[col] {
+					remainingColumns = append(remainingColumns, col)
+				}
+			}
+
+			if len(remainingColumns) > 0 {
+				remainingColumnsSelect := strings.Join(remainingColumns, ",\n\t")
+				// Only add the comma if we have mapped columns
+				if mappedColumnsClause != "" {
+					remainingColumnsClause = ",\n\t" + remainingColumnsSelect
+				} else {
+					remainingColumnsClause = remainingColumnsSelect
+				}
+			}
+		}
+	}
+
+	return fmt.Sprintf(`-- Transform and copy data to destination
+copy (select
+    %s
+    %s,
+    case
+        when tp_timestamp is not null
+        then date_trunc('day', tp_timestamp::TIMESTAMP)
+    end as tp_date,
+    gen_random_uuid() as tp_id,
+    timestamp '%s' as tp_ingest_timestamp
+from temp_data)
+to '%s' (
+    format json
+);
+
+-- Get row count
+select count(*) as row_count from temp_data;`,
+		mappedColumnsClause,
+		remainingColumnsClause,
+		time.Now().Format(time.RFC3339),
+		destFile)
+}
+
+// GetConversionQuery creates SQL queries to convert a source file to a destination JSON file
+// It returns two queries:
+// 1. A query to create the temp table and handle drop statements
+// 2. A query to copy and count the data
+func GetConversionQuery(sourceFile string, destFile string, tableSchema *schema.TableSchema, format formats.Format) (string, string, error) {
+	// Get the read function SQL based on format
+	var readArtifactSql string
+	switch f := format.(type) {
+	case *formats.JsonLines:
+		readArtifactSql = fmt.Sprintf("read_json('%s')", sourceFile)
+	case *formats.Delimited:
+		options := f.GetCsvOpts()
+		readArtifactSql = fmt.Sprintf("read_csv('%s', %s)", sourceFile, strings.Join(options, ", "))
+	default:
+		return "", "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
+	}
+
+	// Build map of mapped columns
+	mappedColumns := make(map[string]string)
+	for _, column := range tableSchema.Columns {
+		if column.SourceName != "" {
+			mappedColumns[column.SourceName] = column.ColumnName
+		}
+	}
+
+	// Get the temp table query
+	tempTableQuery := GetTempTableQuery(readArtifactSql)
+
+	// Get the copy query with all columns (they will be filtered in GetCopyQuery)
+	copyQuery := GetCopyQuery(destFile, []string{"*"}, mappedColumns, tableSchema.AutoMapSourceFields)
+
+	return tempTableQuery, copyQuery, nil
 }
