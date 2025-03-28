@@ -3,6 +3,7 @@ package error_types
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -203,10 +204,8 @@ func (r *RowErrors) Errors() []string {
 		messages := make(map[string]struct{})
 		fields := make(map[string]struct{})
 		fieldErrorTypes := make(map[string]struct{})
-		operations := make([]string, 0, len(operationMap))
 
-		for operation, operationErrors := range operationMap {
-			operations = append(operations, string(operation))
+		for _, operationErrors := range operationMap {
 
 			rowCount += operationErrors.count
 
@@ -227,24 +226,27 @@ func (r *RowErrors) Errors() []string {
 
 		}
 
-		// these are for displaying in error string
-		operationsDisplay := strings.Join(operations, "/")
-		fieldErrorTypesDisplay := strings.Join(maps.Keys(fieldErrorTypes), "/")
-		fieldsDisplay := strings.Join(maps.Keys(fields), ", ")
+		// trim source for display purposes to last file segment
+		sourceDisplay := ""
+		if source != "" {
+			source = filepath.Base(source)
+		}
 
 		// determine the error message to display for the source
 		var msg string
 		switch {
 		case len(fields) > 0:
-			msg = fmt.Sprintf("%s: %s %s failed %s with %s fields: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, fieldErrorTypesDisplay, fieldsDisplay)
+			fieldErrorTypesDisplay := strings.Join(maps.Keys(fieldErrorTypes), "/")
+			fieldsDisplay := strings.Join(maps.Keys(fields), ", ")
+			msg = fmt.Sprintf("%s: %s %s have %s fields: %s", sourceDisplay, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), fieldErrorTypesDisplay, fieldsDisplay)
 		case len(messages) == 1:
 			// single error message so display it
 			msgText := maps.Keys(messages)[0]
-			msg = fmt.Sprintf("%s: %s %s failed %s with error: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, msgText)
+			msg = fmt.Sprintf("%s: %s %s having error: %s", sourceDisplay, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgText)
 		case len(messages) > 1:
 			// multiple error messages so just display the count
 			msgCount := len(messages)
-			msg = fmt.Sprintf("%s: %s %s failed %s with %d errors", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, msgCount)
+			msg = fmt.Sprintf("%s: %s %s having %d errors", sourceDisplay, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgCount)
 		}
 
 		if msg != "" {
