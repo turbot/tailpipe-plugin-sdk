@@ -3,6 +3,7 @@ package error_types
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 
@@ -191,7 +192,12 @@ func (r *RowErrors) Errors() []string {
 	r.mut.RLock()
 	defer r.mut.RUnlock()
 
-	var results []string
+	type errorSummary struct {
+		msg   string
+		count int64
+	}
+	var errorSummaries []errorSummary
+
 	for source, operationMap := range r.errors {
 		var rowCount int64
 		messages := make(map[string]struct{})
@@ -227,18 +233,41 @@ func (r *RowErrors) Errors() []string {
 		fieldsDisplay := strings.Join(maps.Keys(fields), ", ")
 
 		// determine the error message to display for the source
+		var msg string
 		switch {
 		case len(fields) > 0:
-			results = append(results, fmt.Sprintf("%s: %s %s failed %s with %s fields: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, fieldErrorTypesDisplay, fieldsDisplay))
+			msg = fmt.Sprintf("%s: %s %s failed %s with %s fields: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, fieldErrorTypesDisplay, fieldsDisplay)
 		case len(messages) == 1:
 			// single error message so display it
 			msgText := maps.Keys(messages)[0]
-			results = append(results, fmt.Sprintf("%s: %s %s failed %s with error: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, msgText))
+			msg = fmt.Sprintf("%s: %s %s failed %s with error: %s", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, msgText)
 		case len(messages) > 1:
 			// multiple error messages so just display the count
 			msgCount := len(messages)
-			results = append(results, fmt.Sprintf("%s: %s %s failed %s with %d errors", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, msgCount))
+			msg = fmt.Sprintf("%s: %s %s failed %s with %d errors", source, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), operationsDisplay, msgCount)
 		}
+
+		if msg != "" {
+			errorSummaries = append(errorSummaries, errorSummary{msg: msg, count: rowCount})
+		}
+	}
+
+	// sort the error summaries by count descending
+	slices.SortFunc(errorSummaries, func(a, b errorSummary) int {
+		switch {
+		case a.count > b.count:
+			return -1
+		case a.count < b.count:
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	// return the sorted error messages
+	var results []string
+	for _, summary := range errorSummaries {
+		results = append(results, summary.msg)
 	}
 
 	return results
