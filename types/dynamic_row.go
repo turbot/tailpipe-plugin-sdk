@@ -43,7 +43,6 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 	}
 
 	// merge in source common fields
-	// TODO - when CommonFields.AsMap returns map[string]any, we can apply this directly to OutputColumns
 	// NOTE: these have precedence over any source related tp columns which are already populated
 	// from the source data - this is by design
 	for k, v := range sourceEnrichmentFields.CommonFields.AsMap() {

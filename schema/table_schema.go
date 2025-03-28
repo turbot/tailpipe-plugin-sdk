@@ -2,6 +2,7 @@ package schema
 
 import (
 	"fmt"
+	"golang.org/x/exp/maps"
 	"strings"
 
 	"github.com/turbot/go-kit/helpers"
@@ -10,12 +11,28 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
+// SourceColumnDef is a simple struct to hold the column name and type for a source column
+type SourceColumnDef struct {
+	Name string
+
+	Type string
+}
+
+func NewSourceColumnDef(columnSchema *ColumnSchema) SourceColumnDef {
+	t := columnSchema.FullType()
+	return SourceColumnDef{
+		Name: columnSchema.SourceName,
+		// use full type, i.e. expand struct types
+		Type: t,
+	}
+}
+
 // ConversionSchema is a specialised TableSchema which also contains a list of all source columns
 type ConversionSchema struct {
 	TableSchema
 	// the source columns - these are the columns in the source data
 	// this is to ensure we have the inputs required for any transforms
-	SourceColumns map[string]*ColumnSchema
+	SourceColumns []SourceColumnDef
 }
 
 // NewConversionSchemaWithInferredSchema populates a ConversionSchema schema using a table schema and an inferred row schema
@@ -25,9 +42,10 @@ type ConversionSchema struct {
 func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSchema) *ConversionSchema {
 	// initialize the conversion schema from the table schema def
 	r := &ConversionSchema{
-		TableSchema:   *tableSchema,
-		SourceColumns: make(map[string]*ColumnSchema),
+		TableSchema: *tableSchema,
 	}
+
+	var sourceColumns = map[string]SourceColumnDef{}
 
 	//get the table schema as a map
 	schemaMap := r.AsMap()
@@ -42,12 +60,12 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 			}
 
 			// add to source columns
-			r.SourceColumns[columnSchema.ColumnName] = columnSchema
+			sourceColumns[columnSchema.ColumnName] = NewSourceColumnDef(columnSchema)
 			continue
 		}
 
 		// so this column does not exist in the table def - add to source columns
-		r.SourceColumns[inferredColumn.ColumnName] = inferredColumn
+		sourceColumns[inferredColumn.ColumnName] = NewSourceColumnDef(inferredColumn)
 
 		// if we are in autoMap mode, include column in TableSchema as long as it is not excluded
 		if r.AutoMapSourceFields {
@@ -71,27 +89,30 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 			continue
 		}
 		// if we have a source column, skip it
-		if _, ok := r.SourceColumns[column.ColumnName]; ok {
+		if _, ok := sourceColumns[column.ColumnName]; ok {
 			continue
 		}
 
-		r.SourceColumns[column.ColumnName] = column
+		sourceColumns[column.ColumnName] = NewSourceColumnDef(column)
 	}
 
+	// now set the source columns
+	r.SourceColumns = maps.Values(sourceColumns)
 	return r
 }
 func NewConversionSchema(tableSchema *TableSchema) *ConversionSchema {
 	// initialize the conversion schema from the table schema def
 	r := &ConversionSchema{
-		TableSchema:   *tableSchema,
-		SourceColumns: make(map[string]*ColumnSchema),
+		TableSchema: *tableSchema,
 	}
+	var sourceColumns = map[string]SourceColumnDef{}
 
 	for _, c := range tableSchema.Columns {
 		// store source columns
-		r.SourceColumns[c.ColumnName] = c
+		sourceColumns[c.ColumnName] = NewSourceColumnDef(c)
 	}
 
+	r.SourceColumns = maps.Values(sourceColumns)
 	return r
 }
 
@@ -341,10 +362,6 @@ func (r *TableSchema) MergeWithCommonSchema() *TableSchema {
 			// Set Description only if not already set
 			if existingCol.Description == "" {
 				existingCol.Description = commonCol.Description
-			}
-			// Set SourceName only if not already set
-			if existingCol.SourceName == "" {
-				existingCol.SourceName = commonCol.SourceName
 			}
 		} else {
 			// Column doesn't exist - add the common column
