@@ -290,7 +290,7 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 	mappedRow, err := c.mapRow(ctx, e.Row)
 	if err != nil {
 		// call onRowError to update status with the row error, we do not return error to source
-		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeMapping, err)
+		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeMapping, err, e.Row)
 	}
 
 	// add table and partition to the enrichment fields
@@ -301,12 +301,12 @@ func (c *CollectorImpl[R]) handleRowExtractedEvent(ctx context.Context, e *event
 	enrichedRow, err := c.Table.EnrichRow(mappedRow, sourceEnrichment)
 	if err != nil {
 		// call onRowError to update status with the row error, we do not return error to source
-		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeEnrichment, err)
+		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeEnrichment, err, mappedRow)
 	}
 	// validate that the enriched row has required fields
 	if err = enrichedRow.Validate(); err != nil {
 		// call onRowError to update status with the row error, we do not return error to source
-		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeValidation, err)
+		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeValidation, err, enrichedRow)
 	}
 
 	// buffer the enriched row and write to JSON file if buffer is full
@@ -368,7 +368,7 @@ func (c *CollectorImpl[R]) onRowEnriched(ctx context.Context, row R) error {
 }
 
 // onRowError is called when a row operation (map/enrich/validate) fails, it updates our status but doesn't return an error back to source
-func (c *CollectorImpl[R]) onRowError(_ context.Context, source string, operation error_types.RowOperationType, err error) error {
+func (c *CollectorImpl[R]) onRowError(_ context.Context, source string, operation error_types.RowOperationType, err error, row any) error {
 	// if called without an error do nothing
 	if err == nil {
 		return nil
@@ -376,6 +376,9 @@ func (c *CollectorImpl[R]) onRowError(_ context.Context, source string, operatio
 
 	// ensure is a RowError (or convert to one)
 	out := error_types.EnsureRowError(source, operation, err)
+
+	// log the error
+	slog.Error(fmt.Sprintf(fmt.Sprintf("failed %s row", operation), "error", out, "row", row))
 
 	// update status
 	c.status.OnRowError(out)

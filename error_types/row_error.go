@@ -31,9 +31,9 @@ type RowError interface {
 }
 
 type RowErrorWithMessage struct {
-	Source    string
-	Operation RowOperationType
-	Message   string
+	Source    string           `json:"source"`
+	Operation RowOperationType `json:"operation"`
+	Message   string           `json:"message"`
 }
 
 func (r *RowErrorWithMessage) GetSource() string {
@@ -63,10 +63,10 @@ func NewRowErrorWithMessage(message string) *RowErrorWithMessage {
 }
 
 type RowErrorWithFields struct {
-	Source        string
-	Operation     RowOperationType
-	MissingFields []string
-	InvalidFields []string
+	Source        string           `json:"source"`
+	Operation     RowOperationType `json:"operation"`
+	MissingFields []string         `json:"missing_fields,omitempty"`
+	InvalidFields []string         `json:"invalid_fields,omitempty"`
 }
 
 func (r *RowErrorWithFields) GetSource() string {
