@@ -22,7 +22,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
-	"golang.org/x/exp/maps"
 )
 
 // ArtifactConversionCollector is a collector that converts artifacts directly to JSONL
@@ -231,17 +230,30 @@ func (c *ArtifactConversionCollector) getReadArtifactSql(sourceFile string) (str
 	return readArtifactSql, "", nil
 }
 
+// getCommonFieldsSelectClauses generates the SQL clauses for common fields
+func (c *ArtifactConversionCollector) getCommonFieldsSelectClauses(sourceInfo *types.DownloadedArtifactInfo) []string {
+	var commonFieldsClauses = []string{
+		fmt.Sprintf("'%s' as tp_table", c.req.TableName),
+		fmt.Sprintf("'%s' as tp_partition", c.req.PartitionName),
+		"gen_random_uuid() as tp_id",
+		fmt.Sprintf("'%s' as tp_ingest_timestamp", time.Now().Format(time.RFC3339)),
+	}
+
+	return commonFieldsClauses
+}
+
 // getCopyQuery generates the SQL query to transform, copy and count the data
 func (c *ArtifactConversionCollector) getCopyQuery(destFile string, columns []string, sourceInfo *types.DownloadedArtifactInfo) string {
 	// Create a map of the existing column names
 	selectColumnMap := utils.SliceToLookup(columns)
 
 	var selectClauses []string
-	// Build mapped columns clauses
+
+	// Build mapped columns clauses first
 	if len(c.req.CustomTableSchema.Columns) > 0 {
 		for _, column := range c.req.CustomTableSchema.Columns {
 			if column.SourceName != column.ColumnName {
-				selectClauses = append(selectClauses, fmt.Sprintf("%s as %s", column.SourceName, column.ColumnName))
+				selectClauses = append(selectClauses, fmt.Sprintf(`"%s" as "%s"`, column.SourceName, column.ColumnName))
 				// remove this from the map of other columns to select
 				delete(selectColumnMap, column.SourceName)
 			}
@@ -249,14 +261,36 @@ func (c *ArtifactConversionCollector) getCopyQuery(destFile string, columns []st
 	}
 
 	// Build remaining columns clause if auto-mapping is enabled
-
 	if c.req.CustomTableSchema.AutoMapSourceFields {
-		selectClauses = append(selectClauses, maps.Keys(selectColumnMap)...)
+		// Quote all remaining column names
+		var quotedColumns []string
+		for col := range selectColumnMap {
+			quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, col))
+		}
+		selectClauses = append(selectClauses, quotedColumns...)
 	}
 
-	// Build common fields clauses
+	// Build common fields clauses after mapped columns
 	commonFieldsClauses := c.getCommonFieldsSelectClauses(sourceInfo)
 	selectClauses = append(selectClauses, commonFieldsClauses...)
+
+	// Add tp_date after tp_timestamp is defined
+	selectClauses = append(selectClauses, "case\n        when tp_timestamp is not null\n        then date_trunc('day', tp_timestamp::TIMESTAMP)\n    end as tp_date")
+
+	// Add tp_index coalesce after all columns are defined
+	// Check if tp_index is already mapped
+	tpIndexMapped := false
+	for _, column := range c.req.CustomTableSchema.Columns {
+		if column.ColumnName == "tp_index" {
+			tpIndexMapped = true
+			break
+		}
+	}
+
+	// if there is not a mapping for tp_index, add the default index
+	if !tpIndexMapped {
+		selectClauses = append(selectClauses, fmt.Sprintf("coalesce(tp_index, '%s') as tp_index", schema.DefaultIndex))
+	}
 
 	// Build the query
 	query := fmt.Sprintf(`-- Transform and copy data to destination
@@ -274,33 +308,6 @@ select count(*) as row_count from temp_data;`,
 		destFile)
 
 	return query
-}
-
-// getCommonFieldsSelectClauses generates the SQL clauses for common fields
-func (c *ArtifactConversionCollector) getCommonFieldsSelectClauses(sourceInfo *types.DownloadedArtifactInfo) []string {
-	var commonFieldsClauses = []string{
-		fmt.Sprintf("'%s' as tp_table", c.req.TableName),
-		fmt.Sprintf("'%s' as tp_partition", c.req.PartitionName),
-		"case\n        when tp_timestamp is not null\n        then date_trunc('day', tp_timestamp::TIMESTAMP)\n    end as tp_date",
-		"gen_random_uuid() as tp_id",
-		fmt.Sprintf("'%s' as tp_ingest_timestamp", time.Now().Format(time.RFC3339)),
-	}
-
-	// Check if tp_index is already mapped
-	tpIndexMapped := false
-	for sourceName := range c.req.CustomTableSchema.Columns {
-		if c.req.CustomTableSchema.Columns[sourceName].SourceName == "tp_index" {
-			tpIndexMapped = true
-			break
-		}
-	}
-
-	// if there is not a mapping for tp_index, add the default index
-	if !tpIndexMapped {
-		commonFieldsClauses = append(commonFieldsClauses, fmt.Sprintf("coalesce(tp_index, '%s') as tp_index", schema.DefaultIndex))
-	}
-
-	return commonFieldsClauses
 }
 
 func (c *ArtifactConversionCollector) onChunk(ctx context.Context, chunkNumber int32) error {
