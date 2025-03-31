@@ -7,6 +7,7 @@ import (
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/error_types"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -66,6 +67,9 @@ func TableSchemaFromProto(p *proto.Schema) *TableSchema {
 // MapRow maps a row from a map of source fields to a map of target fields, applying the schema
 // and respecting the automap and exclude fields
 func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{}, error) {
+	var missingFields []string
+	var invalidFields []string
+
 	var res = make(map[string]interface{}, len(r.Columns))
 
 	schemaMap := r.AsMap()
@@ -96,7 +100,10 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 		v, ok := sourceMap[sourceName]
 		if !ok {
 			if c.Required {
-				return nil, fmt.Errorf("column '%s' is required, but source field '%s' not found in row", c.ColumnName, sourceName)
+				// TODO: #error think about this more since technically it's the source that is missing but we are returning the column name
+				// TODO: #error consider a separate mapping error with multiple fields (source/dest)
+				// if the field is required, add it to the missing fields
+				missingFields = append(missingFields, c.ColumnName)
 			}
 			// if the field is not required, we just skip it
 			continue
@@ -104,7 +111,7 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 		// so we have a value for this column - is it null?
 		if r.isNullValue(c, v) {
-			// if the valkue matches the null string, exclude it - it will appear as null in the parquet
+			// if the value matches the null string, exclude it - it will appear as null in the parquet
 			continue
 		}
 
@@ -113,11 +120,19 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 		// map the value - this handles type conversion for arrays and time, and applying custom transforms
 		val, err := r.mapValue(c, v)
 		if err != nil {
-			return nil, err
+			// if we have an error mapping the value, add the column to the invalid fields
+			invalidFields = append(invalidFields, c.ColumnName)
+			continue
 		}
+		// map value to column
 		res[c.ColumnName] = val
 
 	}
+
+	if len(missingFields) > 0 || len(invalidFields) > 0 {
+		return nil, error_types.NewRowErrorWithFields(missingFields, invalidFields)
+	}
+
 	return res, nil
 }
 
