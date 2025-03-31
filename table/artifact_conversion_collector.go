@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -167,7 +168,7 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 }
 
 func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactDownloaded, destFile string) (int64, error) {
-	// First create temp table and get its columns
+	// First build query to select source data into temp table and get its columns
 	tempTableQuery, err := c.getTempTableQuery(e.Info.Name)
 	if err != nil {
 		slog.Error("ArtifactConversionCollector: error getting temp table query", "error", err)
@@ -215,6 +216,8 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 		readArtifactSql), nil
 }
 
+// getReadArtifactSql generates the SQL to read the artifact based on its format
+// (e.g. for delimited format use the duck db command read_csv)
 func (c *ArtifactConversionCollector) getReadArtifactSql(sourceFile string) (string, string, error) {
 	// Get the read function SQL based on format
 	var readArtifactSql string
@@ -222,15 +225,16 @@ func (c *ArtifactConversionCollector) getReadArtifactSql(sourceFile string) (str
 	case *formats.JsonLines:
 		readArtifactSql = fmt.Sprintf("read_json('%s')", sourceFile)
 	case *formats.Delimited:
-		options := f.GetCsvOpts()
-		readArtifactSql = fmt.Sprintf("read_csv('%s', %s)", sourceFile, strings.Join(options, ", "))
+		// Get all CSV options from the format configuration
+		csvOpts := f.GetCsvOpts()
+		readArtifactSql = fmt.Sprintf("read_csv('%s', %s)", sourceFile, strings.Join(csvOpts, ", "))
 	default:
 		return "", "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
 	}
 	return readArtifactSql, "", nil
 }
 
-// getCommonFieldsSelectClauses generates the SQL clauses for common fields
+// getCommonFieldsSelectClauses generates the SQL clauses to select the common fields which we are able to auto populate
 func (c *ArtifactConversionCollector) getCommonFieldsSelectClauses(sourceInfo *types.DownloadedArtifactInfo) []string {
 	var commonFieldsClauses = []string{
 		fmt.Sprintf("'%s' as tp_table", c.req.TableName),
@@ -242,7 +246,8 @@ func (c *ArtifactConversionCollector) getCommonFieldsSelectClauses(sourceInfo *t
 	return commonFieldsClauses
 }
 
-// getCopyQuery generates the SQL query to transform, copy and count the data
+// getCopyQuery generates the SQL query to load data fromn the tamp table, enrich with any additional column mappings
+// transform, and copy to JSONL. The row count is returned.
 func (c *ArtifactConversionCollector) getCopyQuery(destFile string, columns []string, sourceInfo *types.DownloadedArtifactInfo) string {
 	// Create a map of the existing column names
 	selectColumnMap := utils.SliceToLookup(columns)
@@ -262,9 +267,14 @@ func (c *ArtifactConversionCollector) getCopyQuery(destFile string, columns []st
 
 	// Build remaining columns clause if auto-mapping is enabled
 	if c.req.CustomTableSchema.AutoMapSourceFields {
-		// Quote all remaining column names
+		// Quote all remaining column names and sort them for consistent order
 		var quotedColumns []string
+		var remainingColumns []string
 		for col := range selectColumnMap {
+			remainingColumns = append(remainingColumns, col)
+		}
+		sort.Strings(remainingColumns)
+		for _, col := range remainingColumns {
 			quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, col))
 		}
 		selectClauses = append(selectClauses, quotedColumns...)
@@ -275,7 +285,7 @@ func (c *ArtifactConversionCollector) getCopyQuery(destFile string, columns []st
 	selectClauses = append(selectClauses, commonFieldsClauses...)
 
 	// Add tp_date after tp_timestamp is defined
-	selectClauses = append(selectClauses, "case\n        when tp_timestamp is not null\n        then date_trunc('day', tp_timestamp::TIMESTAMP)\n    end as tp_date")
+	selectClauses = append(selectClauses, "case\n                when tp_timestamp is not null\n                then date_trunc('day', tp_timestamp::TIMESTAMP)\n            end as tp_date")
 
 	// Add tp_index coalesce after all columns are defined
 	// Check if tp_index is already mapped
@@ -303,13 +313,13 @@ to '%s' (
 
 -- Get row count
 select count(*) as row_count from temp_data;`,
-
-		strings.Join(selectClauses, ",\n\t"),
+		strings.Join(selectClauses, ",\n    "),
 		destFile)
 
 	return query
 }
 
+// onChunk is called when a jsonl file  is written to disk
 func (c *ArtifactConversionCollector) onChunk(ctx context.Context, chunkNumber int32) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
