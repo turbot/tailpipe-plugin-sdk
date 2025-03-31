@@ -54,14 +54,25 @@ format "regex" "openstack_syslog"{
 NOTE: if a partition name is both the name of a custom table and is also provided by a plugin, then *the custom
 table will be used*.
 
-## Custom table schema
+## Custom Table definition
 
-Custom tables are defined in a `table` block. Table blocks have a single label, which is the name of the table.
+Custom tables are defined in a `table` block. Table blocks have a single label, which is the name of the table. They define the schema and processing rules for your data, specifying how to parse and transform your source data into a queryable format.
 
+The format of the source data is defined by the `format` property, which must reference either a format block defined in the config or a format preset defined by a plugin.
 
-```
+Example:
+```hcl
 table "openstack_syslog" {
+  format = format.regex.openstack_syslog
+  null_value = "-"
 
+  column "tp_timestamp"{
+    source = "timestamp"
+  }
+
+  column "tp_index" {
+    source = "tenant_id"
+  }
 }
 ```
 
@@ -107,18 +118,23 @@ or a `format preset` defined by a plufin (see [Source data format] for details
 
 
 ## Source data format
-The format of the source data is defined in a `format` block.
-```go
-format "regex" "openstack_syslog"{
-  layout = `^(?P<log_file>nova-[\w-]+\.log(?:\.\d+)?\.[\d-]+_[\d:]+)\s+(?P<timestamp>[\d-]+\s+[\d:.]+)\s+(?P<pid>\d+)\s+(?P<log_level>\w+)\s+(?P<component>[\w._-]+)(?:\s+(?:\[(?:req-(?P<request_id>[^\s]+)\s+(?P<user_id>[^\s]+)\s+(?P<tenant_id>[^\s]+)(?:\s+[^\]]+)?|-)]\s+)?(?:(?P<client_ip>\d+\.\d+\.\d+\.\d+)\s+"(?P<http_method>GET|POST|PUT|DELETE)\s+(?P<http_path>[^\s]+)\s+HTTP\/[\d.]+"\s+status:\s+(?P<http_status>\d+)\s+len:\s+(?P<resp_size>\d+)\s+time:\s+(?P<resp_time>[\d.]+)|(?:\[instance:\s+(?P<instance_id>[^\]]+)\])?\s*(?P<message>.*))?)?$`
-}
-```
+The data `format` defines both the format of the input data and the parsing mechanism which should be used.
 
-This defines both the format of the input data and the parsing mechanism which should be used. 
+The properties of the format are specific to the format type
 
-The properties of the format are specific to the format type 
+Formats types are implemented by plugins. A number of formats types are provided by the `core` plugin.
 
-Formats are implemented by plugins. A number of formats are proivided by the `core` plugin. 
+Instances of a format type can be defined in a `format` block. Also, plugins may export format `presets` which may be referenced by name. 
+These may be discovered using the introspection commands: `tailpipe plugin show <plugin name>` or `tailpipe format list`
+
+<MORE DETAILS/examples>
+
+A `table` block may define a default format by settining its `format` property to reference either a format defined in
+config or a format preset defined by a plugin.
+
+A `source` block may specify a format to be used with the data for that specific source 
+(e.g. a file source containing csv files may specify the `delimited` format).  
+
 
 ### Core Plugin Formats
 
