@@ -22,6 +22,7 @@ const (
 	RowOperationTypeValidation RowOperationType = "validation"
 )
 
+// RowError is an interface for errors that occur during row processing (mapping, enrichment, validation).
 type RowError interface {
 	error
 	GetSource() string
@@ -31,6 +32,9 @@ type RowError interface {
 	setOperation(RowOperationType)
 }
 
+// RowErrorWithMessage is an implementation of RowError that includes a message.
+// It is used to represent row errors where an error is not related to specific fields allowing for a descriptive message to be used instead.
+// Also used as a generic fallback by EnsureRowError if the error is not a RowError.
 type RowErrorWithMessage struct {
 	Source    string           `json:"source"`
 	Operation RowOperationType `json:"operation"`
@@ -63,6 +67,8 @@ func NewRowErrorWithMessage(message string) *RowErrorWithMessage {
 	}
 }
 
+// RowErrorWithFields is an implementation of RowError that includes missing and invalid fields.
+// It is used to represent errors that are caused by specific fields either missing or invalid in the row.
 type RowErrorWithFields struct {
 	Source        string           `json:"source"`
 	Operation     RowOperationType `json:"operation"`
@@ -105,6 +111,8 @@ func NewRowErrorWithFields(missingFields, invalidFields []string) *RowErrorWithF
 	}
 }
 
+// operationErrorAggregate is an aggregation of errors for a single operation, consolidates distinct missing fields,
+// invalid fields and messages and holds a total count of errors
 type operationErrorAggregate struct {
 	missingFields map[string]struct{}
 	invalidFields map[string]struct{}
