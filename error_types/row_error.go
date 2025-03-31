@@ -229,7 +229,7 @@ func (r *RowErrors) Errors() []string {
 		// trim source for display purposes to last file segment
 		sourceDisplay := ""
 		if source != "" {
-			source = filepath.Base(source)
+			sourceDisplay = filepath.Base(source)
 		}
 
 		// determine the error message to display for the source
