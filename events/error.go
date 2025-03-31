@@ -1,6 +1,10 @@
 package events
 
-import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+import (
+	"errors"
+
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+)
 
 type Error struct {
 	Base
@@ -25,4 +29,11 @@ func (c *Error) ToProto() *proto.Event {
 		},
 	}
 
+}
+
+func ErrorFromProto(e *proto.Event) Event {
+	return &Error{
+		ExecutionId: e.GetErrorEvent().ExecutionId,
+		Err:         errors.New(e.GetErrorEvent().GetError()),
+	}
 }
