@@ -2,13 +2,13 @@ package schema
 
 import (
 	"fmt"
-	"golang.org/x/exp/maps"
 	"strings"
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/error_types"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"golang.org/x/exp/maps"
 )
 
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
@@ -363,9 +363,13 @@ func (r *TableSchema) MergeWithCommonSchema() *TableSchema {
 			if existingCol.Description == "" {
 				existingCol.Description = commonCol.Description
 			}
+			// Set SourceName only if not already set
+			if existingCol.SourceName == "" {
+				existingCol.SourceName = commonCol.SourceName
+			}
 		} else {
 			// Column doesn't exist - add the common column
-			merged.Columns = append(merged.Columns, commonCol)
+			merged.Columns = append(merged.Columns, commonCol.Clone())
 		}
 	}
 
