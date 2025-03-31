@@ -36,7 +36,7 @@ func NewStatusEvent(executionId string) *Status {
 	}
 }
 func StatusFromProto(event *proto.EventStatus) *Status {
-	return &Status{
+	s := &Status{
 		LatestArtifactLocation:   event.LatestArtifactPath,
 		ArtifactsDiscovered:      event.ArtifactsDiscovered,
 		ArtifactsDownloaded:      event.ArtifactsDownloaded,
@@ -45,9 +45,14 @@ func StatusFromProto(event *proto.EventStatus) *Status {
 		RowsReceived:             event.RowsReceived,
 		RowsEnriched:             event.RowsEnriched,
 		Errors:                   event.Errors,
-		RowErrors:                error_types.RowErrorsFromProto(event.RowErrors),
 		SourceErrors:             event.SourceErrors,
 	}
+	if event.RowErrors != nil {
+		s.RowErrors = error_types.RowErrorsFromProto(event.RowErrors)
+	} else {
+		s.RowErrors = error_types.NewRowErrors()
+	}
+	return s
 }
 
 func (r *Status) ToProto() *proto.Event {
