@@ -2,7 +2,7 @@ module github.com/turbot/tailpipe-plugin-sdk
 
 go 1.24
 
-replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
+//replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
@@ -17,7 +17,7 @@ require (
 	github.com/satyrius/gonx v1.4.0
 	github.com/stretchr/testify v1.10.0
 	github.com/turbot/go-kit v1.2.0
-	github.com/turbot/pipe-fittings/v2 v2.3.0-rc.1
+	github.com/turbot/pipe-fittings/v2 v2.3.0-rc.4
 	github.com/zclconf/go-cty v1.14.4
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	golang.org/x/sync v0.11.0
@@ -116,6 +116,7 @@ require (
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
 	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
+	github.com/jedib0t/go-pretty/v6 v6.5.9 // indirect
 	github.com/jmespath/go-jmespath v0.4.0 // indirect
 	github.com/karrick/gows v0.3.0 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
