@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -145,6 +146,7 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 	// increment the collection wait group
 	c.collectionWg.Add(1)
 	defer c.collectionWg.Done()
+	defer c.deleteArtifact(e)
 
 	// load the current chunk count
 	chunkCount := atomic.LoadInt32(&c.chunkCount)
@@ -335,4 +337,9 @@ func (c *ArtifactConversionCollector) onChunk(ctx context.Context, chunkNumber i
 		return fmt.Errorf("error saving collection state: %w", err)
 	}
 	return nil
+}
+
+func (c *ArtifactConversionCollector) deleteArtifact(e *events.ArtifactDownloaded) {
+	// delete the artifact, ignoring error (the whole folder will be cleaned up later anyway)
+	_ = os.Remove(e.Info.Name)
 }
