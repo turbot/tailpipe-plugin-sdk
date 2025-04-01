@@ -112,10 +112,7 @@ func (c *ArtifactConversionCollector) Notify(ctx context.Context, event events.E
 	case *events.ArtifactDownloaded:
 		// handle artifact downloaded event - we only act on this if the table implements ArtifactToJsonConverter
 		return c.handleArtifactDownloaded(ctx, e)
-
-	case *events.Error:
-		slog.Error("ArtifactConversionCollector: error event received", "error", e.Err)
-		return c.NotifyObservers(context.Background(), e)
+	// NOTE: we do not pass error events to CLI - we have added to the status instead
 	default:
 		// ignore
 		return nil
