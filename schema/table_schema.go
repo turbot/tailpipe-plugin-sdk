@@ -217,7 +217,7 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 		// so we have a value for this column - is it null?
 		if r.isNullValue(c, v) {
-			// if the value matches the null string, exclude it - it will appear as null in the parquet
+			// if the value matches the null string, skip it - it will appear as null in the parquet
 			continue
 		}
 
@@ -247,7 +247,7 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 	switch ty {
 	case "timestamp", "date", "time":
 		// todo kai apply time format - only parse if format specified?
-		// TODO this duplicates what we already do for tp_timestamp in dynamicrow enrich  -
+		// TODO kai this duplicates what we already do for tp_timestamp in dynamicrow enrich  -
 		t, err := helpers.ParseTime(valString)
 		if err != nil {
 			return valString, fmt.Errorf("error parsing time value '%s' for column '%s': %w", valString, column.ColumnName, err)
