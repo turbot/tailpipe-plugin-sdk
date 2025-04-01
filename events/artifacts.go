@@ -100,3 +100,18 @@ func ArtifactExtractedFromProto(e *proto.Event) Event {
 		Info:        types.DownloadedArtifactInfoFromProto(e.GetArtifactExtractedEvent().ArtifactInfo),
 	}
 }
+
+type ArtifactConverted struct {
+	Base
+	ExecutionId string
+	Info        *types.DownloadedArtifactInfo
+	RowCount    int64
+}
+
+func NewArtifactConvertedEvent(executionId string, info *types.DownloadedArtifactInfo, rowsConverted int64) *ArtifactConverted {
+	return &ArtifactConverted{
+		ExecutionId: executionId,
+		Info:        info,
+		RowCount:    rowsConverted,
+	}
+}

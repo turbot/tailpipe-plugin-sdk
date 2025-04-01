@@ -93,6 +93,11 @@ func (r *Status) Update(event Event) {
 		atomic.AddInt64(&r.ArtifactsExtracted, 1)
 	case *RowExtracted:
 		atomic.AddInt64(&r.RowsReceived, 1)
+	case *ArtifactConverted:
+		atomic.AddInt64(&r.ArtifactsExtracted, 1)
+		atomic.AddInt64(&r.RowsReceived, t.RowCount)
+		atomic.AddInt64(&r.RowsEnriched, t.RowCount)
+
 	case *Error:
 		// error events are only raised for source errors (currently)
 		r.mut.Lock()

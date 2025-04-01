@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"fmt"
 	"log/slog"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -17,7 +16,6 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
@@ -146,7 +144,6 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 	// increment the collection wait group
 	c.collectionWg.Add(1)
 	defer c.collectionWg.Done()
-	defer c.deleteArtifact(e)
 
 	// load the current chunk count
 	chunkCount := atomic.LoadInt32(&c.chunkCount)
@@ -159,6 +156,13 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 	}
 
 	slog.Info("ArtifactConversionCollector: artifact converted", "artifact", e.Info.Name, "rowCount", rowCount, "chunkCount", c.chunkCount)
+
+	// notify observers of extraction (for sources which have extractors the source would usually send this event)
+	if rowCount > 0 {
+		if err := c.Notify(ctx, events.NewArtifactConvertedEvent(c.req.ExecutionId, e.Info, rowCount)); err != nil {
+			return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
+		}
+	}
 
 	// notify observers of the chunk just written (i.e. the un-incremented value)
 	return c.onChunk(ctx, chunkCount)
@@ -314,30 +318,4 @@ select count(*) as row_count from temp_data;`,
 		destFile)
 
 	return query
-}
-
-// onChunk is called when a jsonl file  is written to disk
-func (c *ArtifactConversionCollector) onChunk(ctx context.Context, chunkNumber int32) error {
-	executionId, err := context_values.ExecutionIdFromContext(ctx)
-	if err != nil {
-		return err
-	}
-
-	// construct proto event
-	e := events.NewChunkEvent(executionId, chunkNumber)
-
-	if err = c.NotifyObservers(ctx, e); err != nil {
-		return fmt.Errorf("error notifying observers of chunk: %w", err)
-	}
-
-	// tell source to save collection state
-	if err := c.source.SaveCollectionState(); err != nil {
-		return fmt.Errorf("error saving collection state: %w", err)
-	}
-	return nil
-}
-
-func (c *ArtifactConversionCollector) deleteArtifact(e *events.ArtifactDownloaded) {
-	// delete the artifact, ignoring error (the whole folder will be cleaned up later anyway)
-	_ = os.Remove(e.Info.Name)
 }
