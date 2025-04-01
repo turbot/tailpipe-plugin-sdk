@@ -35,11 +35,7 @@ func ParseConfigIntoTarget(configData types.ConfigData, target types.Config) err
 	// Parse the config
 	declRange := configData.GetRange()
 
-	// EscapeBackticks to escape and expressions within backticks (e.g. grok expressions)
-	hclBytes, diags := pf_parse.EscapeBackticks(configData.GetHcl(), declRange.Filename)
-	if diags.HasErrors() {
-		return error_helpers.HclDiagsToError("Failed to escape backtick expressions", diags)
-	}
+	hclBytes := configData.GetHcl()
 
 	file, diags := hclsyntax.ParseConfig(hclBytes, declRange.Filename, declRange.Start)
 	if diags != nil && diags.HasErrors() {
@@ -54,8 +50,6 @@ func ParseConfigIntoTarget(configData types.ConfigData, target types.Config) err
 	}
 
 	decodeDiags := decodeHclBodyWithNestedStructs(file.Body, evalCtx, target)
-	// Decode the body into the target struct
-	//decodeDiags := gohcl.DecodeBody(file.Body, evalCtx, target)
 	diags = append(diags, decodeDiags...)
 	if diags.HasErrors() {
 		return error_helpers.HclDiagsToError(fmt.Sprintf("Failed to decode %s config", configData.GetConfigType()), diags)
