@@ -160,8 +160,6 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 
 	slog.Info("ArtifactConversionCollector: artifact converted", "artifact", e.Info.Name, "rowCount", rowCount, "chunkCount", c.chunkCount)
 
-	//TODO K delete local artifact
-
 	// notify observers of the chunk just written (i.e. the un-incremented value)
 	return c.onChunk(ctx, chunkCount)
 }
