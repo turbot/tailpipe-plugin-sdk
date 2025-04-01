@@ -291,7 +291,7 @@ func (c *CollectorImpl[R]) onRowError(_ context.Context, source string, operatio
 func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite []any) error {
 	rowCount := atomic.LoadInt64(&c.rowCount)
 	// determine chunk number from rowCountMap
-	chunkNumber := int32(rowCount / JSONLChunkSize)
+	chunkNumber := int32(rowCount / JSONLChunkSize) //nolint:gosec//chunk number will be fit in 32 bit number
 
 	// check for final partial chunk
 	if rowCount%JSONLChunkSize > 0 {
