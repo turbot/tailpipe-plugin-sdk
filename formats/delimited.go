@@ -187,8 +187,8 @@ func (d *Delimited) GetCsvOpts() []string {
 	if d.Header != nil {
 		header = *d.Header
 	}
-	// TODO CASING???
-	opts = append(opts, fmt.Sprintf("header %v", strings.ToUpper(fmt.Sprintf("%v", header))))
+
+	opts = append(opts, fmt.Sprintf("header %v", strings.ToLower(fmt.Sprintf("%v", header))))
 
 	if d.AllVarchar != nil {
 		opts = append(opts, fmt.Sprintf("all_varchar=%v", *d.AllVarchar))

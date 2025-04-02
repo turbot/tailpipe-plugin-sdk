@@ -99,7 +99,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
 select *
-from read_csv('test.csv', DELIM ',', HEADER TRUE);
+from read_csv('test.csv', delim ',', header true);
 
 -- Return the columns as an array
 select string_agg(name, ',') from pragma_table_info('temp_data');`,
@@ -115,7 +115,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
 select *
-from read_csv('test.csv', DELIM ',', HEADER TRUE);
+from read_csv('test.csv', delim ',', header true);
 
 -- Return the columns as an array
 select string_agg(name, ',') from pragma_table_info('temp_data');`,
