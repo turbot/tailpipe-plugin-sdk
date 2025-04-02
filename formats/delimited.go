@@ -174,6 +174,20 @@ func (d *Delimited) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
 func (d *Delimited) GetCsvOpts() []string {
 	var opts []string
 
+	// Handle delimiter - default to comma if not specified
+	delimiter := ","
+	if d.Delimiter != nil {
+		delimiter = *d.Delimiter
+	}
+	opts = append(opts, fmt.Sprintf("DELIM '%s'", delimiter))
+
+	// Handle header - default to true if not specified
+	header := true
+	if d.Header != nil {
+		header = *d.Header
+	}
+	opts = append(opts, fmt.Sprintf("HEADER %v", strings.ToUpper(fmt.Sprintf("%v", header))))
+
 	if d.AllVarchar != nil {
 		opts = append(opts, fmt.Sprintf("all_varchar=%v", *d.AllVarchar))
 	}
@@ -184,10 +198,6 @@ func (d *Delimited) GetCsvOpts() []string {
 
 	if d.DecimalSeparator != nil {
 		opts = append(opts, fmt.Sprintf("decimal_separator='%s'", *d.DecimalSeparator))
-	}
-
-	if d.Delimiter != nil {
-		opts = append(opts, fmt.Sprintf("delimiter='%s'", *d.Delimiter))
 	}
 
 	if d.Escape != nil {
@@ -201,10 +211,6 @@ func (d *Delimited) GetCsvOpts() []string {
 	if d.ForceNotNull != nil && len(*d.ForceNotNull) > 0 {
 		forceNotNullValues := strings.Join(*d.ForceNotNull, ",")
 		opts = append(opts, fmt.Sprintf("force_not_null=%s", forceNotNullValues))
-	}
-
-	if d.Header != nil {
-		opts = append(opts, fmt.Sprintf("header=%v", *d.Header))
 	}
 
 	if d.IgnoreErrors != nil {

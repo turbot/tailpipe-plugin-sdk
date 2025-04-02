@@ -31,7 +31,6 @@ func (c *CustomTableImpl) EnrichRow(row *types.DynamicRow, sourceEnrichmentField
 	// tell the row to enrich itself using any mappings specified in the source format
 	err := row.Enrich(c.Schema, sourceEnrichmentFields)
 	if err != nil {
-		// returned error should be a RowError
 		return nil, err
 	}
 	return row, nil
@@ -39,4 +38,8 @@ func (c *CustomTableImpl) EnrichRow(row *types.DynamicRow, sourceEnrichmentField
 
 func (c *CustomTableImpl) GetDefaultFormat() formats.Format {
 	return nil
+}
+
+func (c *CustomTableImpl) GetFormat() formats.Format {
+	return c.Format
 }

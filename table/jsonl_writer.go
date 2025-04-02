@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"log/slog"
 	"os"
 	"path/filepath"
+
+	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 )
 
 // JSONLWriter implements [ChunkWriter] and writes rows to JSONL files
@@ -20,14 +21,14 @@ func NewJSONLWriter(destPath string) ChunkWriter {
 	return JSONLWriter{destPath: destPath}
 }
 
-func (j JSONLWriter) WriteChunk(ctx context.Context, rows []any, chunkNumber int) error {
+func (j JSONLWriter) WriteChunk(ctx context.Context, rows []any, chunkNumber int32) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
 	}
 
 	// generate the filename
-	filename := filepath.Join(j.destPath, ExecutionIdToFileName(executionId, chunkNumber))
+	filename := filepath.Join(j.destPath, ExecutionIdToJsonlFileName(executionId, chunkNumber))
 
 	// Open the file for writing
 	file, err := os.Create(filename)

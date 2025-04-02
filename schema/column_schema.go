@@ -34,19 +34,19 @@ type ColumnSchema struct {
 	// See the strptime documentation for available modifiers: https://linux.die.net/man/3/strptime
 	TimeFormat string
 	// a custom select clause for the column
-	SelectClause string
+	Transform string
 }
 
 func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 	p := &proto.ColumnSchema{
-		SourceName:   c.SourceName,
-		ColumnName:   c.ColumnName,
-		Type:         c.Type,
-		Description:  c.Description,
-		Required:     c.Required,
-		NullValue:    c.NullValue,
-		TimeFormat:   c.TimeFormat,
-		SelectClause: c.SelectClause,
+		SourceName:  c.SourceName,
+		ColumnName:  c.ColumnName,
+		Type:        c.Type,
+		Description: c.Description,
+		Required:    c.Required,
+		NullValue:   c.NullValue,
+		TimeFormat:  c.TimeFormat,
+		Transform:   c.Transform,
 	}
 	for _, child := range c.StructFields {
 		p.ChildFields = append(p.ChildFields, child.toProto())
@@ -86,17 +86,30 @@ func (c *ColumnSchema) NormaliseColumnTypes() {
 	}
 }
 
+func (c *ColumnSchema) Clone() *ColumnSchema {
+	return &ColumnSchema{
+		ColumnName:  c.ColumnName,
+		SourceName:  c.SourceName,
+		Type:        c.Type,
+		Required:    c.Required,
+		Description: c.Description,
+		NullValue:   c.NullValue,
+		TimeFormat:  c.TimeFormat,
+		Transform:   c.Transform,
+	}
+}
+
 // ColumnFromProto creates a new ColumnSchema from proto
 func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
 	c := &ColumnSchema{
-		SourceName:   p.SourceName,
-		ColumnName:   p.ColumnName,
-		Type:         p.Type,
-		Description:  p.Description,
-		Required:     p.Required,
-		NullValue:    p.NullValue,
-		TimeFormat:   p.TimeFormat,
-		SelectClause: p.SelectClause,
+		SourceName:  p.SourceName,
+		ColumnName:  p.ColumnName,
+		Type:        p.Type,
+		Description: p.Description,
+		Required:    p.Required,
+		NullValue:   p.NullValue,
+		TimeFormat:  p.TimeFormat,
+		Transform:   p.Transform,
 	}
 	for _, child := range p.ChildFields {
 		c.StructFields = append(c.StructFields, ColumnFromProto(child))

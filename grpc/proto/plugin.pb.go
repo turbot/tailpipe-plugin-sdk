@@ -690,8 +690,8 @@ type ColumnSchema struct {
 	NullValue string `protobuf:"bytes,7,opt,name=null_value,json=nullValue,proto3" json:"null_value,omitempty"`
 	// the time format to use to parse the column
 	TimeFormat string `protobuf:"bytes,8,opt,name=time_format,json=timeFormat,proto3" json:"time_format,omitempty"`
-	// the custom select clause to use to map the column
-	SelectClause  string `protobuf:"bytes,9,opt,name=select_clause,json=selectClause,proto3" json:"select_clause,omitempty"`
+	// the duckdb function to use to map the column
+	Transform     string `protobuf:"bytes,9,opt,name=transform,proto3" json:"transform,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -782,9 +782,9 @@ func (x *ColumnSchema) GetTimeFormat() string {
 	return ""
 }
 
-func (x *ColumnSchema) GetSelectClause() string {
+func (x *ColumnSchema) GetTransform() string {
 	if x != nil {
-		return x.SelectClause
+		return x.Transform
 	}
 	return ""
 }
@@ -2749,7 +2749,7 @@ const file_plugin_proto_rawDesc = "" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
 	"\n" +
 	"null_value\x18\x05 \x01(\tR\tnullValue\x12\x12\n" +
-	"\x04name\x18\x06 \x01(\tR\x04name\"\xbf\x02\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\"\xb8\x02\n" +
 	"\fColumnSchema\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1f\n" +
 	"\vsource_name\x18\x02 \x01(\tR\n" +
@@ -2762,8 +2762,8 @@ const file_plugin_proto_rawDesc = "" +
 	"\n" +
 	"null_value\x18\a \x01(\tR\tnullValue\x12\x1f\n" +
 	"\vtime_format\x18\b \x01(\tR\n" +
-	"timeFormat\x12#\n" +
-	"\rselect_clause\x18\t \x01(\tR\fselectClause\"\x82\x01\n" +
+	"timeFormat\x12\x1c\n" +
+	"\ttransform\x18\t \x01(\tR\ttransform\"\x82\x01\n" +
 	"\n" +
 	"FormatData\x12)\n" +
 	"\x06config\x18\x01 \x01(\v2\x11.proto.ConfigDataR\x06config\x12\x12\n" +

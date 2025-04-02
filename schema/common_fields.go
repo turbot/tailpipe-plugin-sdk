@@ -295,8 +295,6 @@ func (c *CommonFields) InitialiseFromMap(source map[string]string) {
 	}
 }
 
-// TODO KAI make this map[string] inteface then dynamic row can add directly to output fields
-// but would mean we need a proto common+_fields type
 // AsMap converts the CommonFields struct into a map[string]string.
 func (c *CommonFields) AsMap() map[string]string {
 	result := make(map[string]string)

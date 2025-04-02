@@ -79,7 +79,13 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 		_ = p.OnCompleted(ctx, collectRequest.ExecutionId, 0, 0, err)
 	}
 
+	// start a goroutine to do the collection
+	// - this allows the Collect GRPC call to return asynchronously, returning the schema
 	go func() {
+		// ensure we close the collector when done
+		// NOTE - we do this _within the goroutine_ to ensure wait for completion before closing
+		defer collector.Close()
+
 		// tell the collection to start collecting - this is a blocking call
 		rowCount, chunksWritten, err := collector.Collect(ctx)
 
@@ -239,6 +245,6 @@ func (p *PluginImpl) Impl() *PluginImpl {
 	return p
 }
 
-func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, rowCount int, chunksWritten int, err error) error {
+func (p *PluginImpl) OnCompleted(ctx context.Context, executionId string, rowCount int64, chunksWritten int32, err error) error {
 	return p.NotifyObservers(ctx, events.NewCompletedEvent(executionId, rowCount, chunksWritten, err))
 }

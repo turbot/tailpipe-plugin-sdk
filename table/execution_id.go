@@ -7,9 +7,9 @@ import (
 	"strings"
 )
 
-// ExecutionIdToFileName convert an execution id and chunk number to a filename
+// ExecutionIdToJsonlFileName convert an execution id and chunk number to a filename
 // assuming a convention of <executionId>-<chunkNumber>.jsonl
-func ExecutionIdToFileName(executionId string, chunkNumber int) string {
+func ExecutionIdToJsonlFileName(executionId string, chunkNumber int32) string {
 	return fmt.Sprintf("%s-%d.jsonl", executionId, chunkNumber)
 }
 
