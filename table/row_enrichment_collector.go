@@ -116,6 +116,9 @@ func (c *RowEnrichmentCollector[R]) GetSchema() (*schema.TableSchema, error) {
 		s.Description = getDesc.GetDescription()
 	}
 
+	// normalize the column types to lower case to ensure consistency
+	s.NormaliseColumnTypes()
+
 	return s, nil
 }
 

@@ -9,6 +9,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// TODO REVIEW OPTIONS AND LOOK FOR COMMONALITY
 type Delimited struct {
 	Name        string `hcl:",label"`
 	Description string `hcl:"description,optional"`
@@ -179,14 +180,15 @@ func (d *Delimited) GetCsvOpts() []string {
 	if d.Delimiter != nil {
 		delimiter = *d.Delimiter
 	}
-	opts = append(opts, fmt.Sprintf("DELIM '%s'", delimiter))
+	opts = append(opts, fmt.Sprintf("delim '%s'", delimiter))
 
 	// Handle header - default to true if not specified
 	header := true
 	if d.Header != nil {
 		header = *d.Header
 	}
-	opts = append(opts, fmt.Sprintf("HEADER %v", strings.ToUpper(fmt.Sprintf("%v", header))))
+
+	opts = append(opts, fmt.Sprintf("header %v", strings.ToLower(fmt.Sprintf("%v", header))))
 
 	if d.AllVarchar != nil {
 		opts = append(opts, fmt.Sprintf("all_varchar=%v", *d.AllVarchar))

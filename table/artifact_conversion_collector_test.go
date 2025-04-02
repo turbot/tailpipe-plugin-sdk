@@ -99,7 +99,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
 select *
-from read_csv('test.csv', DELIM ',', HEADER TRUE);
+from read_csv('test.csv', delim ',', header true);
 
 -- Return the columns as an array
 select string_agg(name, ',') from pragma_table_info('temp_data');`,
@@ -115,7 +115,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
 select *
-from read_csv('test.csv', DELIM ',', HEADER TRUE);
+from read_csv('test.csv', delim ',', header true);
 
 -- Return the columns as an array
 select string_agg(name, ',') from pragma_table_info('temp_data');`,
@@ -198,7 +198,7 @@ copy (select
     '%s' as tp_ingest_timestamp,
     case
                 when tp_timestamp is not null
-                then date_trunc('day', tp_timestamp::TIMESTAMP)
+                then date_trunc('day', tp_timestamp::timestamp)
             end as tp_date,
     coalesce(tp_index, 'default') as tp_index
 from temp_data)
@@ -228,7 +228,7 @@ copy (select
     '%s' as tp_ingest_timestamp,
     case
                 when tp_timestamp is not null
-                then date_trunc('day', tp_timestamp::TIMESTAMP)
+                then date_trunc('day', tp_timestamp::timestamp)
             end as tp_date
 from temp_data)
 to 'test.jsonl' (
@@ -256,7 +256,7 @@ copy (select
     '%s' as tp_ingest_timestamp,
     case
                 when tp_timestamp is not null
-                then date_trunc('day', tp_timestamp::TIMESTAMP)
+                then date_trunc('day', tp_timestamp::timestamp)
             end as tp_date,
     coalesce(tp_index, 'default') as tp_index
 from temp_data)
@@ -282,7 +282,7 @@ copy (select
     '%s' as tp_ingest_timestamp,
     case
                 when tp_timestamp is not null
-                then date_trunc('day', tp_timestamp::TIMESTAMP)
+                then date_trunc('day', tp_timestamp::timestamp)
             end as tp_date,
     coalesce(tp_index, 'default') as tp_index
 from temp_data)

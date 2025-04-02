@@ -286,7 +286,7 @@ func (c *ArtifactConversionCollector) getCopyQuery(destFile string, columns []st
 	selectClauses = append(selectClauses, commonFieldsClauses...)
 
 	// Add tp_date after tp_timestamp is defined
-	selectClauses = append(selectClauses, "case\n                when tp_timestamp is not null\n                then date_trunc('day', tp_timestamp::TIMESTAMP)\n            end as tp_date")
+	selectClauses = append(selectClauses, "case\n                when tp_timestamp is not null\n                then date_trunc('day', tp_timestamp::timestamp)\n            end as tp_date")
 
 	// Add tp_index coalesce after all columns are defined
 	// Check if tp_index is already mapped
