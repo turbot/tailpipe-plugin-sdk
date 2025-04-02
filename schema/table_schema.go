@@ -4,117 +4,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/itchyny/timefmt-go"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/error_types"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
-	"golang.org/x/exp/maps"
 )
-
-// SourceColumnDef is a simple struct to hold the column name and type for a source column
-type SourceColumnDef struct {
-	Name string
-
-	Type string
-}
-
-func NewSourceColumnDef(columnSchema *ColumnSchema) SourceColumnDef {
-	t := columnSchema.FullType()
-	return SourceColumnDef{
-		Name: columnSchema.SourceName,
-		// use full type, i.e. expand struct types
-		Type: t,
-	}
-}
-
-// ConversionSchema is a specialised TableSchema which also contains a list of all source columns
-type ConversionSchema struct {
-	TableSchema
-	// the source columns - these are the columns in the source data
-	// this is to ensure we have the inputs required for any transforms
-	SourceColumns []SourceColumnDef
-}
-
-// NewConversionSchemaWithInferredSchema populates a ConversionSchema schema using a table schema and an inferred row schema
-// this is called from the CLI after receiving the first JSONL file
-// it either adds all fields in the inferred schema (if AutoMapSourceFields is true) or
-// just populate missing types if AutoMapSourceFields is false
-func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSchema) *ConversionSchema {
-	// initialize the conversion schema from the table schema def
-	r := &ConversionSchema{
-		TableSchema: *tableSchema,
-	}
-
-	var sourceColumns = map[string]SourceColumnDef{}
-
-	//get the table schema as a map
-	schemaMap := r.AsMap()
-	excludedMap := helpers.SliceToLookup(r.ExcludeSourceFields)
-
-	for _, inferredColumn := range inferredSchema.Columns {
-		/// if this columns exists in the table def, just use the type from the table def
-		if columnSchema, haveColumn := schemaMap[inferredColumn.ColumnName]; haveColumn {
-			// if the column schema does not have a type, use the inferred type
-			if columnSchema.Type == "" {
-				columnSchema.Type = inferredColumn.Type
-			}
-
-			// add to source columns
-			sourceColumns[columnSchema.ColumnName] = NewSourceColumnDef(columnSchema)
-			continue
-		}
-
-		// so this column does not exist in the table def - add to source columns
-		sourceColumns[inferredColumn.ColumnName] = NewSourceColumnDef(inferredColumn)
-
-		// if we are in autoMap mode, include column in TableSchema as long as it is not excluded
-		if r.AutoMapSourceFields {
-			// skip any excluded fields
-			if _, excluded := excludedMap[inferredColumn.ColumnName]; excluded {
-				continue
-			}
-			// we already have this column - does it have a type?
-			if columnSchema, haveColumn := schemaMap[inferredColumn.ColumnName]; haveColumn && columnSchema.Type == "" {
-				columnSchema.Type = inferredColumn.Type
-			} else {
-				// we do not have this column - add it add this column
-				r.Columns = append(r.Columns, inferredColumn)
-			}
-		}
-	}
-	// add all output column without a transform as a source column (unless we already have it)
-	// (if there is a transform, it will be derived from the source column we should already have)
-	for _, column := range r.Columns {
-		if column.Transform != "" {
-			continue
-		}
-		// if we have a source column, skip it
-		if _, ok := sourceColumns[column.ColumnName]; ok {
-			continue
-		}
-
-		sourceColumns[column.ColumnName] = NewSourceColumnDef(column)
-	}
-
-	// now set the source columns
-	r.SourceColumns = maps.Values(sourceColumns)
-	return r
-}
-func NewConversionSchema(tableSchema *TableSchema) *ConversionSchema {
-	// initialize the conversion schema from the table schema def
-	r := &ConversionSchema{
-		TableSchema: *tableSchema,
-	}
-	var sourceColumns = map[string]SourceColumnDef{}
-
-	for _, c := range tableSchema.Columns {
-		// store source columns
-		sourceColumns[c.ColumnName] = NewSourceColumnDef(c)
-	}
-
-	r.SourceColumns = maps.Values(sourceColumns)
-	return r
-}
 
 type TableSchema struct {
 	Name    string
@@ -246,8 +141,11 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 	// now format the string according to the type
 	switch ty {
 	case "timestamp", "date", "time":
-		// todo kai apply time format - only parse if format specified?
-		// TODO kai this duplicates what we already do for tp_timestamp in dynamicrow enrich  -
+		// if a time format was specified, attempt to parse the value using that format
+		if column.TimeFormat != "" {
+			return timefmt.Parse(valString, column.TimeFormat)
+		}
+		// otherwise attempt out 'smart' time parsing
 		t, err := helpers.ParseTime(valString)
 		if err != nil {
 			return valString, fmt.Errorf("error parsing time value '%s' for column '%s': %w", valString, column.ColumnName, err)

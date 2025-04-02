@@ -12,6 +12,7 @@ require (
 	github.com/hashicorp/go-plugin v1.6.1
 	github.com/hashicorp/hcl/v2 v2.20.1
 	github.com/iancoleman/strcase v0.3.0
+	github.com/itchyny/timefmt-go v0.1.6
 	github.com/marcboeker/go-duckdb/v2 v2.0.3
 	github.com/rs/xid v1.5.0
 	github.com/satyrius/gonx v1.4.0
