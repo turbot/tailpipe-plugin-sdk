@@ -311,7 +311,7 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			},
 			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
 copy (select
-    strptime('%%Y-%%m-%%dT%%H:%%M:%%S%%z',"timestamp") as "tp_timestamp",
+    strptime("timestamp", '%%Y-%%m-%%dT%%H:%%M:%%S%%z') as "tp_timestamp",
     "id",
     "name",
     "timestamp",

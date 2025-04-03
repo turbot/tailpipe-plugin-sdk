@@ -258,22 +258,23 @@ func getCopyQuery(table, partition, destFile string, columns []string, tableSche
 	// Build mapped columns clauses first
 	if len(tableSchema.Columns) > 0 {
 		for _, column := range tableSchema.Columns {
-			if column.SourceName != column.ColumnName {
-				// if we have a transform function, use it
-				var sourceExpression string
-				switch {
-				case column.Transform != "":
-					sourceExpression = column.Transform
-				case column.TimeFormat != "":
-					sourceExpression = fmt.Sprintf("strptime('%s',\"%s\")", column.TimeFormat, column.SourceName)
-				default:
-					sourceExpression = fmt.Sprintf("\"%s\"", column.SourceName)
-				}
 
-				selectClauses = append(selectClauses, fmt.Sprintf(`%s as "%s"`, sourceExpression, column.ColumnName))
-				// remove the output name from the map of existing columns to select
-				delete(selectColumnMap, column.ColumnName)
+			// if we have a transform function, use it
+			var sourceExpression string
+			switch {
+			case column.Transform != "":
+				sourceExpression = column.Transform
+			case column.TimeFormat != "":
+				sourceExpression = fmt.Sprintf("strptime(\"%s\", '%s')", column.SourceName, column.TimeFormat)
+			case column.SourceName != "":
+				sourceExpression = fmt.Sprintf("\"%s\"", column.SourceName)
+			default:
+				sourceExpression = fmt.Sprintf("\"%s\"", column.ColumnName)
 			}
+
+			selectClauses = append(selectClauses, fmt.Sprintf(`%s as "%s"`, sourceExpression, column.ColumnName))
+			// remove the output name from the map of existing columns to select
+			delete(selectColumnMap, column.ColumnName)
 		}
 	}
 
@@ -304,17 +305,22 @@ func getCopyQuery(table, partition, destFile string, columns []string, tableSche
 
 	// Add tp_index coalesce after all columns are defined
 	// Check if tp_index is already mapped
-	tpIndexMapped := false
-	for _, column := range tableSchema.Columns {
-		if column.ColumnName == "tp_index" {
-			tpIndexMapped = true
-			break
+	_, tpExists := selectColumnMap[constants.TpIndex]
+	if !tpExists {
+		for _, column := range tableSchema.Columns {
+			if column.ColumnName == constants.TpIndex {
+				tpExists = true
+				break
+			}
 		}
-	}
 
-	// if there is not a mapping for tp_index, add the default index
-	if !tpIndexMapped {
-		selectClauses = append(selectClauses, fmt.Sprintf("coalesce(tp_index, '%s') as tp_index", schema.DefaultIndex))
+		// if tp_index exists in the source data or it there is a mapping, we need to coalesce it
+		// otherwise we can use the default value
+		if tpExists {
+			selectClauses = append(selectClauses, fmt.Sprintf("coalesce(tp_index, '%s') as tp_index", schema.DefaultIndex))
+		} else {
+			selectClauses = append(selectClauses, fmt.Sprintf("'%s' as tp_index", schema.DefaultIndex))
+		}
 	}
 
 	// Build the query

@@ -48,7 +48,7 @@ func (c *RegexMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T,
 	// Parse the input string
 	match := c.re.FindStringSubmatch(input)
 	if match == nil {
-		return empty, fmt.Errorf("error parsing log line:\n%s\n\n, didn't match regex pattern%s", input, c.re.String())
+		return empty, fmt.Errorf("error parsing log line:\n%s\ndidn't match regex pattern\n%s", input, c.re.String())
 	}
 
 	rowMap := make(map[string]string)

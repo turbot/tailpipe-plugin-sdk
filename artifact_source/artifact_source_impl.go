@@ -257,7 +257,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 
 	// notify observers of download
 	if err := a.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info)); err != nil {
-		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
+		return fmt.Errorf("error processing artifact: %w", err)
 	}
 	return nil
 }
