@@ -98,7 +98,7 @@ func (s *ReverseOrderCollectionState[T]) GetEndTime() time.Time {
 // SetEndTime sets the end time for the collection state - update all trunk states
 // This is called when we are using the --from flag to force recollection
 func (s *ReverseOrderCollectionState[T]) SetEndTime(newEndTime time.Time) {
-	// THIS IS CALLED PRIOR TO COLLECTION THEREFORE THE LOCK IS NOT REQUIRED (APPLYING A LOCK ON s.mut HERE WILL CAUSE A DEADLOCK)
+	// THIS IS CALLED PRIOR TO COLLECTION THEREFORE THE LOCK IS NOT REQUIRED (APPLYING A LOCK on s.mut HERE WILL CAUSE A DEADLOCK)
 	if len(s.TimeRanges) == 0 {
 		return
 	}
