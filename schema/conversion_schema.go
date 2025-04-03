@@ -2,8 +2,6 @@ package schema
 
 import (
 	"github.com/turbot/go-kit/helpers"
-	"golang.org/x/exp/maps"
-	"sort"
 )
 
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
@@ -46,37 +44,27 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 	schemaMap := r.AsMap()
 	excludedMap := helpers.SliceToLookup(r.ExcludeSourceFields)
 
-	keys := maps.Keys(schemaMap)
-	// ensure consistent order
-	sort.Strings(keys)
-
 	// First add all columns from the table schema
-	for _, key := range keys {
-		sourceColumns = append(sourceColumns, NewSourceColumnDef(schemaMap[key]))
+	for _, c := range tableSchema.Columns {
+		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 	}
 
-	// Then add any inferred columns that aren't already in the schema
-	inferredSchemaMap := inferredSchema.AsMap()
-	keys = maps.Keys(inferredSchemaMap)
-	// ensure consistent order
-	sort.Strings(keys)
+	// Then, if we are in autoMap mode, add any inferred columns that aren't already in the schema and are not excluded
+	if r.AutoMapSourceFields {
+		for _, c := range inferredSchema.Columns {
+			// if this column exists in the table def, skip it
+			if _, haveColumn := schemaMap[c.ColumnName]; haveColumn {
+				continue
+			}
 
-	for _, key := range keys {
-		// if this column exists in the table def, skip it
-		inferredColumn, haveColumn := inferredSchemaMap[key]
-		if haveColumn {
-			continue
-		}
-
-		// if we are in autoMap mode, include column in TableSchema as long as it is not excluded
-		if r.AutoMapSourceFields {
 			// skip any excluded fields
-			if _, excluded := excludedMap[inferredColumn.ColumnName]; excluded {
+			if _, excluded := excludedMap[c.ColumnName]; excluded {
 				continue
 			}
 			// we do not have this column - add it
-			r.Columns = append(r.Columns, inferredColumn)
-			sourceColumns = append(sourceColumns, NewSourceColumnDef(inferredColumn))
+			r.Columns = append(r.Columns, c)
+			// add to source columns
+			sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 		}
 	}
 
