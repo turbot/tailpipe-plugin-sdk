@@ -7,44 +7,7 @@ import (
 
 	"github.com/turbot/tailpipe-plugin-sdk/formats"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
-
-type testTable struct {
-	format formats.Format
-}
-
-func (t *testTable) GetFormat() formats.Format {
-	return t.format
-}
-
-func (t *testTable) GetDefaultFormat() formats.Format {
-	return nil
-}
-
-func (t *testTable) GetTableDefinition() *schema.TableSchema {
-	return nil
-}
-
-func (t *testTable) GetSchema() (*schema.TableSchema, error) {
-	return nil, nil
-}
-
-func (t *testTable) Initialize(format formats.Format, customTableSchema *schema.TableSchema) {
-	t.format = format
-}
-
-func (t *testTable) Identifier() string {
-	return "test_table"
-}
-
-func (t *testTable) GetSourceMetadata() ([]*SourceMetadata[*types.DynamicRow], error) {
-	return nil, nil
-}
-
-func (t *testTable) EnrichRow(row *types.DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*types.DynamicRow, error) {
-	return row, nil
-}
 
 func TestGetTempTableQuery(t *testing.T) {
 	testCases := []struct {
@@ -125,29 +88,29 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			collector := &ArtifactConversionCollector{
-				table: &testTable{format: tc.format},
-			}
+			//collector := &ArtifactConversionCollector{
+			//	table: &testTable{format: tc.format},
+			//}
+			//
+			//collector.req = &types.CollectRequest{
+			//	TableName:     "test_table",
+			//	PartitionName: "test_partition",
+			//	CustomTableSchema: &schema.TableSchema{
+			//		AutoMapSourceFields: tc.autoMap,
+			//	},
+			//}
+			//
+			//if tc.tpIndexMapped {
+			//	collector.req.CustomTableSchema.Columns = []*schema.ColumnSchema{
+			//		{
+			//			SourceName:  "account_id",
+			//			ColumnName:  "tp_index",
+			//			Description: "Mapped tp_index",
+			//		},
+			//	}
+			//}
 
-			collector.req = &types.CollectRequest{
-				TableName:     "test_table",
-				PartitionName: "test_partition",
-				CustomTableSchema: &schema.TableSchema{
-					AutoMapSourceFields: tc.autoMap,
-				},
-			}
-
-			if tc.tpIndexMapped {
-				collector.req.CustomTableSchema.Columns = []*schema.ColumnSchema{
-					{
-						SourceName:  "account_id",
-						ColumnName:  "tp_index",
-						Description: "Mapped tp_index",
-					},
-				}
-			}
-
-			query, err := collector.getTempTableQuery(tc.sourceFile)
+			query, err := getTempTableQuery(tc.sourceFile, tc.format)
 
 			if tc.expectedError {
 				if err == nil {
@@ -197,9 +160,9 @@ copy (select
     gen_random_uuid() as tp_id,
     '%s' as tp_ingest_timestamp,
     case
-                when tp_timestamp is not null
-                then date_trunc('day', tp_timestamp::timestamp)
-            end as tp_date,
+		when tp_timestamp is not null
+		then date_trunc('day', tp_timestamp::timestamp)
+	end as tp_date,
     coalesce(tp_index, 'default') as tp_index
 from temp_data)
 to 'test.jsonl' (
@@ -227,9 +190,9 @@ copy (select
     gen_random_uuid() as tp_id,
     '%s' as tp_ingest_timestamp,
     case
-                when tp_timestamp is not null
-                then date_trunc('day', tp_timestamp::timestamp)
-            end as tp_date
+		when tp_timestamp is not null
+		then date_trunc('day', tp_timestamp::timestamp)
+	end as tp_date
 from temp_data)
 to 'test.jsonl' (
     format json
@@ -255,9 +218,9 @@ copy (select
     gen_random_uuid() as tp_id,
     '%s' as tp_ingest_timestamp,
     case
-                when tp_timestamp is not null
-                then date_trunc('day', tp_timestamp::timestamp)
-            end as tp_date,
+		when tp_timestamp is not null
+		then date_trunc('day', tp_timestamp::timestamp)
+	end as tp_date,
     coalesce(tp_index, 'default') as tp_index
 from temp_data)
 to 'test.jsonl' (
@@ -281,9 +244,9 @@ copy (select
     gen_random_uuid() as tp_id,
     '%s' as tp_ingest_timestamp,
     case
-                when tp_timestamp is not null
-                then date_trunc('day', tp_timestamp::timestamp)
-            end as tp_date,
+		when tp_timestamp is not null
+		then date_trunc('day', tp_timestamp::timestamp)
+	end as tp_date,
     coalesce(tp_index, 'default') as tp_index
 from temp_data)
 to 'test.jsonl' (
@@ -298,20 +261,12 @@ select count(*) as row_count from temp_data;`, currentTime),
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			collector := &ArtifactConversionCollector{
-				table: &testTable{format: tc.format},
-			}
-
-			collector.req = &types.CollectRequest{
-				TableName:     "test_table",
-				PartitionName: "test_partition",
-				CustomTableSchema: &schema.TableSchema{
-					AutoMapSourceFields: tc.autoMap,
-				},
+			customTableSchema := &schema.TableSchema{
+				AutoMapSourceFields: tc.autoMap,
 			}
 
 			if tc.tpIndexMapped {
-				collector.req.CustomTableSchema.Columns = []*schema.ColumnSchema{
+				customTableSchema.Columns = []*schema.ColumnSchema{
 					{
 						SourceName:  "account_id",
 						ColumnName:  "tp_index",
@@ -320,7 +275,7 @@ select count(*) as row_count from temp_data;`, currentTime),
 				}
 			}
 
-			query := collector.getCopyQuery("test.jsonl", tc.columns, &types.DownloadedArtifactInfo{})
+			query := getCopyQuery("test_table", "test_partition", "test.jsonl", tc.columns, customTableSchema)
 
 			if query != tc.expectedQuery {
 				t.Errorf("Expected query:\n%s\nGot query:\n%s", tc.expectedQuery, query)
