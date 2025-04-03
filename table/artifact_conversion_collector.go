@@ -184,7 +184,7 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 	columns := strings.Split(columnsStr, ",")
 
 	// Now that we have the columns, generate and execute the copy query
-	copyQuery := getCopyQuery(c.req.TableName, c.req.PartitionName, destFile, columns, c.req.CustomTableSchema)
+	copyQuery := getCopyQuery(c.req.TableName, c.req.PartitionName, destFile, columns, c.req.CustomTableSchema, time.Now())
 
 	// Execute copy query and get row count
 	row := c.db.QueryRow(copyQuery)
@@ -236,12 +236,12 @@ func getReadArtifactSql(sourceFile string, format formats.Format) (string, error
 }
 
 // getCommonFieldsSelectClauses generates the SQL clauses to select the common fields which we are able to auto populate
-func getCommonFieldsSelectClauses(table, partition string) []string {
+func getCommonFieldsSelectClauses(table, partition string, ingestionTime time.Time) []string {
 	var commonFieldsClauses = []string{
 		fmt.Sprintf("'%s' as tp_table", table),
 		fmt.Sprintf("'%s' as tp_partition", partition),
 		"gen_random_uuid() as tp_id",
-		fmt.Sprintf("'%s' as tp_ingest_timestamp", time.Now().Format(time.RFC3339)),
+		fmt.Sprintf("'%s' as tp_ingest_timestamp", ingestionTime.Format(time.RFC3339)),
 	}
 
 	return commonFieldsClauses
@@ -249,7 +249,7 @@ func getCommonFieldsSelectClauses(table, partition string) []string {
 
 // getCopyQuery generates the SQL query to load data fromn the tamp table, enrich with any additional column mappings
 // transform, and copy to JSONL. The row count is returned.
-func getCopyQuery(table, partition, destFile string, columns []string, tableSchema *schema.TableSchema) string {
+func getCopyQuery(table, partition, destFile string, columns []string, tableSchema *schema.TableSchema, ingestionTime time.Time) string {
 	// Create a map of the existing column names
 	selectColumnMap := utils.SliceToLookup(columns)
 
@@ -265,14 +265,14 @@ func getCopyQuery(table, partition, destFile string, columns []string, tableSche
 				case column.Transform != "":
 					sourceExpression = column.Transform
 				case column.TimeFormat != "":
-					sourceExpression = fmt.Sprintf("strftime('%s', %s)", column.TimeFormat, column.SourceName)
+					sourceExpression = fmt.Sprintf("strptime('%s',\"%s\")", column.TimeFormat, column.SourceName)
 				default:
 					sourceExpression = fmt.Sprintf("\"%s\"", column.SourceName)
 				}
 
 				selectClauses = append(selectClauses, fmt.Sprintf(`%s as "%s"`, sourceExpression, column.ColumnName))
-				// remove this from the map of other columns to select
-				delete(selectColumnMap, column.SourceName)
+				// remove the output name from the map of existing columns to select
+				delete(selectColumnMap, column.ColumnName)
 			}
 		}
 	}
@@ -293,7 +293,7 @@ func getCopyQuery(table, partition, destFile string, columns []string, tableSche
 	}
 
 	// Build common fields clauses after mapped columns
-	commonFieldsClauses := getCommonFieldsSelectClauses(table, partition)
+	commonFieldsClauses := getCommonFieldsSelectClauses(table, partition, ingestionTime)
 	selectClauses = append(selectClauses, commonFieldsClauses...)
 
 	// Add tp_date after tp_timestamp is defined

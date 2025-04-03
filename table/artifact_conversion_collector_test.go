@@ -15,18 +15,18 @@ func TestGetTempTableQuery(t *testing.T) {
 		format        formats.Format
 		sourceFile    string
 		columns       []string
-		autoMap       bool
-		tpIndexMapped bool
+		schema        *schema.TableSchema
 		expectedQuery string
 		expectedError bool
 	}{
 		{
-			name:          "JSONL with auto-map and no tp_index mapping",
-			format:        &formats.JsonLines{},
-			sourceFile:    "test.jsonl",
-			columns:       []string{"id", "name", "timestamp"},
-			autoMap:       true,
-			tpIndexMapped: false,
+			name:       "JSONL with schema",
+			format:     &formats.JsonLines{},
+			sourceFile: "test.jsonl",
+			columns:    []string{"id", "name", "timestamp"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: true,
+			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
 select *
@@ -37,12 +37,20 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			expectedError: false,
 		},
 		{
-			name:          "JSONL with auto-map and tp_index mapped",
-			format:        &formats.JsonLines{},
-			sourceFile:    "test.jsonl",
-			columns:       []string{"id", "name", "timestamp", "account_id"},
-			autoMap:       true,
-			tpIndexMapped: true,
+			name:       "JSONL with tp_index mapping",
+			format:     &formats.JsonLines{},
+			sourceFile: "test.jsonl",
+			columns:    []string{"id", "name", "timestamp", "account_id"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: true,
+				Columns: []*schema.ColumnSchema{
+					{
+						SourceName:  "account_id",
+						ColumnName:  "tp_index",
+						Description: "Mapped tp_index",
+					},
+				},
+			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
 select *
@@ -53,12 +61,13 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			expectedError: false,
 		},
 		{
-			name:          "CSV with auto-map and no tp_index mapping",
-			format:        &formats.Delimited{},
-			sourceFile:    "test.csv",
-			columns:       []string{"id", "name", "timestamp"},
-			autoMap:       true,
-			tpIndexMapped: false,
+			name:       "CSV with schema",
+			format:     &formats.Delimited{},
+			sourceFile: "test.csv",
+			columns:    []string{"id", "name", "timestamp"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: true,
+			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
 select *
@@ -69,12 +78,13 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			expectedError: false,
 		},
 		{
-			name:          "CSV without auto-map and no tp_index mapping",
-			format:        &formats.Delimited{},
-			sourceFile:    "test.csv",
-			columns:       []string{"id", "name", "timestamp"},
-			autoMap:       false,
-			tpIndexMapped: false,
+			name:       "CSV without auto-map",
+			format:     &formats.Delimited{},
+			sourceFile: "test.csv",
+			columns:    []string{"id", "name", "timestamp"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: false,
+			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
 select *
@@ -88,28 +98,6 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			//collector := &ArtifactConversionCollector{
-			//	table: &testTable{format: tc.format},
-			//}
-			//
-			//collector.req = &types.CollectRequest{
-			//	TableName:     "test_table",
-			//	PartitionName: "test_partition",
-			//	CustomTableSchema: &schema.TableSchema{
-			//		AutoMapSourceFields: tc.autoMap,
-			//	},
-			//}
-			//
-			//if tc.tpIndexMapped {
-			//	collector.req.CustomTableSchema.Columns = []*schema.ColumnSchema{
-			//		{
-			//			SourceName:  "account_id",
-			//			ColumnName:  "tp_index",
-			//			Description: "Mapped tp_index",
-			//		},
-			//	}
-			//}
-
 			query, err := getTempTableQuery(tc.sourceFile, tc.format)
 
 			if tc.expectedError {
@@ -132,24 +120,25 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 }
 
 func TestGetCopyQuery(t *testing.T) {
+
 	// Get current timestamp for comparison
-	currentTime := time.Now().Format(time.RFC3339)
+	currentTime := time.Now()
 
 	testCases := []struct {
 		name          string
 		format        formats.Format
 		columns       []string
-		autoMap       bool
-		tpIndexMapped bool
+		schema        *schema.TableSchema
 		expectedQuery string
 		expectedError bool
 	}{
 		{
-			name:          "JSONL with auto-map and no tp_index mapping",
-			format:        &formats.JsonLines{},
-			columns:       []string{"id", "name", "timestamp"},
-			autoMap:       true,
-			tpIndexMapped: false,
+			name:    "JSONL with schema",
+			format:  &formats.JsonLines{},
+			columns: []string{"id", "name", "timestamp"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: true,
+			},
 			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
 copy (select
     "id",
@@ -170,18 +159,27 @@ to 'test.jsonl' (
 );
 
 -- Get row count
-select count(*) as row_count from temp_data;`, currentTime),
+select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
 			expectedError: false,
 		},
 		{
-			name:          "JSONL with auto-map and tp_index mapped",
-			format:        &formats.JsonLines{},
-			columns:       []string{"id", "name", "timestamp", "account_id"},
-			autoMap:       true,
-			tpIndexMapped: true,
+			name:    "JSONL with tp_index mapping",
+			format:  &formats.JsonLines{},
+			columns: []string{"id", "name", "timestamp", "account_id"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: true,
+				Columns: []*schema.ColumnSchema{
+					{
+						SourceName:  "account_id",
+						ColumnName:  "tp_index",
+						Description: "Mapped tp_index",
+					},
+				},
+			},
 			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
 copy (select
     "account_id" as "tp_index",
+    "account_id",
     "id",
     "name",
     "timestamp",
@@ -199,15 +197,16 @@ to 'test.jsonl' (
 );
 
 -- Get row count
-select count(*) as row_count from temp_data;`, currentTime),
+select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
 			expectedError: false,
 		},
 		{
-			name:          "CSV with auto-map and no tp_index mapping",
-			format:        &formats.Delimited{},
-			columns:       []string{"id", "name", "timestamp"},
-			autoMap:       true,
-			tpIndexMapped: false,
+			name:    "CSV with schema",
+			format:  &formats.Delimited{},
+			columns: []string{"id", "name", "timestamp"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: true,
+			},
 			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
 copy (select
     "id",
@@ -228,15 +227,16 @@ to 'test.jsonl' (
 );
 
 -- Get row count
-select count(*) as row_count from temp_data;`, currentTime),
+select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
 			expectedError: false,
 		},
 		{
-			name:          "CSV without auto-map and no tp_index mapping",
-			format:        &formats.Delimited{},
-			columns:       []string{"id", "name", "timestamp"},
-			autoMap:       false,
-			tpIndexMapped: false,
+			name:    "CSV without auto-map",
+			format:  &formats.Delimited{},
+			columns: []string{"id", "name", "timestamp"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: false,
+			},
 			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
 copy (select
     'test_table' as tp_table,
@@ -254,28 +254,90 @@ to 'test.jsonl' (
 );
 
 -- Get row count
-select count(*) as row_count from temp_data;`, currentTime),
+select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
+			expectedError: false,
+		},
+		{
+			name:    "CSV with column transform",
+			format:  &formats.Delimited{},
+			columns: []string{"id", "name", "timestamp"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: true,
+				Columns: []*schema.ColumnSchema{
+					{
+						ColumnName:  "name",
+						Transform:   "upper(name)",
+						Description: "Transformed name to uppercase",
+					},
+				},
+			},
+			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
+copy (select
+    upper(name) as "name",
+    "id",
+    "timestamp",
+    'test_table' as tp_table,
+    'test_partition' as tp_partition,
+    gen_random_uuid() as tp_id,
+    '%s' as tp_ingest_timestamp,
+    case
+		when tp_timestamp is not null
+		then date_trunc('day', tp_timestamp::timestamp)
+	end as tp_date,
+    coalesce(tp_index, 'default') as tp_index
+from temp_data)
+to 'test.jsonl' (
+    format json
+);
+
+-- Get row count
+select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
+			expectedError: false,
+		},
+		{
+			name:    "CSV with time format",
+			format:  &formats.Delimited{},
+			columns: []string{"id", "name", "timestamp"},
+			schema: &schema.TableSchema{
+				AutoMapSourceFields: true,
+				Columns: []*schema.ColumnSchema{
+					{
+						ColumnName:  "tp_timestamp",
+						SourceName:  "timestamp",
+						TimeFormat:  `%Y-%m-%dT%H:%M:%S%z`,
+						Description: "Timestamp with specific format",
+					},
+				},
+			},
+			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
+copy (select
+    strptime('%%Y-%%m-%%dT%%H:%%M:%%S%%z',"timestamp") as "tp_timestamp",
+    "id",
+    "name",
+    "timestamp",
+    'test_table' as tp_table,
+    'test_partition' as tp_partition,
+    gen_random_uuid() as tp_id,
+    '%s' as tp_ingest_timestamp,
+    case
+		when tp_timestamp is not null
+		then date_trunc('day', tp_timestamp::timestamp)
+	end as tp_date,
+    coalesce(tp_index, 'default') as tp_index
+from temp_data)
+to 'test.jsonl' (
+    format json
+);
+
+-- Get row count
+select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
 			expectedError: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			customTableSchema := &schema.TableSchema{
-				AutoMapSourceFields: tc.autoMap,
-			}
-
-			if tc.tpIndexMapped {
-				customTableSchema.Columns = []*schema.ColumnSchema{
-					{
-						SourceName:  "account_id",
-						ColumnName:  "tp_index",
-						Description: "Mapped tp_index",
-					},
-				}
-			}
-
-			query := getCopyQuery("test_table", "test_partition", "test.jsonl", tc.columns, customTableSchema)
+			query := getCopyQuery("test_table", "test_partition", "test.jsonl", tc.columns, tc.schema, currentTime)
 
 			if query != tc.expectedQuery {
 				t.Errorf("Expected query:\n%s\nGot query:\n%s", tc.expectedQuery, query)
