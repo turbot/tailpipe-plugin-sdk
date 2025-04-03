@@ -45,7 +45,7 @@ func (d *JsonLines) GetProperties() map[string]string {
 
 // Identifier returns the format type identifier
 func (d *JsonLines) Identifier() string {
-	return constants.SourceFormatJsonLines
+	return constants.SourceFormatJsonl
 }
 
 func (d *JsonLines) GetRegex() (string, error) {

@@ -271,7 +271,7 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 
 	// now create the appropriate type of collector
 	switch format.Identifier() {
-	case constants.SourceFormatDelimited, constants.SourceFormatJson, constants.SourceFormatJsonLines:
+	case constants.SourceFormatDelimited, constants.SourceFormatJsonl:
 		return NewArtifactConversionCollector(customTable), nil
 	default:
 		return NewRowEnrichmentCollector[*types.DynamicRow](customTable), nil

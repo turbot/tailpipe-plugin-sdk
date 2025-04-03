@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -33,6 +34,9 @@ type ArtifactConversionCollector struct {
 
 	destPath string
 	db       *sql.DB
+	// we only convert one artifact at a time
+	// TODO be a bit smarter about this - we could just avoid sending multiple events concurrently)
+	conversionMut sync.Mutex
 }
 
 func NewArtifactConversionCollector(table CustomTable) *ArtifactConversionCollector {
@@ -141,6 +145,10 @@ func (c *ArtifactConversionCollector) getSourceMetadata() *SourceMetadata[*types
 }
 
 func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Context, e *events.ArtifactDownloaded) error {
+	// acquire the conversion mutex to ensure we only convert one artifact at a time
+	c.conversionMut.Lock()
+	defer c.conversionMut.Unlock()
+
 	// increment the collection wait group
 	c.collectionWg.Add(1)
 	defer c.collectionWg.Done()
@@ -191,6 +199,12 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 	var rowCount int64
 
 	if err = row.Scan(&rowCount); err != nil {
+		return 0, err
+	}
+
+	// now drop the temp table
+	if _, err := c.db.Exec("drop table temp_data;"); err != nil {
+		slog.Error("ArtifactConversionCollector: error dropping temp table", "error", err)
 		return 0, err
 	}
 

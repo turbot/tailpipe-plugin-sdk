@@ -20,7 +20,7 @@ type TableSchema struct {
 	ExcludeSourceFields []string
 	// the table description (optional)
 	Description string
-	// the default null value for the table (may be overriden for specific columns
+	// the default null value for the table (may be overridden for specific columns)
 	NullValue string
 }
 
