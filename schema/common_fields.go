@@ -42,6 +42,7 @@ func CommonFieldsSchema() *TableSchema {
 				SourceName:  constants.TpIngestTimestamp,
 				Type:        "timestamp",
 				Description: DefaultCommonFieldDescriptions[constants.TpIngestTimestamp],
+				Required:    true,
 			},
 			// Hive fields
 			{
@@ -49,24 +50,28 @@ func CommonFieldsSchema() *TableSchema {
 				SourceName:  constants.TpTable,
 				Type:        "varchar",
 				Description: DefaultCommonFieldDescriptions[constants.TpTable],
+				Required:    true,
 			},
 			{
 				ColumnName:  constants.TpPartition,
 				SourceName:  constants.TpPartition,
 				Type:        "varchar",
 				Description: DefaultCommonFieldDescriptions[constants.TpPartition],
+				Required:    true,
 			},
 			{
 				ColumnName:  constants.TpIndex,
 				SourceName:  constants.TpIndex,
 				Type:        "varchar",
 				Description: DefaultCommonFieldDescriptions[constants.TpIndex],
+				Required:    true,
 			},
 			{
 				ColumnName:  constants.TpDate,
 				SourceName:  constants.TpDate,
 				Type:        "date",
 				Description: DefaultCommonFieldDescriptions[constants.TpDate],
+				Required:    true,
 			},
 			// Optional fields
 			{
@@ -86,6 +91,7 @@ func CommonFieldsSchema() *TableSchema {
 				SourceName:  constants.TpSourceName,
 				Type:        "varchar",
 				Description: DefaultCommonFieldDescriptions[constants.TpSourceName],
+				Required:    true,
 			},
 			{
 				ColumnName:  constants.TpSourceLocation,

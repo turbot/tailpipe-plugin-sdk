@@ -60,9 +60,6 @@ func (c *ArtifactConversionCollector) Init(ctx context.Context, req *types.Colle
 	// (this returns an error if the source is not supported by the table)
 	sourceMetadata := c.getSourceMetadata()
 
-	// TODO #validate validate no extractor
-	// TODO #validate validate table name does not clash
-
 	// create the source
 	if err := c.initSource(ctx, req, sourceMetadata); err != nil {
 		return err
