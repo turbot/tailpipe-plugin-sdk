@@ -249,25 +249,44 @@ func (c *RowEnrichmentCollector[R]) onRowEnriched(ctx context.Context, row R) er
 	// update status
 	c.status.OnRowEnriched()
 
+	// ensure all row buffer handling is within a lock
 	c.rowBufferLock.Lock()
+
 	// add row to row buffer
 	c.rowBuffer = append(c.rowBuffer, row)
 	// increment the count
 	c.rowCount++
 
-	// determine whethe rwe need to write a jsonl file - is buffer full
-	var rowsToWrite []any
-	if len(c.rowBuffer) == JSONLChunkSize {
-		rowsToWrite = c.rowBuffer
-		c.rowBuffer = make([]any, 0, JSONLChunkSize)
+	// determine whether we need to write a jsonl file - is buffer full
+	if len(c.rowBuffer) <= JSONLChunkSize {
+		// not enough rows to write yet - just unlock the lock and return
+		c.rowBufferLock.Unlock()
+		return nil
 	}
+
+	// so we do need to write a JSONL file
+	// put the rows to write in a temp variable and clear the buffer so other threads can keep writing
+	rowsToWrite := c.rowBuffer
+	c.rowBuffer = make([]any, 0, JSONLChunkSize)
+	// calculate the chunk number to write
+	chunkNumber := c.calcChunkNumber()
+	// unlock the row buffer lock before writing - we can write concurrently as long we lock the buffer and rowCount correctly
 	c.rowBufferLock.Unlock()
 
-	if numRowsToWrite := len(rowsToWrite); numRowsToWrite > 0 {
-		return c.writeChunk(ctx, rowsToWrite)
-	}
+	// write the chunk to the JSONL file
+	return c.writeChunk(ctx, rowsToWrite, chunkNumber)
+}
 
-	return nil
+// calcChunkNumber calculates the chunk number based on the current row count
+func (c *RowEnrichmentCollector[R]) calcChunkNumber() int32 {
+	// determine chunk number from row count
+	// NOTE: we are doing this INSIDE THE LOCK to ensure no-one else can increment the row count
+	chunkNumber := int32(c.rowCount / JSONLChunkSize) //nolint:gosec//chunkNumber will not overflow
+	// check for final partial chunk
+	if c.rowCount%JSONLChunkSize > 0 {
+		chunkNumber++
+	}
+	return chunkNumber
 }
 
 // onRowError is called when a row operation (map/enrich/validate) fails, it updates our status but doesn't return an error back to source
@@ -291,16 +310,7 @@ func (c *CollectorImpl[R]) onRowError(_ context.Context, source string, operatio
 }
 
 // writeChunk writes a chunk of rows to a JSONL file
-func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite []any) error {
-	rowCount := atomic.LoadInt64(&c.rowCount)
-	// determine chunk number from rowCountMap
-	chunkNumber := int32(rowCount / JSONLChunkSize) //nolint:gosec//chunk number will be fit in 32 bit number
-
-	// check for final partial chunk
-	if rowCount%JSONLChunkSize > 0 {
-		chunkNumber++
-	}
-
+func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite []any, chunkNumber int32) error {
 	slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", len(rowsToWrite))
 
 	// convert row to a JSONL file
@@ -322,7 +332,7 @@ func (c *RowEnrichmentCollector[R]) writeRemainingRows(ctx context.Context) (int
 
 	// tell our writer to write any remaining rows
 	if len(c.rowBuffer) > 0 {
-		if err := c.writeChunk(ctx, c.rowBuffer); err != nil {
+		if err := c.writeChunk(ctx, c.rowBuffer, c.calcChunkNumber()); err != nil {
 			slog.Error("failed to write final chunk", "error", err)
 			return 0, 0, fmt.Errorf("failed to write final chunk: %w", err)
 		}

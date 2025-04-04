@@ -85,7 +85,7 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 }
 
 // onChunk is called by the we have written a chunk of enriched rows to a [JSONL/CSV] file
-// notify observers of the chunk
+// notify observers of the chunk and save collection state
 func (c *CollectorImpl[R]) onChunk(ctx context.Context, chunkNumber int32) error {
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
