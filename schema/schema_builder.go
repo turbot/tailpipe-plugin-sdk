@@ -36,7 +36,7 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*TableSchema, error) {
 		return nil, err
 	}
 	// just use the column names from the struct, do not automap source fields
-	res.AutoMapSourceFields = false
+	// so leave 'Select' empty
 
 	// if the struct implements ColumnDescriptionProvider, use this to populate the column descriptions
 	if desc, ok := s.(ColumnDescriptionProvider); ok {

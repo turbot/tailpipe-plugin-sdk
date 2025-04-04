@@ -586,16 +586,22 @@ type Schema struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Map of source field name to column name and type
 	Columns []*ColumnSchema `protobuf:"bytes,1,rep,name=columns,proto3" json:"columns,omitempty"`
-	// should we include ALL source fields in addition to any defined columns, or ONLY include the columns defined
+	// deprecated: use source_columns
+	//
+	// Deprecated: Marked as deprecated in plugin.proto.
 	AutomapSourceFields bool `protobuf:"varint,2,opt,name=automap_source_fields,json=automapSourceFields,proto3" json:"automap_source_fields,omitempty"`
-	// should we exclude any source fields from the output (only applicable if automap_source_fields is true)
+	// deprecated: use source_columns
+	//
+	// Deprecated: Marked as deprecated in plugin.proto.
 	ExcludeSourceFields []string `protobuf:"bytes,3,rep,name=exclude_source_fields,json=excludeSourceFields,proto3" json:"exclude_source_fields,omitempty"`
 	// table description
 	Description string `protobuf:"bytes,4,opt,name=description,proto3" json:"description,omitempty"`
 	// the default null value to use for the table
 	NullValue string `protobuf:"bytes,5,opt,name=null_value,json=nullValue,proto3" json:"null_value,omitempty"`
 	// the table name
-	Name          string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	Name string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
+	// a pattern to select which source columns to auto map
+	Select        string `protobuf:"bytes,7,opt,name=select,proto3" json:"select,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -637,6 +643,7 @@ func (x *Schema) GetColumns() []*ColumnSchema {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in plugin.proto.
 func (x *Schema) GetAutomapSourceFields() bool {
 	if x != nil {
 		return x.AutomapSourceFields
@@ -644,6 +651,7 @@ func (x *Schema) GetAutomapSourceFields() bool {
 	return false
 }
 
+// Deprecated: Marked as deprecated in plugin.proto.
 func (x *Schema) GetExcludeSourceFields() []string {
 	if x != nil {
 		return x.ExcludeSourceFields
@@ -668,6 +676,13 @@ func (x *Schema) GetNullValue() string {
 func (x *Schema) GetName() string {
 	if x != nil {
 		return x.Name
+	}
+	return ""
+}
+
+func (x *Schema) GetSelect() string {
+	if x != nil {
+		return x.Select
 	}
 	return ""
 }
@@ -2741,15 +2756,16 @@ const file_plugin_proto_rawDesc = "" +
 	"\tfrom_time\x18\x03 \x01(\v2\x17.proto.ResolvedFromTimeR\bfromTime\"c\n" +
 	"\x10ResolvedFromTime\x127\n" +
 	"\tfrom_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x12\x16\n" +
-	"\x06source\x18\x02 \x01(\tR\x06source\"\xf4\x01\n" +
+	"\x06source\x18\x02 \x01(\tR\x06source\"\x94\x02\n" +
 	"\x06Schema\x12-\n" +
-	"\acolumns\x18\x01 \x03(\v2\x13.proto.ColumnSchemaR\acolumns\x122\n" +
-	"\x15automap_source_fields\x18\x02 \x01(\bR\x13automapSourceFields\x122\n" +
-	"\x15exclude_source_fields\x18\x03 \x03(\tR\x13excludeSourceFields\x12 \n" +
+	"\acolumns\x18\x01 \x03(\v2\x13.proto.ColumnSchemaR\acolumns\x126\n" +
+	"\x15automap_source_fields\x18\x02 \x01(\bB\x02\x18\x01R\x13automapSourceFields\x126\n" +
+	"\x15exclude_source_fields\x18\x03 \x03(\tB\x02\x18\x01R\x13excludeSourceFields\x12 \n" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
 	"\n" +
 	"null_value\x18\x05 \x01(\tR\tnullValue\x12\x12\n" +
-	"\x04name\x18\x06 \x01(\tR\x04name\"\xb8\x02\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\x12\x16\n" +
+	"\x06select\x18\a \x01(\tR\x06select\"\xb8\x02\n" +
 	"\fColumnSchema\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1f\n" +
 	"\vsource_name\x18\x02 \x01(\tR\n" +

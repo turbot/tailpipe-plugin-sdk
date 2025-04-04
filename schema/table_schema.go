@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/danwakefield/fnmatch"
 	"github.com/itchyny/timefmt-go"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
@@ -14,24 +15,21 @@ import (
 type TableSchema struct {
 	Name    string
 	Columns []*ColumnSchema
-	// should we include ALL source fields in addition to any defined columns, or ONLY include the columns defined
-	AutoMapSourceFields bool
-	// should we exclude any source fields from the output (only applicable if automap_source_fields is true)
-	ExcludeSourceFields []string
+	// optional pattern to match source fields to include in the schema
+	Select string
 	// the table description (optional)
 	Description string
 	// the default null value for the table (may be overridden for specific columns)
-	NullValue string
+	NullIf string
 }
 
 func (r *TableSchema) ToProto() *proto.Schema {
 	var res = &proto.Schema{
-		Name:                r.Name,
-		Columns:             make([]*proto.ColumnSchema, len(r.Columns)),
-		AutomapSourceFields: r.AutoMapSourceFields,
-		ExcludeSourceFields: r.ExcludeSourceFields,
-		Description:         r.Description,
-		NullValue:           r.NullValue,
+		Name:        r.Name,
+		Columns:     make([]*proto.ColumnSchema, len(r.Columns)),
+		Description: r.Description,
+		NullValue:   r.NullIf,
+		Select:      r.Select,
 	}
 
 	for i, c := range r.Columns {
@@ -51,12 +49,11 @@ func (r *TableSchema) AsMap() map[string]*ColumnSchema {
 
 func TableSchemaFromProto(p *proto.Schema) *TableSchema {
 	var res = &TableSchema{
-		Name:                p.Name,
-		Columns:             make([]*ColumnSchema, 0, len(p.Columns)),
-		AutoMapSourceFields: p.AutomapSourceFields,
-		ExcludeSourceFields: p.ExcludeSourceFields,
-		Description:         p.Description,
-		NullValue:           p.NullValue,
+		Name:        p.Name,
+		Columns:     make([]*ColumnSchema, 0, len(p.Columns)),
+		Select:      p.Select,
+		Description: p.Description,
+		NullIf:      p.NullValue,
 	}
 	for _, c := range p.Columns {
 		res.Columns = append(res.Columns, ColumnFromProto(c))
@@ -74,17 +71,18 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 	schemaMap := r.AsMap()
 
-	if r.AutoMapSourceFields {
-		// build map of excluded fields
-		excludeMap := utils.SliceToLookup(r.ExcludeSourceFields)
+	// do we have a pattern for selecting source fields? If not, exclude them all
+	if r.Select != "" {
 		for k, v := range sourceMap {
-			// if. this field is NOT excluded, we do not have a schema for it, and it is not null,  add it to the result as is
-			_, exclude := excludeMap[k]
+			// does this column match the pattern?
+			matchPattern := fnmatch.Match(r.Select, k, fnmatch.FNM_IGNORECASE)
+			// do we already have a schema for this column?
 			_, haveSchema := schemaMap[k]
-			isNull := r.NullValue != "" && v == r.NullValue
+			// is the value null?
+			isNull := r.NullIf != "" && v == r.NullIf
 
-			if !exclude && !haveSchema && !isNull {
-				// just set the value
+			// should we include this source value?
+			if matchPattern && !haveSchema && !isNull {
 				res[k] = v
 			}
 		}
@@ -168,7 +166,7 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 
 func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
 	// TODO KAI check default
-	nullValue := r.NullValue
+	nullValue := r.NullIf
 	if c.NullValue != "" {
 		nullValue = c.NullValue
 	}
@@ -176,7 +174,7 @@ func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
 }
 
 func (r *TableSchema) Complete() bool {
-	return len(r.columnsWithNoType()) == 0 && !r.AutoMapSourceFields
+	return len(r.columnsWithNoType()) == 0 && r.Select == ""
 }
 
 func (r *TableSchema) columnsWithNoType() []string {
@@ -234,19 +232,7 @@ func (r *TableSchema) MergeWithCommonSchema() *TableSchema {
 	}
 
 	// Start with a copy of our schema
-	merged := &TableSchema{
-		Name:                r.Name,
-		Columns:             make([]*ColumnSchema, len(r.Columns)),
-		AutoMapSourceFields: r.AutoMapSourceFields,
-		ExcludeSourceFields: r.ExcludeSourceFields,
-		Description:         r.Description,
-		NullValue:           r.NullValue,
-	}
-
-	// Copy our columns
-	for i, col := range r.Columns {
-		merged.Columns[i] = col.Clone()
-	}
+	merged := r.Clone()
 
 	// Create map for efficient lookup
 	mergedMap := merged.AsMap()
@@ -274,27 +260,35 @@ func (r *TableSchema) MergeWithCommonSchema() *TableSchema {
 	return merged
 }
 
+func (r *TableSchema) Clone() *TableSchema {
+	merged := &TableSchema{
+		Name:        r.Name,
+		Columns:     make([]*ColumnSchema, len(r.Columns)),
+		Select:      r.Select,
+		Description: r.Description,
+		NullIf:      r.NullIf,
+	}
+
+	// Copy our columns
+	for i, col := range r.Columns {
+		merged.Columns[i] = col.Clone()
+	}
+	return merged
+}
+
 // WithSourceFieldsCleared returns a copy with the source fields set the the fcolumn names - this is used to create the parquet schema
 // SourceName refers to one of 2 things depdending on where the schema is used
 // 1. When the schemas is used by a mapper, SourceName refers to the field name in the raw row data
 // 2. When the schema is used by the JSONL conversion, SourceName refers to the column name in the JSONL
 func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
-	res := &TableSchema{
-		Name:                r.Name,
-		Columns:             make([]*ColumnSchema, len(r.Columns)),
-		AutoMapSourceFields: r.AutoMapSourceFields,
-		ExcludeSourceFields: r.ExcludeSourceFields,
-		Description:         r.Description,
-		NullValue:           r.NullValue,
-	}
+	cloned := r.Clone()
 
-	for i, c := range r.Columns {
-		clone := c.Clone()
+	for i, c := range cloned.Columns {
 		// set the source name to the column name
-		clone.SourceName = clone.ColumnName
-		res.Columns[i] = clone
+		c.SourceName = c.ColumnName
+		cloned.Columns[i] = c
 	}
-	return res
+	return cloned
 }
 
 // NormaliseColumnTypes normalises the column types to lower case

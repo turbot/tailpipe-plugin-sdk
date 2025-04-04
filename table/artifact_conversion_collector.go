@@ -289,20 +289,17 @@ func getCopyQuery(table, partition, destFile string, columns []string, tableSche
 		}
 	}
 
-	// Build remaining columns clause if auto-mapping is enabled
-	if tableSchema.AutoMapSourceFields {
-		// Quote all remaining column names and sort them for consistent order
-		var quotedColumns []string
-		var remainingColumns []string
-		for col := range selectColumnMap {
-			remainingColumns = append(remainingColumns, col)
-		}
-		sort.Strings(remainingColumns)
-		for _, col := range remainingColumns {
-			quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, col))
-		}
-		selectClauses = append(selectClauses, quotedColumns...)
+	// Quote all remaining column names and sort them for consistent order
+	var quotedColumns []string
+	var remainingColumns []string
+	for col := range selectColumnMap {
+		remainingColumns = append(remainingColumns, col)
 	}
+	sort.Strings(remainingColumns)
+	for _, col := range remainingColumns {
+		quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, col))
+	}
+	selectClauses = append(selectClauses, quotedColumns...)
 
 	// Build common fields clauses after mapped columns
 	commonFieldsClauses := getCommonFieldsSelectClauses(table, partition, ingestionTime)

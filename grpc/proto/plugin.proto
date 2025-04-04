@@ -101,16 +101,18 @@ message ResolvedFromTime {
 message Schema {
   // Map of source field name to column name and type
   repeated ColumnSchema columns = 1;
-  // should we include ALL source fields in addition to any defined columns, or ONLY include the columns defined
-  bool automap_source_fields = 2;
-  // should we exclude any source fields from the output (only applicable if automap_source_fields is true)
-  repeated string exclude_source_fields = 3;
+  // deprecated: use source_columns
+  bool automap_source_fields = 2 [deprecated = true];
+  // deprecated: use source_columns
+  repeated string exclude_source_fields = 3 [deprecated = true];
   // table description
   string description = 4;
   // the default null value to use for the table
   string null_value = 5;
   // the table name
   string name = 6;
+  // a pattern to select which source columns to auto map
+  string select = 7;
 }
 
 message ColumnSchema {
