@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
-	"sync/atomic"
 
 	gtypes "github.com/turbot/go-kit/types"
 	"github.com/turbot/pipe-fittings/v2/utils"
@@ -267,26 +266,18 @@ func (c *RowEnrichmentCollector[R]) onRowEnriched(ctx context.Context, row R) er
 	// so we do need to write a JSONL file
 	// put the rows to write in a temp variable and clear the buffer so other threads can keep writing
 	rowsToWrite := c.rowBuffer
+	// TODO make more efficient - preallocate pair of buffers
 	c.rowBuffer = make([]any, 0, JSONLChunkSize)
-	// calculate the chunk number to write
-	chunkNumber := c.calcChunkNumber()
+	// get the current chunk number into a local var
+	chunkNumber := c.chunkCount
+	// increment the chunk count (inside the lock)
+	c.chunkCount++
+
 	// unlock the row buffer lock before writing - we can write concurrently as long we lock the buffer and rowCount correctly
 	c.rowBufferLock.Unlock()
 
 	// write the chunk to the JSONL file
 	return c.writeChunk(ctx, rowsToWrite, chunkNumber)
-}
-
-// calcChunkNumber calculates the chunk number based on the current row count
-func (c *RowEnrichmentCollector[R]) calcChunkNumber() int32 {
-	// determine chunk number from row count
-	// NOTE: we are doing this INSIDE THE LOCK to ensure no-one else can increment the row count
-	chunkNumber := int32(c.rowCount / JSONLChunkSize) //nolint:gosec//chunkNumber will not overflow
-	// check for final partial chunk
-	if c.rowCount%JSONLChunkSize > 0 {
-		chunkNumber++
-	}
-	return chunkNumber
 }
 
 // onRowError is called when a row operation (map/enrich/validate) fails, it updates our status but doesn't return an error back to source
@@ -320,9 +311,6 @@ func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite 
 		return fmt.Errorf("failed to write JSONL file: %w", err)
 	}
 
-	// increment the chunk count
-	atomic.AddInt32(&c.chunkCount, 1)
-
 	// notify observers, passing the collection state data
 	return c.onChunk(ctx, chunkNumber)
 }
@@ -332,7 +320,7 @@ func (c *RowEnrichmentCollector[R]) writeRemainingRows(ctx context.Context) (int
 
 	// tell our writer to write any remaining rows
 	if len(c.rowBuffer) > 0 {
-		if err := c.writeChunk(ctx, c.rowBuffer, c.calcChunkNumber()); err != nil {
+		if err := c.writeChunk(ctx, c.rowBuffer, c.chunkCount); err != nil {
 			slog.Error("failed to write final chunk", "error", err)
 			return 0, 0, fmt.Errorf("failed to write final chunk: %w", err)
 		}
