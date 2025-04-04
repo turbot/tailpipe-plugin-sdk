@@ -268,7 +268,7 @@ func (c *RowEnrichmentCollector[R]) onRowEnriched(ctx context.Context, row R) er
 	// put the rows to write in a temp variable and clear the buffer so other threads can keep writing
 	rowsToWrite := c.rowBuffer
 	c.rowBuffer = make([]any, 0, JSONLChunkSize)
-
+	// calculate the chunk number to write
 	chunkNumber := c.calcChunkNumber()
 	// unlock the row buffer lock before writing - we can write concurrently as long we lock the buffer and rowCount correctly
 	c.rowBufferLock.Unlock()
