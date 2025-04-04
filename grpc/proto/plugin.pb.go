@@ -601,7 +601,7 @@ type Schema struct {
 	// the table name
 	Name string `protobuf:"bytes,6,opt,name=name,proto3" json:"name,omitempty"`
 	// a pattern to select which source columns to auto map
-	Select        string `protobuf:"bytes,7,opt,name=select,proto3" json:"select,omitempty"`
+	MapFields     []string `protobuf:"bytes,7,rep,name=map_fields,json=mapFields,proto3" json:"map_fields,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -680,11 +680,11 @@ func (x *Schema) GetName() string {
 	return ""
 }
 
-func (x *Schema) GetSelect() string {
+func (x *Schema) GetMapFields() []string {
 	if x != nil {
-		return x.Select
+		return x.MapFields
 	}
-	return ""
+	return nil
 }
 
 type ColumnSchema struct {
@@ -2756,7 +2756,7 @@ const file_plugin_proto_rawDesc = "" +
 	"\tfrom_time\x18\x03 \x01(\v2\x17.proto.ResolvedFromTimeR\bfromTime\"c\n" +
 	"\x10ResolvedFromTime\x127\n" +
 	"\tfrom_time\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x12\x16\n" +
-	"\x06source\x18\x02 \x01(\tR\x06source\"\x94\x02\n" +
+	"\x06source\x18\x02 \x01(\tR\x06source\"\x9b\x02\n" +
 	"\x06Schema\x12-\n" +
 	"\acolumns\x18\x01 \x03(\v2\x13.proto.ColumnSchemaR\acolumns\x126\n" +
 	"\x15automap_source_fields\x18\x02 \x01(\bB\x02\x18\x01R\x13automapSourceFields\x126\n" +
@@ -2764,8 +2764,9 @@ const file_plugin_proto_rawDesc = "" +
 	"\vdescription\x18\x04 \x01(\tR\vdescription\x12\x1d\n" +
 	"\n" +
 	"null_value\x18\x05 \x01(\tR\tnullValue\x12\x12\n" +
-	"\x04name\x18\x06 \x01(\tR\x04name\x12\x16\n" +
-	"\x06select\x18\a \x01(\tR\x06select\"\xb8\x02\n" +
+	"\x04name\x18\x06 \x01(\tR\x04name\x12\x1d\n" +
+	"\n" +
+	"map_fields\x18\a \x03(\tR\tmapFields\"\xb8\x02\n" +
 	"\fColumnSchema\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1f\n" +
 	"\vsource_name\x18\x02 \x01(\tR\n" +

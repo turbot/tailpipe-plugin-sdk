@@ -204,11 +204,8 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 		// cast the source to an ArtifactSource and download the artifact
 		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
-			// TODO #sync think about making this wait group easier to track
-			// it is either closed by OnArtifactDownloaded or here
-			// close the wait group
+			// if the downloading failed, we will not have called OnArtifactDownloaded so the wait group will not be decremented
 			a.artifactExtractWg.Done()
-
 			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
 			a.NotifyError(ctx, executionId, err)
 		}
@@ -221,7 +218,18 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	return nil
 }
 
-func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, info *types.DownloadedArtifactInfo) error {
+func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, info *types.DownloadedArtifactInfo) (err error) {
+	// if we have a Null loader, do not start the goroutine to process the artifact
+	nullLoader := a.hasNullLoader()
+
+	// if we have a null loader and there is no error, we need to decrement the wait group here
+	// (if there is an error the calling code will decrement it)
+	defer func() {
+		if nullLoader && err == nil {
+			a.artifactExtractWg.Done()
+		}
+	}()
+
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
@@ -237,33 +245,39 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	// this may lead to sending a completion event before the artifact has been processed
 	// we need to ensure the wait group is not closed before we leave this function
 	//so increment the wait group again and
-	a.artifactExtractWg.Add(1)
-	defer a.artifactExtractWg.Done()
+	//a.artifactExtractWg.Add(1)
+	//defer a.artifactExtractWg.Done()
 
-	// extract asynchronously
-	go func() {
-		extractStart := time.Now()
+	// if we DO NOT have a null loader, start the go routine to process the artifact
+	// (if we have a null loader, we must have a ArtifactConversionCollector which will do the processing)
+	if !nullLoader {
+		// extract asynchronously
+		go func() {
+			extractStart := time.Now()
 
-		// load and extract the artifact
-		err := a.processArtifact(ctx, info)
+			// load and extract the artifact
+			err := a.processArtifact(ctx, info)
 
-		// update extract active duration
-		activeDuration := time.Since(extractStart)
-		slog.Debug("ArtifactDownloaded - extraction complete", "artifact", info.LocalName, "duration (ms)", activeDuration.Milliseconds())
+			// update extract active duration
+			activeDuration := time.Since(extractStart)
+			slog.Debug("ArtifactDownloaded - extraction complete", "artifact", info.LocalName, "duration (ms)", activeDuration.Milliseconds())
 
-		// close wait group whether there is an error or not
-		a.artifactExtractWg.Done()
+			// close wait group whether there is an error or not
+			a.artifactExtractWg.Done()
 
-		if err != nil {
-			slog.Error("error processing artifact", "artifact", info.Name, "error", err)
-			a.NotifyError(ctx, executionId, err)
-		}
-	}()
+			if err != nil {
+				slog.Error("error processing artifact", "artifact", info.Name, "error", err)
+				a.NotifyError(ctx, executionId, err)
+			}
+		}()
+	}
 
 	// notify observers of download
 	if err := a.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info)); err != nil {
-		return fmt.Errorf("error processing artifact: %w", err)
+		slog.Error("error processing artifact", "artifact", info.Name, "error", err)
+		a.NotifyError(ctx, executionId, fmt.Errorf("error processing artifact: %w", err))
 	}
+
 	return nil
 }
 
@@ -536,4 +550,8 @@ func (a *ArtifactSourceImpl[S, T]) walkDirNode(targetPath string, metadata map[s
 	}
 
 	return fs.SkipDir
+}
+
+func (a *ArtifactSourceImpl[S, T]) hasNullLoader() bool {
+	return a.Loader != nil && a.Loader.Identifier() == artifact_loader.NullLoaderIdentifier
 }

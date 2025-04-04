@@ -112,7 +112,7 @@ message Schema {
   // the table name
   string name = 6;
   // a pattern to select which source columns to auto map
-  string select = 7;
+  repeated string map_fields = 7;
 }
 
 message ColumnSchema {

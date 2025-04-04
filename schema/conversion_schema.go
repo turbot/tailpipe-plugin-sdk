@@ -1,7 +1,5 @@
 package schema
 
-import "github.com/danwakefield/fnmatch"
-
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
 type SourceColumnDef struct {
 	Name string
@@ -46,15 +44,15 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 	}
 
 	// Then, if we are in autoMap mode, add any inferred columns that aren't already in the schema and are not excluded
-	if r.Select != "" {
+	if len(r.MapFields) > 0 {
 		for _, c := range inferredSchema.Columns {
 			// if this column exists in the table def, skip it
 			if _, haveColumn := schemaMap[c.ColumnName]; haveColumn {
 				continue
 			}
 
-			// does this column match the pattern?
-			if !fnmatch.Match(r.Select, c.ColumnName, fnmatch.FNM_IGNORECASE) {
+			// does this column match the any of the map fields?
+			if !r.ShouldMapSourceColumn(c.ColumnName) {
 				continue
 			}
 

@@ -2,9 +2,9 @@ package schema
 
 import (
 	"fmt"
+	"path"
 	"strings"
 
-	"github.com/danwakefield/fnmatch"
 	"github.com/itchyny/timefmt-go"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
@@ -15,8 +15,8 @@ import (
 type TableSchema struct {
 	Name    string
 	Columns []*ColumnSchema
-	// optional pattern to match source fields to include in the schema
-	Select string
+	// optional list of source columns to include
+	MapFields []string
 	// the table description (optional)
 	Description string
 	// the default null value for the table (may be overridden for specific columns)
@@ -29,7 +29,7 @@ func (r *TableSchema) ToProto() *proto.Schema {
 		Columns:     make([]*proto.ColumnSchema, len(r.Columns)),
 		Description: r.Description,
 		NullValue:   r.NullIf,
-		Select:      r.Select,
+		MapFields:   r.MapFields,
 	}
 
 	for i, c := range r.Columns {
@@ -51,7 +51,7 @@ func TableSchemaFromProto(p *proto.Schema) *TableSchema {
 	var res = &TableSchema{
 		Name:        p.Name,
 		Columns:     make([]*ColumnSchema, 0, len(p.Columns)),
-		Select:      p.Select,
+		MapFields:   p.MapFields,
 		Description: p.Description,
 		NullIf:      p.NullValue,
 	}
@@ -72,10 +72,10 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 	schemaMap := r.AsMap()
 
 	// do we have a pattern for selecting source fields? If not, exclude them all
-	if r.Select != "" {
+	if len(r.MapFields) > 0 {
 		for k, v := range sourceMap {
 			// does this column match the pattern?
-			matchPattern := fnmatch.Match(r.Select, k, fnmatch.FNM_IGNORECASE)
+			matchPattern := r.ShouldMapSourceColumn(k)
 			// do we already have a schema for this column?
 			_, haveSchema := schemaMap[k]
 			// is the value null?
@@ -174,7 +174,7 @@ func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
 }
 
 func (r *TableSchema) Complete() bool {
-	return len(r.columnsWithNoType()) == 0 && r.Select == ""
+	return len(r.columnsWithNoType()) == 0 && len(r.MapFields) == 0
 }
 
 func (r *TableSchema) columnsWithNoType() []string {
@@ -264,7 +264,7 @@ func (r *TableSchema) Clone() *TableSchema {
 	merged := &TableSchema{
 		Name:        r.Name,
 		Columns:     make([]*ColumnSchema, len(r.Columns)),
-		Select:      r.Select,
+		MapFields:   r.MapFields,
 		Description: r.Description,
 		NullIf:      r.NullIf,
 	}
@@ -296,4 +296,13 @@ func (r *TableSchema) NormaliseColumnTypes() {
 	for _, c := range r.Columns {
 		c.NormaliseColumnTypes()
 	}
+}
+
+func (r *TableSchema) ShouldMapSourceColumn(columnName string) bool {
+	for _, mapField := range r.MapFields {
+		if matches, _ := path.Match(mapField, columnName); matches {
+			return true
+		}
+	}
+	return false
 }
