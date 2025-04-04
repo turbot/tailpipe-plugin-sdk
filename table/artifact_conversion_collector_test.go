@@ -25,7 +25,7 @@ func TestGetTempTableQuery(t *testing.T) {
 			sourceFile: "test.jsonl",
 			columns:    []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				Select: "*",
+				MapFields: []string{"*"},
 			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
@@ -42,7 +42,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			sourceFile: "test.jsonl",
 			columns:    []string{"id", "name", "timestamp", "account_id"},
 			schema: &schema.TableSchema{
-				Select: "*",
+				MapFields: []string{"*"},
 				Columns: []*schema.ColumnSchema{
 					{
 						SourceName:  "account_id",
@@ -66,7 +66,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			sourceFile: "test.csv",
 			columns:    []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				Select: "*",
+				MapFields: []string{"*"},
 			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
@@ -83,7 +83,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			sourceFile: "test.csv",
 			columns:    []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				Select: "",
+				MapFields: []string{},
 			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
@@ -137,7 +137,7 @@ func TestGetCopyQuery(t *testing.T) {
 			format:  &formats.JsonLines{},
 			columns: []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				Select: "*",
+				MapFields: []string{"*"},
 			},
 			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
 copy (select
@@ -163,7 +163,7 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			format:  &formats.JsonLines{},
 			columns: []string{"id", "name", "timestamp", "account_id"},
 			schema: &schema.TableSchema{
-				Select: "*",
+				MapFields: []string{"*"},
 				Columns: []*schema.ColumnSchema{
 					{
 						SourceName:  "account_id",
@@ -197,7 +197,7 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			format:  &formats.Delimited{},
 			columns: []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				Select: "*",
+				MapFields: []string{"*"},
 				Columns: []*schema.ColumnSchema{
 					{
 						ColumnName: "tp_timestamp",
@@ -234,7 +234,7 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			format:  &formats.Delimited{},
 			columns: []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				Select: "*",
+				MapFields: []string{"*"},
 				Columns: []*schema.ColumnSchema{
 					{
 						ColumnName:  "name",
@@ -267,7 +267,7 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			format:  &formats.Delimited{},
 			columns: []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				Select: "*",
+				MapFields: []string{"*"},
 				Columns: []*schema.ColumnSchema{
 					{
 						ColumnName:  "tp_timestamp",

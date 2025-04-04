@@ -23,7 +23,7 @@ func Test_NewConversionSchemaWithInferredSchema(t *testing.T) {
 						SourceName: "existing_col",
 					},
 				},
-				Select: "*",
+				MapFields: []string{"*"},
 			},
 			inferredSchema: &TableSchema{
 				Columns: []*ColumnSchema{
@@ -59,7 +59,7 @@ func Test_NewConversionSchemaWithInferredSchema(t *testing.T) {
 						SourceName: "existing_col",
 					},
 				},
-				Select: "",
+				MapFields: []string{},
 			},
 			inferredSchema: &TableSchema{
 				Columns: []*ColumnSchema{
