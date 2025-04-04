@@ -2,7 +2,7 @@ module github.com/turbot/tailpipe-plugin-sdk
 
 go 1.24
 
-replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
+//replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
