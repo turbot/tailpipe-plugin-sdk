@@ -281,7 +281,7 @@ func (c *RowEnrichmentCollector[R]) onRowEnriched(ctx context.Context, row R) er
 func (c *RowEnrichmentCollector[R]) calcChunkNumber() int32 {
 	// determine chunk number from row count
 	// NOTE: we are doing this INSIDE THE LOCK to ensure no-one else can increment the row count
-	chunkNumber := int32(c.rowCount / JSONLChunkSize)
+	chunkNumber := int32(c.rowCount / JSONLChunkSize) //nolint:gosec//chunkNumber will not overflow
 	// check for final partial chunk
 	if c.rowCount%JSONLChunkSize > 0 {
 		chunkNumber++
