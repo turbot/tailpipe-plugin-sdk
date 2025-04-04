@@ -258,15 +258,18 @@ func getCommonFieldsSelectClauses(table, partition string, ingestionTime time.Ti
 	return commonFieldsClauses
 }
 
-// getCopyQuery generates the SQL query to load data fromn the tamp table, enrich with any additional column mappings
+// getCopyQuery generates the SQL query to load data from the tamp table, enrich with any additional column mappings
 // transform, and copy to JSONL. The row count is returned.
-func getCopyQuery(table, partition, destFile string, columns []string, tableSchema *schema.TableSchema, ingestionTime time.Time) string {
+func getCopyQuery(table, partition, destFile string, sourceColumns []string, tableSchema *schema.TableSchema, ingestionTime time.Time) string {
 	// Create a map of the existing column names
-	selectColumnMap := utils.SliceToLookup(columns)
+	sourceColumnMap := utils.SliceToLookup(sourceColumns)
 
 	var selectClauses []string
+	// keep track of whether we have mapped tp_index and tp_timestamp - first check do they exist in source data
+	_, tpIndexMapped := sourceColumnMap[constants.TpIndex]
+	_, tpTimestampMapped := sourceColumnMap[constants.TpTimestamp]
 
-	// Build mapped columns clauses first
+	// Build mapped sourceColumns clauses first
 	if len(tableSchema.Columns) > 0 {
 		for _, column := range tableSchema.Columns {
 
@@ -283,16 +286,25 @@ func getCopyQuery(table, partition, destFile string, columns []string, tableSche
 				sourceExpression = fmt.Sprintf("\"%s\"", column.ColumnName)
 			}
 
+			// coalesce to the default index
+			if column.ColumnName == constants.TpIndex {
+				tpIndexMapped = true
+				sourceExpression = fmt.Sprintf("coalesce(%s, '%s')", sourceExpression, schema.DefaultIndex)
+			}
+			if column.ColumnName == constants.TpTimestamp {
+				tpTimestampMapped = true
+			}
+
 			selectClauses = append(selectClauses, fmt.Sprintf(`%s as "%s"`, sourceExpression, column.ColumnName))
-			// remove the output name from the map of existing columns to select
-			delete(selectColumnMap, column.ColumnName)
+			// remove the output name from the map of existing sourceColumns to select
+			delete(sourceColumnMap, column.ColumnName)
 		}
 	}
 
 	// Quote all remaining column names and sort them for consistent order
 	var quotedColumns []string
 	var remainingColumns []string
-	for col := range selectColumnMap {
+	for col := range sourceColumnMap {
 		remainingColumns = append(remainingColumns, col)
 	}
 	sort.Strings(remainingColumns)
@@ -301,34 +313,22 @@ func getCopyQuery(table, partition, destFile string, columns []string, tableSche
 	}
 	selectClauses = append(selectClauses, quotedColumns...)
 
-	// Build common fields clauses after mapped columns
+	// Build common fields clauses after mapped sourceColumns
 	commonFieldsClauses := getCommonFieldsSelectClauses(table, partition, ingestionTime)
 	selectClauses = append(selectClauses, commonFieldsClauses...)
 
-	// Add tp_date after tp_timestamp is defined
-	selectClauses = append(selectClauses, `case
+	// if we have a mapping for tp_timestamp, add tp_date as well
+	if tpTimestampMapped {
+		// Add tp_date after tp_timestamp is defined
+		selectClauses = append(selectClauses, `case
 		when tp_timestamp is not null
 		then date_trunc('day', tp_timestamp::timestamp)
 	end as tp_date`)
+	}
 
-	// Add tp_index coalesce after all columns are defined
-	// Check if tp_index is already mapped
-	_, tpExists := selectColumnMap[constants.TpIndex]
-	if !tpExists {
-		for _, column := range tableSchema.Columns {
-			if column.ColumnName == constants.TpIndex {
-				tpExists = true
-				break
-			}
-		}
-
-		// if tp_index exists in the source data or it there is a mapping, we need to coalesce it
-		// otherwise we can use the default value
-		if tpExists {
-			selectClauses = append(selectClauses, fmt.Sprintf("coalesce(tp_index, '%s') as tp_index", schema.DefaultIndex))
-		} else {
-			selectClauses = append(selectClauses, fmt.Sprintf("'%s' as tp_index", schema.DefaultIndex))
-		}
+	// if tp_index is not mapped, add the default index
+	if !tpIndexMapped {
+		selectClauses = append(selectClauses, fmt.Sprintf("'%s' as tp_index", schema.DefaultIndex))
 	}
 
 	// Build the query

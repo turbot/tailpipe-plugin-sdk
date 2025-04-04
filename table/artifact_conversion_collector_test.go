@@ -25,7 +25,7 @@ func TestGetTempTableQuery(t *testing.T) {
 			sourceFile: "test.jsonl",
 			columns:    []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				AutoMapSourceFields: true,
+				Select: "*",
 			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
@@ -42,7 +42,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			sourceFile: "test.jsonl",
 			columns:    []string{"id", "name", "timestamp", "account_id"},
 			schema: &schema.TableSchema{
-				AutoMapSourceFields: true,
+				Select: "*",
 				Columns: []*schema.ColumnSchema{
 					{
 						SourceName:  "account_id",
@@ -66,7 +66,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			sourceFile: "test.csv",
 			columns:    []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				AutoMapSourceFields: true,
+				Select: "*",
 			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
@@ -83,7 +83,7 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 			sourceFile: "test.csv",
 			columns:    []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				AutoMapSourceFields: false,
+				Select: "",
 			},
 			expectedQuery: `-- Create temp table from source data
 create temp table temp_data as
@@ -137,7 +137,7 @@ func TestGetCopyQuery(t *testing.T) {
 			format:  &formats.JsonLines{},
 			columns: []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				AutoMapSourceFields: true,
+				Select: "*",
 			},
 			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
 copy (select
@@ -148,11 +148,7 @@ copy (select
     'test_partition' as tp_partition,
     gen_random_uuid() as tp_id,
     '%s' as tp_ingest_timestamp,
-    case
-		when tp_timestamp is not null
-		then date_trunc('day', tp_timestamp::timestamp)
-	end as tp_date,
-    coalesce(tp_index, 'default') as tp_index
+    'default' as tp_index
 from temp_data)
 to 'test.jsonl' (
     format json
@@ -167,7 +163,7 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			format:  &formats.JsonLines{},
 			columns: []string{"id", "name", "timestamp", "account_id"},
 			schema: &schema.TableSchema{
-				AutoMapSourceFields: true,
+				Select: "*",
 				Columns: []*schema.ColumnSchema{
 					{
 						SourceName:  "account_id",
@@ -178,7 +174,7 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			},
 			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
 copy (select
-    "account_id" as "tp_index",
+    coalesce("account_id", 'default') as "tp_index",
     "account_id",
     "id",
     "name",
@@ -186,11 +182,7 @@ copy (select
     'test_table' as tp_table,
     'test_partition' as tp_partition,
     gen_random_uuid() as tp_id,
-    '%s' as tp_ingest_timestamp,
-    case
-		when tp_timestamp is not null
-		then date_trunc('day', tp_timestamp::timestamp)
-	end as tp_date
+    '%s' as tp_ingest_timestamp
 from temp_data)
 to 'test.jsonl' (
     format json
@@ -201,14 +193,21 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			expectedError: false,
 		},
 		{
-			name:    "CSV with schema",
+			name:    "CSV with schema and tp_timestamp",
 			format:  &formats.Delimited{},
 			columns: []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				AutoMapSourceFields: true,
+				Select: "*",
+				Columns: []*schema.ColumnSchema{
+					{
+						ColumnName: "tp_timestamp",
+						SourceName: "timestamp",
+					},
+				},
 			},
 			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
 copy (select
+    "timestamp" as "tp_timestamp",
     "id",
     "name",
     "timestamp",
@@ -220,34 +219,7 @@ copy (select
 		when tp_timestamp is not null
 		then date_trunc('day', tp_timestamp::timestamp)
 	end as tp_date,
-    coalesce(tp_index, 'default') as tp_index
-from temp_data)
-to 'test.jsonl' (
-    format json
-);
-
--- Get row count
-select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
-			expectedError: false,
-		},
-		{
-			name:    "CSV without auto-map",
-			format:  &formats.Delimited{},
-			columns: []string{"id", "name", "timestamp"},
-			schema: &schema.TableSchema{
-				AutoMapSourceFields: false,
-			},
-			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
-copy (select
-    'test_table' as tp_table,
-    'test_partition' as tp_partition,
-    gen_random_uuid() as tp_id,
-    '%s' as tp_ingest_timestamp,
-    case
-		when tp_timestamp is not null
-		then date_trunc('day', tp_timestamp::timestamp)
-	end as tp_date,
-    coalesce(tp_index, 'default') as tp_index
+    'default' as tp_index
 from temp_data)
 to 'test.jsonl' (
     format json
@@ -262,7 +234,7 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			format:  &formats.Delimited{},
 			columns: []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				AutoMapSourceFields: true,
+				Select: "*",
 				Columns: []*schema.ColumnSchema{
 					{
 						ColumnName:  "name",
@@ -280,11 +252,7 @@ copy (select
     'test_partition' as tp_partition,
     gen_random_uuid() as tp_id,
     '%s' as tp_ingest_timestamp,
-    case
-		when tp_timestamp is not null
-		then date_trunc('day', tp_timestamp::timestamp)
-	end as tp_date,
-    coalesce(tp_index, 'default') as tp_index
+    'default' as tp_index
 from temp_data)
 to 'test.jsonl' (
     format json
@@ -299,7 +267,7 @@ select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339))
 			format:  &formats.Delimited{},
 			columns: []string{"id", "name", "timestamp"},
 			schema: &schema.TableSchema{
-				AutoMapSourceFields: true,
+				Select: "*",
 				Columns: []*schema.ColumnSchema{
 					{
 						ColumnName:  "tp_timestamp",
@@ -323,7 +291,7 @@ copy (select
 		when tp_timestamp is not null
 		then date_trunc('day', tp_timestamp::timestamp)
 	end as tp_date,
-    coalesce(tp_index, 'default') as tp_index
+    'default' as tp_index
 from temp_data)
 to 'test.jsonl' (
     format json
