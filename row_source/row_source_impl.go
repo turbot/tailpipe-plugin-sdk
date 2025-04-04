@@ -3,13 +3,13 @@ package row_source
 import (
 	"context"
 	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"log/slog"
 	"time"
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
