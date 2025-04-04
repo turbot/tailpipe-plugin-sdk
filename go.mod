@@ -13,7 +13,7 @@ require (
 	github.com/hashicorp/hcl/v2 v2.20.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/itchyny/timefmt-go v0.1.6
-	github.com/marcboeker/go-duckdb v1.8.4
+	github.com/marcboeker/go-duckdb v1.8.3
 	github.com/rs/xid v1.5.0
 	github.com/satyrius/gonx v1.4.0
 	github.com/stretchr/testify v1.10.0
@@ -77,7 +77,6 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.20.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/goccy/go-json v0.10.5 // indirect
 	github.com/goccy/go-yaml v1.11.2 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
