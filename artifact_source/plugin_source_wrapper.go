@@ -233,8 +233,6 @@ func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream
 				return
 			}
 
-			// TODO #error should we quit if we get an error event?
-
 			switch protoEvent.Event.(type) {
 			case *proto.Event_ArtifactDownloadedEvent:
 				// increment the wait group - this would normally be done in OnArtifactDiscovered

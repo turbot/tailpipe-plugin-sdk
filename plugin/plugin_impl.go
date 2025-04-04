@@ -223,16 +223,11 @@ func (p *PluginImpl) SourceCollect(ctx context.Context, req *proto.SourceCollect
 	// create context containing execution id
 	ctx = context_values.WithExecutionId(ctx, req.ExecutionId)
 
+	// source.Collect only returns fatal errors, non-fatal errors are handled by the source sending events
 	err := p.source.Collect(ctx)
-	if err != nil {
-		p.NotifyError(ctx, req.ExecutionId, err)
-	} else {
-		notifyError := p.NotifyObservers(ctx, events.NewSourceCompleteEvent(req.ExecutionId, err))
-		if notifyError != nil {
-			p.NotifyError(ctx, req.ExecutionId, notifyError)
-		}
-	}
-	return err
+
+	// return completion event (passing any fatal errors)
+	return p.NotifyObservers(ctx, events.NewSourceCompleteEvent(req.ExecutionId, err))
 }
 
 // Shutdown is called by Serve when the plugin exits

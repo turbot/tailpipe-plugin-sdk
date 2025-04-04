@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/elastic/go-grok"
+
 	"github.com/turbot/pipe-fittings/v2/filter"
-	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
@@ -204,7 +204,6 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 		// cast the source to an ArtifactSource and download the artifact
 		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
-			// TODO #errors non fatal errors should be aggregated by the plugin - only fatal errors should be sent as error event
 			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
 			a.NotifyError(ctx, executionId, err)
 		}
@@ -251,6 +250,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 		a.artifactExtractWg.Done()
 
 		if err != nil {
+			slog.Error("error processing artifact", "artifact", info.Name, "error", err)
 			a.NotifyError(ctx, executionId, err)
 		}
 	}()
@@ -283,17 +283,12 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 	// load the locally downloaded artifact - decompressing if needed
 	err = loader.Load(ctx, info, artifactChan)
 	if err != nil {
-		return fmt.Errorf("error extracting artifact: %w", err)
+		return fmt.Errorf("%s: loading failed: %w", info.Name, err)
 	}
 
 	var count int64 = 0
 
-	// TODO #errors handle better
-	// raise row events, sending collection state data
-	// we may have thousands of notify errors - just store the first one and the count
-	var notifyError error
-	notifyErrorCount := 0
-	// the loader will return one more more data objects (depending on whether RowPerLine flag is set)
+	// the loader will return one or more data objects (depending on whether RowPerLine flag is set)
 	// range over the data channel and apply extractor if needed
 	for artifactData := range artifactChan {
 
@@ -315,13 +310,8 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 				continue
 			}
 
-			if err := a.OnRow(ctx, rawRow); err != nil {
-				// store the first error
-				if notifyError == nil {
-					notifyError = err
-				}
-				notifyErrorCount++
-			}
+			// errors from OnRow are non-fatal and already handled in RowSourceImpl
+			_ = a.OnRow(ctx, rawRow)
 		}
 	}
 
@@ -338,9 +328,7 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 	}
 
 	slog.Debug("RowSourceImpl processArtifact complete", "artifact", info.LocalName, "rows", count)
-	if notifyErrorCount > 0 {
-		return fmt.Errorf("error extracting %d %s: %w", notifyErrorCount, utils.Pluralize("row", notifyErrorCount), notifyError)
-	}
+
 	return nil
 }
 
