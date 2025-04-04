@@ -91,7 +91,6 @@ func CommonFieldsSchema() *TableSchema {
 				SourceName:  constants.TpSourceName,
 				Type:        "varchar",
 				Description: DefaultCommonFieldDescriptions[constants.TpSourceName],
-				Required:    true,
 			},
 			{
 				ColumnName:  constants.TpSourceLocation,
