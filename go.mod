@@ -13,12 +13,12 @@ require (
 	github.com/hashicorp/hcl/v2 v2.20.1
 	github.com/iancoleman/strcase v0.3.0
 	github.com/itchyny/timefmt-go v0.1.6
-	github.com/marcboeker/go-duckdb/v2 v2.0.3
+	github.com/marcboeker/go-duckdb/v2 v2.1.0
 	github.com/rs/xid v1.5.0
 	github.com/satyrius/gonx v1.4.0
 	github.com/stretchr/testify v1.10.0
 	github.com/turbot/go-kit v1.2.0
-	github.com/turbot/pipe-fittings/v2 v2.3.0
+	github.com/turbot/pipe-fittings/v2 v2.3.1
 	github.com/zclconf/go-cty v1.14.4
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	golang.org/x/sync v0.11.0
@@ -67,12 +67,12 @@ require (
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dgraph-io/ristretto v0.2.0 // indirect
-	github.com/duckdb/duckdb-go-bindings v0.1.12 // indirect
-	github.com/duckdb/duckdb-go-bindings/darwin-amd64 v0.1.7 // indirect
-	github.com/duckdb/duckdb-go-bindings/darwin-arm64 v0.1.7 // indirect
-	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.7 // indirect
-	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.7 // indirect
-	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.7 // indirect
+	github.com/duckdb/duckdb-go-bindings v0.1.13 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-amd64 v0.1.8 // indirect
+	github.com/duckdb/duckdb-go-bindings/darwin-arm64 v0.1.8 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-amd64 v0.1.8 // indirect
+	github.com/duckdb/duckdb-go-bindings/linux-arm64 v0.1.8 // indirect
+	github.com/duckdb/duckdb-go-bindings/windows-amd64 v0.1.8 // indirect
 	github.com/fatih/color v1.17.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
@@ -126,8 +126,8 @@ require (
 	github.com/logrusorgru/aurora v2.0.3+incompatible // indirect
 	github.com/magefile/mage v1.15.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
-	github.com/marcboeker/go-duckdb/arrowmapping v0.0.5 // indirect
-	github.com/marcboeker/go-duckdb/mapping v0.0.5 // indirect
+	github.com/marcboeker/go-duckdb/arrowmapping v0.0.6 // indirect
+	github.com/marcboeker/go-duckdb/mapping v0.0.6 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.15 // indirect
