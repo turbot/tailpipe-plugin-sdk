@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -33,6 +34,9 @@ type ArtifactConversionCollector struct {
 
 	destPath string
 	db       *sql.DB
+	// we only convert one artifact at a time
+	// TODO be a bit smarter about this - we could just avoid sending multiple events concurrently)
+	conversionMut sync.Mutex
 }
 
 func NewArtifactConversionCollector(table CustomTable) *ArtifactConversionCollector {
@@ -55,9 +59,6 @@ func (c *ArtifactConversionCollector) Init(ctx context.Context, req *types.Colle
 	// get the source metadata for this source type
 	// (this returns an error if the source is not supported by the table)
 	sourceMetadata := c.getSourceMetadata()
-
-	// TODO #validate validate no extractor
-	// TODO #validate validate table name does not clash
 
 	// create the source
 	if err := c.initSource(ctx, req, sourceMetadata); err != nil {
@@ -141,6 +142,10 @@ func (c *ArtifactConversionCollector) getSourceMetadata() *SourceMetadata[*types
 }
 
 func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Context, e *events.ArtifactDownloaded) error {
+	// acquire the conversion mutex to ensure we only convert one artifact at a time
+	c.conversionMut.Lock()
+	defer c.conversionMut.Unlock()
+
 	// increment the collection wait group
 	c.collectionWg.Add(1)
 	defer c.collectionWg.Done()
@@ -170,7 +175,7 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 
 func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactDownloaded, destFile string) (int64, error) {
 	// First build query to select source data into temp table and get its columns
-	tempTableQuery, err := c.getTempTableQuery(e.Info.Name)
+	tempTableQuery, err := getTempTableQuery(e.Info.Name, c.table.GetFormat())
 	if err != nil {
 		slog.Error("ArtifactConversionCollector: error getting temp table query", "error", err)
 		return 0, err
@@ -184,13 +189,19 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 	columns := strings.Split(columnsStr, ",")
 
 	// Now that we have the columns, generate and execute the copy query
-	copyQuery := c.getCopyQuery(destFile, columns, e.Info)
+	copyQuery := getCopyQuery(c.req.TableName, c.req.PartitionName, destFile, columns, c.req.CustomTableSchema, time.Now())
 
 	// Execute copy query and get row count
 	row := c.db.QueryRow(copyQuery)
 	var rowCount int64
 
 	if err = row.Scan(&rowCount); err != nil {
+		return 0, err
+	}
+
+	// now drop the temp table
+	if _, err := c.db.Exec("drop table temp_data;"); err != nil {
+		slog.Error("ArtifactConversionCollector: error dropping temp table", "error", err)
 		return 0, err
 	}
 
@@ -201,10 +212,10 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 }
 
 // getTempTableQuery generates the SQL query to create the temp table and return its columns as an array
-func (c *ArtifactConversionCollector) getTempTableQuery(sourceFile string) (string, error) {
-	readArtifactSql, s, err := c.getReadArtifactSql(sourceFile)
+func getTempTableQuery(sourceFile string, format formats.Format) (string, error) {
+	readArtifactSql, err := getReadArtifactSql(sourceFile, format)
 	if err != nil {
-		return s, err
+		return "", err
 	}
 
 	return fmt.Sprintf(`-- Create temp table from source data
@@ -219,10 +230,10 @@ select string_agg(name, ',') from pragma_table_info('temp_data');`,
 
 // getReadArtifactSql generates the SQL to read the artifact based on its format
 // (e.g. for delimited format use the duck db command read_csv)
-func (c *ArtifactConversionCollector) getReadArtifactSql(sourceFile string) (string, string, error) {
+func getReadArtifactSql(sourceFile string, format formats.Format) (string, error) {
 	// Get the read function SQL based on format
 	var readArtifactSql string
-	switch f := c.table.GetFormat().(type) {
+	switch f := format.(type) {
 	case *formats.JsonLines:
 		readArtifactSql = fmt.Sprintf("read_json('%s')", sourceFile)
 	case *formats.Delimited:
@@ -230,77 +241,94 @@ func (c *ArtifactConversionCollector) getReadArtifactSql(sourceFile string) (str
 		csvOpts := f.GetCsvOpts()
 		readArtifactSql = fmt.Sprintf("read_csv('%s', %s)", sourceFile, strings.Join(csvOpts, ", "))
 	default:
-		return "", "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
+		return "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
 	}
-	return readArtifactSql, "", nil
+	return readArtifactSql, nil
 }
 
 // getCommonFieldsSelectClauses generates the SQL clauses to select the common fields which we are able to auto populate
-func (c *ArtifactConversionCollector) getCommonFieldsSelectClauses(sourceInfo *types.DownloadedArtifactInfo) []string {
+func getCommonFieldsSelectClauses(table, partition string, ingestionTime time.Time) []string {
 	var commonFieldsClauses = []string{
-		fmt.Sprintf("'%s' as tp_table", c.req.TableName),
-		fmt.Sprintf("'%s' as tp_partition", c.req.PartitionName),
+		fmt.Sprintf("'%s' as tp_table", table),
+		fmt.Sprintf("'%s' as tp_partition", partition),
 		"gen_random_uuid() as tp_id",
-		fmt.Sprintf("'%s' as tp_ingest_timestamp", time.Now().Format(time.RFC3339)),
+		fmt.Sprintf("'%s' as tp_ingest_timestamp", ingestionTime.Format(time.RFC3339)),
 	}
 
 	return commonFieldsClauses
 }
 
-// getCopyQuery generates the SQL query to load data fromn the tamp table, enrich with any additional column mappings
+// getCopyQuery generates the SQL query to load data from the tamp table, enrich with any additional column mappings
 // transform, and copy to JSONL. The row count is returned.
-func (c *ArtifactConversionCollector) getCopyQuery(destFile string, columns []string, sourceInfo *types.DownloadedArtifactInfo) string {
+func getCopyQuery(table, partition, destFile string, sourceColumns []string, tableSchema *schema.TableSchema, ingestionTime time.Time) string {
 	// Create a map of the existing column names
-	selectColumnMap := utils.SliceToLookup(columns)
+	sourceColumnMap := utils.SliceToLookup(sourceColumns)
 
 	var selectClauses []string
+	// keep track of whether we have mapped tp_index and tp_timestamp - first check do they exist in source data
+	_, tpIndexMapped := sourceColumnMap[constants.TpIndex]
+	_, tpTimestampMapped := sourceColumnMap[constants.TpTimestamp]
 
-	// Build mapped columns clauses first
-	if len(c.req.CustomTableSchema.Columns) > 0 {
-		for _, column := range c.req.CustomTableSchema.Columns {
-			if column.SourceName != column.ColumnName {
-				selectClauses = append(selectClauses, fmt.Sprintf(`"%s" as "%s"`, column.SourceName, column.ColumnName))
-				// remove this from the map of other columns to select
-				delete(selectColumnMap, column.SourceName)
+	// Build mapped sourceColumns clauses first
+	if len(tableSchema.Columns) > 0 {
+		for _, column := range tableSchema.Columns {
+
+			// if we have a transform function, use it
+			var sourceExpression string
+			switch {
+			case column.Transform != "":
+				sourceExpression = column.Transform
+			case column.TimeFormat != "":
+				sourceExpression = fmt.Sprintf("strptime(\"%s\", '%s')", column.SourceName, column.TimeFormat)
+			case column.SourceName != "":
+				sourceExpression = fmt.Sprintf("\"%s\"", column.SourceName)
+			default:
+				sourceExpression = fmt.Sprintf("\"%s\"", column.ColumnName)
 			}
+
+			// coalesce to the default index
+			if column.ColumnName == constants.TpIndex {
+				tpIndexMapped = true
+				sourceExpression = fmt.Sprintf("coalesce(%s, '%s')", sourceExpression, schema.DefaultIndex)
+			}
+			if column.ColumnName == constants.TpTimestamp {
+				tpTimestampMapped = true
+			}
+
+			selectClauses = append(selectClauses, fmt.Sprintf(`%s as "%s"`, sourceExpression, column.ColumnName))
+			// remove the output name from the map of existing sourceColumns to select
+			delete(sourceColumnMap, column.ColumnName)
 		}
 	}
 
-	// Build remaining columns clause if auto-mapping is enabled
-	if c.req.CustomTableSchema.AutoMapSourceFields {
-		// Quote all remaining column names and sort them for consistent order
-		var quotedColumns []string
-		var remainingColumns []string
-		for col := range selectColumnMap {
-			remainingColumns = append(remainingColumns, col)
-		}
-		sort.Strings(remainingColumns)
-		for _, col := range remainingColumns {
-			quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, col))
-		}
-		selectClauses = append(selectClauses, quotedColumns...)
+	// Quote all remaining column names and sort them for consistent order
+	var quotedColumns []string
+	var remainingColumns []string
+	for col := range sourceColumnMap {
+		remainingColumns = append(remainingColumns, col)
 	}
+	sort.Strings(remainingColumns)
+	for _, col := range remainingColumns {
+		quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, col))
+	}
+	selectClauses = append(selectClauses, quotedColumns...)
 
-	// Build common fields clauses after mapped columns
-	commonFieldsClauses := c.getCommonFieldsSelectClauses(sourceInfo)
+	// Build common fields clauses after mapped sourceColumns
+	commonFieldsClauses := getCommonFieldsSelectClauses(table, partition, ingestionTime)
 	selectClauses = append(selectClauses, commonFieldsClauses...)
 
-	// Add tp_date after tp_timestamp is defined
-	selectClauses = append(selectClauses, "case\n                when tp_timestamp is not null\n                then date_trunc('day', tp_timestamp::timestamp)\n            end as tp_date")
-
-	// Add tp_index coalesce after all columns are defined
-	// Check if tp_index is already mapped
-	tpIndexMapped := false
-	for _, column := range c.req.CustomTableSchema.Columns {
-		if column.ColumnName == "tp_index" {
-			tpIndexMapped = true
-			break
-		}
+	// if we have a mapping for tp_timestamp, add tp_date as well
+	if tpTimestampMapped {
+		// Add tp_date after tp_timestamp is defined
+		selectClauses = append(selectClauses, `case
+		when tp_timestamp is not null
+		then date_trunc('day', tp_timestamp::timestamp)
+	end as tp_date`)
 	}
 
-	// if there is not a mapping for tp_index, add the default index
+	// if tp_index is not mapped, add the default index
 	if !tpIndexMapped {
-		selectClauses = append(selectClauses, fmt.Sprintf("coalesce(tp_index, '%s') as tp_index", schema.DefaultIndex))
+		selectClauses = append(selectClauses, fmt.Sprintf("'%s' as tp_index", schema.DefaultIndex))
 	}
 
 	// Build the query

@@ -1,10 +1,6 @@
 package schema
 
-import (
-	"github.com/turbot/go-kit/helpers"
-	"golang.org/x/exp/maps"
-	"sort"
-)
+import "github.com/danwakefield/fnmatch"
 
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
 type SourceColumnDef struct {
@@ -32,8 +28,7 @@ type ConversionSchema struct {
 
 // NewConversionSchemaWithInferredSchema populates a ConversionSchema schema using a table schema and an inferred row schema
 // this is called from the CLI after receiving the first JSONL file
-// it either adds all fields in the inferred schema (if AutoMapSourceFields is true) or
-// just populate missing types if AutoMapSourceFields is false
+// If a 'Select' pattern is provided, it will be used to select source fields to include in the schema
 func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSchema) *ConversionSchema {
 	// initialize the conversion schema from the table schema def
 	r := &ConversionSchema{
@@ -44,39 +39,29 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 
 	//get the table schema as a map
 	schemaMap := r.AsMap()
-	excludedMap := helpers.SliceToLookup(r.ExcludeSourceFields)
-
-	keys := maps.Keys(schemaMap)
-	// ensure consistent order
-	sort.Strings(keys)
 
 	// First add all columns from the table schema
-	for _, key := range keys {
-		sourceColumns = append(sourceColumns, NewSourceColumnDef(schemaMap[key]))
+	for _, c := range tableSchema.Columns {
+		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 	}
 
-	// Then add any inferred columns that aren't already in the schema
-	inferredSchemaMap := inferredSchema.AsMap()
-	keys = maps.Keys(inferredSchemaMap)
-	// ensure consistent order
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		// if this column exists in the table def, skip it
-		inferredColumn, haveColumn := inferredSchemaMap[key]
-		if haveColumn {
-			continue
-		}
-
-		// if we are in autoMap mode, include column in TableSchema as long as it is not excluded
-		if r.AutoMapSourceFields {
-			// skip any excluded fields
-			if _, excluded := excludedMap[inferredColumn.ColumnName]; excluded {
+	// Then, if we are in autoMap mode, add any inferred columns that aren't already in the schema and are not excluded
+	if r.Select != "" {
+		for _, c := range inferredSchema.Columns {
+			// if this column exists in the table def, skip it
+			if _, haveColumn := schemaMap[c.ColumnName]; haveColumn {
 				continue
 			}
+
+			// does this column match the pattern?
+			if !fnmatch.Match(r.Select, c.ColumnName, fnmatch.FNM_IGNORECASE) {
+				continue
+			}
+
 			// we do not have this column - add it
-			r.Columns = append(r.Columns, inferredColumn)
-			sourceColumns = append(sourceColumns, NewSourceColumnDef(inferredColumn))
+			r.Columns = append(r.Columns, c)
+			// add to source columns
+			sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 		}
 	}
 

@@ -288,13 +288,13 @@ func (c *CollectorImpl[R]) onRowError(_ context.Context, source string, operatio
 	}
 
 	// ensure is a RowError (or convert to one)
-	out := error_types.EnsureRowError(source, operation, err)
+	rowError := error_types.EnsureRowError(source, operation, err)
 
 	// log the error
-	slog.Error(fmt.Sprintf(fmt.Sprintf("failed %s row", operation), "error", out, "row", row))
+	slog.Error(fmt.Sprintf(fmt.Sprintf("failed %s row", operation), "error", rowError, "row", row))
 
 	// update status
-	c.status.OnRowError(out)
+	c.status.OnRowError(rowError)
 
 	// don't return error back to source, we update this in status
 	return nil

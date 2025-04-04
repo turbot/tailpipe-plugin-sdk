@@ -270,11 +270,20 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 	customTable.Initialize(format, tableDef)
 
 	// now create the appropriate type of collector
-	switch format.Identifier() {
-	case constants.SourceFormatDelimited, constants.SourceFormatJson, constants.SourceFormatJsonLines:
+	if FormatSupportsDirectConversion(format.Identifier()) {
 		return NewArtifactConversionCollector(customTable), nil
+	}
+
+	return NewRowEnrichmentCollector[*types.DynamicRow](customTable), nil
+}
+
+func FormatSupportsDirectConversion(formatName string) bool {
+	// check if the format supports direct conversion
+	switch formatName {
+	case constants.SourceFormatDelimited, constants.SourceFormatJsonl:
+		return true
 	default:
-		return NewRowEnrichmentCollector[*types.DynamicRow](customTable), nil
+		return false
 	}
 }
 

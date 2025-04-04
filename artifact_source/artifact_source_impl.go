@@ -204,6 +204,11 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 		// cast the source to an ArtifactSource and download the artifact
 		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
+			// TODO #sync think about making this wait group easier to track
+			// it is either closed by OnArtifactDownloaded or here
+			// close the wait group
+			a.artifactExtractWg.Done()
+
 			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
 			a.NotifyError(ctx, executionId, err)
 		}
@@ -257,7 +262,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 
 	// notify observers of download
 	if err := a.NotifyObservers(ctx, events.NewArtifactDownloadedEvent(executionId, info)); err != nil {
-		return fmt.Errorf("error notifying observers of downloaded artifact: %w", err)
+		return fmt.Errorf("error processing artifact: %w", err)
 	}
 	return nil
 }
