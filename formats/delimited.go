@@ -10,7 +10,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-// DefaultJsonLines is the default JSONL format - this is exported by the core plugin
+// DefaultJsonLines is the default Delimited format - this is exported by the core plugin
 var DefaultDelimited = &Delimited{
 	Name:        "default",
 	Description: "Default Delimited format",
