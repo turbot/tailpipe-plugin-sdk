@@ -2,12 +2,21 @@ package formats
 
 import (
 	"fmt"
+	"github.com/turbot/pipe-fittings/v2/utils"
 	"strings"
 
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
+
+// DefaultDelimited is the default Delimited format - this is exported by the core plugin
+var DefaultDelimited = &Delimited{
+	Name:        "default",
+	Description: "Default Delimited format",
+	Delimiter:   utils.ToPointer(","),
+	Header:      utils.ToPointer(true),
+}
 
 // TODO REVIEW OPTIONS AND LOOK FOR COMMONALITY
 type Delimited struct {
