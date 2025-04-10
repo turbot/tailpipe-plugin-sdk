@@ -235,11 +235,20 @@ func getReadArtifactSql(sourceFile string, format formats.Format) (string, error
 	var readArtifactSql string
 	switch f := format.(type) {
 	case *formats.JsonLines:
-		readArtifactSql = fmt.Sprintf("read_json('%s')", sourceFile)
+		jsonOpts := f.GetReadJsonOpts()
+		optsString := ""
+		if len(jsonOpts) > 0 {
+			optsString = fmt.Sprintf(", %s", strings.Join(jsonOpts, ", "))
+		}
+		readArtifactSql = fmt.Sprintf("read_json('%s'%s)", sourceFile, optsString)
 	case *formats.Delimited:
 		// Get all CSV options from the format configuration
 		csvOpts := f.GetCsvOpts()
-		readArtifactSql = fmt.Sprintf("read_csv('%s', %s)", sourceFile, strings.Join(csvOpts, ", "))
+		optsString := ""
+		if len(csvOpts) > 0 {
+			optsString = fmt.Sprintf(", %s", strings.Join(csvOpts, ", "))
+		}
+		readArtifactSql = fmt.Sprintf("read_csv('%s'%s)", sourceFile, optsString)
 	default:
 		return "", fmt.Errorf("ArtifactConversionCollector does not support format: %s", f.Identifier())
 	}
