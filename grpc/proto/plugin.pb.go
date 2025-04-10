@@ -703,10 +703,8 @@ type ColumnSchema struct {
 	Required bool `protobuf:"varint,6,opt,name=required,proto3" json:"required,omitempty"`
 	// the null value to use for the column
 	NullValue string `protobuf:"bytes,7,opt,name=null_value,json=nullValue,proto3" json:"null_value,omitempty"`
-	// the time format to use to parse the column
-	TimeFormat string `protobuf:"bytes,8,opt,name=time_format,json=timeFormat,proto3" json:"time_format,omitempty"`
 	// the duckdb function to use to map the column
-	Transform     string `protobuf:"bytes,9,opt,name=transform,proto3" json:"transform,omitempty"`
+	Transform     string `protobuf:"bytes,8,opt,name=transform,proto3" json:"transform,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -786,13 +784,6 @@ func (x *ColumnSchema) GetRequired() bool {
 func (x *ColumnSchema) GetNullValue() string {
 	if x != nil {
 		return x.NullValue
-	}
-	return ""
-}
-
-func (x *ColumnSchema) GetTimeFormat() string {
-	if x != nil {
-		return x.TimeFormat
 	}
 	return ""
 }
@@ -2766,7 +2757,7 @@ const file_plugin_proto_rawDesc = "" +
 	"null_value\x18\x05 \x01(\tR\tnullValue\x12\x12\n" +
 	"\x04name\x18\x06 \x01(\tR\x04name\x12\x1d\n" +
 	"\n" +
-	"map_fields\x18\a \x03(\tR\tmapFields\"\xb8\x02\n" +
+	"map_fields\x18\a \x03(\tR\tmapFields\"\x97\x02\n" +
 	"\fColumnSchema\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x1f\n" +
 	"\vsource_name\x18\x02 \x01(\tR\n" +
@@ -2777,10 +2768,8 @@ const file_plugin_proto_rawDesc = "" +
 	"\vdescription\x18\x05 \x01(\tR\vdescription\x12\x1a\n" +
 	"\brequired\x18\x06 \x01(\bR\brequired\x12\x1d\n" +
 	"\n" +
-	"null_value\x18\a \x01(\tR\tnullValue\x12\x1f\n" +
-	"\vtime_format\x18\b \x01(\tR\n" +
-	"timeFormat\x12\x1c\n" +
-	"\ttransform\x18\t \x01(\tR\ttransform\"\x82\x01\n" +
+	"null_value\x18\a \x01(\tR\tnullValue\x12\x1c\n" +
+	"\ttransform\x18\b \x01(\tR\ttransform\"\x82\x01\n" +
 	"\n" +
 	"FormatData\x12)\n" +
 	"\x06config\x18\x01 \x01(\v2\x11.proto.ConfigDataR\x06config\x12\x12\n" +

@@ -28,11 +28,7 @@ type ColumnSchema struct {
 	// is the column required
 	Required bool
 	// The null value for the column
-	NullValue string
-	// The format of the time field so it can be recognized and analyzed properly.
-	// Tailpipe uses strptime to parse time.
-	// See the strptime documentation for available modifiers: https://linux.die.net/man/3/strptime
-	TimeFormat string
+	NullIf string
 	// a custom select clause for the column
 	Transform string
 }
@@ -44,8 +40,7 @@ func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 		Type:        c.Type,
 		Description: c.Description,
 		Required:    c.Required,
-		NullValue:   c.NullValue,
-		TimeFormat:  c.TimeFormat,
+		NullValue:   c.NullIf,
 		Transform:   c.Transform,
 	}
 	for _, child := range c.StructFields {
@@ -93,8 +88,7 @@ func (c *ColumnSchema) Clone() *ColumnSchema {
 		Type:        c.Type,
 		Required:    c.Required,
 		Description: c.Description,
-		NullValue:   c.NullValue,
-		TimeFormat:  c.TimeFormat,
+		NullIf:      c.NullIf,
 		Transform:   c.Transform,
 	}
 }
@@ -107,8 +101,7 @@ func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
 		Type:        p.Type,
 		Description: p.Description,
 		Required:    p.Required,
-		NullValue:   p.NullValue,
-		TimeFormat:  p.TimeFormat,
+		NullIf:      p.NullValue,
 		Transform:   p.Transform,
 	}
 	for _, child := range p.ChildFields {

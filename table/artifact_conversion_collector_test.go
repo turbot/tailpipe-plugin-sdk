@@ -262,45 +262,45 @@ to 'test.jsonl' (
 select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
 			expectedError: false,
 		},
-		{
-			name:    "CSV with time format",
-			format:  &formats.Delimited{},
-			columns: []string{"id", "name", "timestamp"},
-			schema: &schema.TableSchema{
-				MapFields: []string{"*"},
-				Columns: []*schema.ColumnSchema{
-					{
-						ColumnName:  "tp_timestamp",
-						SourceName:  "timestamp",
-						TimeFormat:  `%Y-%m-%dT%H:%M:%S%z`,
-						Description: "Timestamp with specific format",
-					},
-				},
-			},
-			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
-copy (select
-    strptime("timestamp", '%%Y-%%m-%%dT%%H:%%M:%%S%%z') as "tp_timestamp",
-    "id",
-    "name",
-    "timestamp",
-    'test_table' as tp_table,
-    'test_partition' as tp_partition,
-    gen_random_uuid() as tp_id,
-    '%s' as tp_ingest_timestamp,
-    case
-		when tp_timestamp is not null
-		then date_trunc('day', tp_timestamp::timestamp)
-	end as tp_date,
-    'default' as tp_index
-from temp_data)
-to 'test.jsonl' (
-    format json
-);
-
--- Get row count
-select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
-			expectedError: false,
-		},
+		// TODO add transform
+		//		{
+		//			name:    "CSV with time format",
+		//			format:  &formats.Delimited{},
+		//			columns: []string{"id", "name", "timestamp"},
+		//			schema: &schema.TableSchema{
+		//				MapFields: []string{"*"},
+		//				Columns: []*schema.ColumnSchema{
+		//					{
+		//						ColumnName:  "tp_timestamp",
+		//						SourceName:  "timestamp",
+		//						Description: "Timestamp with specific format",
+		//					},
+		//				},
+		//			},
+		//			expectedQuery: fmt.Sprintf(`-- Transform and copy data to destination
+		//copy (select
+		//    strptime("timestamp", '%%Y-%%m-%%dT%%H:%%M:%%S%%z') as "tp_timestamp",
+		//    "id",
+		//    "name",
+		//    "timestamp",
+		//    'test_table' as tp_table,
+		//    'test_partition' as tp_partition,
+		//    gen_random_uuid() as tp_id,
+		//    '%s' as tp_ingest_timestamp,
+		//    case
+		//		when tp_timestamp is not null
+		//		then date_trunc('day', tp_timestamp::timestamp)
+		//	end as tp_date,
+		//    'default' as tp_index
+		//from temp_data)
+		//to 'test.jsonl' (
+		//    format json
+		//);
+		//
+		//-- Get row count
+		//select count(*) as row_count from temp_data;`, currentTime.Format(time.RFC3339)),
+		//			expectedError: false,
+		//		},
 	}
 
 	for _, tc := range testCases {

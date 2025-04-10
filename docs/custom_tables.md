@@ -113,7 +113,7 @@ or a `format preset` defined by a plufin (see [Source data format] for details
   - `description` - (optional) a description of the column. This is used to generate documentation for the table.
   - `required` - (optional) if set to `true`, then the column is required and a validation error will be raised if the column is not present in the source data.
   - `null_value` - (optional) overrides the table level null value for a specific column.
-  - `time_format`  (not implemented)) 
+  
 
 
 
