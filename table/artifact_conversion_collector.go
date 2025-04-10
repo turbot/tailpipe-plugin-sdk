@@ -99,7 +99,8 @@ func (c *ArtifactConversionCollector) GetSchema() (*schema.TableSchema, error) {
 		return nil, err
 	}
 	// we have already mapped source fields to output fields, so clear the source fields
-	return s.WithSourceFieldsCleared(), nil
+	// also, we have already executed the transform function, so clear the transform
+	return s.WithSourceFieldsAndTransformsCleared(), nil
 }
 
 // Notify implements observable.Observer
@@ -212,6 +213,7 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 }
 
 // getTempTableQuery generates the SQL query to create the temp table and return its columns as an array
+// All columns in the source data are written to the temp table and the list of columns is returned
 func getTempTableQuery(sourceFile string, format formats.Format) (string, error) {
 	readArtifactSql, err := getReadArtifactSql(sourceFile, format)
 	if err != nil {
@@ -267,7 +269,7 @@ func getCommonFieldsSelectClauses(table, partition string, ingestionTime time.Ti
 	return commonFieldsClauses
 }
 
-// getCopyQuery generates the SQL query to load data from the tamp table, enrich with any additional column mappings
+// getCopyQuery generates the SQL query to load data from the temp table, enrich with any additional column mappings
 // transform, and copy to JSONL. The row count is returned.
 func getCopyQuery(table, partition, destFile string, sourceColumns []string, tableSchema *schema.TableSchema, ingestionTime time.Time) string {
 	// Create a map of the existing column names

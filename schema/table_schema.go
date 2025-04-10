@@ -271,16 +271,29 @@ func (r *TableSchema) Clone() *TableSchema {
 	return merged
 }
 
-// WithSourceFieldsCleared returns a copy with the source fields set the the fcolumn names - this is used to create the parquet schema
-// SourceName refers to one of 2 things depdending on where the schema is used
-// 1. When the schemas is used by a mapper, SourceName refers to the field name in the raw row data
-// 2. When the schema is used by the JSONL conversion, SourceName refers to the column name in the JSONL
+// WithSourceFieldsCleared returns a copy with the source fields set to the column names
+// this is called from RowEnrichmentCollector as it will already have applied field mappings
 func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
 	cloned := r.Clone()
 
 	for i, c := range cloned.Columns {
 		// set the source name to the column name
 		c.SourceName = c.ColumnName
+		cloned.Columns[i] = c
+	}
+	return cloned
+}
+
+// WithSourceFieldsAndTransformsCleared returns a copy with the source fields set to the column names
+// and the transforms cleared
+// this is called from ArtifactConversionCollector as it will already have applied field mappings and transforms
+func (r *TableSchema) WithSourceFieldsAndTransformsCleared() *TableSchema {
+	cloned := r.Clone()
+
+	for i, c := range cloned.Columns {
+		// set the source name to the column name
+		c.SourceName = c.ColumnName
+		c.Transform = ""
 		cloned.Columns[i] = c
 	}
 	return cloned
