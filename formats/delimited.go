@@ -23,63 +23,63 @@ type Delimited struct {
 	Name        string `hcl:",label"`
 	Description string `hcl:"description,optional"`
 	// Option to skip type detection for CSV parsing and assume all columns to be of type VARCHAR
-	AllVarchar *bool
+	AllVarchar *bool `hcl:"all_varchar,optional"`
 
 	// Option to allow the conversion of quoted values to NULL values
-	AllowQuotedNulls *bool
+	AllowQuotedNulls *bool `hcl:"allow_quoted_nulls,optional"`
 
 	// Specifies the date format to use when parsing dates.
 	//DateFormat *string
 
 	// The decimal separator of numbers.
-	DecimalSeparator *string
+	DecimalSeparator *string `hcl:"decimal_separator,optional"`
 
 	// Specifies the delimiter character that separates columns within each row (line) of the file.
-	Delimiter *string
+	Delimiter *string `hcl:"delimiter,optional"`
 
 	// Specifies the string that should appear before a data character sequence that matches the quote value.
-	Escape *string
+	Escape *string `hcl:"escape,optional"`
 
 	// Whether or not an extra filename column should be included in the result.
-	Filename *bool
+	Filename *bool `hcl:"filename,optional"`
 
 	// Do not match the specified columns' values against the NULL string.
 	// In the default case where the NULL string is empty,
 	// this means that empty values will be read as zero-length strings rather than NULLs.
-	ForceNotNull *[]string
+	ForceNotNull *[]string `hcl:"force_not_null,optional"`
 
 	// Specifies that the file contains a header line with the names of each column in the file.
-	Header *bool
+	Header *bool `hcl:"header,optional"`
 
 	// Option to ignore any parsing errors encountered – and instead ignore rows with errors.
-	IgnoreErrors *bool
+	IgnoreErrors *bool `hcl:"ignore_errors,optional"`
 
 	// The maximum line size in bytes.
-	MaxLineSize *int
+	MaxLineSize *int `hcl:"max_line_size,optional"`
 
 	// Set the new line character(s) in the file. Options are '\r','\n', or '\r\n'.
 	// Note that the CSV parser only distinguishes between single-character and double-character line delimiters.
 	// Therefore, it does not differentiate between '\r' and '\n'.
-	NewLine *string
+	NewLine *string `hcl:"new_line,optional"`
 
 	// Boolean value that specifies whether or not column names should be normalized,
 	// removing any non-alphanumeric characters from them.
-	NormalizeNames *bool
+	NormalizeNames *bool `hcl:"normalize_names,optional"`
 
 	// If this option is enabled, when a row lacks columns, it will pad the remaining columns on the right with NULL values.
-	NullPadding *bool
+	NullPadding *bool `hcl:"null_padding,optional"`
 
 	// Specifies the string that represents a NULL value or (since v0.10.2) a list of strings that represent a NULL value.
-	NullStr *string
+	NullStr *string `hcl:"null_str,optional"`
 
 	// Specifies the quoting string to be used when a data value is quoted.
-	Quote *string
+	Quote *string `hcl:"quote,optional"`
 
 	// The number of sample rows for auto detection of parameters.
-	SampleSize *int
+	SampleSize *int `hcl:"sample_size,optional"`
 
 	// Specifies the date format to use when parsing timestamps
-	TimestampFormat *string
+	TimestampFormat *string `hcl:"timestamp_format,optional"`
 }
 
 func NewDelimited() Format {
