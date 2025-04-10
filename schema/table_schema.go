@@ -5,7 +5,6 @@ import (
 	"path"
 	"strings"
 
-	"github.com/itchyny/timefmt-go"
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/error_types"
@@ -139,11 +138,7 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 	// now format the string according to the type
 	switch ty {
 	case "timestamp", "date", "time":
-		// if a time format was specified, attempt to parse the value using that format
-		if column.TimeFormat != "" {
-			return timefmt.Parse(valString, column.TimeFormat)
-		}
-		// otherwise attempt out 'smart' time parsing
+		// attempt our 'smart' time parsing
 		t, err := helpers.ParseTime(valString)
 		if err != nil {
 			return valString, fmt.Errorf("error parsing time value '%s' for column '%s': %w", valString, column.ColumnName, err)
@@ -167,8 +162,8 @@ func (r *TableSchema) mapValue(column *ColumnSchema, valString string) (interfac
 func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
 	// TODO KAI check default
 	nullValue := r.NullIf
-	if c.NullValue != "" {
-		nullValue = c.NullValue
+	if c.NullIf != "" {
+		nullValue = c.NullIf
 	}
 	return v == nullValue
 }

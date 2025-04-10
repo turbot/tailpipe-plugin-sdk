@@ -287,8 +287,6 @@ func getCopyQuery(table, partition, destFile string, sourceColumns []string, tab
 			switch {
 			case column.Transform != "":
 				sourceExpression = column.Transform
-			case column.TimeFormat != "":
-				sourceExpression = fmt.Sprintf("strptime(\"%s\", '%s')", column.SourceName, column.TimeFormat)
 			case column.SourceName != "":
 				sourceExpression = fmt.Sprintf("\"%s\"", column.SourceName)
 			default:
