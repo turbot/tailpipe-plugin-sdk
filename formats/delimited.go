@@ -2,9 +2,9 @@ package formats
 
 import (
 	"fmt"
-	"github.com/turbot/pipe-fittings/v2/utils"
 	"strings"
 
+	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/mappers"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
@@ -18,7 +18,6 @@ var DefaultDelimited = &Delimited{
 	Header:      utils.ToPointer(true),
 }
 
-// TODO REVIEW OPTIONS AND LOOK FOR COMMONALITY
 type Delimited struct {
 	Name        string `hcl:",label"`
 	Description string `hcl:"description,optional"`
@@ -28,8 +27,12 @@ type Delimited struct {
 	// Option to allow the conversion of quoted values to NULL values
 	AllowQuotedNulls *bool `hcl:"allow_quoted_nulls,optional"`
 
+	// Character used to initiate comments.
+	// Lines starting with a comment character (optionally preceded by space characters) are completely ignored; other lines containi
+	Comment *string `hcl:"comment,optional"`
+
 	// Specifies the date format to use when parsing dates.
-	//DateFormat *string
+	DateFormat *string `hcl:"date_format,optional"`
 
 	// The decimal separator of numbers.
 	DecimalSeparator *string `hcl:"decimal_separator,optional"`
@@ -106,7 +109,6 @@ func (d *Delimited) GetDescription() string {
 }
 
 // GetProperties returns the format as a string which can be included in the introspection response
-
 func (d *Delimited) GetProperties() map[string]string {
 	properties := make(map[string]string)
 
@@ -115,6 +117,12 @@ func (d *Delimited) GetProperties() map[string]string {
 	}
 	if d.AllowQuotedNulls != nil {
 		properties["allow_quoted_nulls"] = fmt.Sprintf("%v", *d.AllowQuotedNulls)
+	}
+	if d.Comment != nil {
+		properties["comment"] = *d.Comment
+	}
+	if d.DateFormat != nil {
+		properties["date_format"] = *d.DateFormat
 	}
 	if d.DecimalSeparator != nil {
 		properties["decimal_separator"] = *d.DecimalSeparator
@@ -189,15 +197,14 @@ func (d *Delimited) GetCsvOpts() []string {
 	if d.Delimiter != nil {
 		delimiter = *d.Delimiter
 	}
-	opts = append(opts, fmt.Sprintf("delim '%s'", delimiter))
+	opts = append(opts, fmt.Sprintf("delim='%s'", delimiter))
 
 	// Handle header - default to true if not specified
 	header := true
 	if d.Header != nil {
 		header = *d.Header
 	}
-
-	opts = append(opts, fmt.Sprintf("header %v", strings.ToLower(fmt.Sprintf("%v", header))))
+	opts = append(opts, fmt.Sprintf("header=%v", strings.ToLower(fmt.Sprintf("%v", header))))
 
 	if d.AllVarchar != nil {
 		opts = append(opts, fmt.Sprintf("all_varchar=%v", *d.AllVarchar))
@@ -205,6 +212,14 @@ func (d *Delimited) GetCsvOpts() []string {
 
 	if d.AllowQuotedNulls != nil {
 		opts = append(opts, fmt.Sprintf("allow_quoted_nulls=%v", *d.AllowQuotedNulls))
+	}
+
+	if d.Comment != nil {
+		opts = append(opts, fmt.Sprintf("comment='%s'", *d.Comment))
+	}
+
+	if d.DateFormat != nil {
+		opts = append(opts, fmt.Sprintf("date_format='%s'", *d.DateFormat))
 	}
 
 	if d.DecimalSeparator != nil {
