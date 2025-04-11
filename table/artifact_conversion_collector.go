@@ -174,7 +174,7 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 	return c.onChunk(ctx, chunkCount)
 }
 
-func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactDownloaded, destFile string) (int64, error) {
+func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactDownloaded, destFile string) (_ int64, err error) {
 	// First build query to select source data into temp table and get its columns
 	tempTableQuery, err := getTempTableQuery(e.Info.Name, c.table.GetFormat())
 	if err != nil {
@@ -187,6 +187,15 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 	if err := c.db.QueryRow(tempTableQuery).Scan(&columnsStr); err != nil {
 		return 0, err
 	}
+	defer func() {
+		// now drop the temp table
+		if _, tmpTableErr := c.db.Exec("drop table temp_data;"); tmpTableErr != nil {
+			if err == nil {
+				err = tmpTableErr
+			}
+		}
+	}()
+
 	columns := strings.Split(columnsStr, ",")
 
 	// Now that we have the columns, generate and execute the copy query
@@ -197,12 +206,6 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 	var rowCount int64
 
 	if err = row.Scan(&rowCount); err != nil {
-		return 0, err
-	}
-
-	// now drop the temp table
-	if _, err := c.db.Exec("drop table temp_data;"); err != nil {
-		slog.Error("ArtifactConversionCollector: error dropping temp table", "error", err)
 		return 0, err
 	}
 
