@@ -199,7 +199,7 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 	columns := strings.Split(columnsStr, ",")
 
 	// Now that we have the columns, generate and execute the copy query
-	copyQuery := getCopyQuery(c.req.TableName, c.req.PartitionName, destFile, columns, c.req.CustomTableSchema, time.Now())
+	copyQuery := getCopyQuery(c.req.TableName, c.req.PartitionName, destFile, columns, c.req.CustomTableSchema, time.Now(), e.Info.SourceEnrichment)
 
 	// Execute copy query and get row count
 	row := c.db.QueryRow(copyQuery)
@@ -261,7 +261,8 @@ func getReadArtifactSql(sourceFile string, format formats.Format) (string, error
 }
 
 // getCommonFieldsSelectClauses generates the SQL clauses to select the common fields which we are able to auto populate
-func getCommonFieldsSelectClauses(table, partition string, ingestionTime time.Time) []string {
+func getCommonFieldsSelectClauses(table, partition string, ingestionTime time.Time, sourceEnrichment *schema.SourceEnrichment) []string {
+
 	var commonFieldsClauses = []string{
 		fmt.Sprintf("'%s' as tp_table", table),
 		fmt.Sprintf("'%s' as tp_partition", partition),
@@ -269,29 +270,32 @@ func getCommonFieldsSelectClauses(table, partition string, ingestionTime time.Ti
 		fmt.Sprintf("'%s' as tp_ingest_timestamp", ingestionTime.Format(time.RFC3339)),
 	}
 
+	// merge in source common fields
+	// NOTE: these have precedence over any source related tp columns which are already populated
+	// from the source data - this is by design
+	for k, v := range sourceEnrichment.CommonFields.AsMap() {
+		if v != "" {
+			commonFieldsClauses = append(commonFieldsClauses, fmt.Sprintf("'%s' as \"%s\"", v, k))
+		}
+	}
+
 	return commonFieldsClauses
 }
 
 // getCopyQuery generates the SQL query to load data from the temp table, enrich with any additional column mappings
-// transform, and copy to JSONL. The row count is returned.
-func getCopyQuery(table, partition, destFile string, sourceColumns []string, tableSchema *schema.TableSchema, ingestionTime time.Time) string {
+// and copy to JSONL. The row count is returned.
+func getCopyQuery(table, partition, destFile string, sourceColumns []string, tableSchema *schema.TableSchema, ingestionTime time.Time, sourceEnrichment *schema.SourceEnrichment) string {
 	// Create a map of the existing column names
 	sourceColumnMap := utils.SliceToLookup(sourceColumns)
 
 	var selectClauses []string
-	// keep track of whether we have mapped tp_index and tp_timestamp - first check do they exist in source data
-	_, tpIndexMapped := sourceColumnMap[constants.TpIndex]
-	_, tpTimestampMapped := sourceColumnMap[constants.TpTimestamp]
 
 	// Build mapped sourceColumns clauses first
 	if len(tableSchema.Columns) > 0 {
 		for _, column := range tableSchema.Columns {
 
-			// if we have a transform function, use it
 			var sourceExpression string
 			switch {
-			case column.Transform != "":
-				sourceExpression = column.Transform
 			case column.SourceName != "":
 				sourceExpression = fmt.Sprintf("\"%s\"", column.SourceName)
 			default:
@@ -300,11 +304,7 @@ func getCopyQuery(table, partition, destFile string, sourceColumns []string, tab
 
 			// coalesce to the default index
 			if column.ColumnName == constants.TpIndex {
-				tpIndexMapped = true
 				sourceExpression = fmt.Sprintf("coalesce(%s, '%s')", sourceExpression, schema.DefaultIndex)
-			}
-			if column.ColumnName == constants.TpTimestamp {
-				tpTimestampMapped = true
 			}
 
 			selectClauses = append(selectClauses, fmt.Sprintf(`%s as "%s"`, sourceExpression, column.ColumnName))
@@ -326,22 +326,8 @@ func getCopyQuery(table, partition, destFile string, sourceColumns []string, tab
 	selectClauses = append(selectClauses, quotedColumns...)
 
 	// Build common fields clauses after mapped sourceColumns
-	commonFieldsClauses := getCommonFieldsSelectClauses(table, partition, ingestionTime)
+	commonFieldsClauses := getCommonFieldsSelectClauses(table, partition, ingestionTime, sourceEnrichment)
 	selectClauses = append(selectClauses, commonFieldsClauses...)
-
-	// if we have a mapping for tp_timestamp, add tp_date as well
-	if tpTimestampMapped {
-		// Add tp_date after tp_timestamp is defined
-		selectClauses = append(selectClauses, `case
-		when tp_timestamp is not null
-		then date_trunc('day', tp_timestamp::timestamp)
-	end as tp_date`)
-	}
-
-	// if tp_index is not mapped, add the default index
-	if !tpIndexMapped {
-		selectClauses = append(selectClauses, fmt.Sprintf("'%s' as tp_index", schema.DefaultIndex))
-	}
 
 	// Build the query
 	query := fmt.Sprintf(`-- Transform and copy data to destination

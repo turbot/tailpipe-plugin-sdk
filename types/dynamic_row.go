@@ -46,7 +46,7 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 	// NOTE: these have precedence over any source related tp columns which are already populated
 	// from the source data - this is by design
 	for k, v := range sourceEnrichmentFields.CommonFields.AsMap() {
-		if _, ok := l.sourceColumns[k]; !ok {
+		if v != "" {
 			l.sourceColumns[k] = v
 		}
 	}
@@ -65,16 +65,6 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 	// auto populate id and ingest timestamp
 	l.OutputColumns[constants.TpID] = xid.New().String()
 	l.OutputColumns[constants.TpIngestTimestamp] = time.Now()
-
-	// if no index is set, set the the default
-	if tpIndex, ok := l.OutputColumns[constants.TpIndex].(string); !ok || tpIndex == "" {
-		l.OutputColumns[constants.TpIndex] = schema.DefaultIndex
-	}
-
-	// if we have a tp_timestamp, populate the tp_date
-	if tpTimestamp, ok := l.OutputColumns[constants.TpTimestamp].(time.Time); ok && !tpTimestamp.IsZero() {
-		l.OutputColumns[constants.TpDate] = tpTimestamp.Truncate(24 * time.Hour)
-	}
 
 	return nil
 }
