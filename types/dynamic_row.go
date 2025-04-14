@@ -96,7 +96,7 @@ func (l *DynamicRow) Validate() error {
 	// can we validate this row?
 	// if any required fields have transform functions, we cannot validate at this point
 	// - we must wait until after the transform has been executed by the CLI - the CLI will do the validation
-	requiredFields := append(requiredStringFields, requiredTimeFields...)
+	requiredFields := append(requiredStringFields, requiredTimeFields...) //nolint: gocritic // we intend to assign to a different variable
 	schemaMap := l.schema.AsMap()
 	for _, field := range requiredFields {
 		if schemaMap[field].Transform != "" {
