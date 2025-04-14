@@ -33,6 +33,23 @@ type ColumnSchema struct {
 	Transform string
 }
 
+// ColumnFromProto creates a new ColumnSchema from proto
+func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
+	c := &ColumnSchema{
+		SourceName:  p.SourceName,
+		ColumnName:  p.ColumnName,
+		Type:        p.Type,
+		Description: p.Description,
+		Required:    p.Required,
+		NullIf:      p.NullValue,
+		Transform:   p.Transform,
+	}
+	for _, child := range p.ChildFields {
+		c.StructFields = append(c.StructFields, ColumnFromProto(child))
+	}
+	return c
+}
+
 func (c *ColumnSchema) toProto() *proto.ColumnSchema {
 	p := &proto.ColumnSchema{
 		SourceName:  c.SourceName,
@@ -59,28 +76,6 @@ func (c *ColumnSchema) FullType() string {
 	return c.Type
 }
 
-func (c *ColumnSchema) structDef() string {
-	var str strings.Builder
-	str.WriteString("struct")
-	str.WriteString("(")
-	for i, column := range c.StructFields {
-		if i > 0 {
-			str.WriteString(", ")
-		}
-		str.WriteString(fmt.Sprintf(`"%s" %s`, column.SourceName, column.FullType()))
-	}
-	str.WriteString(")")
-	return str.String()
-}
-
-// NormaliseColumnTypes normalises the column types to lower case, including all child fields
-func (c *ColumnSchema) NormaliseColumnTypes() {
-	c.Type = strings.ToLower(c.Type)
-	for _, child := range c.StructFields {
-		child.NormaliseColumnTypes()
-	}
-}
-
 func (c *ColumnSchema) Clone() *ColumnSchema {
 	return &ColumnSchema{
 		ColumnName:  c.ColumnName,
@@ -93,19 +88,16 @@ func (c *ColumnSchema) Clone() *ColumnSchema {
 	}
 }
 
-// ColumnFromProto creates a new ColumnSchema from proto
-func ColumnFromProto(p *proto.ColumnSchema) *ColumnSchema {
-	c := &ColumnSchema{
-		SourceName:  p.SourceName,
-		ColumnName:  p.ColumnName,
-		Type:        p.Type,
-		Description: p.Description,
-		Required:    p.Required,
-		NullIf:      p.NullValue,
-		Transform:   p.Transform,
+func (c *ColumnSchema) structDef() string {
+	var str strings.Builder
+	str.WriteString("struct")
+	str.WriteString("(")
+	for i, column := range c.StructFields {
+		if i > 0 {
+			str.WriteString(", ")
+		}
+		str.WriteString(fmt.Sprintf(`"%s" %s`, column.SourceName, column.FullType()))
 	}
-	for _, child := range p.ChildFields {
-		c.StructFields = append(c.StructFields, ColumnFromProto(child))
-	}
-	return c
+	str.WriteString(")")
+	return str.String()
 }
