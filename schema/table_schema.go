@@ -83,15 +83,14 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 		}
 	}
 
-	// now add all explicitly defined columns
+	// now add all explicitly defined columns, IF they have a different source column mapped
 	for _, c := range r.Columns {
-		// default source name to column name
-		sourceName := c.ColumnName
-		if c.SourceName != "" {
-			sourceName = c.SourceName
+		// no source mapping - skip
+		if c.SourceName == "" || c.SourceName == c.ColumnName {
+			continue
 		}
-		//
-		v, ok := sourceMap[sourceName]
+
+		v, ok := sourceMap[c.SourceName]
 		if !ok {
 			if c.Required {
 				// TODO: #error think about this more since technically it's the source that is missing but we are returning the column name

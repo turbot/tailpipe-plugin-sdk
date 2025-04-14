@@ -3,12 +3,11 @@ package types
 import (
 	"encoding/json"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"strings"
 	"time"
 
 	"github.com/rs/xid"
-	"golang.org/x/exp/maps"
-
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/error_types"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
@@ -70,31 +69,34 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 	return nil
 }
 
+// TODO move all validation to the CLI https://github.com/turbot/tailpipe/issues/355
 func (l *DynamicRow) Validate() error {
 	var missingFields []string
 	var invalidFields []string
 
 	//
 	// Define time fields that need validation
-	requiredTimeFields := map[string]bool{
-		constants.TpIngestTimestamp: true,
-		constants.TpTimestamp:       true,
-		constants.TpDate:            true,
+	requiredTimeFields := []string{
+		constants.TpIngestTimestamp,
+		constants.TpTimestamp,
+		// this is added by CLI
+		//constants.TpDate,
 	}
 
 	// Define required string fields
-	requiredStringFields := map[string]bool{
-		constants.TpID:         true,
-		constants.TpSourceType: true,
-		constants.TpTable:      true,
-		constants.TpPartition:  true,
-		constants.TpIndex:      true,
+	requiredStringFields := []string{
+		constants.TpID,
+		constants.TpSourceType,
+		constants.TpTable,
+		constants.TpPartition,
+		// this is added by CLI
+		//constants.TpIndex,
 	}
 
 	// can we validate this row?
 	// if any required fields have transform functions, we cannot validate at this point
 	// - we must wait until after the transform has been executed by the CLI - the CLI will do the validation
-	requiredFields := append(maps.Keys(requiredStringFields), maps.Keys(requiredTimeFields)...)
+	requiredFields := append(requiredStringFields, requiredTimeFields...)
 	schemaMap := l.schema.AsMap()
 	for _, field := range requiredFields {
 		if schemaMap[field].Transform != "" {
@@ -105,13 +107,7 @@ func (l *DynamicRow) Validate() error {
 
 	// OK so we can validate
 	// Validate time fields
-	for field := range requiredTimeFields {
-		// if field is missing from source, add to missingFields
-		if _, ok := l.sourceColumns[field]; !ok {
-			missingFields = append(missingFields, field)
-			continue
-		}
-
+	for _, field := range requiredTimeFields {
 		// if field is missing from output columns or invalid add to relevant collection
 		missing, invalid := l.validateTime(l.OutputColumns[field])
 		if missing {
@@ -132,7 +128,7 @@ func (l *DynamicRow) Validate() error {
 	}
 
 	// Validate required string fields
-	for field := range requiredStringFields {
+	for _, field := range requiredStringFields {
 		val, ok := l.OutputColumns[field].(string)
 		if !ok || val == "" {
 			missingFields = append(missingFields, field)
@@ -155,7 +151,7 @@ func (l *DynamicRow) Validate() error {
 // validateTime validates the time field returning two bools
 // - the first bool is true if the time is missing
 // - the second bool is true if the time is invalid
-func (l *DynamicRow) validateTime(t interface{}) (bool, bool) {
+func (l *DynamicRow) validateTime(t interface{}) (missing, invalid bool) {
 	if t == nil {
 		return true, false
 	}
