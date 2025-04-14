@@ -68,20 +68,16 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 	var res = make(map[string]interface{}, len(r.Columns))
 
-	schemaMap := r.AsMap()
-
 	// do we have a pattern for selecting source fields? If not, exclude them all
 	if len(r.MapFields) > 0 {
 		for k, v := range sourceMap {
 			// does this column match the pattern?
 			matchPattern := r.ShouldMapSourceColumn(k)
-			// do we already have a schema for this column?
-			_, haveSchema := schemaMap[k]
 			// is the value null?
 			isNull := r.NullIf != "" && v == r.NullIf
 
 			// should we include this source value?
-			if matchPattern && !haveSchema && !isNull {
+			if matchPattern && !isNull {
 				res[k] = v
 			}
 		}
