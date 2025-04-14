@@ -68,34 +68,29 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 	var res = make(map[string]interface{}, len(r.Columns))
 
-	schemaMap := r.AsMap()
-
 	// do we have a pattern for selecting source fields? If not, exclude them all
 	if len(r.MapFields) > 0 {
 		for k, v := range sourceMap {
 			// does this column match the pattern?
 			matchPattern := r.ShouldMapSourceColumn(k)
-			// do we already have a schema for this column?
-			_, haveSchema := schemaMap[k]
 			// is the value null?
 			isNull := r.NullIf != "" && v == r.NullIf
 
 			// should we include this source value?
-			if matchPattern && !haveSchema && !isNull {
+			if matchPattern && !isNull {
 				res[k] = v
 			}
 		}
 	}
 
-	// now add all explicitly defined columns
+	// now add all explicitly defined columns, IF they have a different source column mapped
 	for _, c := range r.Columns {
-		// default source name to column name
-		sourceName := c.ColumnName
-		if c.SourceName != "" {
-			sourceName = c.SourceName
+		// no source mapping - skip
+		if c.SourceName == "" || c.SourceName == c.ColumnName {
+			continue
 		}
-		//
-		v, ok := sourceMap[sourceName]
+
+		v, ok := sourceMap[c.SourceName]
 		if !ok {
 			if c.Required {
 				// TODO: #error think about this more since technically it's the source that is missing but we are returning the column name
@@ -279,21 +274,6 @@ func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
 	for i, c := range cloned.Columns {
 		// set the source name to the column name
 		c.SourceName = c.ColumnName
-		cloned.Columns[i] = c
-	}
-	return cloned
-}
-
-// WithSourceFieldsAndTransformsCleared returns a copy with the source fields set to the column names
-// and the transforms cleared
-// this is called from ArtifactConversionCollector as it will already have applied field mappings and transforms
-func (r *TableSchema) WithSourceFieldsAndTransformsCleared() *TableSchema {
-	cloned := r.Clone()
-
-	for i, c := range cloned.Columns {
-		// set the source name to the column name
-		c.SourceName = c.ColumnName
-		c.Transform = ""
 		cloned.Columns[i] = c
 	}
 	return cloned

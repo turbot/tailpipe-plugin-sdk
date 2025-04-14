@@ -33,15 +33,22 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 		TableSchema: *tableSchema,
 	}
 
+	// build a list of source columns - these are the columns to read from the JSONL
 	var sourceColumns []SourceColumnDef
 
 	//get the table schema as a map
 	schemaMap := r.AsMap()
 
-	// First add all columns from the table schema
+	// First add the source column for all columns the table schema (unless there is transform)
 	for _, c := range tableSchema.Columns {
+		if c.Transform != "" {
+			// skip this column - it is a transform so the source column will not be used
+			continue
+		}
 		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 	}
+
+	// TODO maybe we don't need to apply MapFields here but in the select clause - otherwise if we have a transform using a non-mapped field it will fail
 
 	// Then, if we are in autoMap mode, add any inferred columns that aren't already in the schema and are not excluded
 	if len(r.MapFields) > 0 {
