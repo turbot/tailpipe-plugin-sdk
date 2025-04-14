@@ -46,6 +46,7 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 	// NOTE: these have precedence over any source related tp columns which are already populated
 	// from the source data - this is by design
 	for k, v := range sourceEnrichmentFields.CommonFields.AsMap() {
+		// if there a non empty value for this field, include it
 		if v != "" {
 			l.sourceColumns[k] = v
 		}

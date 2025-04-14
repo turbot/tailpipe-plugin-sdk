@@ -284,21 +284,6 @@ func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
 	return cloned
 }
 
-// WithSourceFieldsAndTransformsCleared returns a copy with the source fields set to the column names
-// and the transforms cleared
-// this is called from ArtifactConversionCollector as it will already have applied field mappings and transforms
-func (r *TableSchema) WithSourceFieldsAndTransformsCleared() *TableSchema {
-	cloned := r.Clone()
-
-	for i, c := range cloned.Columns {
-		// set the source name to the column name
-		c.SourceName = c.ColumnName
-		c.Transform = ""
-		cloned.Columns[i] = c
-	}
-	return cloned
-}
-
 // NormaliseColumnTypes normalises the column types to lower case
 func (r *TableSchema) NormaliseColumnTypes() {
 	for _, c := range r.Columns {

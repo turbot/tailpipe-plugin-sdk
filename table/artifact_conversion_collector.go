@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"log/slog"
 	"path/filepath"
 	"sort"
@@ -99,8 +100,7 @@ func (c *ArtifactConversionCollector) GetSchema() (*schema.TableSchema, error) {
 		return nil, err
 	}
 	// we have already mapped source fields to output fields, so clear the source fields
-	// also, we have already executed the transform function, so clear the transform
-	return s.WithSourceFieldsAndTransformsCleared(), nil
+	return s.WithSourceFieldsCleared(), nil
 }
 
 // Notify implements observable.Observer
@@ -261,21 +261,21 @@ func getReadArtifactSql(sourceFile string, format formats.Format) (string, error
 }
 
 // getCommonFieldsSelectClauses generates the SQL clauses to select the common fields which we are able to auto populate
-func getCommonFieldsSelectClauses(table, partition string, ingestionTime time.Time, sourceEnrichment *schema.SourceEnrichment) []string {
-
-	var commonFieldsClauses = []string{
-		fmt.Sprintf("'%s' as tp_table", table),
-		fmt.Sprintf("'%s' as tp_partition", partition),
-		"gen_random_uuid() as tp_id",
-		fmt.Sprintf("'%s' as tp_ingest_timestamp", ingestionTime.Format(time.RFC3339)),
+func getCommonFieldsSelectClauses(table, partition string, ingestionTime time.Time, sourceEnrichment *schema.SourceEnrichment) map[string]string {
+	var commonFieldsClauses = map[string]string{
+		"tp_table":            fmt.Sprintf("'%s' as tp_table", table),
+		"tp_partition":        fmt.Sprintf("'%s' as tp_partition", partition),
+		"tp_id":               "gen_random_uuid() as tp_id",
+		"tp_ingest_timestamp": fmt.Sprintf("'%s' as tp_ingest_timestamp", ingestionTime.Format(time.RFC3339)),
 	}
 
 	// merge in source common fields
 	// NOTE: these have precedence over any source related tp columns which are already populated
 	// from the source data - this is by design
 	for k, v := range sourceEnrichment.CommonFields.AsMap() {
+		// if there a non empty value for this field, include it
 		if v != "" {
-			commonFieldsClauses = append(commonFieldsClauses, fmt.Sprintf("'%s' as \"%s\"", v, k))
+			commonFieldsClauses[k] = fmt.Sprintf("'%s' as \"%s\"", v, k)
 		}
 	}
 
@@ -288,46 +288,43 @@ func getCopyQuery(table, partition, destFile string, sourceColumns []string, tab
 	// Create a map of the existing column names
 	sourceColumnMap := utils.SliceToLookup(sourceColumns)
 
-	var selectClauses []string
+	var selectClauses = make(map[string]string)
 
 	// Build mapped sourceColumns clauses first
 	if len(tableSchema.Columns) > 0 {
 		for _, column := range tableSchema.Columns {
-
-			var sourceExpression string
-			switch {
-			case column.SourceName != "":
-				sourceExpression = fmt.Sprintf("\"%s\"", column.SourceName)
-			default:
-				sourceExpression = fmt.Sprintf("\"%s\"", column.ColumnName)
+			if column.Transform != "" {
+				// transforms are executed by the CLI JSONL-to-parquet conversion, so skip here
+				continue
 			}
 
-			// coalesce to the default index
-			if column.ColumnName == constants.TpIndex {
-				sourceExpression = fmt.Sprintf("coalesce(%s, '%s')", sourceExpression, schema.DefaultIndex)
+			// perform column mapping, if a source column is specified
+			sourceColumn := column.SourceName
+			if sourceColumn == "" {
+				// if no source column is specified, use the column name
+				sourceColumn = column.ColumnName
 			}
 
-			selectClauses = append(selectClauses, fmt.Sprintf(`%s as "%s"`, sourceExpression, column.ColumnName))
+			selectClauses[column.ColumnName] = fmt.Sprintf(`"%s" as "%s"`, sourceColumn, column.ColumnName)
 			// remove the output name from the map of existing sourceColumns to select
 			delete(sourceColumnMap, column.ColumnName)
 		}
 	}
 
 	// Quote all remaining column names and sort them for consistent order
-	var quotedColumns []string
 	var remainingColumns []string
 	for col := range sourceColumnMap {
 		remainingColumns = append(remainingColumns, col)
 	}
 	sort.Strings(remainingColumns)
 	for _, col := range remainingColumns {
-		quotedColumns = append(quotedColumns, fmt.Sprintf(`"%s"`, col))
+		selectClauses[col] = fmt.Sprintf(`"%s"`, col)
 	}
-	selectClauses = append(selectClauses, quotedColumns...)
 
 	// Build common fields clauses after mapped sourceColumns
-	commonFieldsClauses := getCommonFieldsSelectClauses(table, partition, ingestionTime, sourceEnrichment)
-	selectClauses = append(selectClauses, commonFieldsClauses...)
+	for k, v := range getCommonFieldsSelectClauses(table, partition, ingestionTime, sourceEnrichment) {
+		selectClauses[k] = v
+	}
 
 	// Build the query
 	query := fmt.Sprintf(`-- Transform and copy data to destination
@@ -340,7 +337,7 @@ to '%s' (
 
 -- Get row count
 select count(*) as row_count from temp_data;`,
-		strings.Join(selectClauses, ",\n    "),
+		strings.Join(maps.Values(selectClauses), ",\n    "),
 		destFile)
 
 	return query

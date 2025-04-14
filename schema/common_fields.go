@@ -308,14 +308,21 @@ func (c *CommonFields) AsMap() map[string]string {
 	// Mandatory fields
 	result[constants.TpID] = c.TpID
 	result[constants.TpSourceType] = c.TpSourceType
-	result[constants.TpIngestTimestamp] = c.TpIngestTimestamp.Format(timeFormat)
-	result[constants.TpTimestamp] = c.TpTimestamp.Format(timeFormat)
+	// only include time fields if non zero
+	if !c.TpIngestTimestamp.IsZero() {
+		result[constants.TpIngestTimestamp] = c.TpIngestTimestamp.Format(timeFormat)
+	}
+	if !c.TpTimestamp.IsZero() {
+		result[constants.TpTimestamp] = c.TpTimestamp.Format(timeFormat)
+	}
 
 	// Hive fields
 	result[constants.TpTable] = c.TpTable
 	result[constants.TpPartition] = c.TpPartition
 	result[constants.TpIndex] = c.TpIndex
-	result[constants.TpDate] = c.TpDate.Format(timeFormat)
+	if !c.TpDate.IsZero() {
+		result[constants.TpDate] = c.TpDate.Format(timeFormat)
+	}
 
 	// Optional fields
 	if c.TpSourceIP != nil {
