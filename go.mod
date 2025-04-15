@@ -17,7 +17,7 @@ require (
 	github.com/satyrius/gonx v1.4.0
 	github.com/stretchr/testify v1.10.0
 	github.com/turbot/go-kit v1.2.0
-	github.com/turbot/pipe-fittings/v2 v2.3.2-rc.1
+	github.com/turbot/pipe-fittings/v2 v2.3.2
 	github.com/zclconf/go-cty v1.14.4
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	golang.org/x/sync v0.11.0
