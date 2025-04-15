@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// TODO KAI improve
 func Test_NewConversionSchemaWithInferredSchema(t *testing.T) {
 	testCases := []struct {
 		name           string
@@ -72,14 +73,15 @@ func Test_NewConversionSchemaWithInferredSchema(t *testing.T) {
 			},
 			expectedCheck: func(t *testing.T, result *ConversionSchema) {
 				assert.Equal(t, 1, len(result.Columns))
-				assert.Equal(t, 1, len(result.SourceColumns))
+				// all columns shod appear in source
+				assert.Equal(t, 2, len(result.SourceColumns))
 
 				// Check existing column
 				existingCol := result.AsMap()["existing_col"]
 				assert.NotNil(t, existingCol)
 				assert.Equal(t, "string", existingCol.Type)
 
-				// Verify inferred column is not present
+				// Verify inferred column is not present in output coloumns
 				inferredCol := result.AsMap()["inferred_col"]
 				assert.Nil(t, inferredCol)
 			},
