@@ -1,5 +1,7 @@
 package schema
 
+import "golang.org/x/exp/maps"
+
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
 type SourceColumnDef struct {
 	Name string
@@ -37,10 +39,7 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 	}
 
 	// build a list of source columns - these are the columns to read from the JSONL
-	var sourceColumns []SourceColumnDef
-
-	//get the table schema as a map
-	schemaMap := r.AsMap()
+	var sourceColumns = map[string]SourceColumnDef{}
 
 	// First add the source column for all columns the table schema (unless there is transform)
 	for _, c := range tableSchema.Columns {
@@ -48,18 +47,18 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 			// skip this column - it is a transform so the source column will not be used
 			continue
 		}
-		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
+		sourceColumns[c.SourceName] = NewSourceColumnDef(c)
 	}
 
 	// now populate the source columns from the inferred schema
 	for _, c := range inferredSchema.Columns {
-		// if this column exists in the table def, we have already added it to source columns so nothing to do
-		if _, haveColumn := schemaMap[c.ColumnName]; haveColumn {
+		// if we do not already have this column, add it
+		if _, haveColumn := sourceColumns[c.SourceName]; haveColumn {
 			continue
 		}
 
 		// add to source columns - we may use use any column for a transform
-		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
+		sourceColumns[c.SourceName] = NewSourceColumnDef(c)
 
 		// only add the inferred column to 'Columns' if it satisfies MapFields
 		// does this column match the any of the map fields?
@@ -69,7 +68,7 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 	}
 
 	// now set the source columns
-	r.SourceColumns = sourceColumns
+	r.SourceColumns = maps.Values(sourceColumns)
 	return r
 }
 

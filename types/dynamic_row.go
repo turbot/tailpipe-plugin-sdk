@@ -47,7 +47,7 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 	for k, v := range sourceEnrichmentFields.CommonFields.AsMap() {
 		// if there a non empty value for this field, include it
 		if v != "" {
-			l.sourceColumns[k] = v
+			l.OutputColumns[k] = v
 		}
 	}
 
