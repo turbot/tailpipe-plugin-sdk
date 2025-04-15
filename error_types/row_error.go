@@ -250,11 +250,11 @@ func (r *RowErrors) Errors() []string {
 		case len(messages) == 1:
 			// single error message so display it
 			msgText := maps.Keys(messages)[0]
-			msg = fmt.Sprintf("%s: %s %s having error: %s", sourceDisplay, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgText)
+			msg = fmt.Sprintf("%s: %s %s with error: %s", sourceDisplay, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgText)
 		case len(messages) > 1:
 			// multiple error messages so just display the count
 			msgCount := len(messages)
-			msg = fmt.Sprintf("%s: %s %s having %d errors", sourceDisplay, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgCount)
+			msg = fmt.Sprintf("%s: %s %s with %d errors", sourceDisplay, humanize.Comma(rowCount), utils.Pluralize("row", int(rowCount)), msgCount)
 		}
 
 		if msg != "" {
