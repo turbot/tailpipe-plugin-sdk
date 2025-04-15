@@ -68,16 +68,15 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 
 	var res = make(map[string]interface{}, len(r.Columns))
 
-	// do we have a pattern for selecting source fields? If not, exclude them all
+	// NOTE: we DO NOT apply MapFields filtering here - we map all fields and let the CLI filter out source fields
+	// which are not in the MapFields list
+	// this is because any of the source fields may be required for a transform
 	if len(r.MapFields) > 0 {
 		for k, v := range sourceMap {
-			// does this column match the pattern?
-			matchPattern := r.ShouldMapSourceColumn(k)
-			// is the value null?
-			isNull := r.NullIf != "" && v == r.NullIf
-
-			// should we include this source value?
-			if matchPattern && !isNull {
+			// check for null
+			if r.NullIf != "" && v == r.NullIf {
+				res[k] = nil
+			} else {
 				res[k] = v
 			}
 		}
