@@ -52,7 +52,7 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 
 	// now populate the source columns from the inferred schema
 	for _, c := range inferredSchema.Columns {
-		// if this column exists in the table def, we have already added it to source columns so nothing to do
+		// if we do not already have this column, add it
 		if _, haveColumn := sourceColumns[c.SourceName]; haveColumn {
 			continue
 		}
