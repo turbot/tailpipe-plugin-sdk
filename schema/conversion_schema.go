@@ -16,7 +16,10 @@ func NewSourceColumnDef(columnSchema *ColumnSchema) SourceColumnDef {
 	}
 }
 
-// ConversionSchema is a specialised TableSchema which also contains a list of all source columns
+// ConversionSchema is a specialised TableSchema which also contains a list of ALL source columns
+// the embedded Schema defines the columns which appear in the output parquet file,
+// and the source columns includes all available fields - these are necessary as there may be a transform which uses
+// any of them
 type ConversionSchema struct {
 	TableSchema
 	// the source columns - these are the columns in the source data
@@ -48,25 +51,20 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 	}
 
-	// TODO maybe we don't need to apply MapFields here but in the select clause - otherwise if we have a transform using a non-mapped field it will fail
+	// now populate the source columns from the inferred schema
+	for _, c := range inferredSchema.Columns {
+		// if this column exists in the table def, we have already added it to source columns so nothing to do
+		if _, haveColumn := schemaMap[c.ColumnName]; haveColumn {
+			continue
+		}
 
-	// Then, if we are in autoMap mode, add any inferred columns that aren't already in the schema and are not excluded
-	if len(r.MapFields) > 0 {
-		for _, c := range inferredSchema.Columns {
-			// if this column exists in the table def, skip it
-			if _, haveColumn := schemaMap[c.ColumnName]; haveColumn {
-				continue
-			}
+		// add to source columns - we may use use any column for a transform
+		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 
-			// does this column match the any of the map fields?
-			if !r.ShouldMapSourceColumn(c.ColumnName) {
-				continue
-			}
-
-			// we do not have this column - add it
+		// only add the inferred column to 'Columns' if it satisfies MapFields
+		// does this column match the any of the map fields?
+		if r.ShouldMapSourceColumn(c.ColumnName) {
 			r.Columns = append(r.Columns, c)
-			// add to source columns
-			sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 		}
 	}
 
