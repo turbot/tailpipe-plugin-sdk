@@ -1,3 +1,9 @@
+## v0.3.1 [2025-04-16]
+
+_Bug fixes_
+* Fix Column level `null_if` not being respected. ([#182](https://github.com/turbot/tailpipe-plugin-sdk/issues/182))
+* Fix missing required column is not being reported as a row error.  ([#181](https://github.com/turbot/tailpipe-plugin-sdk/issues/181))
+
 ## v0.3.0 [2025-04-15]
 _Whats new_
 * Add support for custom tables.
