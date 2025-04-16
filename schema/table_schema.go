@@ -71,39 +71,32 @@ func (r *TableSchema) MapRow(sourceMap map[string]string) (map[string]interface{
 	// NOTE: we DO NOT apply MapFields filtering here - we map all fields and let the CLI filter out source fields
 	// which are not in the MapFields list
 	// this is because any of the source fields may be required for a transform
-	if len(r.MapFields) > 0 {
-		for k, v := range sourceMap {
-			// check for null
-			if r.NullIf != "" && v == r.NullIf {
-				res[k] = nil
-			} else {
-				res[k] = v
-			}
+	for k, v := range sourceMap {
+		// check for null
+		if r.NullIf != "" && v == r.NullIf {
+			res[k] = nil
+		} else {
+			res[k] = v
 		}
 	}
 
 	// now add all explicitly defined columns, IF they have a different source column mapped
 	for _, c := range r.Columns {
-		// no source mapping - skip
-		if c.SourceName == "" || c.SourceName == c.ColumnName {
+		// if this field has a transform, do not map it
+		if c.Transform != "" {
 			continue
 		}
 
 		v, ok := sourceMap[c.SourceName]
 		if !ok {
-			if c.Required {
-				// TODO: #error think about this more since technically it's the source that is missing but we are returning the column name
-				// TODO: #error consider a separate mapping error with multiple fields (source/dest)
-				// if the field is required, add it to the missing fields
-				missingFields = append(missingFields, c.ColumnName)
-			}
-			// if the field is not required, we just skip it
+			// do not validate here - leave it to the validate function
 			continue
 		}
 
 		// so we have a value for this column - is it null?
 		if r.isNullValue(c, v) {
-			// if the value matches the null string, skip it - it will appear as null in the parquet
+			// if the value matches the null string, set to nil
+			res[c.ColumnName] = nil
 			continue
 		}
 
