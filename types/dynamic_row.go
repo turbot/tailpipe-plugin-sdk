@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"golang.org/x/exp/maps"
 	"strings"
@@ -70,73 +71,50 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 }
 
 // TODO move all validation to the CLI https://github.com/turbot/tailpipe/issues/355
+// (one possible issue for this is that if a required field is missing and has not type, schema inference will fail - so maybe we also need to validate here)
 func (l *DynamicRow) Validate() error {
 	var missingFields []string
 	var invalidFields []string
 
-	//
-	// Define time fields that need validation
-	requiredTimeFields := []string{
-		constants.TpIngestTimestamp,
-		constants.TpTimestamp,
-		// this is added by CLI
-		//constants.TpDate,
+	// these fields are validated by CLI so we can ignore them
+	var excludedFromValidation = map[string]bool{
+		constants.TpIndex: true,
+		constants.TpDate:  true,
 	}
 
-	// Define required string fields
-	requiredStringFields := []string{
-		constants.TpID,
-		constants.TpSourceType,
-		constants.TpTable,
-		constants.TpPartition,
-		// this is added by CLI
-		//constants.TpIndex,
-	}
+	// only validate if there is no transform
+	var requiredFields []*schema.ColumnSchema
 
-	// can we validate this row?
-	// if any required fields have transform functions, we cannot validate at this point
-	// - we must wait until after the transform has been executed by the CLI - the CLI will do the validation
-	requiredFields := append(requiredStringFields, requiredTimeFields...) //nolint: gocritic // we intend to assign to a different variable
-	schemaMap := l.schema.AsMap()
-	for _, field := range requiredFields {
-		if schemaMap[field].Transform != "" {
-			// this field has a transform function - we cannot validate at this point
-			return nil
+	for _, column := range l.schema.Columns {
+		if column.Required && column.Transform == "" && !excludedFromValidation[column.ColumnName] {
+			requiredFields = append(requiredFields, column)
 		}
 	}
-
-	// OK so we can validate
-	// Validate time fields
-	for _, field := range requiredTimeFields {
-		// if field is missing from output columns or invalid add to relevant collection
-		missing, invalid := l.validateTime(l.OutputColumns[field])
-		if missing {
-			missingFields = append(missingFields, field)
-		}
-		if invalid {
-			invalidFields = append(invalidFields, field)
-		}
-	}
-
-	// Special validation for tp_date to ensure it's a date without time component
-	if dateVal, ok := l.OutputColumns[constants.TpDate].(string); ok && dateVal != "" {
-		if parsedDate, err := time.Parse(time.RFC3339, dateVal); err == nil {
-			if !parsedDate.Equal(parsedDate.Truncate(24 * time.Hour)) {
-				invalidFields = append(invalidFields, constants.TpDate)
-			}
-		}
-	}
-
-	// Validate required string fields
-	for _, field := range requiredStringFields {
-		val, ok := l.OutputColumns[field].(string)
-		if !ok || val == "" {
-			missingFields = append(missingFields, field)
+	// Validate required fields
+	for _, column := range requiredFields {
+		val, ok := l.OutputColumns[column.ColumnName]
+		if !ok {
+			missingFields = append(missingFields, column.ColumnName)
 			continue
 		}
-		// Special handling for tp_index - ensure lowercase
-		if field == constants.TpIndex {
-			l.OutputColumns[field] = strings.ToLower(val)
+
+		switch column.Type {
+		case "timestamp":
+			// if field is missing from output columns or invalid add to relevant collection
+			if err := l.validateTime(val); err != nil {
+				invalidFields = append(invalidFields, column.ColumnName)
+			}
+
+		default:
+			if val == "" {
+				missingFields = append(missingFields, column.ColumnName)
+			}
+			// TODO we need to move this to CLI as defaulting now happens there
+			// https://github.com/turbot/tailpipe/issues/364
+			// Special handling for tp_index - ensure lowercase
+			if column.ColumnName == constants.TpIndex {
+				l.OutputColumns[column.ColumnName] = strings.ToLower(val.(string))
+			}
 		}
 	}
 
@@ -148,22 +126,20 @@ func (l *DynamicRow) Validate() error {
 	return nil
 }
 
-// validateTime validates the time field returning two bools
-// - the first bool is true if the time is missing
-// - the second bool is true if the time is invalid
-func (l *DynamicRow) validateTime(t interface{}) (missing, invalid bool) {
+// validateTime validates the time field, return an error if time is missing or invalid
+func (l *DynamicRow) validateTime(t interface{}) error {
 	if t == nil {
-		return true, false
+		return errors.New("time value is nil")
 	}
 	timeValue, ok := t.(time.Time)
 	if !ok {
-		return false, true
+		return fmt.Errorf("time value is not a time.Time: %v", t)
 	}
 	if timeValue.IsZero() {
-		return true, false
+		return errors.New("time value is zero")
 	}
 
-	return false, false
+	return nil
 }
 
 // MarshalJSON overrides JSON serialization to include the dynamic columns
