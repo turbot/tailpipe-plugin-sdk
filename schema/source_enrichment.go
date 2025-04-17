@@ -1,6 +1,9 @@
 package schema
 
-import "github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+import (
+	typehelpers "github.com/turbot/go-kit/types"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+)
 
 // SourceEnrichment - is a set of metadata about a row - this is built by the row source and passed
 // to the enrichment
@@ -26,6 +29,16 @@ func (s *SourceEnrichment) ToProto() *proto.SourceEnrichment {
 		CommonFields: s.CommonFields.AsMap(),
 		Metadata:     s.Metadata,
 	}
+}
+
+// ResolveSourceLocation - returns the source location for this row - TpSourceLocation fallbacks to TpSourceName
+func (s *SourceEnrichment) ResolveSourceLocation() string {
+	sourceLocation := typehelpers.SafeString(s.CommonFields.TpSourceLocation)
+	if sourceLocation == "" {
+		sourceLocation = typehelpers.SafeString(s.CommonFields.TpSourceName)
+	}
+	return sourceLocation
+
 }
 
 func SourceEnrichmentFromProto(p *proto.SourceEnrichment) *SourceEnrichment {

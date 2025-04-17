@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"sync"
 
-	gtypes "github.com/turbot/go-kit/types"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 	"github.com/turbot/tailpipe-plugin-sdk/error_types"
@@ -40,12 +39,18 @@ type RowEnrichmentCollector[R types.RowStruct] struct {
 	chunkCount int32
 
 	writer ChunkWriter
+
+	// map of headers, keyed by the artifact path
+	// used for delimited artifacts with a header row
+	headers    map[string][]string
+	headersMut sync.RWMutex
 }
 
 func NewRowEnrichmentCollector[R types.RowStruct](table Table[R]) *RowEnrichmentCollector[R] {
 	return &RowEnrichmentCollector[R]{
 		table:     table,
 		rowBuffer: make([]any, 0, JSONLChunkSize),
+		headers:   make(map[string][]string),
 	}
 }
 
@@ -142,6 +147,10 @@ func (c *RowEnrichmentCollector[R]) Notify(ctx context.Context, event events.Eve
 
 	// NOTE: we do not pass error events to CLI - we have added to the status instead
 	switch e := event.(type) {
+	case *events.Header:
+		// handle header event - store the header for this artifact
+		c.handleHeaderEvent(e)
+		return nil
 	case *events.RowExtracted:
 		// handle row event - map, enrich and publish the row
 		return c.handleRowExtractedEvent(ctx, e)
@@ -189,19 +198,32 @@ func (c *RowEnrichmentCollector[R]) getSourceMetadata(sourceConfig *types.Source
 	return sourceMetadata, nil
 }
 
+// handleHeaderEvent is invoked when a Header event is received
+// if we have a mapper and it has an OnHeader method, call it
+func (c *RowEnrichmentCollector[R]) handleHeaderEvent(e *events.Header) {
+	// each artifact may have a different header, so store a map of headers, keyed by the source location
+	sourceLocation := e.Info.SourceEnrichment.ResolveSourceLocation()
+
+	if sourceLocation == "" {
+		// if source location is not set, we cannot store the header
+		// (we use TpSourceLocation to read headers from the map so we need to use that as key)
+		return
+	}
+	c.headersMut.Lock()
+	defer c.headersMut.Unlock()
+
+	c.headers[sourceLocation] = e.Header
+}
+
 // handleRowExtractedEvent is invoked when a RowExtracted event is received - map, enrich and publish the row
 func (c *RowEnrichmentCollector[R]) handleRowExtractedEvent(ctx context.Context, e *events.RowExtracted) error {
 	c.collectionWg.Add(1)
 	defer c.collectionWg.Done()
 
 	sourceEnrichment := e.SourceEnrichment
-	sourceLocation := gtypes.SafeString(sourceEnrichment.CommonFields.TpSourceLocation)
-	if sourceLocation == "" {
-		sourceLocation = gtypes.SafeString(sourceEnrichment.CommonFields.TpSourceName)
-	}
+	sourceLocation := e.SourceEnrichment.ResolveSourceLocation()
 
-	// put data into an array as that is what mappers expect
-	mappedRow, err := c.mapRow(ctx, e.Row)
+	mappedRow, err := c.mapRow(ctx, e.Row, sourceLocation)
 	if err != nil {
 		// call onRowError to update status with the row error, we do not return error to source
 		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeMapping, err, e.Row)
@@ -228,7 +250,17 @@ func (c *RowEnrichmentCollector[R]) handleRowExtractedEvent(ctx context.Context,
 }
 
 // mapRow applies any configured mappers to the raw rows
-func (c *RowEnrichmentCollector[R]) mapRow(ctx context.Context, rawRow any) (R, error) {
+func (c *RowEnrichmentCollector[R]) mapRow(ctx context.Context, rawRow any, sourceLocation string) (R, error) {
+	var opts []mappers.MapOption[R]
+
+	// see if we have headers for this source location
+	c.headersMut.RLock()
+	header, ok := c.headers[sourceLocation]
+	c.headersMut.RUnlock()
+	if ok {
+		opts = append(opts, mappers.WithHeader[R](header))
+	}
+
 	var empty R
 	// if there is no mapper, just return the data as is
 	if c.mapper == nil {
@@ -241,7 +273,7 @@ func (c *RowEnrichmentCollector[R]) mapRow(ctx context.Context, rawRow any) (R, 
 		return row, nil
 	}
 
-	return c.mapper.Map(ctx, rawRow)
+	return c.mapper.Map(ctx, rawRow, opts...)
 }
 
 // onRowEnriched is called when a row has been enriched - it buffers the row and writes to JSONL file if buffer is full

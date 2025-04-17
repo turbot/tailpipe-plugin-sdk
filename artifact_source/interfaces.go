@@ -23,7 +23,8 @@ type ArtifactSource interface {
 	SetExtractor(extractor Extractor)
 	SetLoader(loader artifact_loader.Loader)
 	SetRowPerLine(b bool)
-	SetSkipHeaderRow(b bool)
+	SetSkipHeaderRow()
+	SetHeaderDelimiter(b string)
 	SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigImpl)
 }
 

@@ -56,7 +56,21 @@ func WithRowPerLine() row_source.RowSourceOption {
 func WithSkipHeaderRow() row_source.RowSourceOption {
 	return func(r row_source.RowSource) error {
 		if a, ok := r.(ArtifactSource); ok {
-			a.SetSkipHeaderRow(true)
+			// pass empty delimiter
+			a.SetSkipHeaderRow()
+		}
+		return nil
+	}
+}
+
+// WithHeaderRowNotification is used when creating an ArtifactSourceImpl
+// it specifies that the first row of the artifact is a header.
+// Use the specified delimiter to split into a list of fields and notify the collector of the header.
+// The collector will pass the header columns to all MapRow calls using the `WithHeader` option
+func WithHeaderRowNotification(delimiter string) row_source.RowSourceOption {
+	return func(r row_source.RowSource) error {
+		if a, ok := r.(ArtifactSource); ok {
+			a.SetHeaderDelimiter(delimiter)
 		}
 		return nil
 	}
