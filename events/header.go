@@ -31,3 +31,11 @@ func (c *Header) ToProto() *proto.Event {
 		},
 	}
 }
+func HeaderFromProto(e *proto.Event) Event {
+	info := types.DownloadedArtifactInfoFromProto(e.GetArtifactDownloadedEvent().ArtifactInfo).ArtifactInfo
+	return &Header{
+		ExecutionId: e.GetArtifactDownloadedEvent().ExecutionId,
+		Info:        &info,
+		Header:      e.GetHeaderEvent().Header,
+	}
+}
