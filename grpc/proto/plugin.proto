@@ -177,6 +177,7 @@ message Event {
     EventArtifactDownloaded artifact_downloaded_event = 7;
     EventArtifactExtracted artifact_extracted_event = 8;
     EventSourceComplete source_complete_event = 9;
+    EventHeader header_event = 10;
   }
 }
 
@@ -220,6 +221,12 @@ message EventComplete {
 message EventSourceComplete {
   string execution_id = 1;
   string error = 6;
+}
+
+message EventHeader {
+  string execution_id = 1;
+  ArtifactInfo artifact_info = 2;
+  repeated string header = 3;
 }
 
 message EventArtifactDiscovered{

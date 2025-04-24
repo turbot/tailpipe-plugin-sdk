@@ -15,6 +15,8 @@ func SourceEventFromProto(e *proto.Event) (Event, error) {
 		return ArtifactExtractedFromProto(e), nil
 	case *proto.Event_ArtifactDownloadedEvent:
 		return ArtifactDownloadedFromProto(e), nil
+	case *proto.Event_HeaderEvent:
+		return HeaderFromProto(e), nil
 	case *proto.Event_SourceCompleteEvent:
 		return SourceCompleteFromProto(e), nil
 	case *proto.Event_ErrorEvent:

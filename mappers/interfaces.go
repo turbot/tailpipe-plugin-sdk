@@ -19,3 +19,9 @@ type Mapper[R types.RowStruct] interface {
 	// Map converts raw rows to the desired format (type 'R')
 	Map(context.Context, any, ...MapOption[R]) (R, error)
 }
+
+// HeaderHandler is an interface which provides a method for handling the header row
+// it should be implemented by any mapper which wishes to be notified of the header row
+type HeaderHandler interface {
+	OnHeader(header []string)
+}

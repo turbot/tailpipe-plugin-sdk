@@ -7,11 +7,11 @@ import (
 	"io/fs"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/elastic/go-grok"
-
 	"github.com/turbot/pipe-fittings/v2/filter"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
@@ -51,9 +51,13 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 
 	// do we expect the a row to be a line of data
 	RowPerLine bool
-	// do we want to skip the first row (i.e. for a csv file)
+	// is there a header row we want to skip the first row (i.e. for a csv file)
 	SkipHeaderRow bool
-	Loader        artifact_loader.Loader
+	// what is the delimiter for the header row
+	// (if this is set, a header event will be raised for the header of each file)
+	HeaderRowDelimiter string
+
+	Loader artifact_loader.Loader
 
 	// temporary directory for storing downloaded artifacts - this is initialised in the Init function
 	// to be a subdirectory of the collection directory
@@ -152,8 +156,18 @@ func (a *ArtifactSourceImpl[S, T]) SetRowPerLine(rowPerLine bool) {
 	a.RowPerLine = rowPerLine
 }
 
-func (a *ArtifactSourceImpl[S, T]) SetSkipHeaderRow(skipHeaderRow bool) {
-	a.SkipHeaderRow = skipHeaderRow
+// SetSkipHeaderRow sets the skip header row flag for the source, but does not set the delimiter.
+// The header row will be skipped but no Header event will be raised
+func (a *ArtifactSourceImpl[S, T]) SetSkipHeaderRow() {
+	a.SkipHeaderRow = true
+}
+
+// SetHeaderDelimiter sets the skip header row flag for the source, and sets the delimiter used to split the header.
+// The header row will be skipped and a Header event will be raised with split header.
+// This header will then be used by the collector to pass to all MapRow calls for that artifact
+func (a *ArtifactSourceImpl[S, T]) SetHeaderDelimiter(delimiter string) {
+	a.SkipHeaderRow = true
+	a.HeaderRowDelimiter = delimiter
 }
 
 // Collect tells our ArtifactSourceImpl to start discovering artifacts
@@ -240,6 +254,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 		return fmt.Errorf("error updating collection state: %w", err)
 	}
 
+	// TODO verify if this condition can still occur
 	// we have a race condition - if the processArtifact completes before we have time to handle the ArtifactDownloadedEvent
 	// ArtifactSourceImpl.Collect may return before this function is complete
 	// this may lead to sending a completion event before the artifact has been processed
@@ -326,6 +341,11 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 			// if we're skipping the header row, skip the first row
 			// (note: as we already incremented count we check for 1)
 			if a.SkipHeaderRow && count == 1 {
+				// raise an event with the header, in case anyone downstream needs it
+				// (for example a mapper which uses the header to build a format)
+				if err := a.onHeader(ctx, info, rawRow); err != nil {
+					return fmt.Errorf("error processing header row: %w", err)
+				}
 				continue
 			}
 
@@ -554,4 +574,25 @@ func (a *ArtifactSourceImpl[S, T]) walkDirNode(targetPath string, metadata map[s
 
 func (a *ArtifactSourceImpl[S, T]) hasNullLoader() bool {
 	return a.Loader != nil && a.Loader.Identifier() == artifact_loader.NullLoaderIdentifier
+}
+
+// OnHeader is called for the first row when  when extracting an artifact with the SkipHeaderRow param set
+func (a *ArtifactSourceImpl[S, T]) onHeader(ctx context.Context, info *types.DownloadedArtifactInfo, row *types.RowData) error {
+	// if not delimiter is set, that means WithSkipHeaderRow option was passed rather WithHeader
+	// the plugin does not need to be notified, so just return
+	if a.HeaderRowDelimiter == "" {
+		return nil
+	}
+
+	executionId, err := context_values.ExecutionIdFromContext(ctx)
+	if err != nil {
+		return err
+	}
+	headerString, ok := row.Data.(string)
+	if !ok {
+		return fmt.Errorf("header row is not a string")
+	}
+	// split the header row into columns
+	header := strings.Split(headerString, a.HeaderRowDelimiter)
+	return a.NotifyObservers(ctx, events.NewHeaderEvent(executionId, &info.ArtifactInfo, header))
 }
