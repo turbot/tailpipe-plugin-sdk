@@ -1,3 +1,11 @@
+## v0.4.0 [2025-04-25]
+
+_Whats new_
+* Add WithHeaderRowNotification RowSourceOption, which can be set to enable a mapper to be notified of the header row of an artifact. ([#186](https://github.com/turbot/tailpipe-plugin-sdk/issues/186))
+
+_Bug fixes_
+* Fix source file error for custom tables when using S3 or other external source. ([#188](https://github.com/turbot/tailpipe-plugin-sdk/issues/188))
+
 ## v0.3.1 [2025-04-16]
 
 _Bug fixes_
