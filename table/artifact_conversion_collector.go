@@ -176,7 +176,7 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 
 func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactDownloaded, destFile string) (_ int64, err error) {
 	// First build query to select source data into temp table and get its columns
-	tempTableQuery, err := getTempTableQuery(e.Info.Name, c.table.GetFormat())
+	tempTableQuery, err := getTempTableQuery(e.Info.LocalName, c.table.GetFormat())
 	if err != nil {
 		slog.Error("ArtifactConversionCollector: error getting temp table query", "error", err)
 		return 0, err
