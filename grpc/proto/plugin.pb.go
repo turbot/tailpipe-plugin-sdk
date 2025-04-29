@@ -2078,10 +2078,10 @@ func (x *SourceEnrichment) GetMetadata() map[string]string {
 }
 
 type SourceMetadata struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Name          string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
-	Properties    map[string]string      `protobuf:"bytes,3,rep,name=properties,proto3" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	state         protoimpl.MessageState       `protogen:"open.v1"`
+	Name          string                       `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	Description   string                       `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	Properties    map[string]*PropertyMetadata `protobuf:"bytes,3,rep,name=properties,proto3" json:"properties,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2130,11 +2130,79 @@ func (x *SourceMetadata) GetDescription() string {
 	return ""
 }
 
-func (x *SourceMetadata) GetProperties() map[string]string {
+func (x *SourceMetadata) GetProperties() map[string]*PropertyMetadata {
 	if x != nil {
 		return x.Properties
 	}
 	return nil
+}
+
+type PropertyMetadata struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Description   string                 `protobuf:"bytes,1,opt,name=description,proto3" json:"description,omitempty"`
+	Type          string                 `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	Required      bool                   `protobuf:"varint,3,opt,name=required,proto3" json:"required,omitempty"`
+	Default       string                 `protobuf:"bytes,4,opt,name=default,proto3" json:"default,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PropertyMetadata) Reset() {
+	*x = PropertyMetadata{}
+	mi := &file_plugin_proto_msgTypes[29]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PropertyMetadata) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PropertyMetadata) ProtoMessage() {}
+
+func (x *PropertyMetadata) ProtoReflect() protoreflect.Message {
+	mi := &file_plugin_proto_msgTypes[29]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PropertyMetadata.ProtoReflect.Descriptor instead.
+func (*PropertyMetadata) Descriptor() ([]byte, []int) {
+	return file_plugin_proto_rawDescGZIP(), []int{29}
+}
+
+func (x *PropertyMetadata) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *PropertyMetadata) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *PropertyMetadata) GetRequired() bool {
+	if x != nil {
+		return x.Required
+	}
+	return false
+}
+
+func (x *PropertyMetadata) GetDefault() string {
+	if x != nil {
+		return x.Default
+	}
+	return ""
 }
 
 type SourcePluginReattach struct {
@@ -2148,7 +2216,7 @@ type SourcePluginReattach struct {
 
 func (x *SourcePluginReattach) Reset() {
 	*x = SourcePluginReattach{}
-	mi := &file_plugin_proto_msgTypes[29]
+	mi := &file_plugin_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2160,7 +2228,7 @@ func (x *SourcePluginReattach) String() string {
 func (*SourcePluginReattach) ProtoMessage() {}
 
 func (x *SourcePluginReattach) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[29]
+	mi := &file_plugin_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2173,7 +2241,7 @@ func (x *SourcePluginReattach) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourcePluginReattach.ProtoReflect.Descriptor instead.
 func (*SourcePluginReattach) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{29}
+	return file_plugin_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *SourcePluginReattach) GetReattachConfig() *ReattachConfig {
@@ -2209,7 +2277,7 @@ type ReattachConfig struct {
 
 func (x *ReattachConfig) Reset() {
 	*x = ReattachConfig{}
-	mi := &file_plugin_proto_msgTypes[30]
+	mi := &file_plugin_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2221,7 +2289,7 @@ func (x *ReattachConfig) String() string {
 func (*ReattachConfig) ProtoMessage() {}
 
 func (x *ReattachConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[30]
+	mi := &file_plugin_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2234,7 +2302,7 @@ func (x *ReattachConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReattachConfig.ProtoReflect.Descriptor instead.
 func (*ReattachConfig) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{30}
+	return file_plugin_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *ReattachConfig) GetProtocol() string {
@@ -2275,7 +2343,7 @@ type NetAddr struct {
 
 func (x *NetAddr) Reset() {
 	*x = NetAddr{}
-	mi := &file_plugin_proto_msgTypes[31]
+	mi := &file_plugin_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2287,7 +2355,7 @@ func (x *NetAddr) String() string {
 func (*NetAddr) ProtoMessage() {}
 
 func (x *NetAddr) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[31]
+	mi := &file_plugin_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2300,7 +2368,7 @@ func (x *NetAddr) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NetAddr.ProtoReflect.Descriptor instead.
 func (*NetAddr) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{31}
+	return file_plugin_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *NetAddr) GetNetwork() string {
@@ -2330,7 +2398,7 @@ type InitSourceRequest struct {
 
 func (x *InitSourceRequest) Reset() {
 	*x = InitSourceRequest{}
-	mi := &file_plugin_proto_msgTypes[32]
+	mi := &file_plugin_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2342,7 +2410,7 @@ func (x *InitSourceRequest) String() string {
 func (*InitSourceRequest) ProtoMessage() {}
 
 func (x *InitSourceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[32]
+	mi := &file_plugin_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2355,7 +2423,7 @@ func (x *InitSourceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InitSourceRequest.ProtoReflect.Descriptor instead.
 func (*InitSourceRequest) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{32}
+	return file_plugin_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *InitSourceRequest) GetDefaultConfig() *ArtifactSourceConfig {
@@ -2382,7 +2450,7 @@ type InitSourceResponse struct {
 
 func (x *InitSourceResponse) Reset() {
 	*x = InitSourceResponse{}
-	mi := &file_plugin_proto_msgTypes[33]
+	mi := &file_plugin_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2394,7 +2462,7 @@ func (x *InitSourceResponse) String() string {
 func (*InitSourceResponse) ProtoMessage() {}
 
 func (x *InitSourceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[33]
+	mi := &file_plugin_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2407,7 +2475,7 @@ func (x *InitSourceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use InitSourceResponse.ProtoReflect.Descriptor instead.
 func (*InitSourceResponse) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{33}
+	return file_plugin_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *InitSourceResponse) GetFromTime() *ResolvedFromTime {
@@ -2435,7 +2503,7 @@ type RowSourceParams struct {
 
 func (x *RowSourceParams) Reset() {
 	*x = RowSourceParams{}
-	mi := &file_plugin_proto_msgTypes[34]
+	mi := &file_plugin_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2447,7 +2515,7 @@ func (x *RowSourceParams) String() string {
 func (*RowSourceParams) ProtoMessage() {}
 
 func (x *RowSourceParams) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[34]
+	mi := &file_plugin_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2460,7 +2528,7 @@ func (x *RowSourceParams) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RowSourceParams.ProtoReflect.Descriptor instead.
 func (*RowSourceParams) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{34}
+	return file_plugin_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *RowSourceParams) GetSourceData() *ConfigData {
@@ -2514,7 +2582,7 @@ type ArtifactSourceConfig struct {
 
 func (x *ArtifactSourceConfig) Reset() {
 	*x = ArtifactSourceConfig{}
-	mi := &file_plugin_proto_msgTypes[35]
+	mi := &file_plugin_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2526,7 +2594,7 @@ func (x *ArtifactSourceConfig) String() string {
 func (*ArtifactSourceConfig) ProtoMessage() {}
 
 func (x *ArtifactSourceConfig) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[35]
+	mi := &file_plugin_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2539,7 +2607,7 @@ func (x *ArtifactSourceConfig) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArtifactSourceConfig.ProtoReflect.Descriptor instead.
 func (*ArtifactSourceConfig) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{35}
+	return file_plugin_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ArtifactSourceConfig) GetFileLayout() string {
@@ -2573,7 +2641,7 @@ type SourceCollectRequest struct {
 
 func (x *SourceCollectRequest) Reset() {
 	*x = SourceCollectRequest{}
-	mi := &file_plugin_proto_msgTypes[36]
+	mi := &file_plugin_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2585,7 +2653,7 @@ func (x *SourceCollectRequest) String() string {
 func (*SourceCollectRequest) ProtoMessage() {}
 
 func (x *SourceCollectRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[36]
+	mi := &file_plugin_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2598,7 +2666,7 @@ func (x *SourceCollectRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceCollectRequest.ProtoReflect.Descriptor instead.
 func (*SourceCollectRequest) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{36}
+	return file_plugin_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *SourceCollectRequest) GetExecutionId() string {
@@ -2620,7 +2688,7 @@ type RowErrors struct {
 
 func (x *RowErrors) Reset() {
 	*x = RowErrors{}
-	mi := &file_plugin_proto_msgTypes[37]
+	mi := &file_plugin_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2632,7 +2700,7 @@ func (x *RowErrors) String() string {
 func (*RowErrors) ProtoMessage() {}
 
 func (x *RowErrors) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[37]
+	mi := &file_plugin_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2645,7 +2713,7 @@ func (x *RowErrors) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RowErrors.ProtoReflect.Descriptor instead.
 func (*RowErrors) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{37}
+	return file_plugin_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *RowErrors) GetTotal() int64 {
@@ -2672,7 +2740,7 @@ type RowErrorsByOperation struct {
 
 func (x *RowErrorsByOperation) Reset() {
 	*x = RowErrorsByOperation{}
-	mi := &file_plugin_proto_msgTypes[38]
+	mi := &file_plugin_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2684,7 +2752,7 @@ func (x *RowErrorsByOperation) String() string {
 func (*RowErrorsByOperation) ProtoMessage() {}
 
 func (x *RowErrorsByOperation) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[38]
+	mi := &file_plugin_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2697,7 +2765,7 @@ func (x *RowErrorsByOperation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RowErrorsByOperation.ProtoReflect.Descriptor instead.
 func (*RowErrorsByOperation) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{38}
+	return file_plugin_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *RowErrorsByOperation) GetOperationErrors() map[string]*OperationErrorAggregate {
@@ -2720,7 +2788,7 @@ type OperationErrorAggregate struct {
 
 func (x *OperationErrorAggregate) Reset() {
 	*x = OperationErrorAggregate{}
-	mi := &file_plugin_proto_msgTypes[39]
+	mi := &file_plugin_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2732,7 +2800,7 @@ func (x *OperationErrorAggregate) String() string {
 func (*OperationErrorAggregate) ProtoMessage() {}
 
 func (x *OperationErrorAggregate) ProtoReflect() protoreflect.Message {
-	mi := &file_plugin_proto_msgTypes[39]
+	mi := &file_plugin_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2745,7 +2813,7 @@ func (x *OperationErrorAggregate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OperationErrorAggregate.ProtoReflect.Descriptor instead.
 func (*OperationErrorAggregate) Descriptor() ([]byte, []int) {
-	return file_plugin_proto_rawDescGZIP(), []int{39}
+	return file_plugin_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *OperationErrorAggregate) GetMissingFields() []string {
@@ -2969,16 +3037,21 @@ const file_plugin_proto_rawDesc = "" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xcc\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xe5\x01\n" +
 	"\x0eSourceMetadata\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x02 \x01(\tR\vdescription\x12E\n" +
 	"\n" +
 	"properties\x18\x03 \x03(\v2%.proto.SourceMetadata.PropertiesEntryR\n" +
-	"properties\x1a=\n" +
+	"properties\x1aV\n" +
 	"\x0fPropertiesEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8f\x01\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12-\n" +
+	"\x05value\x18\x02 \x01(\v2\x17.proto.PropertyMetadataR\x05value:\x028\x01\"~\n" +
+	"\x10PropertyMetadata\x12 \n" +
+	"\vdescription\x18\x01 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04type\x18\x02 \x01(\tR\x04type\x12\x1a\n" +
+	"\brequired\x18\x03 \x01(\bR\brequired\x12\x18\n" +
+	"\adefault\x18\x04 \x01(\tR\adefault\"\x8f\x01\n" +
 	"\x14SourcePluginReattach\x12>\n" +
 	"\x0freattach_config\x18\x01 \x01(\v2\x15.proto.ReattachConfigR\x0ereattachConfig\x12\x1f\n" +
 	"\vsource_type\x18\x02 \x01(\tR\n" +
@@ -3055,7 +3128,7 @@ func file_plugin_proto_rawDescGZIP() []byte {
 	return file_plugin_proto_rawDescData
 }
 
-var file_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 52)
+var file_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
 var file_plugin_proto_goTypes = []any{
 	(*Empty)(nil),                        // 0: proto.Empty
 	(*CollectRequest)(nil),               // 1: proto.CollectRequest
@@ -3086,49 +3159,50 @@ var file_plugin_proto_goTypes = []any{
 	(*DownloadedArtifactInfo)(nil),       // 26: proto.DownloadedArtifactInfo
 	(*SourceEnrichment)(nil),             // 27: proto.SourceEnrichment
 	(*SourceMetadata)(nil),               // 28: proto.SourceMetadata
-	(*SourcePluginReattach)(nil),         // 29: proto.SourcePluginReattach
-	(*ReattachConfig)(nil),               // 30: proto.ReattachConfig
-	(*NetAddr)(nil),                      // 31: proto.NetAddr
-	(*InitSourceRequest)(nil),            // 32: proto.InitSourceRequest
-	(*InitSourceResponse)(nil),           // 33: proto.InitSourceResponse
-	(*RowSourceParams)(nil),              // 34: proto.row_source_params
-	(*ArtifactSourceConfig)(nil),         // 35: proto.ArtifactSourceConfig
-	(*SourceCollectRequest)(nil),         // 36: proto.SourceCollectRequest
-	(*RowErrors)(nil),                    // 37: proto.RowErrors
-	(*RowErrorsByOperation)(nil),         // 38: proto.RowErrorsByOperation
-	(*OperationErrorAggregate)(nil),      // 39: proto.OperationErrorAggregate
-	nil,                                  // 40: proto.DescribeResponse.SchemasEntry
-	nil,                                  // 41: proto.DescribeResponse.SourcesEntry
-	nil,                                  // 42: proto.DescribeResponse.FormatsPresetsEntry
-	nil,                                  // 43: proto.DescribeResponse.CustomFormatsEntry
-	nil,                                  // 44: proto.FormatDescription.PropertiesEntry
-	nil,                                  // 45: proto.EventComplete.MetadataEntry
-	nil,                                  // 46: proto.SourceEnrichment.CommonFieldsEntry
-	nil,                                  // 47: proto.SourceEnrichment.MetadataEntry
-	nil,                                  // 48: proto.SourceMetadata.PropertiesEntry
-	nil,                                  // 49: proto.ArtifactSourceConfig.PatternsEntry
-	nil,                                  // 50: proto.RowErrors.ErrorsEntry
-	nil,                                  // 51: proto.RowErrorsByOperation.OperationErrorsEntry
-	(*timestamppb.Timestamp)(nil),        // 52: google.protobuf.Timestamp
+	(*PropertyMetadata)(nil),             // 29: proto.PropertyMetadata
+	(*SourcePluginReattach)(nil),         // 30: proto.SourcePluginReattach
+	(*ReattachConfig)(nil),               // 31: proto.ReattachConfig
+	(*NetAddr)(nil),                      // 32: proto.NetAddr
+	(*InitSourceRequest)(nil),            // 33: proto.InitSourceRequest
+	(*InitSourceResponse)(nil),           // 34: proto.InitSourceResponse
+	(*RowSourceParams)(nil),              // 35: proto.row_source_params
+	(*ArtifactSourceConfig)(nil),         // 36: proto.ArtifactSourceConfig
+	(*SourceCollectRequest)(nil),         // 37: proto.SourceCollectRequest
+	(*RowErrors)(nil),                    // 38: proto.RowErrors
+	(*RowErrorsByOperation)(nil),         // 39: proto.RowErrorsByOperation
+	(*OperationErrorAggregate)(nil),      // 40: proto.OperationErrorAggregate
+	nil,                                  // 41: proto.DescribeResponse.SchemasEntry
+	nil,                                  // 42: proto.DescribeResponse.SourcesEntry
+	nil,                                  // 43: proto.DescribeResponse.FormatsPresetsEntry
+	nil,                                  // 44: proto.DescribeResponse.CustomFormatsEntry
+	nil,                                  // 45: proto.FormatDescription.PropertiesEntry
+	nil,                                  // 46: proto.EventComplete.MetadataEntry
+	nil,                                  // 47: proto.SourceEnrichment.CommonFieldsEntry
+	nil,                                  // 48: proto.SourceEnrichment.MetadataEntry
+	nil,                                  // 49: proto.SourceMetadata.PropertiesEntry
+	nil,                                  // 50: proto.ArtifactSourceConfig.PatternsEntry
+	nil,                                  // 51: proto.RowErrors.ErrorsEntry
+	nil,                                  // 52: proto.RowErrorsByOperation.OperationErrorsEntry
+	(*timestamppb.Timestamp)(nil),        // 53: google.protobuf.Timestamp
 }
 var file_plugin_proto_depIdxs = []int32{
 	11, // 0: proto.CollectRequest.source_data:type_name -> proto.ConfigData
 	11, // 1: proto.CollectRequest.connection_data:type_name -> proto.ConfigData
 	8,  // 2: proto.CollectRequest.custom_table_schema:type_name -> proto.Schema
 	10, // 3: proto.CollectRequest.source_format:type_name -> proto.FormatData
-	29, // 4: proto.CollectRequest.source_plugin:type_name -> proto.SourcePluginReattach
-	52, // 5: proto.CollectRequest.from_time:type_name -> google.protobuf.Timestamp
+	30, // 4: proto.CollectRequest.source_plugin:type_name -> proto.SourcePluginReattach
+	53, // 5: proto.CollectRequest.from_time:type_name -> google.protobuf.Timestamp
 	11, // 6: proto.UpdateCollectionStateRequest.source_data:type_name -> proto.ConfigData
-	52, // 7: proto.UpdateCollectionStateRequest.from_time:type_name -> google.protobuf.Timestamp
+	53, // 7: proto.UpdateCollectionStateRequest.from_time:type_name -> google.protobuf.Timestamp
 	10, // 8: proto.DescribeRequest.custom_formats:type_name -> proto.FormatData
-	40, // 9: proto.DescribeResponse.schemas:type_name -> proto.DescribeResponse.SchemasEntry
-	41, // 10: proto.DescribeResponse.sources:type_name -> proto.DescribeResponse.SourcesEntry
-	42, // 11: proto.DescribeResponse.formats_presets:type_name -> proto.DescribeResponse.FormatsPresetsEntry
-	43, // 12: proto.DescribeResponse.custom_formats:type_name -> proto.DescribeResponse.CustomFormatsEntry
-	44, // 13: proto.FormatDescription.properties:type_name -> proto.FormatDescription.PropertiesEntry
+	41, // 9: proto.DescribeResponse.schemas:type_name -> proto.DescribeResponse.SchemasEntry
+	42, // 10: proto.DescribeResponse.sources:type_name -> proto.DescribeResponse.SourcesEntry
+	43, // 11: proto.DescribeResponse.formats_presets:type_name -> proto.DescribeResponse.FormatsPresetsEntry
+	44, // 12: proto.DescribeResponse.custom_formats:type_name -> proto.DescribeResponse.CustomFormatsEntry
+	45, // 13: proto.FormatDescription.properties:type_name -> proto.FormatDescription.PropertiesEntry
 	8,  // 14: proto.CollectResponse.schema:type_name -> proto.Schema
 	7,  // 15: proto.CollectResponse.from_time:type_name -> proto.ResolvedFromTime
-	52, // 16: proto.ResolvedFromTime.from_time:type_name -> google.protobuf.Timestamp
+	53, // 16: proto.ResolvedFromTime.from_time:type_name -> google.protobuf.Timestamp
 	9,  // 17: proto.Schema.columns:type_name -> proto.ColumnSchema
 	9,  // 18: proto.ColumnSchema.child_fields:type_name -> proto.ColumnSchema
 	11, // 19: proto.FormatData.config:type_name -> proto.ConfigData
@@ -3145,59 +3219,60 @@ var file_plugin_proto_depIdxs = []int32{
 	24, // 30: proto.Event.artifact_extracted_event:type_name -> proto.EventArtifactExtracted
 	20, // 31: proto.Event.source_complete_event:type_name -> proto.EventSourceComplete
 	21, // 32: proto.Event.header_event:type_name -> proto.EventHeader
-	37, // 33: proto.EventStatus.row_errors:type_name -> proto.RowErrors
-	45, // 34: proto.EventComplete.metadata:type_name -> proto.EventComplete.MetadataEntry
+	38, // 33: proto.EventStatus.row_errors:type_name -> proto.RowErrors
+	46, // 34: proto.EventComplete.metadata:type_name -> proto.EventComplete.MetadataEntry
 	25, // 35: proto.EventHeader.artifact_info:type_name -> proto.ArtifactInfo
 	25, // 36: proto.EventArtifactDiscovered.artifact_info:type_name -> proto.ArtifactInfo
 	26, // 37: proto.EventArtifactDownloaded.artifact_info:type_name -> proto.DownloadedArtifactInfo
 	26, // 38: proto.EventArtifactExtracted.artifact_info:type_name -> proto.DownloadedArtifactInfo
 	27, // 39: proto.ArtifactInfo.source_enrichment:type_name -> proto.SourceEnrichment
 	27, // 40: proto.DownloadedArtifactInfo.source_enrichment:type_name -> proto.SourceEnrichment
-	46, // 41: proto.SourceEnrichment.common_fields:type_name -> proto.SourceEnrichment.CommonFieldsEntry
-	47, // 42: proto.SourceEnrichment.metadata:type_name -> proto.SourceEnrichment.MetadataEntry
-	48, // 43: proto.SourceMetadata.properties:type_name -> proto.SourceMetadata.PropertiesEntry
-	30, // 44: proto.SourcePluginReattach.reattach_config:type_name -> proto.ReattachConfig
-	31, // 45: proto.ReattachConfig.addr:type_name -> proto.NetAddr
-	35, // 46: proto.InitSourceRequest.default_config:type_name -> proto.ArtifactSourceConfig
-	34, // 47: proto.InitSourceRequest.source_params:type_name -> proto.row_source_params
+	47, // 41: proto.SourceEnrichment.common_fields:type_name -> proto.SourceEnrichment.CommonFieldsEntry
+	48, // 42: proto.SourceEnrichment.metadata:type_name -> proto.SourceEnrichment.MetadataEntry
+	49, // 43: proto.SourceMetadata.properties:type_name -> proto.SourceMetadata.PropertiesEntry
+	31, // 44: proto.SourcePluginReattach.reattach_config:type_name -> proto.ReattachConfig
+	32, // 45: proto.ReattachConfig.addr:type_name -> proto.NetAddr
+	36, // 46: proto.InitSourceRequest.default_config:type_name -> proto.ArtifactSourceConfig
+	35, // 47: proto.InitSourceRequest.source_params:type_name -> proto.row_source_params
 	7,  // 48: proto.InitSourceResponse.from_time:type_name -> proto.ResolvedFromTime
 	11, // 49: proto.row_source_params.source_data:type_name -> proto.ConfigData
 	11, // 50: proto.row_source_params.connection_data:type_name -> proto.ConfigData
-	52, // 51: proto.row_source_params.from_time:type_name -> google.protobuf.Timestamp
-	49, // 52: proto.ArtifactSourceConfig.patterns:type_name -> proto.ArtifactSourceConfig.PatternsEntry
-	50, // 53: proto.RowErrors.errors:type_name -> proto.RowErrors.ErrorsEntry
-	51, // 54: proto.RowErrorsByOperation.operation_errors:type_name -> proto.RowErrorsByOperation.OperationErrorsEntry
+	53, // 51: proto.row_source_params.from_time:type_name -> google.protobuf.Timestamp
+	50, // 52: proto.ArtifactSourceConfig.patterns:type_name -> proto.ArtifactSourceConfig.PatternsEntry
+	51, // 53: proto.RowErrors.errors:type_name -> proto.RowErrors.ErrorsEntry
+	52, // 54: proto.RowErrorsByOperation.operation_errors:type_name -> proto.RowErrorsByOperation.OperationErrorsEntry
 	8,  // 55: proto.DescribeResponse.SchemasEntry.value:type_name -> proto.Schema
 	28, // 56: proto.DescribeResponse.SourcesEntry.value:type_name -> proto.SourceMetadata
 	5,  // 57: proto.DescribeResponse.FormatsPresetsEntry.value:type_name -> proto.FormatDescription
 	5,  // 58: proto.DescribeResponse.CustomFormatsEntry.value:type_name -> proto.FormatDescription
-	38, // 59: proto.RowErrors.ErrorsEntry.value:type_name -> proto.RowErrorsByOperation
-	39, // 60: proto.RowErrorsByOperation.OperationErrorsEntry.value:type_name -> proto.OperationErrorAggregate
-	3,  // 61: proto.TailpipePlugin.Describe:input_type -> proto.DescribeRequest
-	0,  // 62: proto.TailpipePlugin.AddObserver:input_type -> proto.Empty
-	1,  // 63: proto.TailpipePlugin.Collect:input_type -> proto.CollectRequest
-	32, // 64: proto.TailpipePlugin.InitSource:input_type -> proto.InitSourceRequest
-	2,  // 65: proto.TailpipePlugin.UpdateCollectionState:input_type -> proto.UpdateCollectionStateRequest
-	0,  // 66: proto.TailpipePlugin.CloseSource:input_type -> proto.Empty
-	0,  // 67: proto.TailpipePlugin.SaveCollectionState:input_type -> proto.Empty
-	36, // 68: proto.TailpipePlugin.SourceCollect:input_type -> proto.SourceCollectRequest
-	0,  // 69: proto.TailpipePlugin.SourcePause:input_type -> proto.Empty
-	0,  // 70: proto.TailpipePlugin.SourceResume:input_type -> proto.Empty
-	4,  // 71: proto.TailpipePlugin.Describe:output_type -> proto.DescribeResponse
-	14, // 72: proto.TailpipePlugin.AddObserver:output_type -> proto.Event
-	6,  // 73: proto.TailpipePlugin.Collect:output_type -> proto.CollectResponse
-	33, // 74: proto.TailpipePlugin.InitSource:output_type -> proto.InitSourceResponse
-	0,  // 75: proto.TailpipePlugin.UpdateCollectionState:output_type -> proto.Empty
-	0,  // 76: proto.TailpipePlugin.CloseSource:output_type -> proto.Empty
-	0,  // 77: proto.TailpipePlugin.SaveCollectionState:output_type -> proto.Empty
-	0,  // 78: proto.TailpipePlugin.SourceCollect:output_type -> proto.Empty
-	0,  // 79: proto.TailpipePlugin.SourcePause:output_type -> proto.Empty
-	0,  // 80: proto.TailpipePlugin.SourceResume:output_type -> proto.Empty
-	71, // [71:81] is the sub-list for method output_type
-	61, // [61:71] is the sub-list for method input_type
-	61, // [61:61] is the sub-list for extension type_name
-	61, // [61:61] is the sub-list for extension extendee
-	0,  // [0:61] is the sub-list for field type_name
+	29, // 59: proto.SourceMetadata.PropertiesEntry.value:type_name -> proto.PropertyMetadata
+	39, // 60: proto.RowErrors.ErrorsEntry.value:type_name -> proto.RowErrorsByOperation
+	40, // 61: proto.RowErrorsByOperation.OperationErrorsEntry.value:type_name -> proto.OperationErrorAggregate
+	3,  // 62: proto.TailpipePlugin.Describe:input_type -> proto.DescribeRequest
+	0,  // 63: proto.TailpipePlugin.AddObserver:input_type -> proto.Empty
+	1,  // 64: proto.TailpipePlugin.Collect:input_type -> proto.CollectRequest
+	33, // 65: proto.TailpipePlugin.InitSource:input_type -> proto.InitSourceRequest
+	2,  // 66: proto.TailpipePlugin.UpdateCollectionState:input_type -> proto.UpdateCollectionStateRequest
+	0,  // 67: proto.TailpipePlugin.CloseSource:input_type -> proto.Empty
+	0,  // 68: proto.TailpipePlugin.SaveCollectionState:input_type -> proto.Empty
+	37, // 69: proto.TailpipePlugin.SourceCollect:input_type -> proto.SourceCollectRequest
+	0,  // 70: proto.TailpipePlugin.SourcePause:input_type -> proto.Empty
+	0,  // 71: proto.TailpipePlugin.SourceResume:input_type -> proto.Empty
+	4,  // 72: proto.TailpipePlugin.Describe:output_type -> proto.DescribeResponse
+	14, // 73: proto.TailpipePlugin.AddObserver:output_type -> proto.Event
+	6,  // 74: proto.TailpipePlugin.Collect:output_type -> proto.CollectResponse
+	34, // 75: proto.TailpipePlugin.InitSource:output_type -> proto.InitSourceResponse
+	0,  // 76: proto.TailpipePlugin.UpdateCollectionState:output_type -> proto.Empty
+	0,  // 77: proto.TailpipePlugin.CloseSource:output_type -> proto.Empty
+	0,  // 78: proto.TailpipePlugin.SaveCollectionState:output_type -> proto.Empty
+	0,  // 79: proto.TailpipePlugin.SourceCollect:output_type -> proto.Empty
+	0,  // 80: proto.TailpipePlugin.SourcePause:output_type -> proto.Empty
+	0,  // 81: proto.TailpipePlugin.SourceResume:output_type -> proto.Empty
+	72, // [72:82] is the sub-list for method output_type
+	62, // [62:72] is the sub-list for method input_type
+	62, // [62:62] is the sub-list for extension type_name
+	62, // [62:62] is the sub-list for extension extendee
+	0,  // [0:62] is the sub-list for field type_name
 }
 
 func init() { file_plugin_proto_init() }
@@ -3223,7 +3298,7 @@ func file_plugin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plugin_proto_rawDesc), len(file_plugin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   52,
+			NumMessages:   53,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

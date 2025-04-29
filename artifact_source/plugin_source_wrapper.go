@@ -143,8 +143,8 @@ func (w *PluginSourceWrapper) Description() (string, error) {
 
 // Properties returns a map of property descriptions
 // this is used for introspection and wil not be called for the PluginSourceWrapper
-func (w *PluginSourceWrapper) Properties() map[string]string {
-	return map[string]string{}
+func (w *PluginSourceWrapper) Properties() map[string]*types.PropertyMetadata {
+	return map[string]*types.PropertyMetadata{}
 }
 
 func (w *PluginSourceWrapper) Close() error {

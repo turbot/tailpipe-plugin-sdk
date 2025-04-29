@@ -282,9 +282,15 @@ message SourceEnrichment{
 message SourceMetadata{
   string name = 1;
   string description = 2;
-  map<string, string> properties = 3;
+  map<string, PropertyMetadata> properties = 3;
 }
 
+message PropertyMetadata{
+  string description = 1;
+  string type = 2;
+  bool required = 3;
+  string default = 4;
+}
 
 message SourcePluginReattach {
   ReattachConfig reattach_config = 1;
