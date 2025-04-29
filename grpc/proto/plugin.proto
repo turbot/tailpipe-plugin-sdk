@@ -282,6 +282,7 @@ message SourceEnrichment{
 message SourceMetadata{
   string name = 1;
   string description = 2;
+  map<string, string> properties = 3;
 }
 
 

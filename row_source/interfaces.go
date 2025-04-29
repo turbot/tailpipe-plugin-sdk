@@ -27,6 +27,10 @@ type RowSource interface {
 	// Description returns a human readable description of the source
 	Description() (string, error)
 
+	// Properties returns a map of property descriptions
+	// this is used for introspection
+	Properties() map[string]string
+
 	Close() error
 
 	SaveCollectionState() error

@@ -188,7 +188,17 @@ func (r *RowSourceImpl[S, T]) GetFromTime() *ResolvedFromTime {
 	}
 }
 
+// Description returns a human readable description of the source
+// this is used for introspection
+// this should be overridden by the source implementation
 func (*RowSourceImpl[S, T]) Description() (string, error) {
 	// override if you want to provide a description
 	return "", nil
+}
+
+// Properties returns a map of property descriptions
+// this is used for introspection
+// this should be overridden by the source implementation
+func (*RowSourceImpl[S, T]) Properties() map[string]string {
+	return map[string]string{}
 }

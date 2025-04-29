@@ -136,22 +136,15 @@ func (w *PluginSourceWrapper) Identifier() string {
 }
 
 // Description returns a human readable description of the source
+// this is used for introspection and wil not be called for the PluginSourceWrapper
 func (w *PluginSourceWrapper) Description() (string, error) {
-	// this may be called before client is set
-	if w.client == nil {
-		return "Plugin source wrapper", nil
-	}
+	return "Plugin source wrapper", nil
+}
 
-	res, err := w.client.Describe(&proto.DescribeRequest{})
-	if err != nil {
-		return "", err
-	}
-	source, ok := res.Sources[w.sourceType]
-	if !ok {
-		return "", fmt.Errorf("source %s not found in plugin", w.sourceType)
-	}
-
-	return source.Description, nil
+// Properties returns a map of property descriptions
+// this is used for introspection and wil not be called for the PluginSourceWrapper
+func (w *PluginSourceWrapper) Properties() map[string]string {
+	return map[string]string{}
 }
 
 func (w *PluginSourceWrapper) Close() error {
