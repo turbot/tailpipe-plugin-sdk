@@ -254,15 +254,6 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 		return fmt.Errorf("error updating collection state: %w", err)
 	}
 
-	// TODO verify if this condition can still occur
-	// we have a race condition - if the processArtifact completes before we have time to handle the ArtifactDownloadedEvent
-	// ArtifactSourceImpl.Collect may return before this function is complete
-	// this may lead to sending a completion event before the artifact has been processed
-	// we need to ensure the wait group is not closed before we leave this function
-	//so increment the wait group again and
-	//a.artifactExtractWg.Add(1)
-	//defer a.artifactExtractWg.Done()
-
 	// if we DO NOT have a null loader, start the go routine to process the artifact
 	// (if we have a null loader, we must have a ArtifactConversionCollector which will do the processing)
 	if !nullLoader {

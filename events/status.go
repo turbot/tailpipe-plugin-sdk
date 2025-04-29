@@ -40,7 +40,8 @@ func NewStatusEvent(executionId string) *Status {
 		mut:         &sync.Mutex{},
 	}
 }
-func StatusFromProto(event *proto.EventStatus) *Status {
+func StatusFromProto(e *proto.Event) *Status {
+	event := e.GetStatusEvent()
 	s := &Status{
 		LatestArtifactLocation:   event.LatestArtifactPath,
 		ArtifactsDiscovered:      event.ArtifactsDiscovered,

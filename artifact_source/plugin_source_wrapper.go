@@ -254,7 +254,7 @@ func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream
 			default:
 				// pass all other events onwards
 				// convert to a observable event
-				ev, err := events.SourceEventFromProto(protoEvent)
+				ev, err := events.EventFromProto(protoEvent)
 				if err != nil {
 					w.NotifyError(ctx, w.executionId, err)
 					continue

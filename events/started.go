@@ -13,6 +13,12 @@ func NewStartedEvent(executionId string) *Started {
 	}
 }
 
+func StartedFromProto(e *proto.Event) Event {
+	return &Started{
+		ExecutionId: e.GetStartedEvent().ExecutionId,
+	}
+}
+
 func (s *Started) ToProto() *proto.Event {
 	return &proto.Event{
 		Event: &proto.Event_StartedEvent{
