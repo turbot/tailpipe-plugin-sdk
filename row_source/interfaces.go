@@ -15,8 +15,7 @@ import (
 // - Webhook source
 // Sources may be configured with data transfo
 type RowSource interface {
-	// Observable must be implemented by row sourceFuncs (it is implemented by row_source.RowSourceImpl)
-	observable.Observable
+	observable.PausableObservable
 
 	// Init is called when the row source is created
 	// it is responsible for parsing the source config and configuring the source

@@ -27,6 +27,8 @@ const (
 	TailpipePlugin_CloseSource_FullMethodName           = "/proto.TailpipePlugin/CloseSource"
 	TailpipePlugin_SaveCollectionState_FullMethodName   = "/proto.TailpipePlugin/SaveCollectionState"
 	TailpipePlugin_SourceCollect_FullMethodName         = "/proto.TailpipePlugin/SourceCollect"
+	TailpipePlugin_SourcePause_FullMethodName           = "/proto.TailpipePlugin/SourcePause"
+	TailpipePlugin_SourceResume_FullMethodName          = "/proto.TailpipePlugin/SourceResume"
 )
 
 // TailpipePluginClient is the client API for TailpipePlugin service.
@@ -41,6 +43,8 @@ type TailpipePluginClient interface {
 	CloseSource(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	SaveCollectionState(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	SourceCollect(ctx context.Context, in *SourceCollectRequest, opts ...grpc.CallOption) (*Empty, error)
+	SourcePause(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	SourceResume(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 }
 
 type tailpipePluginClient struct {
@@ -140,6 +144,26 @@ func (c *tailpipePluginClient) SourceCollect(ctx context.Context, in *SourceColl
 	return out, nil
 }
 
+func (c *tailpipePluginClient) SourcePause(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, TailpipePlugin_SourcePause_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *tailpipePluginClient) SourceResume(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(Empty)
+	err := c.cc.Invoke(ctx, TailpipePlugin_SourceResume_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TailpipePluginServer is the server API for TailpipePlugin service.
 // All implementations must embed UnimplementedTailpipePluginServer
 // for forward compatibility.
@@ -152,6 +176,8 @@ type TailpipePluginServer interface {
 	CloseSource(context.Context, *Empty) (*Empty, error)
 	SaveCollectionState(context.Context, *Empty) (*Empty, error)
 	SourceCollect(context.Context, *SourceCollectRequest) (*Empty, error)
+	SourcePause(context.Context, *Empty) (*Empty, error)
+	SourceResume(context.Context, *Empty) (*Empty, error)
 	mustEmbedUnimplementedTailpipePluginServer()
 }
 
@@ -185,6 +211,12 @@ func (UnimplementedTailpipePluginServer) SaveCollectionState(context.Context, *E
 }
 func (UnimplementedTailpipePluginServer) SourceCollect(context.Context, *SourceCollectRequest) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SourceCollect not implemented")
+}
+func (UnimplementedTailpipePluginServer) SourcePause(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SourcePause not implemented")
+}
+func (UnimplementedTailpipePluginServer) SourceResume(context.Context, *Empty) (*Empty, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SourceResume not implemented")
 }
 func (UnimplementedTailpipePluginServer) mustEmbedUnimplementedTailpipePluginServer() {}
 func (UnimplementedTailpipePluginServer) testEmbeddedByValue()                        {}
@@ -344,6 +376,42 @@ func _TailpipePlugin_SourceCollect_Handler(srv interface{}, ctx context.Context,
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TailpipePlugin_SourcePause_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TailpipePluginServer).SourcePause(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TailpipePlugin_SourcePause_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TailpipePluginServer).SourcePause(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _TailpipePlugin_SourceResume_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TailpipePluginServer).SourceResume(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TailpipePlugin_SourceResume_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TailpipePluginServer).SourceResume(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TailpipePlugin_ServiceDesc is the grpc.ServiceDesc for TailpipePlugin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -378,6 +446,14 @@ var TailpipePlugin_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SourceCollect",
 			Handler:    _TailpipePlugin_SourceCollect_Handler,
+		},
+		{
+			MethodName: "SourcePause",
+			Handler:    _TailpipePlugin_SourcePause_Handler,
+		},
+		{
+			MethodName: "SourceResume",
+			Handler:    _TailpipePlugin_SourceResume_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

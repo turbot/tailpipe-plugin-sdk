@@ -195,6 +195,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 		return err
 	}
 
+	slog.Info("ArtifactDiscovered", "artifact", info.Name)
 	// start a download
 
 	// increment the extract wait group - this will be decremented when the artifact is extracted (or there is an error)
@@ -215,6 +216,13 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 			a.artifactDownloadLimiter.Release()
 			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
 		}()
+
+		slog.Info("ArtifactSourceImpl OnArtifactDiscovered - waiting for pause", "artifact", info.Name)
+		// as this is called from the file walking code, rather than as a result of an event,
+		// we need to check for pausing here to avoid downloading artifacts when paused
+		a.BlockWhilePaused(ctx)
+		slog.Info("ArtifactSourceImpl OnArtifactDiscovered - AFTER pause", "artifact", info.Name)
+
 		// cast the source to an ArtifactSource and download the artifact
 		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
@@ -236,6 +244,7 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	// if we have a Null loader, do not start the goroutine to process the artifact
 	nullLoader := a.hasNullLoader()
 
+	slog.Info("ArtifactDownloaded", "artifact", info.Name, "nullLoader", nullLoader)
 	// if we have a null loader and there is no error, we need to decrement the wait group here
 	// (if there is an error the calling code will decrement it)
 	defer func() {

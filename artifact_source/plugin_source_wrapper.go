@@ -192,6 +192,24 @@ func (w *PluginSourceWrapper) Collect(ctx context.Context) error {
 	return nil
 }
 
+// Pause is called to pause collection of source data
+func (w *PluginSourceWrapper) Pause() error {
+	_, err := w.client.SourcePause()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+// Resume is called to resume collection of source data
+func (w *PluginSourceWrapper) Resume() error {
+	_, err := w.client.SourcePause()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream proto.TailpipePlugin_AddObserverClient) {
 	pluginEventChan := make(chan *proto.Event)
 	errChan := make(chan error)

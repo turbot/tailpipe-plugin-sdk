@@ -230,6 +230,20 @@ func (p *PluginImpl) SourceCollect(ctx context.Context, req *proto.SourceCollect
 	return p.NotifyObservers(ctx, events.NewSourceCompleteEvent(req.ExecutionId, err))
 }
 
+func (p *PluginImpl) SourcePause(_ context.Context) error {
+	if p.source == nil {
+		return nil
+	}
+	return p.source.Pause()
+}
+
+func (p *PluginImpl) SourceResume(_ context.Context) error {
+	if p.source == nil {
+		return nil
+	}
+	return p.source.Resume()
+}
+
 // Shutdown is called by Serve when the plugin exits
 func (p *PluginImpl) Shutdown(context.Context) error {
 	return nil

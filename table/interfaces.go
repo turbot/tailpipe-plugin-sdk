@@ -35,7 +35,7 @@ type Table[R types.RowStruct] interface {
 // Collector is an interface which provides a methods for collecting table data from a source
 // This is implemented by the generic CollectorImpl struct
 type Collector interface {
-	observable.Observable
+	observable.PausableObservable
 
 	Init(ctx context.Context, request *types.CollectRequest) error
 	Identifier() string

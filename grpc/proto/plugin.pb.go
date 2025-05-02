@@ -79,9 +79,11 @@ type CollectRequest struct {
 	// optional: the reattach config to connect to the plugin providing the source
 	SourcePlugin *SourcePluginReattach `protobuf:"bytes,10,opt,name=source_plugin,json=sourcePlugin,proto3" json:"source_plugin,omitempty"`
 	// optional: the collection start time
-	FromTime      *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=from_time,json=fromTime,proto3" json:"from_time,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	FromTime *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=from_time,json=fromTime,proto3" json:"from_time,omitempty"`
+	// the max space to take with JSONL files
+	MaxJsonlSizeMb int64 `protobuf:"varint,12,opt,name=max_jsonl_size_mb,json=maxJsonlSizeMb,proto3" json:"max_jsonl_size_mb,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CollectRequest) Reset() {
@@ -189,6 +191,13 @@ func (x *CollectRequest) GetFromTime() *timestamppb.Timestamp {
 		return x.FromTime
 	}
 	return nil
+}
+
+func (x *CollectRequest) GetMaxJsonlSizeMb() int64 {
+	if x != nil {
+		return x.MaxJsonlSizeMb
+	}
+	return 0
 }
 
 type UpdateCollectionStateRequest struct {
@@ -2764,7 +2773,7 @@ var File_plugin_proto protoreflect.FileDescriptor
 const file_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\fplugin.proto\x12\x05proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\a\n" +
-	"\x05Empty\"\xbf\x04\n" +
+	"\x05Empty\"\xea\x04\n" +
 	"\x0eCollectRequest\x12\x1d\n" +
 	"\n" +
 	"table_name\x18\x01 \x01(\tR\ttableName\x12%\n" +
@@ -2779,7 +2788,8 @@ const file_plugin_proto_rawDesc = "" +
 	"\rsource_format\x18\t \x01(\v2\x11.proto.FormatDataR\fsourceFormat\x12@\n" +
 	"\rsource_plugin\x18\n" +
 	" \x01(\v2\x1b.proto.SourcePluginReattachR\fsourcePlugin\x127\n" +
-	"\tfrom_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\"\xbf\x01\n" +
+	"\tfrom_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x12)\n" +
+	"\x11max_jsonl_size_mb\x18\f \x01(\x03R\x0emaxJsonlSizeMb\"\xbf\x01\n" +
 	"\x1cUpdateCollectionStateRequest\x122\n" +
 	"\x15collection_state_path\x18\x01 \x01(\tR\x13collectionStatePath\x122\n" +
 	"\vsource_data\x18\x02 \x01(\v2\x11.proto.ConfigDataR\n" +
@@ -3005,7 +3015,7 @@ const file_plugin_proto_rawDesc = "" +
 	"\x0emissing_fields\x18\x01 \x03(\tR\rmissingFields\x12%\n" +
 	"\x0einvalid_fields\x18\x02 \x03(\tR\rinvalidFields\x12\x1a\n" +
 	"\bmessages\x18\x03 \x03(\tR\bmessages\x12\x14\n" +
-	"\x05count\x18\x04 \x01(\x03R\x05count2\xdd\x03\n" +
+	"\x05count\x18\x04 \x01(\x03R\x05count2\xb4\x04\n" +
 	"\x0eTailpipePlugin\x12;\n" +
 	"\bDescribe\x12\x16.proto.DescribeRequest\x1a\x17.proto.DescribeResponse\x12+\n" +
 	"\vAddObserver\x12\f.proto.Empty\x1a\f.proto.Event0\x01\x128\n" +
@@ -3015,7 +3025,9 @@ const file_plugin_proto_rawDesc = "" +
 	"\x15UpdateCollectionState\x12#.proto.UpdateCollectionStateRequest\x1a\f.proto.Empty\x12)\n" +
 	"\vCloseSource\x12\f.proto.Empty\x1a\f.proto.Empty\x121\n" +
 	"\x13SaveCollectionState\x12\f.proto.Empty\x1a\f.proto.Empty\x12:\n" +
-	"\rSourceCollect\x12\x1b.proto.SourceCollectRequest\x1a\f.proto.EmptyB\tZ\a.;protob\x06proto3"
+	"\rSourceCollect\x12\x1b.proto.SourceCollectRequest\x1a\f.proto.Empty\x12)\n" +
+	"\vSourcePause\x12\f.proto.Empty\x1a\f.proto.Empty\x12*\n" +
+	"\fSourceResume\x12\f.proto.Empty\x1a\f.proto.EmptyB\tZ\a.;protob\x06proto3"
 
 var (
 	file_plugin_proto_rawDescOnce sync.Once
@@ -3153,16 +3165,20 @@ var file_plugin_proto_depIdxs = []int32{
 	0,  // 65: proto.TailpipePlugin.CloseSource:input_type -> proto.Empty
 	0,  // 66: proto.TailpipePlugin.SaveCollectionState:input_type -> proto.Empty
 	36, // 67: proto.TailpipePlugin.SourceCollect:input_type -> proto.SourceCollectRequest
-	4,  // 68: proto.TailpipePlugin.Describe:output_type -> proto.DescribeResponse
-	14, // 69: proto.TailpipePlugin.AddObserver:output_type -> proto.Event
-	6,  // 70: proto.TailpipePlugin.Collect:output_type -> proto.CollectResponse
-	33, // 71: proto.TailpipePlugin.InitSource:output_type -> proto.InitSourceResponse
-	0,  // 72: proto.TailpipePlugin.UpdateCollectionState:output_type -> proto.Empty
-	0,  // 73: proto.TailpipePlugin.CloseSource:output_type -> proto.Empty
-	0,  // 74: proto.TailpipePlugin.SaveCollectionState:output_type -> proto.Empty
-	0,  // 75: proto.TailpipePlugin.SourceCollect:output_type -> proto.Empty
-	68, // [68:76] is the sub-list for method output_type
-	60, // [60:68] is the sub-list for method input_type
+	0,  // 68: proto.TailpipePlugin.SourcePause:input_type -> proto.Empty
+	0,  // 69: proto.TailpipePlugin.SourceResume:input_type -> proto.Empty
+	4,  // 70: proto.TailpipePlugin.Describe:output_type -> proto.DescribeResponse
+	14, // 71: proto.TailpipePlugin.AddObserver:output_type -> proto.Event
+	6,  // 72: proto.TailpipePlugin.Collect:output_type -> proto.CollectResponse
+	33, // 73: proto.TailpipePlugin.InitSource:output_type -> proto.InitSourceResponse
+	0,  // 74: proto.TailpipePlugin.UpdateCollectionState:output_type -> proto.Empty
+	0,  // 75: proto.TailpipePlugin.CloseSource:output_type -> proto.Empty
+	0,  // 76: proto.TailpipePlugin.SaveCollectionState:output_type -> proto.Empty
+	0,  // 77: proto.TailpipePlugin.SourceCollect:output_type -> proto.Empty
+	0,  // 78: proto.TailpipePlugin.SourcePause:output_type -> proto.Empty
+	0,  // 79: proto.TailpipePlugin.SourceResume:output_type -> proto.Empty
+	70, // [70:80] is the sub-list for method output_type
+	60, // [60:70] is the sub-list for method input_type
 	60, // [60:60] is the sub-list for extension type_name
 	60, // [60:60] is the sub-list for extension extendee
 	0,  // [0:60] is the sub-list for field type_name

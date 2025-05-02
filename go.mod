@@ -15,6 +15,7 @@ require (
 	github.com/marcboeker/go-duckdb/v2 v2.1.0
 	github.com/rs/xid v1.5.0
 	github.com/satyrius/gonx v1.4.0
+	github.com/sethvargo/go-retry v0.3.0
 	github.com/stretchr/testify v1.10.0
 	github.com/turbot/go-kit v1.2.0
 	github.com/turbot/pipe-fittings/v2 v2.3.3

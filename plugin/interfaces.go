@@ -37,6 +37,8 @@ type TailpipePlugin interface {
 	CloseSource(context.Context) error
 	SaveCollectionState(context.Context) error
 	SourceCollect(context.Context, *proto.SourceCollectRequest) error
+	SourcePause(context.Context) error
+	SourceResume(context.Context) error
 
 	// Other interface functions
 

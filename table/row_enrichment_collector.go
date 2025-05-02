@@ -83,6 +83,9 @@ func (c *RowEnrichmentCollector[R]) Init(ctx context.Context, req *types.Collect
 	if err != nil {
 		return fmt.Errorf("error getting JSONL path: %w", err)
 	}
+	// set the path to write JSONL files to
+	c.jsonPath = jsonPath
+	// create the writer
 	c.writer = NewJSONLWriter(jsonPath)
 
 	slog.Info("Initialise collector", "table", c.table.Identifier(), "partition", req.PartitionName, "jsonPath", jsonPath)
@@ -335,6 +338,11 @@ func (c *CollectorImpl[R]) onRowError(_ context.Context, source string, operatio
 
 // writeChunk writes a chunk of rows to a JSONL file
 func (c *RowEnrichmentCollector[R]) writeChunk(ctx context.Context, rowsToWrite []any, chunkNumber int32) error {
+	// wait for pause
+	// we call this in addition to the events being blocked to avoid row events which were sent _before_ the pause causing
+	// us to write JSONL files _after_ we are paused (allowing for enrichment time)
+	c.BlockWhilePaused(ctx)
+
 	slog.Debug("writing chunk to JSONL file", "chunk", chunkNumber, "rows", len(rowsToWrite))
 
 	// convert row to a JSONL file

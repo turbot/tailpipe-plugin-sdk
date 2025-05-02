@@ -25,7 +25,7 @@ import (
 // S is the type of the source config struct
 // T is the type of the connection struct
 type RowSourceImpl[S, T parse.Config] struct {
-	observable.ObservableImpl
+	observable.PausableObservableImpl
 	Config     S
 	Connection T
 	// store a reference to the derived RowSource type so we can call its methods
