@@ -2,6 +2,7 @@ package events
 
 import (
 	"fmt"
+
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 

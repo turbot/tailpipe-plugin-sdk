@@ -136,22 +136,22 @@ func (c *CollectorImpl[R]) onChunk(ctx context.Context, chunkNumber int32) error
 func (c *CollectorImpl[R]) checkJsonlSize(ctx context.Context) error {
 	// Try to acquire the lock, return immediately if already locked
 	if !c.pollMutex.TryLock() {
-		slog.Info("JSONL size polling already in progress")
+		slog.Debug("JSONL sizeMb polling already in progress")
 		return nil
 	}
 	defer c.pollMutex.Unlock()
 
-	size, err := helpers.GetFolderFileSize(c.jsonPath)
+	sizeMb, err := helpers.GetFolderFileSizeMb(c.jsonPath)
 	if err != nil {
-		return fmt.Errorf("error getting jsonl folder size: %w", err)
+		return fmt.Errorf("error getting jsonl folder sizeMb: %w", err)
 	}
-	if size/(1024*1024) > c.req.MaxJsonlSizeMb {
-		slog.Info("JSONL folder size exceeded - pausing source", "size", size, "maxSize", c.req.MaxJsonlSizeMb)
+	if sizeMb > c.req.MaxJsonlSizeMb {
+		slog.Info("JSONL folder max size exceeded - pausing source", "sizeMb", sizeMb, "maxSizeMb", c.req.MaxJsonlSizeMb)
 		// pause our own event handling and our sources
 		if err := c.PauseCollection(); err != nil {
 			return fmt.Errorf("error pausing source: %w", err)
 		}
-		//  periodically check the size of the folder and resume the source when it has shrunk
+		//  periodically check the sizeMb of the folder and resume the source when it has shrunk
 		if err := c.pollJsonlSize(ctx); err != nil {
 			return err
 		}
@@ -171,14 +171,14 @@ func (c *CollectorImpl[R]) pollJsonlSize(ctx context.Context) error {
 		}
 
 		// get the size of the json folder
-		size, err := helpers.GetFolderFileSize(c.jsonPath)
+		sizeMb, err := helpers.GetFolderFileSizeMb(c.jsonPath)
 		if err != nil {
 			return retry.RetryableError(fmt.Errorf("error getting jsonl folder size: %w", err))
 		}
 
-		slog.Info("poll JSONL folder size check", "size Mb", size/(1024*1024))
+		slog.Info("poll JSONL folder size check", "size Mb", sizeMb)
 		// if the size is below the threshold, resume the source
-		if size/(1024*1024) <= c.req.MaxJsonlSizeMb {
+		if sizeMb <= c.req.MaxJsonlSizeMb {
 
 			return nil
 		}

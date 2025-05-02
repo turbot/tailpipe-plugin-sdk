@@ -5,6 +5,15 @@ import (
 	"os"
 )
 
+// GetFolderFileSizeMb returns the total size of all files in the given folder in Mb (single level only)
+func GetFolderFileSizeMb(folderPath string) (int64, error) {
+	size, err := GetFolderFileSize(folderPath)
+	if err != nil {
+		return 0, fmt.Errorf("error getting folder size: %w", err)
+	}
+	return size / (1024 * 1024), nil
+}
+
 // GetFolderFileSize returns the total size of all files in the given folder in bytes (single level only)
 func GetFolderFileSize(folderPath string) (int64, error) {
 	entries, err := os.ReadDir(folderPath)

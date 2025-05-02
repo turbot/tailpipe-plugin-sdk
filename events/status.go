@@ -40,6 +40,7 @@ func NewStatusEvent(executionId string) *Status {
 		mut:         &sync.Mutex{},
 	}
 }
+
 func StatusFromProto(e *proto.Event) *Status {
 	event := e.GetStatusEvent()
 	s := &Status{
