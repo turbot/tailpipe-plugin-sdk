@@ -167,7 +167,7 @@ func (c *CollectorImpl[R]) pollJsonlSize(ctx context.Context) error {
 	err := retry.Do(ctx, retry.NewConstant(5*time.Second), func(ctx context.Context) error {
 		// check if context is cancelled
 		if err := ctx.Err(); err != nil {
-			return nil
+			return err
 		}
 
 		// get the size of the json folder
@@ -179,7 +179,6 @@ func (c *CollectorImpl[R]) pollJsonlSize(ctx context.Context) error {
 		slog.Info("poll JSONL folder size check", "size Mb", sizeMb)
 		// if the size is below the threshold, resume the source
 		if sizeMb <= c.req.MaxJsonlSizeMb {
-
 			return nil
 		}
 

@@ -1,8 +1,7 @@
 package events
 
 import (
-	"fmt"
-
+	"errors"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -32,7 +31,7 @@ func CompleteFromProto(e *proto.Event) Event {
 		ChunksWritten: event.ChunkCount,
 	}
 	if event.Error != "" {
-		res.Err = fmt.Errorf(event.Error)
+		res.Err = errors.New(event.Error)
 	}
 	return res
 }

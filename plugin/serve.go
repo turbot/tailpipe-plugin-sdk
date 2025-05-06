@@ -10,7 +10,7 @@ import (
 
 	"github.com/turbot/go-kit/helpers"
 	"google.golang.org/grpc"
-	_ "net/http/pprof"
+	//_ "net/http/pprof"
 )
 
 // ServeOpts are the configurations to serve a plugin.
