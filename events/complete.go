@@ -1,6 +1,7 @@
 package events
 
 import (
+	"errors"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 
@@ -19,6 +20,20 @@ func NewCompletedEvent(executionId string, rowCount int64, chunksWritten int32, 
 		ChunksWritten: chunksWritten,
 		Err:           err,
 	}
+}
+
+func CompleteFromProto(e *proto.Event) Event {
+	event := e.GetCompleteEvent()
+
+	res := &Complete{
+		ExecutionId:   event.ExecutionId,
+		RowCount:      event.RowCount,
+		ChunksWritten: event.ChunkCount,
+	}
+	if event.Error != "" {
+		res.Err = errors.New(event.Error)
+	}
+	return res
 }
 
 func (c *Complete) ToProto() *proto.Event {

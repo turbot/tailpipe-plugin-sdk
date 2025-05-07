@@ -108,6 +108,22 @@ func (s PluginServer) SourceCollect(ctx context.Context, req *proto.SourceCollec
 	return &proto.Empty{}, nil
 }
 
+func (s PluginServer) SourcePause(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
+	err := s.impl.SourcePause(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.Empty{}, nil
+}
+
+func (s PluginServer) SourceResume(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
+	err := s.impl.SourceResume(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.Empty{}, nil
+}
+
 func (s PluginServer) Serve() error {
 	// use plugin provided in opts
 	ctx := context.Background()

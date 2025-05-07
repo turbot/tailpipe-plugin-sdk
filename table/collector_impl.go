@@ -7,15 +7,17 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sethvargo/go-retry"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 	"github.com/turbot/tailpipe-plugin-sdk/row_source"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 type CollectorImpl[R types.RowStruct] struct {
-	observable.ObservableImpl
+	observable.PausableObservableImpl
 
 	source              row_source.RowSource
 	req                 *types.CollectRequest
@@ -25,19 +27,46 @@ type CollectorImpl[R types.RowStruct] struct {
 	// for RowEnrichmentCollector this is incremented when a row is received and decremented when it is processed
 	// for ArtifactConversionCollector this is incremented when an artifact is downloaded and decremented when it is processed
 	collectionWg sync.WaitGroup
+	// the location to write JSON files
+	jsonPath string
 
 	rowCount   int64
 	chunkCount int32
+
+	pollMutex sync.Mutex
+	// the maximum allowable size of the JSONL files - set to 75% of the max temp cache size
+	maxJsonSize int64
 }
 
 func (c *CollectorImpl[R]) Close() {
 
 }
 
+// PauseCollection pauses the source and pauses our own event handling
+func (c *CollectorImpl[R]) PauseCollection() error {
+	slog.Info("CollectorImpl: PauseCollection called")
+	if err := c.PausableObservableImpl.Pause(); err != nil {
+		return fmt.Errorf("error pausing observable: %w", err)
+	}
+	return c.source.Pause()
+}
+
+// ResumeCollection resumes the source and resumes our own event handling
+func (c *CollectorImpl[R]) ResumeCollection() error {
+	slog.Info("CollectorImpl: ResumeCollection called")
+	if err := c.PausableObservableImpl.Resume(); err != nil {
+		return fmt.Errorf("error resuming observable: %w", err)
+	}
+	return c.source.Resume()
+}
+
 // Collect executes the collection process. Tell our source to start collection
 func (c *CollectorImpl[R]) Collect(ctx context.Context) (int64, int32, error) {
 	// create empty status event#
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
+
+	// set the max allowable size of the JSONL files to 75% of the max temp cache size
+	c.maxJsonSize = int64(float64(c.req.MaxTempCacheSizeMb) * 0.75)
 
 	// tell our source to Collect
 	// this is a blocking call, but we will receive and process row events during the execution
@@ -103,9 +132,71 @@ func (c *CollectorImpl[R]) onChunk(ctx context.Context, chunkNumber int32) error
 	if err := c.source.SaveCollectionState(); err != nil {
 		return fmt.Errorf("error saving collection state: %w", err)
 	}
+
+	// now check the size of the json destination folder and pause the source if it is too large
+	return c.checkJsonlSize(ctx)
+}
+
+// check the size of the json destination folder and pause the source if it is too large
+func (c *CollectorImpl[R]) checkJsonlSize(ctx context.Context) error {
+	// Try to acquire the lock, return immediately if already locked
+	if !c.pollMutex.TryLock() {
+		slog.Debug("JSONL sizeMb polling already in progress")
+		return nil
+	}
+	defer c.pollMutex.Unlock()
+
+	sizeMb, err := helpers.GetFolderFileSizeMb(c.jsonPath)
+	if err != nil {
+		return fmt.Errorf("error getting jsonl folder sizeMb: %w", err)
+	}
+	if sizeMb > c.req.MaxTempCacheSizeMb {
+		slog.Info("JSONL folder max size exceeded - pausing source", "sizeMb", sizeMb, "maxSizeMb", c.req.MaxTempCacheSizeMb)
+		// pause our own event handling and our sources
+		if err := c.PauseCollection(); err != nil {
+			return fmt.Errorf("error pausing source: %w", err)
+		}
+		//  periodically check the sizeMb of the folder and resume the source when it has shrunk to 75% of the max size
+		if err := c.pollJsonlSize(ctx); err != nil {
+			return err
+		}
+
+	}
 	return nil
 }
 
+func (c *CollectorImpl[R]) pollJsonlSize(ctx context.Context) error {
+	err := retry.Do(ctx, retry.NewConstant(5*time.Second), func(ctx context.Context) error {
+		// check if context is cancelled
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		// get the size of the json folder
+		sizeMb, err := helpers.GetFolderFileSizeMb(c.jsonPath)
+		if err != nil {
+			return retry.RetryableError(fmt.Errorf("error getting jsonl folder size: %w", err))
+		}
+
+		// do not resume the source until the size is below 75% of the allowable jsonl folder size
+		// (add some hysteresis to avoid flapping)
+		if sizeMb <= int64(float64(c.maxJsonSize)*0.75) {
+			slog.Info("JSONL folder size is below threshold - resuming source", "sizeMb", sizeMb, "maxSizeMb", c.maxJsonSize)
+			return nil
+		}
+
+		return retry.RetryableError(fmt.Errorf("folder size still above threshold"))
+	})
+
+	if err != nil {
+		return err
+	}
+
+	slog.Info("JSONL folder size is below threshold - resuming source")
+	return c.ResumeCollection()
+}
+
+// if it is too large, we will delete the oldest file
 // updateStatus updates the status counters with the latest event
 // it also sends raises status event periodically (determined by statusUpdateInterval)
 // note: we will send a final status event when the collection completes

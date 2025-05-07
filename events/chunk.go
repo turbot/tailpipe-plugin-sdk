@@ -17,6 +17,14 @@ func NewChunkEvent(executionId string, chunkNumber int32) *Chunk {
 	}
 }
 
+func ChunkWrittenFromProto(e *proto.Event) Event {
+	event := e.GetChunkWrittenEvent()
+	return &Chunk{
+		ExecutionId: event.ExecutionId,
+		ChunkNumber: event.ChunkNumber,
+	}
+}
+
 // ToProto converts the event to a proto.Event
 func (r *Chunk) ToProto() *proto.Event {
 	return &proto.Event{

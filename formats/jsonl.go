@@ -76,7 +76,7 @@ func (d *JsonLines) GetMapper() (mappers.Mapper[*types.DynamicRow], error) {
 	return nil, fmt.Errorf("JsonLines format does not support a mapper")
 }
 
-// GetCsvOpts converts the Delimited configuration into a slice of CSV options strings
+// GetReadJsonOpts converts the Delimited configuration into a slice of CSV options strings
 // in the format expected by DuckDb read_csv function
 func (d *JsonLines) GetReadJsonOpts() []string {
 	var opts []string

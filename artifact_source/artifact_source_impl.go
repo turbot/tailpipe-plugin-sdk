@@ -18,6 +18,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
@@ -61,7 +62,7 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 
 	// temporary directory for storing downloaded artifacts - this is initialised in the Init function
 	// to be a subdirectory of the collection directory
-	TempDir string
+	TempArtifactDir string
 
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
@@ -95,8 +96,12 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 		a.NewCollectionStateFunc = collection_state.NewArtifactCollectionStateImpl
 	}
 
-	// set the temp directory
-	a.TempDir = filepath.Join(params.CollectionTempDir, "artifacts")
+	// set the artifact directory
+	artifactDir, err := filepaths.EnsureArtifactPath(params.CollectionTempDir)
+	if err != nil {
+		return err
+	}
+	a.TempArtifactDir = artifactDir
 
 	// call base to apply options and parse config
 	if err := a.RowSourceImpl.Init(ctx, params, opts...); err != nil {
@@ -215,6 +220,11 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 			a.artifactDownloadLimiter.Release()
 			slog.Debug("ArtifactDiscovered - rate limiter released", "artifact", info.Name)
 		}()
+
+		// as this is called from the file walking code, rather than as a result of an event,
+		// we need to check for pausing here to avoid downloading artifacts when paused
+		a.BlockWhilePaused(ctx)
+
 		// cast the source to an ArtifactSource and download the artifact
 		err = a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
@@ -253,15 +263,6 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 	if err := a.CollectionState.OnCollected(info.Identifier(), info.Timestamp); err != nil {
 		return fmt.Errorf("error updating collection state: %w", err)
 	}
-
-	// TODO verify if this condition can still occur
-	// we have a race condition - if the processArtifact completes before we have time to handle the ArtifactDownloadedEvent
-	// ArtifactSourceImpl.Collect may return before this function is complete
-	// this may lead to sending a completion event before the artifact has been processed
-	// we need to ensure the wait group is not closed before we leave this function
-	//so increment the wait group again and
-	//a.artifactExtractWg.Add(1)
-	//defer a.artifactExtractWg.Done()
 
 	// if we DO NOT have a null loader, start the go routine to process the artifact
 	// (if we have a null loader, we must have a ArtifactConversionCollector which will do the processing)

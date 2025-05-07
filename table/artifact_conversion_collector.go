@@ -33,8 +33,7 @@ type ArtifactConversionCollector struct {
 
 	table CustomTable
 
-	destPath string
-	db       *sql.DB
+	db *sql.DB
 	// we only convert one artifact at a time
 	// TODO be a bit smarter about this - we could just avoid sending multiple events concurrently)
 	conversionMut sync.Mutex
@@ -76,7 +75,7 @@ func (c *ArtifactConversionCollector) Init(ctx context.Context, req *types.Colle
 	if err != nil {
 		return fmt.Errorf("error getting JSONL path: %w", err)
 	}
-	c.destPath = jsonPath
+	c.jsonPath = jsonPath
 	return nil
 }
 
@@ -154,7 +153,7 @@ func (c *ArtifactConversionCollector) handleArtifactDownloaded(ctx context.Conte
 	// load the current chunk count
 	chunkCount := atomic.LoadInt32(&c.chunkCount)
 	// generate the filename
-	destFile := filepath.Join(c.destPath, ExecutionIdToJsonlFileName(c.req.ExecutionId, chunkCount))
+	destFile := filepath.Join(c.jsonPath, ExecutionIdToJsonlFileName(c.req.ExecutionId, chunkCount))
 
 	rowCount, err := c.executeConversionQuery(e, destFile)
 	if err != nil {
