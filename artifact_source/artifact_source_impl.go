@@ -18,6 +18,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
+	"github.com/turbot/tailpipe-plugin-sdk/filepaths"
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"github.com/turbot/tailpipe-plugin-sdk/rate_limiter"
@@ -61,7 +62,7 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 
 	// temporary directory for storing downloaded artifacts - this is initialised in the Init function
 	// to be a subdirectory of the collection directory
-	TempDir string
+	TempArtifactDir string
 
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
@@ -95,8 +96,12 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 		a.NewCollectionStateFunc = collection_state.NewArtifactCollectionStateImpl
 	}
 
-	// set the temp directory
-	a.TempDir = filepath.Join(params.CollectionTempDir, "artifacts")
+	// set the artifact directory
+	artifactDir, err := filepaths.EnsureArtifactPath(params.CollectionTempDir)
+	if err != nil {
+		return err
+	}
+	a.TempArtifactDir = artifactDir
 
 	// call base to apply options and parse config
 	if err := a.RowSourceImpl.Init(ctx, params, opts...); err != nil {

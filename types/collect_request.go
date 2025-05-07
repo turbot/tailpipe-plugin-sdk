@@ -28,8 +28,8 @@ type CollectRequest struct {
 	From time.Time
 	// the custom table definition, if specified
 	CustomTableSchema *schema.TableSchema
-	// the max space to take with JSONL files
-	MaxJsonlSizeMb int64
+	// the max space to take with temp files
+	MaxTempCacheSizeMb int64
 }
 
 func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
@@ -54,7 +54,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		CollectionStatePath: pr.CollectionStatePath,
 		SourceData:          sourceData,
 		From:                pr.FromTime.AsTime(),
-		MaxJsonlSizeMb:      pr.MaxJsonlSizeMb,
+		MaxTempCacheSizeMb:  pr.MaxTempCacheSizeMb,
 	}
 
 	if pr.SourceFormat != nil {

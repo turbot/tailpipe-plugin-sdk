@@ -43,8 +43,8 @@ message CollectRequest {
   SourcePluginReattach source_plugin = 10;
   // optional: the collection start time
   google.protobuf.Timestamp from_time = 11;
-  // the max space to take with JSONL files
-  int64 max_jsonl_size_mb= 12;
+  // the max space to take with temp files
+  int64 max_temp_cache_size_mb= 12;
 }
 
 message UpdateCollectionStateRequest {

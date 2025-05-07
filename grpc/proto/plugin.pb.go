@@ -80,10 +80,10 @@ type CollectRequest struct {
 	SourcePlugin *SourcePluginReattach `protobuf:"bytes,10,opt,name=source_plugin,json=sourcePlugin,proto3" json:"source_plugin,omitempty"`
 	// optional: the collection start time
 	FromTime *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=from_time,json=fromTime,proto3" json:"from_time,omitempty"`
-	// the max space to take with JSONL files
-	MaxJsonlSizeMb int64 `protobuf:"varint,12,opt,name=max_jsonl_size_mb,json=maxJsonlSizeMb,proto3" json:"max_jsonl_size_mb,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// the max space to take with temp files
+	MaxTempCacheSizeMb int64 `protobuf:"varint,12,opt,name=max_temp_cache_size_mb,json=maxTempCacheSizeMb,proto3" json:"max_temp_cache_size_mb,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *CollectRequest) Reset() {
@@ -193,9 +193,9 @@ func (x *CollectRequest) GetFromTime() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *CollectRequest) GetMaxJsonlSizeMb() int64 {
+func (x *CollectRequest) GetMaxTempCacheSizeMb() int64 {
 	if x != nil {
-		return x.MaxJsonlSizeMb
+		return x.MaxTempCacheSizeMb
 	}
 	return 0
 }
@@ -2773,7 +2773,7 @@ var File_plugin_proto protoreflect.FileDescriptor
 const file_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\fplugin.proto\x12\x05proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\a\n" +
-	"\x05Empty\"\xea\x04\n" +
+	"\x05Empty\"\xf3\x04\n" +
 	"\x0eCollectRequest\x12\x1d\n" +
 	"\n" +
 	"table_name\x18\x01 \x01(\tR\ttableName\x12%\n" +
@@ -2788,8 +2788,8 @@ const file_plugin_proto_rawDesc = "" +
 	"\rsource_format\x18\t \x01(\v2\x11.proto.FormatDataR\fsourceFormat\x12@\n" +
 	"\rsource_plugin\x18\n" +
 	" \x01(\v2\x1b.proto.SourcePluginReattachR\fsourcePlugin\x127\n" +
-	"\tfrom_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x12)\n" +
-	"\x11max_jsonl_size_mb\x18\f \x01(\x03R\x0emaxJsonlSizeMb\"\xbf\x01\n" +
+	"\tfrom_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x122\n" +
+	"\x16max_temp_cache_size_mb\x18\f \x01(\x03R\x12maxTempCacheSizeMb\"\xbf\x01\n" +
 	"\x1cUpdateCollectionStateRequest\x122\n" +
 	"\x15collection_state_path\x18\x01 \x01(\tR\x13collectionStatePath\x122\n" +
 	"\vsource_data\x18\x02 \x01(\v2\x11.proto.ConfigDataR\n" +

@@ -34,6 +34,8 @@ type CollectorImpl[R types.RowStruct] struct {
 	chunkCount int32
 
 	pollMutex sync.Mutex
+	// the maximum allowable size of the JSONL files - set to 75% of the max temp cache size
+	maxJsonSize int64
 }
 
 func (c *CollectorImpl[R]) Close() {
@@ -62,6 +64,9 @@ func (c *CollectorImpl[R]) ResumeCollection() error {
 func (c *CollectorImpl[R]) Collect(ctx context.Context) (int64, int32, error) {
 	// create empty status event#
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
+
+	// set the max allowable size of the JSONL files to 75% of the max temp cache size
+	c.maxJsonSize = int64(float64(c.req.MaxTempCacheSizeMb) * 0.75)
 
 	// tell our source to Collect
 	// this is a blocking call, but we will receive and process row events during the execution
@@ -145,13 +150,13 @@ func (c *CollectorImpl[R]) checkJsonlSize(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error getting jsonl folder sizeMb: %w", err)
 	}
-	if sizeMb > c.req.MaxJsonlSizeMb {
-		slog.Info("JSONL folder max size exceeded - pausing source", "sizeMb", sizeMb, "maxSizeMb", c.req.MaxJsonlSizeMb)
+	if sizeMb > c.req.MaxTempCacheSizeMb {
+		slog.Info("JSONL folder max size exceeded - pausing source", "sizeMb", sizeMb, "maxSizeMb", c.req.MaxTempCacheSizeMb)
 		// pause our own event handling and our sources
 		if err := c.PauseCollection(); err != nil {
 			return fmt.Errorf("error pausing source: %w", err)
 		}
-		//  periodically check the sizeMb of the folder and resume the source when it has shrunk
+		//  periodically check the sizeMb of the folder and resume the source when it has shrunk to 75% of the max size
 		if err := c.pollJsonlSize(ctx); err != nil {
 			return err
 		}
@@ -161,9 +166,6 @@ func (c *CollectorImpl[R]) checkJsonlSize(ctx context.Context) error {
 }
 
 func (c *CollectorImpl[R]) pollJsonlSize(ctx context.Context) error {
-
-	slog.Info("******* pollJsonlSize")
-	defer slog.Info("******* pollJsonlSize - done *******")
 	err := retry.Do(ctx, retry.NewConstant(5*time.Second), func(ctx context.Context) error {
 		// check if context is cancelled
 		if err := ctx.Err(); err != nil {
@@ -176,9 +178,10 @@ func (c *CollectorImpl[R]) pollJsonlSize(ctx context.Context) error {
 			return retry.RetryableError(fmt.Errorf("error getting jsonl folder size: %w", err))
 		}
 
-		slog.Info("poll JSONL folder size check", "size Mb", sizeMb)
-		// if the size is below the threshold, resume the source
-		if sizeMb <= c.req.MaxJsonlSizeMb {
+		// do not resume the source until the size is below 75% of the allowable jsonl folder size
+		// (add some hysteresis to avoid flapping)
+		if sizeMb <= int64(float64(c.maxJsonSize)*0.75) {
+			slog.Info("JSONL folder size is below threshold - resuming source", "sizeMb", sizeMb, "maxSizeMb", c.maxJsonSize)
 			return nil
 		}
 
