@@ -62,7 +62,7 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 
 	// temporary directory for storing downloaded artifacts - this is initialised in the Init function
 	// to be a subdirectory of the collection directory
-	TempArtifactDir string
+	TempDir string
 
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
@@ -101,7 +101,7 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	if err != nil {
 		return err
 	}
-	a.TempArtifactDir = artifactDir
+	a.TempDir = artifactDir
 
 	// call base to apply options and parse config
 	if err := a.RowSourceImpl.Init(ctx, params, opts...); err != nil {

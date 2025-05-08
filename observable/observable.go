@@ -13,6 +13,7 @@ type Observable interface {
 type PausableObservable interface {
 	Observable
 	Pause() error
+	PauseProcessingOnly() error
 	Resume() error
 }
 
