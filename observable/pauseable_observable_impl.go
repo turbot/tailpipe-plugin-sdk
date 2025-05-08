@@ -8,28 +8,42 @@ import (
 	"sync/atomic"
 )
 
-// PausableObservableImpl is an implementation of the PausableObservable interface -
-// it extends ObservableImpl and adds Pause and Resume methods
-// NotifyObservers will NOT proceed if pause has been called - it will block until Resume is called
+// PausableObservableImpl is an implementation of the Pausable and Observable interfaces -
+// it overrides the NotifyObservers method to block if Pause has been called
 // Thus, when the observer is paused, no events are sent
 type PausableObservableImpl struct {
 	ObservableImpl
 	pausedAtomic atomic.Bool
 	mu           sync.Mutex
 	cond         *sync.Cond
+
+	pauseEventPublishing atomic.Bool
 }
 
 // Pause pauses the observable, preventing any events from being sent to observers
 func (p *PausableObservableImpl) Pause() error {
 	slog.Info("PausableObservableImpl.Pause() called")
+	return p.pause(true)
+}
 
+// PauseProcessingOnly pauses the observable's processing but allows events to continue being published
+func (p *PausableObservableImpl) PauseProcessingOnly() error {
+	slog.Info("PausableObservableImpl.PauseProcessingOnly() called")
+	return p.pause(false)
+}
+
+// private implementation of pause functionality
+func (p *PausableObservableImpl) pause(pauseEvents bool) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	if p.pausedAtomic.Load() {
-		slog.Info("PausableObservableImpl.Pause - already paused")
+		slog.Info("PausableObservableImpl - already paused")
 		return nil // fast path, skip mutex
 	}
+
+	// Set whether event publishing should be paused
+	p.pauseEventPublishing.Store(pauseEvents)
 
 	// create the condition variable if it doesn't exist
 	p.ensureCond()
@@ -57,16 +71,6 @@ func (p *PausableObservableImpl) ensureCond() {
 	if p.cond == nil {
 		p.cond = sync.NewCond(&p.mu)
 	}
-}
-
-// NotifyObservers overrides the base implementation
-// It will block if Pause has been called until Resume is called
-func (p *PausableObservableImpl) NotifyObservers(ctx context.Context, e events.Event) error {
-	// if paused, clock until resumed
-	p.BlockWhilePaused(ctx)
-
-	// call base implementation
-	return p.ObservableImpl.NotifyObservers(ctx, e)
 }
 
 func (p *PausableObservableImpl) BlockWhilePaused(ctx context.Context) {
@@ -99,4 +103,14 @@ func (p *PausableObservableImpl) BlockWhilePaused(ctx context.Context) {
 		// Context cancelled, let caller handle the error
 		return
 	}
+}
+
+func (p *PausableObservableImpl) NotifyObservers(ctx context.Context, e events.Event) error {
+	if p.pauseEventPublishing.Load() {
+		// if event publishing is paused, block until resumed
+		p.BlockWhilePaused(ctx)
+	}
+
+	// call base implementation
+	return p.ObservableImpl.NotifyObservers(ctx, e)
 }

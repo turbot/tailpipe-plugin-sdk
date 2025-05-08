@@ -22,6 +22,8 @@ func NewJSONLWriter(destPath string) ChunkWriter {
 }
 
 func (j JSONLWriter) WriteChunk(ctx context.Context, rows []any, chunkNumber int32) error {
+	slog.Debug("writing JSONL chunk", "chunkNumber", chunkNumber, "rows", len(rows))
+
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {
 		return err
