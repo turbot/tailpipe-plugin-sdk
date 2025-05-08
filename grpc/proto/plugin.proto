@@ -44,7 +44,7 @@ message CollectRequest {
   // optional: the collection start time
   google.protobuf.Timestamp from_time = 11;
   // the max space to take with temp files
-  int64 temp_cache_max_mb= 12;
+  int64 temp_dir_max_mb= 12;
 }
 
 message UpdateCollectionStateRequest {

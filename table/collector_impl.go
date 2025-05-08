@@ -68,7 +68,7 @@ func (c *CollectorImpl[R]) Collect(ctx context.Context) (int64, int32, error) {
 	c.status = events.NewStatusEvent(c.req.ExecutionId)
 
 	// set the max allowable size of the JSONL files to 75% of the max temp cache size
-	c.maxJsonSize = int64(float64(c.req.TempCacheMaxMb) * 0.75)
+	c.maxJsonSize = int64(float64(c.req.TempDirMaxMb) * 0.75)
 
 	// tell our source to Collect
 	// this is a blocking call, but we will receive and process row events during the execution
@@ -152,8 +152,8 @@ func (c *CollectorImpl[R]) checkJsonlSize(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("error getting jsonl folder sizeMb: %w", err)
 	}
-	if sizeMb > c.req.TempCacheMaxMb {
-		slog.Info("JSONL folder max size exceeded - pausing source", "sizeMb", sizeMb, "maxSizeMb", c.req.TempCacheMaxMb)
+	if sizeMb > c.req.TempDirMaxMb {
+		slog.Info("Temp dir max size exceeded - pausing source", "sizeMb", sizeMb, "maxSizeMb", c.req.TempDirMaxMb)
 		// pause our own event handling and our sources
 		if err := c.PauseCollection(); err != nil {
 			return fmt.Errorf("error pausing source: %w", err)
@@ -180,12 +180,12 @@ func (c *CollectorImpl[R]) pollJsonlSize(ctx context.Context) error {
 			return retry.RetryableError(fmt.Errorf("error getting jsonl folder size: %w", err))
 		}
 
-		slog.Debug("pollJsonlSize", "sizeMb", sizeMb, "maxSizeMb", c.req.TempCacheMaxMb)
+		slog.Debug("pollJsonlSize", "sizeMb", sizeMb, "maxSizeMb", c.req.TempDirMaxMb)
 
 		// do not resume the source until the size is below 75% of the allowable jsonl folder size
 		// (add some hysteresis to avoid flapping)
 		if sizeMb <= int64(float64(c.maxJsonSize)*0.75) {
-			slog.Info("JSONL folder size is below threshold - resuming source", "sizeMb", sizeMb, "maxSizeMb", c.maxJsonSize)
+			slog.Info("Temp dir size is below threshold - resuming source", "sizeMb", sizeMb, "maxSizeMb", c.maxJsonSize)
 			return nil
 		}
 

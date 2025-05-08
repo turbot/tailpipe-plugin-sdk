@@ -29,7 +29,7 @@ type CollectRequest struct {
 	// the custom table definition, if specified
 	CustomTableSchema *schema.TableSchema
 	// the max space to take with temp files
-	TempCacheMaxMb int64
+	TempDirMaxMb int64
 }
 
 func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
@@ -54,7 +54,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		CollectionStatePath: pr.CollectionStatePath,
 		SourceData:          sourceData,
 		From:                pr.FromTime.AsTime(),
-		TempCacheMaxMb:      pr.TempCacheMaxMb,
+		TempDirMaxMb:        pr.TempDirMaxMb,
 	}
 
 	if pr.SourceFormat != nil {
