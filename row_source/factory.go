@@ -94,6 +94,7 @@ func (b *RowSourceFactory) DescribeSources() (types.SourceMetadataMap, error) {
 		res[k] = &types.SourceMetadata{
 			Name:        source.Identifier(),
 			Description: desc,
+			Properties:  source.Properties(),
 		}
 	}
 	return res, nil

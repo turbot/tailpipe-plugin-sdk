@@ -2,6 +2,7 @@ package row_source
 
 import (
 	"context"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 )
@@ -26,6 +27,10 @@ type RowSource interface {
 
 	// Description returns a human readable description of the source
 	Description() (string, error)
+
+	// Properties returns a map of property descriptions
+	// this is used for introspection
+	Properties() map[string]*types.PropertyMetadata
 
 	Close() error
 
