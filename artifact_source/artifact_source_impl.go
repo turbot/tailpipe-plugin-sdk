@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"io/fs"
 	"log/slog"
 	"path/filepath"
@@ -489,6 +490,19 @@ func (a *ArtifactSourceImpl[S, T]) WalkNode(ctx context.Context, targetPath stri
 
 	// so this is a file
 	return a.walkFileNode(ctx, targetPath, satisfied, metadata)
+}
+
+func (a *ArtifactSourceImpl[S, T]) Properties() map[string]*types.PropertyMetadata {
+	// get the top level properties from the config struct
+	configProperties := a.RowSourceImpl.Properties()
+	// add any properties specific to the artifact source (these will not be returned by the base class as they are in
+	// a nested struct and we purposely do not traverse into nested structs when reflcting properties
+	artifactProperties := a.PropertiesForType(artifact_source_config.ArtifactSourceConfigImpl{})
+	// add description for artifact properties
+	artifactProperties["file_layout"].Description = "Grok pattern to use to parse the file layout and extract metadata"
+	artifactProperties["patterns"].Description = "Grok patterns to add to the grok parser used to parse the layout"
+	maps.Copy(configProperties, artifactProperties)
+	return configProperties
 }
 
 func (a *ArtifactSourceImpl[S, T]) getMetadataAndApplyFilters(targetPath string, basePath string, layouts []string, isDir bool, g *grok.Grok, filterMap map[string]*filter.SqlFilter) (map[string]string, bool, error) {

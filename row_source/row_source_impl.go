@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"reflect"
+	"strings"
 	"time"
 
 	"github.com/turbot/go-kit/helpers"
+	typehelpers "github.com/turbot/go-kit/types"
+	"github.com/turbot/pipe-fittings/v2/hclhelpers"
 	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
@@ -188,7 +192,54 @@ func (r *RowSourceImpl[S, T]) GetFromTime() *ResolvedFromTime {
 	}
 }
 
+// Description returns a human readable description of the source
+// this is used for introspection
+// this should be overridden by the source implementation
 func (*RowSourceImpl[S, T]) Description() (string, error) {
 	// override if you want to provide a description
 	return "", nil
+}
+
+// Properties returns a map of property descriptions
+// this is used for introspection
+// this should be overridden by the source implementation
+func (r *RowSourceImpl[S, T]) Properties() map[string]*types.PropertyMetadata {
+	return r.PropertiesForType(utils.InstanceOf[S]())
+}
+
+func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.PropertyMetadata {
+	properties := make(map[string]*types.PropertyMetadata)
+	configType := reflect.TypeOf(config)
+	if configType.Kind() == reflect.Ptr {
+		configType = configType.Elem()
+	}
+
+	for i := 0; i < configType.NumField(); i++ {
+		field := configType.Field(i)
+		if hclTagStr := field.Tag.Get("hcl"); hclTagStr != "" {
+			hclTag, err := hclhelpers.NewHclTag(hclTagStr)
+			if err != nil {
+				slog.Error("error parsing hcl tag", "tag", hclTagStr, "error", err)
+				continue
+			}
+			// if this is the remain field, ignore
+			if hclTag.Remain {
+				continue
+			}
+
+			// field is optional if it's a nullable type or pointer or if optional tag is set
+			isOptional := field.Type.Kind() == reflect.Ptr ||
+				field.Type.Kind() == reflect.Struct ||
+				field.Type.Kind() == reflect.Map ||
+				field.Type.Kind() == reflect.Slice ||
+				typehelpers.BoolValue(hclTag.Optional)
+
+			properties[hclTag.Tag] = &types.PropertyMetadata{
+				// remove leading * from type
+				Type:     strings.TrimPrefix(field.Type.String(), "*"),
+				Required: !isOptional,
+			}
+		}
+	}
+	return properties
 }
