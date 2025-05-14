@@ -29,7 +29,7 @@ func (z ZipRowLoader) Identifier() string {
 func (z ZipRowLoader) Load(ctx context.Context, info *types.DownloadedArtifactInfo, dataChan chan *types.RowData) error {
 	slog.Debug("ZipRowLoader Load", "path", info.LocalName)
 	inputPath := info.LocalName
-	
+
 	// Open the zip file
 	zipFile, err := zip.OpenReader(inputPath)
 	if err != nil {
@@ -42,15 +42,20 @@ func (z ZipRowLoader) Load(ctx context.Context, info *types.DownloadedArtifactIn
 		return fmt.Errorf("zip file %s is empty", inputPath)
 	}
 
-	// For now, we'll just read the first file in the zip archive
-	// This could be enhanced to handle multiple files if needed
-	firstFile := zipFile.File[0]
-	
+	// Check if the zip file has more than one file
+	// TODO: Handle multiple files in the zip archive: https://github.com/turbot/tailpipe-plugin-sdk/issues/198
+	if len(zipFile.File) > 1 {
+		zipFile.Close()
+		return fmt.Errorf("zip file %s contains more than one file and can't be processed", inputPath)
+	}
+
+	f := zipFile.File[0]
+
 	// Open the file inside the zip
-	rc, err := firstFile.Open()
+	rc, err := f.Open()
 	if err != nil {
 		zipFile.Close()
-		return fmt.Errorf("error opening file inside zip %s: %w", firstFile.Name, err)
+		return fmt.Errorf("error opening file inside zip %s: %w", f.Name, err)
 	}
 
 	scanner := bufio.NewScanner(rc)
