@@ -2,7 +2,7 @@ module github.com/turbot/tailpipe-plugin-sdk
 
 go 1.24
 
-replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
+//replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
 
 require (
 	github.com/aws/aws-sdk-go-v2/config v1.27.11
@@ -18,7 +18,7 @@ require (
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/stretchr/testify v1.10.0
 	github.com/turbot/go-kit v1.3.0
-	github.com/turbot/pipe-fittings/v2 v2.4.0
+	github.com/turbot/pipe-fittings/v2 v2.4.1
 	github.com/zclconf/go-cty v1.14.4
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	golang.org/x/sync v0.12.0
