@@ -204,12 +204,12 @@ func (*RowSourceImpl[S, T]) Description() (string, error) {
 // this is used for introspection
 // this should be overridden by the source implementation
 func (r *RowSourceImpl[S, T]) Properties() map[string]*types.PropertyMetadata {
-	properties := make(map[string]*types.PropertyMetadata)
-	if helpers.IsNil(r.Config) {
-		return properties
-	}
+	return r.PropertiesForType(utils.InstanceOf[S]())
+}
 
-	configType := reflect.TypeOf(r.Config)
+func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.PropertyMetadata {
+	properties := make(map[string]*types.PropertyMetadata)
+	configType := reflect.TypeOf(config)
 	if configType.Kind() == reflect.Ptr {
 		configType = configType.Elem()
 	}
