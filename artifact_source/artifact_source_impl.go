@@ -423,6 +423,14 @@ func (a *ArtifactSourceImpl[S, T]) resolveLoader(info *types.DownloadedArtifactI
 			key = artifact_loader.GzipLoaderIdentifier
 			ctor = artifact_loader.NewGzipLoader
 		}
+	case ".zip":
+		if a.RowPerLine {
+			key = artifact_loader.ZipRowLoaderIdentifier
+			ctor = artifact_loader.NewZipRowLoader
+		} else {
+			key = artifact_loader.ZipLoaderIdentifier
+			ctor = artifact_loader.NewZipLoader
+		}
 	default:
 		if a.RowPerLine {
 			key = artifact_loader.FileRowLoaderIdentifier
