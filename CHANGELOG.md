@@ -1,3 +1,18 @@
+v0.6.0 [2025-05-16]
+_Whats new_
+* Add support for zip artifact loaders. ([#195](https://github.com/turbot/tailpipe-plugin-sdk/issues/195))
+
+## v0.5.1 [2025-04-25]
+_Whats new_
+* When describing a source, include all properties. ([#199](https://github.com/turbot/tailpipe-plugin-sdk/issues/199))
+
+## v0.5.0 [2025-04-25]
+_Whats new_
+* Add support for enforcing size limits on temporary directory `max_temp_dir_mb` by limiting total JSONL disk usage. ([#192](https://github.com/turbot/tailpipe-plugin-sdk/issues/192))
+  * Set max JSON size to 75% of the configured max_temp_cache_mb
+  * Implement Pause and Resume functionality for RowSource conversion, collection to be paused to allow JSON to be processed and removed from disk.
+  * Add GetFolderFileSizeMb to support conversion-time file size assessments.
+
 ## v0.4.0 [2025-04-25]
 
 _Whats new_
