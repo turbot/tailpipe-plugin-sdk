@@ -35,7 +35,6 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
 	objectStateMap map[string]*TimeRangeCollectionStateImpl
 
-	// TODO do we need to serialise this - it will always be set by the source - we could just use to validate pattern has not changed??
 	granularity time.Duration
 
 	// path to the serialised collection state JSON
@@ -106,6 +105,9 @@ func (s *ArtifactCollectionStateImpl[T]) GetStartTime() time.Time {
 	return startTime
 }
 
+// GetEndTime returns the time we know have collected ALL data up until
+// (we may have collected some data after this - within the granularity period)
+// return the earliest end time of all the trunk states
 func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
 	// find the earliest end time of all the trunk states
 	var endTime time.Time

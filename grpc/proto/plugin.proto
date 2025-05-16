@@ -45,6 +45,8 @@ message CollectRequest {
   google.protobuf.Timestamp from_time = 11;
   // the max space to take with temp files
   int64 temp_dir_max_mb= 12;
+  // the collection end time
+  google.protobuf.Timestamp to_time = 13;
 }
 
 message UpdateCollectionStateRequest {
@@ -335,6 +337,9 @@ message row_source_params{
   string collection_temp_dir = 4;
   // the path to the collection state file
   string collection_state_path = 5;
+  // the collection end time
+  google.protobuf.Timestamp to_time = 6;
+
 }
 
 // ArtifactSourceConfigBase is a configuration message for an artifact source.

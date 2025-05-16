@@ -14,6 +14,8 @@ type CollectionState[T parse.Config] interface {
 	OnCollected(id string, timestamp time.Time) error
 	GetGranularity() time.Duration
 	GetStartTime() time.Time
+	// GetEndTime returns the time we know have collected ALL data up until
+	// (we may have collected some data after this - within the granularity period
 	GetEndTime() time.Time
 	Clear()
 	SetEndTime(time.Time)

@@ -101,6 +101,7 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 		ConnectionData:      req.ConnectionData,
 		CollectionStatePath: req.CollectionStatePath,
 		From:                req.From,
+		To:                  req.To,
 		CollectionTempDir:   req.CollectionTempDir,
 	}
 

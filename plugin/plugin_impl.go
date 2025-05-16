@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
@@ -50,6 +51,10 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 		slog.Error("CollectRequestFromProto failed", "error", err)
 
 		return nil, nil, err
+	}
+	// if the to time is not set, set it to now
+	if collectRequest.To.IsZero() {
+		collectRequest.To = time.Now()
 	}
 
 	// ask the factory to create the collector
@@ -145,7 +150,7 @@ func (p *PluginImpl) UpdateCollectionState(ctx context.Context, req *proto.Updat
 	if err != nil {
 		return err
 	}
-	// the source requires a temp dir to initialize but WIL NOT USE IT whjen just updating collection state
+	// the source requires a temp dir to initialize but WILL NOT USE IT when just updating collection state
 	dummyTmpDir := "invalidTempDir"
 
 	// ask the factory to create the collector

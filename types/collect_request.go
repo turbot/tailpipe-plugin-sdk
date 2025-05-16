@@ -26,6 +26,8 @@ type CollectRequest struct {
 	ConnectionData *ConnectionConfigData
 	// the collection start time
 	From time.Time
+	// the collection end time
+	To time.Time
 	// the custom table definition, if specified
 	CustomTableSchema *schema.TableSchema
 	// the max space to take with temp files
@@ -54,6 +56,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		CollectionStatePath: pr.CollectionStatePath,
 		SourceData:          sourceData,
 		From:                pr.FromTime.AsTime(),
+		To:                  pr.ToTime.AsTime(),
 		TempDirMaxMb:        pr.TempDirMaxMb,
 	}
 
