@@ -47,7 +47,6 @@ type RowSourceImpl[S, T parse.Config] struct {
 	FromTimeSource string
 	// the end time for the data collection
 	ToTime time.Time
-
 	// store errors - we only use this to determine whether the source collection was successful,
 	// and therefore whether we should set the CollectionState EndTime to the collection To time from OnCollectionComplete
 	ErrorCount int32
@@ -205,11 +204,6 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 	return nil
 }
 
-func (r *RowSourceImpl[S, T]) NotifyError(ctx context.Context, executionId string, err error) {
-	// increment the error count
-	atomic.AddInt32(&r.ErrorCount, 1)
-	r.ObservableImpl.NotifyError(ctx, executionId, err)
-}
 
 func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 	if !params.From.IsZero() {
