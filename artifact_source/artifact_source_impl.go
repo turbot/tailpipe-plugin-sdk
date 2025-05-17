@@ -178,13 +178,16 @@ func (a *ArtifactSourceImpl[S, T]) SetHeaderDelimiter(delimiter string) {
 
 // Collect tells our ArtifactSourceImpl to start discovering artifacts
 // Implements [plugin.RowSource]
-func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) error {
+func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) (err error) {
 	slog.Info("ArtifactSourceImpl Collect")
 	defer slog.Info("ArtifactSourceImpl Collect complete")
 
+	// call OnCollectioComplete, passing colleciton error if any
+	// TODO be sure to keep track of any collection errors to OnCollected
+	defer a.OnCollected(err)
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
-	err := a.Source.DiscoverArtifacts(ctx)
+	err = a.Source.DiscoverArtifacts(ctx)
 	if err != nil {
 		return err
 	}
@@ -192,6 +195,7 @@ func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) error {
 	// now wait for all extractions
 	a.artifactExtractWg.Wait()
 
+	// TODO keep track of source errors to pass to OnCollected
 	return nil
 }
 

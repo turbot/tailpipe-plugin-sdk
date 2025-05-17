@@ -179,15 +179,16 @@ func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.Pr
 	return properties
 }
 
-// TODO think about this
-// OnCollectionComplete must be called by the source Collect function when the collection is complete
+// OnCollected must be called by the source Collect function when the collection is complete
 // this updates the end time of the collection state to the collection `To`
 // and saves the collection state
-//func (r *RowSourceImpl[S, T]) OnCollectionComplete(err error) {
-//	if err == nil {
-//		r.CollectionState.SetEndTime(r.ToTime)
-//	}
-//}
+func (r *RowSourceImpl[S, T]) OnCollected(collectionErr error) error {
+	if collectionErr == nil {
+		r.CollectionState.SetEndTime(r.ToTime)
+		return r.CollectionState.Save()
+	}
+	return nil
+}
 
 func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 	if !params.From.IsZero() {
