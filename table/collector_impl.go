@@ -141,6 +141,10 @@ func (c *CollectorImpl[R]) onChunk(ctx context.Context, chunkNumber int32) error
 
 // check the size of the json destination folder and pause the source if it is too large
 func (c *CollectorImpl[R]) checkJsonlSize(ctx context.Context) error {
+	if c.req.TempDirMaxMb == 0 {
+		return nil
+	}
+
 	// Try to acquire the lock, return immediately if already locked
 	if !c.pollMutex.TryLock() {
 		slog.Debug("JSONL sizeMb polling already in progress")
