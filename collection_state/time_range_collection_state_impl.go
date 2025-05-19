@@ -229,6 +229,8 @@ func (s *TimeRangeCollectionStateImpl) GetStartTime() time.Time {
 	return s.firstEntryTime
 }
 
+// GetEndTime returns the time we know have collected ALL data up until
+// (we may have collected some data after this - within the granularity period
 func (s *TimeRangeCollectionStateImpl) GetEndTime() time.Time {
 	// i.e. the last time period we are sure we have ALL data for
 	return s.endTime

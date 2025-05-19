@@ -99,6 +99,8 @@ func (s *ReverseOrderCollectionState[T]) GetEndTime() time.Time {
 // This is called when we are using the --from flag to force recollection
 func (s *ReverseOrderCollectionState[T]) SetEndTime(newEndTime time.Time) {
 	// THIS IS CALLED PRIOR TO COLLECTION THEREFORE THE LOCK IS NOT REQUIRED (APPLYING A LOCK ON s.mut HERE WILL CAUSE A DEADLOCK)
+
+	// if we have no time ranges, nothing to do
 	if len(s.TimeRanges) == 0 {
 		return
 	}

@@ -101,6 +101,7 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 		ConnectionData:      req.ConnectionData,
 		CollectionStatePath: req.CollectionStatePath,
 		From:                req.From,
+		To:                  req.To,
 		CollectionTempDir:   req.CollectionTempDir,
 	}
 
@@ -111,7 +112,10 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 		return err
 	}
 
-	c.source = source
+	// wrap the source in a decorator to ensure the OnCollectionComplete function is called after collection
+	// (as Collect may be directly implemented by a source implementation - we have no way of ensuring OnCollectionComplete is called otherwise)
+
+	c.source = row_source.NewRowSourceDecorator(source)
 	return nil
 }
 

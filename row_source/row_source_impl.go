@@ -44,6 +44,8 @@ type RowSourceImpl[S, T parse.Config] struct {
 	FromTime time.Time
 	// how was from time set (config, collection state, default)
 	FromTimeSource string
+	// the end time for the data collection
+	ToTime time.Time
 }
 
 // RegisterSource is called by the source implementation to register itself with the base
@@ -87,80 +89,13 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	// populate the from time, applying the from time passed in the params
 	// and falling back to the collection state/default value if needed
 	r.setFromTime(params)
+	r.ToTime = params.To
 
 	return nil
-}
-
-func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
-	if !params.From.IsZero() {
-		// just set the collection state end time
-		r.FromTime = params.From
-		r.FromTimeSource = ""
-		// set the end tim of the collection state to the DAY BEFORE from time
-		// the from time has a day granularity - we want to collect data up to the end of the day before
-		r.CollectionState.SetEndTime(params.From.Add(-time.Hour * 24))
-		return
-	}
-	// if no from time was passed, set it to the end time of the collection state
-	if !r.CollectionState.IsEmpty() {
-		t := r.CollectionState.GetEndTime()
-		if !t.IsZero() {
-			slog.Info("Setting from time from collection state end time", "end time", t)
-			r.FromTime = t
-			r.FromTimeSource = "last collection date"
-			return
-		}
-	}
-
-	slog.Info("Setting from time to default", "default", constants.DefaultInitialCollectionPeriod)
-
-	// if from is not set (either by explicitly passing is as an arg, or from the collection state end time) set it now
-	// to the default (7 days
-	r.FromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)
-	r.FromTimeSource = fmt.Sprintf("initial collection, default %d days", int(constants.DefaultInitialCollectionPeriod.Hours()/24))
 }
 
 func (r *RowSourceImpl[S, T]) SaveCollectionState() error {
 	return r.CollectionState.Save()
-}
-
-func (r *RowSourceImpl[S, T]) initialiseConfig(configData types.ConfigData) error {
-	// default to empty config
-	c := utils.InstanceOf[S]()
-	// parse the config
-	if len(configData.GetHcl()) > 0 {
-		var err error
-		c, err = parse.ParseConfig[S](configData)
-		if err != nil {
-			return err
-		}
-	}
-	// validate config (even if it is empty - this is the config we will be using so it must be valid)
-	if err := c.Validate(); err != nil {
-		return fmt.Errorf("invalid source config: %w", err)
-	}
-	r.Config = c
-	return nil
-}
-
-func (r *RowSourceImpl[S, T]) initialiseConnection(connectionData types.ConfigData) error {
-	// default to empty connection
-	conn := utils.InstanceOf[T]()
-
-	if !helpers.IsNil(connectionData) && len(connectionData.GetHcl()) > 0 {
-		var err error
-		conn, err = parse.ParseConfig[T](connectionData)
-		if err != nil {
-			return fmt.Errorf("error parsing connection: %w", err)
-		}
-	}
-	r.Connection = conn
-
-	// validate config
-	if err := conn.Validate(); err != nil {
-		return fmt.Errorf("invalid connection: %w", err)
-	}
-	return nil
 }
 
 // GetConfigSchema returns an empty instance of the config struct used by the source
@@ -242,4 +177,81 @@ func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.Pr
 		}
 	}
 	return properties
+}
+
+// OnCollectionComplete must be called by the source Collect function when the collection is complete
+// this updates the end time of the collection state to the collection `To` and saves the collection state
+func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
+	// so the source collection was successful, set the end time of the collection state to the collection `To`
+	// this ensures that when we run the next collection, we will start from the end time of the previous collection
+	r.CollectionState.SetEndTime(r.ToTime)
+	return r.CollectionState.Save()
+}
+
+func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
+	if !params.From.IsZero() {
+		// just set the collection state end time
+		r.FromTime = params.From
+		r.FromTimeSource = ""
+		// set the end tim of the collection state to the DAY BEFORE from time
+		// the from time has a day granularity - we want to collect data up to the end of the day before
+		r.CollectionState.SetEndTime(params.From.Add(-time.Hour * 24))
+		return
+	}
+	// if no from time was passed, set it to the end time of the collection state
+	if !r.CollectionState.IsEmpty() {
+		t := r.CollectionState.GetEndTime()
+		if !t.IsZero() {
+			slog.Info("Setting from time from collection state end time", "end time", t)
+			r.FromTime = t
+			r.FromTimeSource = "last collection date"
+			return
+		}
+	}
+
+	slog.Info("Setting from time to default", "default", constants.DefaultInitialCollectionPeriod)
+
+	// if from is not set (either by explicitly passing is as an arg, or from the collection state end time) set it now
+	// to the default (7 days
+	r.FromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)
+	r.FromTimeSource = fmt.Sprintf("initial collection, default %d days", int(constants.DefaultInitialCollectionPeriod.Hours()/24))
+}
+
+func (r *RowSourceImpl[S, T]) initialiseConfig(configData types.ConfigData) error {
+	// default to empty config
+	c := utils.InstanceOf[S]()
+	// parse the config
+	if len(configData.GetHcl()) > 0 {
+		var err error
+		c, err = parse.ParseConfig[S](configData)
+		if err != nil {
+			return err
+		}
+	}
+	// validate config (even if it is empty - this is the config we will be using so it must be valid)
+	if err := c.Validate(); err != nil {
+		return fmt.Errorf("invalid source config: %w", err)
+	}
+	r.Config = c
+	return nil
+}
+
+func (r *RowSourceImpl[S, T]) initialiseConnection(connectionData types.ConfigData) error {
+	// default to empty connection
+	conn := utils.InstanceOf[T]()
+
+	if !helpers.IsNil(connectionData) && len(connectionData.GetHcl()) > 0 {
+		var err error
+		conn, err = parse.ParseConfig[T](connectionData)
+		if err != nil {
+			return fmt.Errorf("error parsing connection: %w", err)
+		}
+	}
+	r.Connection = conn
+
+	// validate config
+	if err := conn.Validate(); err != nil {
+		return fmt.Errorf("invalid connection: %w", err)
+	}
+	return nil
 }
