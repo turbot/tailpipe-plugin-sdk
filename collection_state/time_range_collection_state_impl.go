@@ -34,10 +34,11 @@ type TimeRangeCollectionStateImpl struct {
 
 	// the granularity of the file naming scheme - so we must keep track of object metadata
 	// this will depend on the template used to name the files
-	Granularity time.Duration `json:"granularity,omitempty"`
+	// TODO CAN THIS BE ZERO????
+	Granularity time.Duration `json:"granularity"`
 
 	// are we collecting forwards (the default) or backwards
-	CollectionOrder CollectionOrder `json:"collection_order,omitempty"`
+	CollectionOrder CollectionOrder `json:"collection_order"`
 }
 
 func NewTimeRangeCollectionStateImpl(order CollectionOrder) *TimeRangeCollectionStateImpl {
@@ -330,4 +331,21 @@ func (s *TimeRangeCollectionStateImpl) UnmarshalJSON(data []byte) error {
 	}
 	s.Granularity = dest.Granularity
 	return nil
+}
+
+// Contains returns whether a timestamp fall within the time range?
+// this checks if the timestamp lies within the first entry time and the end time PLUS the granularity
+// i.e. the end time plus the end objects
+func (s *TimeRangeCollectionStateImpl) Contains(timestamp time.Time) bool {
+	return timestamp.After(s.firstEntryTime) && timestamp.Before(s.endTime.Add(s.Granularity))
+}
+
+func (s *TimeRangeCollectionStateImpl) CanMerge(nextRange *TimeRangeCollectionStateImpl) bool {
+	return nextRange.GetStartTime().Compare(s.endTime.Add(s.Granularity)) < 1
+}
+
+func (s *TimeRangeCollectionStateImpl) Merge(other *TimeRangeCollectionStateImpl) {
+	s.endTime = other.endTime
+	s.EndObjects = other.EndObjects
+	s.lastEntryTime = other.lastEntryTime
 }

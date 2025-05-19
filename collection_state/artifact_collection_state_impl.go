@@ -21,7 +21,7 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	// map of trunk paths to collection state for that trunk
 	// a trunk is a path segment that does not contain any time metadata
 	// for example if the path is s3://bucket/folder1/folder2/2021/01/01/file.txt then the trunk is s3://bucket/folder1/folder2
-	TrunkStates map[string]*TimeRangeCollectionStateImpl `json:"trunk_states,omitempty"`
+	TrunkStates map[string]*TimeRangeSliceCollectionState `json:"trunk_states,omitempty"`
 
 	// the time the last artifact was collected
 	// TACTICAL: this is used in GetEndTime called by RowSourceImpl.setFromTime
@@ -30,10 +30,11 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	// NOTE: this assumes forward collection
 	LastModifiedTime time.Time `json:"last_modified_time,omitempty"`
 
+	// TODO revert this to storing TimeRangeCollectionStateImpl again - ShouldCollect should return the actual range so we can set the end time for the correct range
 	// map of object identifier to collection state which contains the object
 	// used to store the collection state for each object between the ShouldCollect call and the OnCollected call
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
-	objectStateMap map[string]*TimeRangeCollectionStateImpl
+	objectStateMap map[string]*TimeRangeSliceCollectionState
 
 	granularity time.Duration
 
@@ -46,8 +47,8 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 
 func NewArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
 	return &ArtifactCollectionStateImpl[T]{
-		TrunkStates:    make(map[string]*TimeRangeCollectionStateImpl),
-		objectStateMap: make(map[string]*TimeRangeCollectionStateImpl),
+		TrunkStates:    make(map[string]*TimeRangeSliceCollectionState),
+		objectStateMap: make(map[string]*TimeRangeSliceCollectionState),
 		mut:            &sync.RWMutex{},
 	}
 }
@@ -126,6 +127,8 @@ func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
 	return endTime
 }
 
+// TODO think about end time and continuation - should we use the following day for continuation
+// map out scenarios
 // SetEndTime sets the end time for the collection state - update all trunk states
 // This is called when we are using the --from flag to force recollection
 func (s *ArtifactCollectionStateImpl[T]) SetEndTime(newEndTime time.Time) {
@@ -150,7 +153,7 @@ func (s *ArtifactCollectionStateImpl[T]) Clear() {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	// cleat the map
-	s.TrunkStates = make(map[string]*TimeRangeCollectionStateImpl)
+	s.TrunkStates = make(map[string]*TimeRangeSliceCollectionState)
 }
 
 // RegisterPath registers a path with the collection state - we determine whether this is a potential trunk
@@ -199,7 +202,7 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 
 	// find all matching trunks and choose the longest
 	var trunkPath string
-	var collectionState *TimeRangeCollectionStateImpl
+	var collectionState *TimeRangeSliceCollectionState
 
 	for t, trunkState := range s.TrunkStates {
 		if strings.HasPrefix(itemPath, t) && len(t) > len(trunkPath) {
@@ -217,7 +220,7 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 	}
 	if collectionState == nil {
 		// create a new collection state for this trunk
-		collectionState = NewTimeRangeCollectionStateImpl(CollectionOrderChronological)
+		collectionState = NewTimeRangeSliceCollectionState(CollectionOrderChronological)
 		// set the granularity
 		collectionState.SetGranularity(s.granularity)
 
