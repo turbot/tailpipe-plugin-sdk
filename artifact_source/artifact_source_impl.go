@@ -178,13 +178,13 @@ func (a *ArtifactSourceImpl[S, T]) SetHeaderDelimiter(delimiter string) {
 
 // Collect tells our ArtifactSourceImpl to start discovering artifacts
 // Implements [plugin.RowSource]
-func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) (err error) {
+func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) error {
 	slog.Info("ArtifactSourceImpl Collect")
 	defer slog.Info("ArtifactSourceImpl Collect complete")
 
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
-	err = a.Source.DiscoverArtifacts(ctx)
+	err := a.Source.DiscoverArtifacts(ctx)
 	if err != nil {
 		return err
 	}

@@ -52,7 +52,7 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 
 		return nil, nil, err
 	}
-	// if the to time is not set, set it to now
+	// if the 'to' time is not set, set it to now
 	if collectRequest.To.IsZero() {
 		collectRequest.To = time.Now()
 	}
