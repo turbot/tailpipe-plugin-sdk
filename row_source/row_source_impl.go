@@ -179,15 +179,22 @@ func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.Pr
 	return properties
 }
 
-// OnCollected must be called by the source Collect function when the collection is complete
+// OnCollectionComplete must be called by the source Collect function when the collection is complete
 // this updates the end time of the collection state to the collection `To`
 // and saves the collection state
-func (r *RowSourceImpl[S, T]) OnCollected(collectionErr error) error {
+func (r *RowSourceImpl[S, T]) OnCollectionComplete(collectionErr error) error {
 	if collectionErr == nil {
 		r.CollectionState.SetEndTime(r.ToTime)
 		return r.CollectionState.Save()
 	}
-	return nil
+
+	// just return the collection error
+	// this will allow calling code to return this function from a defer block:
+	//
+	// defer func() { err = a.OnCollectionComplete(err) }()
+
+	// we want to make it simple as this is code each source implementation will have to copy
+	return collectionErr
 }
 
 func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {

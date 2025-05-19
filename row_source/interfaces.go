@@ -6,7 +6,71 @@ import (
 
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
 )
+type RowSourceDecorator struct{
+	rowSource RowSource
+}
 
+
+func (r RowSourceDecorator) AddObserver(observer observable.Observer) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) Pause() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) PauseProcessingOnly() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) Resume() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) Init(ctx context.Context, params *RowSourceParams, option ...RowSourceOption) error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) Identifier() string {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) Description() (string, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) Properties() map[string]*types.PropertyMetadata {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) Close() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) SaveCollectionState() error {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (r RowSourceDecorator) Collect(ctx context.Context) error {
+	err := r.rowSource.Collect(ctx)
+	return r.rowSource.OnCollectionComplete(err)
+}
+
+func (r RowSourceDecorator) GetFromTime() *ResolvedFromTime {
+	//TODO implement me
+	panic("implement me")
+}
+{}
 // RowSource is the interface that represents a data source
 // A number of data sourceFuncs are provided by the SDK, and plugins may provide their own
 // Built in data sourceFuncs:
@@ -42,6 +106,8 @@ type RowSource interface {
 	// GetFromTime returns the start time for the data collection, including the source of the from time
 	// (config, collection state or default)
 	GetFromTime() *ResolvedFromTime
+
+	OnCollectionComplete(error)error
 }
 
 // BaseSource registers the rowSource implementation with the base struct (_before_ calling Init)

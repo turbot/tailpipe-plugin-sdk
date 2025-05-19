@@ -182,9 +182,6 @@ func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) (err error) {
 	slog.Info("ArtifactSourceImpl Collect")
 	defer slog.Info("ArtifactSourceImpl Collect complete")
 
-	// call OnCollectioComplete, passing colleciton error if any
-	// TODO be sure to keep track of any collection errors to OnCollected
-	defer a.OnCollected(err)
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
 	err = a.Source.DiscoverArtifacts(ctx)
@@ -195,8 +192,9 @@ func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) (err error) {
 	// now wait for all extractions
 	a.artifactExtractWg.Wait()
 
-	// TODO keep track of source errors to pass to OnCollected
-	return nil
+	// TODO keep track of source errors - if any occurred, do not call OnCollectionComplete`
+
+	return a.OnCollectionComplete(err)
 }
 
 func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {
