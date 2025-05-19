@@ -12,6 +12,7 @@ type RowSourceParams struct {
 	ConnectionData      *types.ConnectionConfigData
 	CollectionStatePath string
 	From                time.Time
+	To                  time.Time
 	CollectionTempDir   string
 }
 
@@ -19,6 +20,7 @@ func (r *RowSourceParams) ToProto() *proto.RowSourceParams {
 	res := &proto.RowSourceParams{
 		CollectionStatePath: r.CollectionStatePath,
 		FromTime:            timestamppb.New(r.From),
+		ToTime:              timestamppb.New(r.To),
 		CollectionTempDir:   r.CollectionTempDir,
 	}
 	if r.SourceConfigData != nil {
@@ -34,6 +36,7 @@ func RowSourceParamsFromProto(pr *proto.RowSourceParams) (*RowSourceParams, erro
 	res := &RowSourceParams{
 		CollectionStatePath: pr.CollectionStatePath,
 		From:                pr.FromTime.AsTime(),
+		To:                  pr.ToTime.AsTime(),
 		CollectionTempDir:   pr.CollectionTempDir,
 	}
 

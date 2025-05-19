@@ -42,6 +42,11 @@ type RowSource interface {
 	// GetFromTime returns the start time for the data collection, including the source of the from time
 	// (config, collection state or default)
 	GetFromTime() *ResolvedFromTime
+
+	// 	OnCollectionComplete is called when the source collection is SUCCESSFULLY completed
+	// this sets the collection state end time to the collection 'to' time to ensure that the next collection
+	// continues from the end of the last collection
+	OnCollectionComplete() error
 }
 
 // BaseSource registers the rowSource implementation with the base struct (_before_ calling Init)
