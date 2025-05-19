@@ -192,9 +192,8 @@ func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) (err error) {
 	// now wait for all extractions
 	a.artifactExtractWg.Wait()
 
-	// TODO keep track of source errors - if any occurred, do not call OnCollectionComplete`
-
-	return a.OnCollectionComplete(err)
+	// TODO keep track of source errors - if any occurred, return error?
+	return nil
 }
 
 func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {
