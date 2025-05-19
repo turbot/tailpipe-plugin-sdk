@@ -1,8 +1,8 @@
-v0.6.1 [2025-05-16]
+## v0.6.1 [2025-05-16]
 _Bug fixes_
 * Update checkJsonlSize to skip check if no min size is set. ([#204](https://github.com/turbot/tailpipe-plugin-sdk/issues/204))
 
-* v0.6.0 [2025-05-16]
+## v0.6.0 [2025-05-16]
 _Whats new_
 * Add support for zip artifact loaders. ([#195](https://github.com/turbot/tailpipe-plugin-sdk/issues/195))
 
