@@ -124,6 +124,14 @@ func (s PluginServer) SourceResume(ctx context.Context, _ *proto.Empty) (*proto.
 	return &proto.Empty{}, nil
 }
 
+func (s PluginServer) SourceCollectionComplete(ctx context.Context, _ *proto.Empty) (*proto.Empty, error) {
+	err := s.impl.SourceCollectionComplete(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &proto.Empty{}, nil
+}
+
 func (s PluginServer) Serve() error {
 	// use plugin provided in opts
 	ctx := context.Background()

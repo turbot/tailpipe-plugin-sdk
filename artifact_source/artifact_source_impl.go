@@ -192,7 +192,6 @@ func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) error {
 	// now wait for all extractions
 	a.artifactExtractWg.Wait()
 
-	// TODO keep track of source errors - if any occurred, return error?
 	return nil
 }
 

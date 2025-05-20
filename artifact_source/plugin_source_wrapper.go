@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"sync/atomic"
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
@@ -197,6 +198,19 @@ func (w *PluginSourceWrapper) Pause() error {
 // Resume is called to resume collection of source data
 func (w *PluginSourceWrapper) Resume() error {
 	_, err := w.client.SourcePause()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (w *PluginSourceWrapper) OnCollectionComplete() error {
+	// if ay errors have been reported, we will not call the source complete
+	errorCount := atomic.LoadInt32(&w.ErrorCount)
+	if errorCount > 0 {
+		return nil
+	}
+	_, err := w.client.SourceCollectionComplete()
 	if err != nil {
 		return err
 	}

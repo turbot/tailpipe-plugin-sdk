@@ -249,6 +249,13 @@ func (p *PluginImpl) SourceResume(_ context.Context) error {
 	return p.source.Resume()
 }
 
+func (p *PluginImpl) SourceCollectionComplete(_ context.Context) error {
+	if p.source == nil {
+		return nil
+	}
+	return p.source.OnCollectionComplete()
+}
+
 // Shutdown is called by Serve when the plugin exits
 func (p *PluginImpl) Shutdown(context.Context) error {
 	return nil
