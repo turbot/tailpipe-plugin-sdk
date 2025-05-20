@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
+	"sync/atomic"
 
 	"github.com/turbot/go-kit/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
@@ -201,6 +203,21 @@ func (w *PluginSourceWrapper) Resume() error {
 		return err
 	}
 	return nil
+}
+
+func (w *PluginSourceWrapper) OnCollectionComplete() error {
+	// if ay errors have been reported, we will not call the source complete
+	errorCount := atomic.LoadInt32(&w.ErrorCount)
+	if errorCount > 0 {
+		return nil
+	}
+	_, err := w.client.SourceCollectionComplete()
+	// NOTE: ignore method not found error dues to older plugin version
+	if err != nil && strings.HasPrefix(err.Error(), "unknown method SourceCollectionComplete") {
+		slog.Info(fmt.Sprintf("PluginSourceWrapper.OnCollectionComplete - plugin '%s' does not implement SourceCollectionComplete - ignoring method not found error", w.pluginName))
+		err = nil
+	}
+	return err
 }
 
 func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream proto.TailpipePlugin_AddObserverClient) {
