@@ -198,7 +198,11 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 	// so the source collection was successful, set the end time of the collection state to the collection `To`
 	// this ensures that when we run the next collection, we will start from the end time of the previous collection
 	r.CollectionState.SetEndTime(r.ToTime)
-	return r.CollectionState.Save()
+
+	if err := r.CollectionState.Save(); err != nil {
+		return fmt.Errorf("error saving collection state: %w", err)
+	}
+	return nil
 }
 
 func (r *RowSourceImpl[S, T]) NotifyError(ctx context.Context, executionId string, err error) {

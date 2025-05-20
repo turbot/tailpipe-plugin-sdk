@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"sync/atomic"
 
@@ -211,10 +212,12 @@ func (w *PluginSourceWrapper) OnCollectionComplete() error {
 		return nil
 	}
 	_, err := w.client.SourceCollectionComplete()
-	if err != nil {
-		return err
+	// NOTE: ignore method not found error dues to older plugin version
+	if err != nil && strings.HasPrefix(err.Error(), "unknown method SourceCollectionComplete") {
+		slog.Info(fmt.Sprintf("PluginSourceWrapper.OnCollectionComplete - plugin '%s' does not implement SourceCollectionComplete - ignoring method not found error", w.pluginName))
+		err = nil
 	}
-	return nil
+	return err
 }
 
 func (w *PluginSourceWrapper) readSourceEvents(ctx context.Context, pluginStream proto.TailpipePlugin_AddObserverClient) {
