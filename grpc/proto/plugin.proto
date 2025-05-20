@@ -18,6 +18,8 @@ service TailpipePlugin {
   rpc SourceCollect(SourceCollectRequest) returns (Empty);
   rpc SourcePause(Empty) returns (Empty);
   rpc SourceResume(Empty) returns (Empty);
+  rpc SourceCollectionComplete(Empty) returns (Empty);
+
 }
 
 message Empty{}

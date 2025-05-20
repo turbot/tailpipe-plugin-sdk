@@ -122,10 +122,7 @@ func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
 			endTime = trunkState.GetEndTime()
 		}
 	}
-	// if there is NO end time, the end of the last collection
-	if endTime.IsZero() {
-		endTime = s.LastModifiedTime
-	}
+
 	return endTime
 }
 

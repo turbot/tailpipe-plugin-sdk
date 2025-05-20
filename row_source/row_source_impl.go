@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"reflect"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/turbot/go-kit/helpers"
@@ -46,6 +47,10 @@ type RowSourceImpl[S, T parse.Config] struct {
 	FromTimeSource string
 	// the end time for the data collection
 	ToTime time.Time
+
+	// store errors - we only use this to determine whether the source collection was successful,
+	// and therefore whether we should set the CollectionState EndTime to the collection To time from OnCollectionComplete
+	ErrorCount int32
 }
 
 // RegisterSource is called by the source implementation to register itself with the base
@@ -182,10 +187,24 @@ func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.Pr
 // OnCollectionComplete must be called by the source Collect function when the collection is complete
 // this updates the end time of the collection state to the collection `To` and saves the collection state
 func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
+	if atomic.LoadInt32(&r.ErrorCount) > 0 {
+		slog.Info("OnCollectionComplete: Collection completed with errors - NOT setting end time of collcetion state to collection 'to' time as we may need to recollect some files")
+		return nil
+	}
+	if r.CollectionState == nil {
+		slog.Info("OnCollectionComplete: Collection state is nil - not setting end time")
+		return nil
+	}
 	// so the source collection was successful, set the end time of the collection state to the collection `To`
 	// this ensures that when we run the next collection, we will start from the end time of the previous collection
 	r.CollectionState.SetEndTime(r.ToTime)
 	return r.CollectionState.Save()
+}
+
+func (r *RowSourceImpl[S, T]) NotifyError(ctx context.Context, executionId string, err error) {
+	// increment the error count
+	atomic.AddInt32(&r.ErrorCount, 1)
+	r.ObservableImpl.NotifyError(ctx, executionId, err)
 }
 
 func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {

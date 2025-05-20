@@ -3122,7 +3122,7 @@ const file_plugin_proto_rawDesc = "" +
 	"\x0emissing_fields\x18\x01 \x03(\tR\rmissingFields\x12%\n" +
 	"\x0einvalid_fields\x18\x02 \x03(\tR\rinvalidFields\x12\x1a\n" +
 	"\bmessages\x18\x03 \x03(\tR\bmessages\x12\x14\n" +
-	"\x05count\x18\x04 \x01(\x03R\x05count2\xb4\x04\n" +
+	"\x05count\x18\x04 \x01(\x03R\x05count2\xec\x04\n" +
 	"\x0eTailpipePlugin\x12;\n" +
 	"\bDescribe\x12\x16.proto.DescribeRequest\x1a\x17.proto.DescribeResponse\x12+\n" +
 	"\vAddObserver\x12\f.proto.Empty\x1a\f.proto.Event0\x01\x128\n" +
@@ -3134,7 +3134,8 @@ const file_plugin_proto_rawDesc = "" +
 	"\x13SaveCollectionState\x12\f.proto.Empty\x1a\f.proto.Empty\x12:\n" +
 	"\rSourceCollect\x12\x1b.proto.SourceCollectRequest\x1a\f.proto.Empty\x12)\n" +
 	"\vSourcePause\x12\f.proto.Empty\x1a\f.proto.Empty\x12*\n" +
-	"\fSourceResume\x12\f.proto.Empty\x1a\f.proto.EmptyB\tZ\a.;protob\x06proto3"
+	"\fSourceResume\x12\f.proto.Empty\x1a\f.proto.Empty\x126\n" +
+	"\x18SourceCollectionComplete\x12\f.proto.Empty\x1a\f.proto.EmptyB\tZ\a.;protob\x06proto3"
 
 var (
 	file_plugin_proto_rawDescOnce sync.Once
@@ -3280,18 +3281,20 @@ var file_plugin_proto_depIdxs = []int32{
 	37, // 71: proto.TailpipePlugin.SourceCollect:input_type -> proto.SourceCollectRequest
 	0,  // 72: proto.TailpipePlugin.SourcePause:input_type -> proto.Empty
 	0,  // 73: proto.TailpipePlugin.SourceResume:input_type -> proto.Empty
-	4,  // 74: proto.TailpipePlugin.Describe:output_type -> proto.DescribeResponse
-	14, // 75: proto.TailpipePlugin.AddObserver:output_type -> proto.Event
-	6,  // 76: proto.TailpipePlugin.Collect:output_type -> proto.CollectResponse
-	34, // 77: proto.TailpipePlugin.InitSource:output_type -> proto.InitSourceResponse
-	0,  // 78: proto.TailpipePlugin.UpdateCollectionState:output_type -> proto.Empty
-	0,  // 79: proto.TailpipePlugin.CloseSource:output_type -> proto.Empty
-	0,  // 80: proto.TailpipePlugin.SaveCollectionState:output_type -> proto.Empty
-	0,  // 81: proto.TailpipePlugin.SourceCollect:output_type -> proto.Empty
-	0,  // 82: proto.TailpipePlugin.SourcePause:output_type -> proto.Empty
-	0,  // 83: proto.TailpipePlugin.SourceResume:output_type -> proto.Empty
-	74, // [74:84] is the sub-list for method output_type
-	64, // [64:74] is the sub-list for method input_type
+	0,  // 74: proto.TailpipePlugin.SourceCollectionComplete:input_type -> proto.Empty
+	4,  // 75: proto.TailpipePlugin.Describe:output_type -> proto.DescribeResponse
+	14, // 76: proto.TailpipePlugin.AddObserver:output_type -> proto.Event
+	6,  // 77: proto.TailpipePlugin.Collect:output_type -> proto.CollectResponse
+	34, // 78: proto.TailpipePlugin.InitSource:output_type -> proto.InitSourceResponse
+	0,  // 79: proto.TailpipePlugin.UpdateCollectionState:output_type -> proto.Empty
+	0,  // 80: proto.TailpipePlugin.CloseSource:output_type -> proto.Empty
+	0,  // 81: proto.TailpipePlugin.SaveCollectionState:output_type -> proto.Empty
+	0,  // 82: proto.TailpipePlugin.SourceCollect:output_type -> proto.Empty
+	0,  // 83: proto.TailpipePlugin.SourcePause:output_type -> proto.Empty
+	0,  // 84: proto.TailpipePlugin.SourceResume:output_type -> proto.Empty
+	0,  // 85: proto.TailpipePlugin.SourceCollectionComplete:output_type -> proto.Empty
+	75, // [75:86] is the sub-list for method output_type
+	64, // [64:75] is the sub-list for method input_type
 	64, // [64:64] is the sub-list for extension type_name
 	64, // [64:64] is the sub-list for extension extendee
 	0,  // [0:64] is the sub-list for field type_name
