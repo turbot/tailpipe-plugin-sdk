@@ -1,15 +1,18 @@
 package collection_state
 
-import "time"
+import (
+	"log/slog"
+	"time"
+)
 
 type TimeRangeSliceCollectionState struct {
-	timeRanges  []*TimeRangeCollectionStateImpl
-	Granularity time.Duration   `json:"granularity"`
-	Order       CollectionOrder `json:"order"`
+	TimeRanges  []*TimeRangeCollectionStateImpl `json:"TimeRanges"`
+	Granularity time.Duration                   `json:"granularity"`
+	Order       CollectionOrder                 `json:"order"`
 }
 
 func (t *TimeRangeSliceCollectionState) IsEmpty() bool {
-	for _, timeRange := range t.timeRanges {
+	for _, timeRange := range t.TimeRanges {
 		if !timeRange.IsEmpty() {
 			return false
 		}
@@ -32,89 +35,94 @@ func (t *TimeRangeSliceCollectionState) GetGranularity() time.Duration {
 	return t.Granularity
 }
 
-func (t *TimeRangeSliceCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
-	if rangeForTime := t.rangeForTime(timestamp); rangeForTime != nil {
-		return rangeForTime.ShouldCollect(id, timestamp)
-	}
-	// this time does not fall within any of the time ranges - we should collect
-	return true
-}
+//func (t *TimeRangeSliceCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
+//	if rangeForTime := t.rangeForTime(timestamp); rangeForTime != nil {
+//		return rangeForTime.ShouldCollect(id, timestamp)
+//	}
+//	// this time does not fall within any of the time ranges - we should collect
+//	return true
+//}
 
-func (t *TimeRangeSliceCollectionState) OnCollected(id string, timestamp time.Time) error {
-	if rangeForTime := t.rangeForTime(timestamp); rangeForTime != nil {
-		err := rangeForTime.OnCollected(id, timestamp)
-		if err != nil {
-			return err
-		}
-	} else {
-		// this time does not fall within any of the time ranges - create a new range
-		t.addRange(timestamp)
-	}
-	// now determine whether any of our ranges can be merged
-	t.mergeRanges()
-	return nil
-}
+//func (t *TimeRangeSliceCollectionState) OnCollected(id string, timestamp time.Time) error {
+//	if rangeForTime := t.rangeForTime(timestamp); rangeForTime != nil {
+//		err := rangeForTime.OnCollected(id, timestamp)
+//		if err != nil {
+//			return err
+//		}
+//	} else {
+//		// this time does not fall within any of the time ranges - create a new range
+//		t.addRange(timestamp)
+//	}
+//	// now determine whether any of our ranges can be merged
+//	t.mergeRanges()
+//	return nil
+//}
 
-func (t *TimeRangeSliceCollectionState) mergeRanges() {
-	for i, timeRange := range t.timeRanges {
-		// get next range
-		if i+1 < len(t.timeRanges) {
-			nextRange := t.timeRanges[i+1]
-			if timeRange.CanMerge(nextRange) {
-				// merge the two ranges
-				timeRange.Merge(nextRange)
-				// remove the next range from the list
-				t.timeRanges = append(t.timeRanges[:i+1], t.timeRanges[i+2:]...)
-			}
-		}
+func (t *TimeRangeSliceCollectionState) mergeRangeWithNext(idx int) {
+	if idx+1 >= len(t.TimeRanges) {
+		// no next range
+		slog.Warn("No next range to merge with")
+		return
 	}
+
+	l := t.TimeRanges[idx]
+	r := t.TimeRanges[idx+1]
+
+	l.Merge(r)
+	// remove r from the list
+	t.TimeRanges = append(t.TimeRanges[:idx+1], t.TimeRanges[idx+2:]...)
 }
 
 func (t *TimeRangeSliceCollectionState) GetStartTime() time.Time {
-	if len(t.timeRanges) == 0 {
+	if len(t.TimeRanges) == 0 {
 		return time.Time{}
 	}
-	return t.timeRanges[0].GetStartTime()
+	return t.TimeRanges[0].GetStartTime()
 }
 
 func (t *TimeRangeSliceCollectionState) GetEndTime() time.Time {
-	if len(t.timeRanges) == 0 {
+	if len(t.TimeRanges) == 0 {
 		return time.Time{}
 	}
-	return t.timeRanges[len(t.timeRanges)-1].GetEndTime()
+	return t.TimeRanges[len(t.TimeRanges)-1].GetEndTime()
 }
 
 func (t *TimeRangeSliceCollectionState) Clear() {
-	t.timeRanges = nil
+	t.TimeRanges = nil
 }
 
 func (t *TimeRangeSliceCollectionState) SetEndTime(endTime time.Time) {
-	if len(t.timeRanges) > 0 {
-		t.timeRanges[len(t.timeRanges)-1].SetEndTime(endTime)
+	if len(t.TimeRanges) > 0 {
+		t.TimeRanges[len(t.TimeRanges)-1].SetEndTime(endTime)
 	}
 }
 
-func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) *TimeRangeCollectionStateImpl {
-	for _, r := range t.timeRanges {
+// rangeForTime returns the index of the time range that contains the given timestamp
+// if no existing range contains the timestamp, a new range is created and added into the list and its index is returned
+func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) int {
+	for i, r := range t.TimeRanges {
 		if r.Contains(timestamp) {
-			return r
+			return i
 		}
 	}
-	return nil
+
+	return t.addRange(timestamp)
 }
 
-func (t *TimeRangeSliceCollectionState) addRange(timestamp time.Time) {
+func (t *TimeRangeSliceCollectionState) addRange(timestamp time.Time) int {
 	// create a new time range
 	newRange := NewTimeRangeCollectionStateImpl(t.Order)
 	newRange.SetGranularity(t.Granularity)
 	// find the appropriate location to insert the new range into our list
-	for i, r := range t.timeRanges {
+	for i, r := range t.TimeRanges {
 		if r.GetStartTime().After(timestamp) {
 			// insert the new range before this one
-			t.timeRanges = append(t.timeRanges[:i], append([]*TimeRangeCollectionStateImpl{newRange}, t.timeRanges[i:]...)...)
-			return
+			t.TimeRanges = append(t.TimeRanges[:i], append([]*TimeRangeCollectionStateImpl{newRange}, t.TimeRanges[i:]...)...)
+			return i
 		}
 	}
 	// if we get here, the new range should be added to the end of the list
-	t.timeRanges = append(t.timeRanges, newRange)
+	t.TimeRanges = append(t.TimeRanges, newRange)
+
+	return len(t.TimeRanges) - 1
 }

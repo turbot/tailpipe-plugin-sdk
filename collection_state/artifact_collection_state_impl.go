@@ -3,6 +3,7 @@ package collection_state
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"strings"
 	"sync"
@@ -16,6 +17,13 @@ const MinArtifactGranularity = time.Hour * 24
 
 // ArtifactCollectionStateImpl is the interface for the collection state of an S3 bucket
 // return the start time and the end time for the data downloaded
+
+type trunkStateIndex struct {
+	// the trunk path
+	trunkPath string
+	// the index into the time range slice of the current colleciton state
+	rangeIndex int
+}
 
 type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] struct {
 	// map of trunk paths to collection state for that trunk
@@ -34,7 +42,7 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	// map of object identifier to collection state which contains the object
 	// used to store the collection state for each object between the ShouldCollect call and the OnCollected call
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
-	objectStateMap map[string]*TimeRangeSliceCollectionState
+	objectStateMap map[string]*trunkStateIndex
 
 	granularity time.Duration
 
@@ -48,7 +56,7 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 func NewArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
 	return &ArtifactCollectionStateImpl[T]{
 		TrunkStates:    make(map[string]*TimeRangeSliceCollectionState),
-		objectStateMap: make(map[string]*TimeRangeSliceCollectionState),
+		objectStateMap: make(map[string]*trunkStateIndex),
 		mut:            &sync.RWMutex{},
 	}
 }
@@ -144,8 +152,11 @@ func (s *ArtifactCollectionStateImpl[T]) SetEndTime(newEndTime time.Time) {
 	defer s.mut.Unlock()
 
 	// call set end time for each trunk state
-	for _, s := range s.TrunkStates {
-		s.SetEndTime(newEndTime)
+	for _, trunkState := range s.TrunkStates {
+		if trunkState == nil {
+			continue
+		}
+		trunkState.SetEndTime(newEndTime)
 	}
 }
 
@@ -201,42 +212,73 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 	itemPath := id
 
 	// find all matching trunks and choose the longest
-	var trunkPath string
-	var collectionState *TimeRangeSliceCollectionState
 
-	for t, trunkState := range s.TrunkStates {
-		if strings.HasPrefix(itemPath, t) && len(t) > len(trunkPath) {
-			trunkPath = t
-			collectionState = trunkState
+	var trunkIndex = &trunkStateIndex{}
+
+	for t, _ := range s.TrunkStates {
+		if strings.HasPrefix(itemPath, t) && len(t) > len(trunkIndex.trunkPath) {
+			trunkIndex.trunkPath = t
 		}
 	}
 
 	// we should always have a trunk state
-	if len(trunkPath) == 0 {
-		trunkPath = rootChar
-		if trunkState, ok := s.TrunkStates[rootChar]; ok {
-			collectionState = trunkState
+	if len(trunkIndex.trunkPath) == 0 {
+		trunkIndex.trunkPath = rootChar
+	}
+
+	// now we have a trunk, find which time range collection state to use
+	trunkState, ok := s.TrunkStates[trunkIndex.trunkPath]
+	if ok {
+		if trunkState == nil {
+			// create a new collection state for this trunk
+			trunkState = NewTimeRangeSliceCollectionState(CollectionOrderChronological)
+			// set the granularity
+			trunkState.SetGranularity(s.granularity)
+			// write it back
+			s.TrunkStates[trunkIndex.trunkPath] = trunkState
+		}
+		trunkIndex.rangeIndex = trunkState.rangeForTime(timestamp)
+	} else {
+		// create a new collection state for this trunk
+		trunkState = NewTimeRangeSliceCollectionState(CollectionOrderChronological)
+		// set the granularity
+		trunkState.SetGranularity(s.granularity)
+		// add a range
+		trunkIndex.rangeIndex = trunkState.addRange(timestamp)
+		// write it back
+		s.TrunkStates[trunkIndex.trunkPath] = trunkState
+	}
+
+	// to determine if we need to collect
+
+	// as the range at the current index if we should collect
+	// if yes, ask the following region if we should collect
+	// if no, this means this entry is within the range of the next region so merge the regions
+	currentRange := trunkState.TimeRanges[trunkIndex.rangeIndex]
+	if currentRange == nil {
+		// unexpected
+		slog.Warn(fmt.Sprintf("no time range found for trunk '%s' range %d - this should not happen", trunkIndex.trunkPath, trunkIndex.rangeIndex))
+		return true
+	}
+	// see if there is a next region
+	var nextRange *TimeRangeCollectionStateImpl
+
+	if !currentRange.ShouldCollect(id, timestamp) {
+		return false
+	}
+	if trunkIndex.rangeIndex+1 < len(trunkState.TimeRanges) {
+		nextRange = trunkState.TimeRanges[trunkIndex.rangeIndex+1]
+		if !nextRange.ShouldCollect(id, timestamp) {
+			// this means this entry is within the range of the next region so merge the regions
+			trunkState.mergeRangeWithNext(trunkIndex.rangeIndex)
+			return false
 		}
 	}
-	if collectionState == nil {
-		// create a new collection state for this trunk
-		collectionState = NewTimeRangeSliceCollectionState(CollectionOrderChronological)
-		// set the granularity
-		collectionState.SetGranularity(s.granularity)
 
-		// write it back
-		s.TrunkStates[trunkPath] = collectionState
-	}
+	// so we should collect this object
+	s.objectStateMap[itemPath] = trunkIndex
 
-	// ask the collection state if we should collect this object
-	res := collectionState.ShouldCollect(id, timestamp)
-
-	// now we have figured out which collection state to use, store that mapping for use in OnCollected
-	// - we need to know which collection state to update when we collect the object
-	if res {
-		s.objectStateMap[itemPath] = collectionState
-	}
-	return res
+	return true
 }
 
 // OnCollected is called when an object has been collected - update our end time and end objects if needed
@@ -248,14 +290,23 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollected(id string, timestamp time.T
 	s.LastModifiedTime = time.Now()
 
 	// we should have stored a collection state mapping for this object
-	collectionState, ok := s.objectStateMap[id]
+	trunkIndex, ok := s.objectStateMap[id]
 	if !ok {
 		return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", id)
 	}
 	// clear the mapping
 	delete(s.objectStateMap, id)
 
-	return collectionState.OnCollected(id, timestamp)
+	trunkState, ok := s.TrunkStates[trunkIndex.trunkPath]
+	if !ok {
+		return fmt.Errorf("no trunk state found for item '%s' - this should have been set in ShouldCollect", id)
+	}
+	if len(trunkState.TimeRanges) <= trunkIndex.rangeIndex {
+		return fmt.Errorf("no time range found for item '%s' - this should have been set in ShouldCollect", id)
+	}
+	timeRange := trunkState.TimeRanges[trunkIndex.rangeIndex]
+
+	return timeRange.OnCollected(id, timestamp)
 }
 
 // Save serialises the collection state to a JSON file

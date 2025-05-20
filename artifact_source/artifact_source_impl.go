@@ -184,7 +184,7 @@ func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) (err error) {
 
 	// call OnCollectioComplete, passing colleciton error if any
 	// TODO be sure to keep track of any collection errors to OnCollectionComplete
-	defer a.OnCollectionComplete(err)
+	defer a.OnCollectionComplete()
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
 	err = a.Source.DiscoverArtifacts(ctx)
@@ -578,9 +578,14 @@ func (a *ArtifactSourceImpl[S, T]) walkFileNode(ctx context.Context, targetPath 
 		return err
 	}
 
-	// if the artifact has a timestamp, and  we have a from time, check if the artifact is newer than the from time
-	if !artifactInfo.Timestamp.IsZero() && !a.FromTime.IsZero() {
-		if artifactInfo.Timestamp.Compare(a.FromTime) < 0 {
+	// if the artifact has a timestamp, check the from and to time
+	if !artifactInfo.Timestamp.IsZero() {
+		// if we have a from time, check if the artifact is newer than the from time
+		if !a.FromTime.IsZero() && artifactInfo.Timestamp.Compare(a.FromTime) < 0 {
+			return nil
+		}
+		// if we have a to time, check if the artifact is older than the to time
+		if !a.ToTime.IsZero() && artifactInfo.Timestamp.Compare(a.ToTime) > 0 {
 			return nil
 		}
 	}
