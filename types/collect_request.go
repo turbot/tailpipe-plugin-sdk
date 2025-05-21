@@ -55,9 +55,14 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		CollectionTempDir:   pr.CollectionTempDir,
 		CollectionStatePath: pr.CollectionStatePath,
 		SourceData:          sourceData,
-		From:                pr.FromTime.AsTime(),
-		To:                  pr.ToTime.AsTime(),
 		TempDirMaxMb:        pr.TempDirMaxMb,
+	}
+
+	if pr.FromTime != nil {
+		req.From = pr.FromTime.AsTime()
+	}
+	if pr.ToTime != nil {
+		req.To = pr.ToTime.AsTime()
 	}
 
 	if pr.SourceFormat != nil {
