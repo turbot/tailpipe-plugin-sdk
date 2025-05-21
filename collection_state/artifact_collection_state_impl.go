@@ -214,7 +214,6 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 	// find all matching trunks and choose the longest
 
 	var trunkIndex = &trunkStateIndex{}
-
 	for t, _ := range s.TrunkStates {
 		if strings.HasPrefix(itemPath, t) && len(t) > len(trunkIndex.trunkPath) {
 			trunkIndex.trunkPath = t
@@ -226,30 +225,23 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 		trunkIndex.trunkPath = rootChar
 	}
 
+	slog.Info("ShouldCollect got trunk", "trunk", trunkIndex.trunkPath, "item", itemPath, "timestamp", timestamp)
 	// now we have a trunk, find which time range collection state to use
 	trunkState, ok := s.TrunkStates[trunkIndex.trunkPath]
-	if ok {
-		if trunkState == nil {
-			// create a new collection state for this trunk
-			trunkState = NewTimeRangeSliceCollectionState(CollectionOrderChronological)
-			// set the granularity
-			trunkState.SetGranularity(s.granularity)
-			// write it back
-			s.TrunkStates[trunkIndex.trunkPath] = trunkState
-		}
+	// if we have a trunk state, get the range for this timestamp (this will create a new range if needed)
+	if ok && trunkState != nil {
+		slog.Info("ShouldCollect got trunkState, calling rangeForTime", "trunk", trunkIndex.trunkPath, "item", itemPath, "timestamp", timestamp)
 		trunkIndex.rangeIndex = trunkState.rangeForTime(timestamp)
 	} else {
-		// create a new collection state for this trunk
+		// otherwise create a new collection state for this trunk
 		trunkState = NewTimeRangeSliceCollectionState(CollectionOrderChronological)
 		// set the granularity
 		trunkState.SetGranularity(s.granularity)
-		// add a range
+		// add a range and store the index (will be zero)
 		trunkIndex.rangeIndex = trunkState.addRange(timestamp)
 		// write it back
 		s.TrunkStates[trunkIndex.trunkPath] = trunkState
 	}
-
-	// to determine if we need to collect
 
 	// as the range at the current index if we should collect
 	// if yes, ask the following region if we should collect
@@ -262,10 +254,10 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 	}
 	// see if there is a next region
 	var nextRange *TimeRangeCollectionStateImpl
-
+	// ask the currenct range if we should collect
 	if !currentRange.ShouldCollect(id, timestamp) {
 		return false
-	}
+	} // ask the next range if we should collect
 	if trunkIndex.rangeIndex+1 < len(trunkState.TimeRanges) {
 		nextRange = trunkState.TimeRanges[trunkIndex.rangeIndex+1]
 		if !nextRange.ShouldCollect(id, timestamp) {

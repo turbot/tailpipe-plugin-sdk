@@ -337,11 +337,18 @@ func (s *TimeRangeCollectionStateImpl) UnmarshalJSON(data []byte) error {
 // this checks if the timestamp lies within the first entry time and the end time PLUS the granularity
 // i.e. the end time plus the end objects
 func (s *TimeRangeCollectionStateImpl) Contains(timestamp time.Time) bool {
-	return timestamp.After(s.firstEntryTime) && timestamp.Before(s.endTime.Add(s.Granularity))
+	// is this timestamp within the time range from the firstEntryTime to the end of the end objects?
+	// TODO: note if we are doing an initial collection we will end up with a series of time ranges equal to the granularity
+	//  as for each time range, we will only collect objects in the granularity period, i.e. the end time will be the previous day
+	//  these will get merged at the end of collection but if we are confident of in-order collection we could check for
+	//  timestamp < (endTime +2*granularity) to see if this
+
+	return timestamp.Compare(s.firstEntryTime) >= 0 && timestamp.Compare(s.lastEntryTime) <= 0
 }
 
 func (s *TimeRangeCollectionStateImpl) CanMerge(nextRange *TimeRangeCollectionStateImpl) bool {
-	return nextRange.GetStartTime().Compare(s.endTime.Add(s.Granularity)) < 1
+	// is next range the following granularity period?
+	return nextRange.GetStartTime().Compare(s.lastEntryTime.Add(s.Granularity)) < 1
 }
 
 func (s *TimeRangeCollectionStateImpl) Merge(other *TimeRangeCollectionStateImpl) {

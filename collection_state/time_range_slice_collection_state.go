@@ -54,7 +54,7 @@ func (t *TimeRangeSliceCollectionState) GetGranularity() time.Duration {
 //		t.addRange(timestamp)
 //	}
 //	// now determine whether any of our ranges can be merged
-//	t.mergeRanges()
+//	t.compact()
 //	return nil
 //}
 
@@ -71,6 +71,23 @@ func (t *TimeRangeSliceCollectionState) mergeRangeWithNext(idx int) {
 	l.Merge(r)
 	// remove r from the list
 	t.TimeRanges = append(t.TimeRanges[:idx+1], t.TimeRanges[idx+2:]...)
+}
+
+func (t *TimeRangeSliceCollectionState) compact() {
+	slog.Info("Compacting time ranges")
+	if len(t.TimeRanges) < 2 {
+		// nothing to merge
+		return
+	}
+
+	for i := len(t.TimeRanges) - 2; i >= 0; i-- {
+		if t.TimeRanges[i].CanMerge(t.TimeRanges[i+1]) {
+			slog.Info("Merging time ranges", "left range end time", t.TimeRanges[i].GetEndTime(), "right range start time", t.TimeRanges[i+1].GetStartTime())
+			t.mergeRangeWithNext(i)
+		} else {
+			slog.Info("Not merging time ranges", "left range end time", t.TimeRanges[i].GetEndTime(), "right range start time", t.TimeRanges[i+1].GetStartTime())
+		}
+	}
 }
 
 func (t *TimeRangeSliceCollectionState) GetStartTime() time.Time {
@@ -95,6 +112,8 @@ func (t *TimeRangeSliceCollectionState) SetEndTime(endTime time.Time) {
 	if len(t.TimeRanges) > 0 {
 		t.TimeRanges[len(t.TimeRanges)-1].SetEndTime(endTime)
 	}
+	// compact
+	t.compact()
 }
 
 // rangeForTime returns the index of the time range that contains the given timestamp
@@ -102,10 +121,13 @@ func (t *TimeRangeSliceCollectionState) SetEndTime(endTime time.Time) {
 func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) int {
 	for i, r := range t.TimeRanges {
 		if r.Contains(timestamp) {
+			slog.Info("Found existing range for time", "timestamp", timestamp, "range firstEntryTime", r.firstEntryTime, "range lastEntryTime", r.lastEntryTime)
 			return i
 		}
+		slog.Info("Range does not contain time", "timestamp", timestamp, "range firstEntryTime", r.firstEntryTime, "range lastEntryTime", r.lastEntryTime)
 	}
 
+	slog.Info("No existing range for time, calling addRange", "timestamp", timestamp)
 	return t.addRange(timestamp)
 }
 
