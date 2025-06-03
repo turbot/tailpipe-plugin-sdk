@@ -1,3 +1,13 @@
+## v0.7.0 [2025-06-03]
+_Whats new_
+* End time for collection state should be set to collection end time (or just collection timestamp if no end time set) if source collection is successful. ([#207](https://github.com/turbot/tailpipe-plugin-sdk/issues/207))
+  * Add `ToTime` to `CollectRequest` and `SourceParams` - default to collection time
+  * add `OnCollectionComplete` to RowSource interface - implement in `RowSourceImpl` to set the collection state end time to the collection 'to' time
+  * RowSourceImpl maintains error count incremented from NotifyError, OnCollectionComplete only sets collection state end time if error count is zero
+  * Add `RowSourceDecorator` to wrap calls to collect, ensuring that `OnCollected` is called
+  * Add SourceCollectionComplete GRPC call - plugin source wrapper calls this from its OnCollectionComplete
+* Update ArtifactCollectionStateImpl.GetEndTime to NOT default to LastModifiedTime if there is no end time - instead return zero time. ([#212](https://github.com/turbot/tailpipe-plugin-sdk/issues/212))
+
 ## v0.6.1 [2025-05-16]
 _Bug fixes_
 * Update checkJsonlSize to skip check if no min size is set. ([#204](https://github.com/turbot/tailpipe-plugin-sdk/issues/204))
