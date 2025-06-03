@@ -112,7 +112,10 @@ func (t *TimeRangeSliceCollectionState) SetEndTime(endTime time.Time) {
 	if len(t.TimeRanges) > 0 {
 		t.TimeRanges[len(t.TimeRanges)-1].SetEndTime(endTime)
 	}
+	// TODO this should merge all ranges which touch start and end time of current collection (how do we know the start time?)
+	//  maybe the TimeRangeSliceCollectionState need to store metadata for the current collection? active range, start time, end time, etc.
 	// compact
+	// todo pass start and end time?
 	t.compact()
 }
 
@@ -127,6 +130,7 @@ func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) int {
 		slog.Info("Range does not contain time", "timestamp", timestamp, "range firstEntryTime", r.firstEntryTime, "range lastEntryTime", r.lastEntryTime)
 	}
 
+	// otherwise, add new range
 	slog.Info("No existing range for time, calling addRange", "timestamp", timestamp)
 	return t.addRange(timestamp)
 }

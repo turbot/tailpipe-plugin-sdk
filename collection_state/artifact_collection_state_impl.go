@@ -42,7 +42,11 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	// map of object identifier to collection state which contains the object
 	// used to store the collection state for each object between the ShouldCollect call and the OnCollected call
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
+	// TODO think about naming
 	objectStateMap map[string]*trunkStateIndex
+
+	// map of active range index  per trunk
+	trunkRangeIndexMap map[string]int
 
 	granularity time.Duration
 
@@ -55,9 +59,10 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 
 func NewArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
 	return &ArtifactCollectionStateImpl[T]{
-		TrunkStates:    make(map[string]*TimeRangeSliceCollectionState),
-		objectStateMap: make(map[string]*trunkStateIndex),
-		mut:            &sync.RWMutex{},
+		TrunkStates:        make(map[string]*TimeRangeSliceCollectionState),
+		objectStateMap:     make(map[string]*trunkStateIndex),
+		trunkRangeIndexMap: make(map[string]int),
+		mut:                &sync.RWMutex{},
 	}
 }
 
@@ -230,44 +235,60 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 	trunkState, ok := s.TrunkStates[trunkIndex.trunkPath]
 	// if we have a trunk state, get the range for this timestamp (this will create a new range if needed)
 	if ok && trunkState != nil {
-		slog.Info("ShouldCollect got trunkState, calling rangeForTime", "trunk", trunkIndex.trunkPath, "item", itemPath, "timestamp", timestamp)
-		trunkIndex.rangeIndex = trunkState.rangeForTime(timestamp)
+		// we have a trunk state
+		//check whether we currently have an active range for this trunk
+		if index, ok := s.trunkRangeIndexMap[trunkIndex.trunkPath]; ok {
+			// we have an active range index for this trunk
+			trunkIndex.rangeIndex = index
+
+			// check the next range to see if it contains this timestamp - i.e. have we collected up to the next range
+			// TO DO wrap in function - GetNextRange?
+			if nextRangeIndex := trunkIndex.rangeIndex + 1; nextRangeIndex < len(trunkState.TimeRanges) {
+				nextRange := trunkState.TimeRanges[nextRangeIndex]
+				if nextRange.Contains(timestamp) {
+					// use the next range as the active
+					trunkIndex.rangeIndex = nextRangeIndex
+				}
+			}
+		} else {
+			// we have no active range for the trunk - find the range for this timestamp
+			// (note - this creates a new range if needed)
+			slog.Info("ShouldCollect got trunkState, calling rangeForTime", "trunk", trunkIndex.trunkPath, "item", itemPath, "timestamp", timestamp)
+			rangeIndex := trunkState.rangeForTime(timestamp)
+			// store this as the active range index for this trunk
+			s.trunkRangeIndexMap[trunkIndex.trunkPath] = rangeIndex
+			//  set the trunk index range index - this is used to store the range index for the specific FILE
+			// (required as the discovery and downloading of files is decoupled)
+			trunkIndex.rangeIndex = rangeIndex
+		}
 	} else {
-		// otherwise create a new collection state for this trunk
+		// so we DO NOT have a collection state for this trunk
+		// create a new collection state
 		trunkState = NewTimeRangeSliceCollectionState(CollectionOrderChronological)
 		// set the granularity
 		trunkState.SetGranularity(s.granularity)
 		// add a range and store the index (will be zero)
 		trunkIndex.rangeIndex = trunkState.addRange(timestamp)
-		// write it back
+		// write the state back to TrunSktates
 		s.TrunkStates[trunkIndex.trunkPath] = trunkState
 	}
 
-	// as the range at the current index if we should collect
-	// if yes, ask the following region if we should collect
-	// if no, this means this entry is within the range of the next region so merge the regions
+	// ask the range at the current index if we should collect
 	currentRange := trunkState.TimeRanges[trunkIndex.rangeIndex]
 	if currentRange == nil {
+		// TODO restructure this to avoid this - we should always have a range at this point
 		// unexpected
 		slog.Warn(fmt.Sprintf("no time range found for trunk '%s' range %d - this should not happen", trunkIndex.trunkPath, trunkIndex.rangeIndex))
 		return true
 	}
-	// see if there is a next region
-	var nextRange *TimeRangeCollectionStateImpl
-	// ask the currenct range if we should collect
+
+	// ask the current range if we should collect
 	if !currentRange.ShouldCollect(id, timestamp) {
 		return false
-	} // ask the next range if we should collect
-	if trunkIndex.rangeIndex+1 < len(trunkState.TimeRanges) {
-		nextRange = trunkState.TimeRanges[trunkIndex.rangeIndex+1]
-		if !nextRange.ShouldCollect(id, timestamp) {
-			// this means this entry is within the range of the next region so merge the regions
-			trunkState.mergeRangeWithNext(trunkIndex.rangeIndex)
-			return false
-		}
 	}
 
-	// so we should collect this object
+	// so we should collect this object - cache the trunk index for this object so that OnCollected can find the
+	// correct range to update
 	s.objectStateMap[itemPath] = trunkIndex
 
 	return true
@@ -282,21 +303,21 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollected(id string, timestamp time.T
 	s.LastModifiedTime = time.Now()
 
 	// we should have stored a collection state mapping for this object
-	trunkIndex, ok := s.objectStateMap[id]
+	trunkRangeIndex, ok := s.objectStateMap[id]
 	if !ok {
 		return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", id)
 	}
 	// clear the mapping
 	delete(s.objectStateMap, id)
 
-	trunkState, ok := s.TrunkStates[trunkIndex.trunkPath]
+	trunkState, ok := s.TrunkStates[trunkRangeIndex.trunkPath]
 	if !ok {
 		return fmt.Errorf("no trunk state found for item '%s' - this should have been set in ShouldCollect", id)
 	}
-	if len(trunkState.TimeRanges) <= trunkIndex.rangeIndex {
+	if len(trunkState.TimeRanges) <= trunkRangeIndex.rangeIndex {
 		return fmt.Errorf("no time range found for item '%s' - this should have been set in ShouldCollect", id)
 	}
-	timeRange := trunkState.TimeRanges[trunkIndex.rangeIndex]
+	timeRange := trunkState.TimeRanges[trunkRangeIndex.rangeIndex]
 
 	return timeRange.OnCollected(id, timestamp)
 }
