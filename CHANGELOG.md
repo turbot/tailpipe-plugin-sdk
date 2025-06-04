@@ -1,5 +1,10 @@
+## v0.7.2 [2025-06-04]
+_Bug fixes_
+* `TimeRangeCollectionStateImpl.SetEndTime` now updates end time correctly. ([#207](https://github.com/turbot/tailpipe-plugin-sdk/issues/207))
+
 ## v0.7.1 [2025-06-04]
 _Bug fixes_
+
 * Fix error handling code which ignores "unknown method SourceCollectionComplete" errors caused by source-plugin version mismatch. ([#222](https://github.com/turbot/tailpipe-plugin-sdk/issues/222))
 
 ## v0.7.0 [2025-06-03]
