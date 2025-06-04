@@ -121,11 +121,11 @@ func (t *TimeRangeSliceCollectionState) SetEndTime(endTime time.Time) {
 
 // rangeForTime returns the index of the time range that contains the given timestamp
 // if no existing range contains the timestamp, a new range is created and added into the list and its index is returned
-func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) int {
-	for i, r := range t.TimeRanges {
+func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) *TimeRangeCollectionStateImpl {
+	for _, r := range t.TimeRanges {
 		if r.Contains(timestamp) {
 			slog.Info("Found existing range for time", "timestamp", timestamp, "range firstEntryTime", r.firstEntryTime, "range lastEntryTime", r.lastEntryTime)
-			return i
+			return r
 		}
 		slog.Info("Range does not contain time", "timestamp", timestamp, "range firstEntryTime", r.firstEntryTime, "range lastEntryTime", r.lastEntryTime)
 	}
@@ -135,7 +135,7 @@ func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) int {
 	return t.addRange(timestamp)
 }
 
-func (t *TimeRangeSliceCollectionState) addRange(timestamp time.Time) int {
+func (t *TimeRangeSliceCollectionState) addRange(timestamp time.Time) *TimeRangeCollectionStateImpl {
 	// create a new time range
 	newRange := NewTimeRangeCollectionStateImpl(t.Order)
 	newRange.SetGranularity(t.Granularity)
@@ -144,11 +144,24 @@ func (t *TimeRangeSliceCollectionState) addRange(timestamp time.Time) int {
 		if r.GetStartTime().After(timestamp) {
 			// insert the new range before this one
 			t.TimeRanges = append(t.TimeRanges[:i], append([]*TimeRangeCollectionStateImpl{newRange}, t.TimeRanges[i:]...)...)
-			return i
+			return newRange
 		}
 	}
 	// if we get here, the new range should be added to the end of the list
 	t.TimeRanges = append(t.TimeRanges, newRange)
 
-	return len(t.TimeRanges) - 1
+	return newRange
+}
+
+// TODO think about optimising - decorate TimeRangeCollectionStateImpl in linked list???
+func (t *TimeRangeSliceCollectionState) GetNextRange(timeRange *TimeRangeCollectionStateImpl) *TimeRangeCollectionStateImpl {
+	for i, r := range t.TimeRanges {
+		if r == timeRange {
+			if i+1 < len(t.TimeRanges) {
+				return t.TimeRanges[i+1]
+			}
+			return nil // no next range
+		}
+	}
+	return nil // timeRange not found in the list
 }
