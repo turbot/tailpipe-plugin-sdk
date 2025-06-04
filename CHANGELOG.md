@@ -1,3 +1,7 @@
+## v0.7.1 [2025-06-04]
+_Bug fixes_
+* Fix error handling code which ignores "unknown method SourceCollectionComplete" errors caused by source-plugin version mismatch. ([#222](https://github.com/turbot/tailpipe-plugin-sdk/issues/222))
+
 ## v0.7.0 [2025-06-03]
 _Whats new_
 * End time for collection state should be set to collection end time (or just collection timestamp if no end time set) if source collection is successful. ([#207](https://github.com/turbot/tailpipe-plugin-sdk/issues/207))
