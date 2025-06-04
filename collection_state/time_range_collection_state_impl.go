@@ -208,8 +208,8 @@ func (s *TimeRangeCollectionStateImpl) SetEndTime(newEndTime time.Time) {
 	// truncate the time to the granularity
 	newEndTime = newEndTime.Truncate(s.Granularity)
 
-	// if newEndTime is after the current end time, do nothing as we don't nee to clear anything
-	if newEndTime.After(s.endTime) {
+	// if endtime is unchanged, do nothing
+	if newEndTime.Equal(s.endTime) {
 		return
 	}
 
@@ -219,6 +219,7 @@ func (s *TimeRangeCollectionStateImpl) SetEndTime(newEndTime time.Time) {
 		return
 	}
 
+	// set the new end time
 	s.endTime = newEndTime
 	s.lastEntryTime = newEndTime
 	// clear the end objects
