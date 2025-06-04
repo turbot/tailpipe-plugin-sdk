@@ -213,9 +213,12 @@ func (w *PluginSourceWrapper) OnCollectionComplete() error {
 	}
 	_, err := w.client.SourceCollectionComplete()
 	// NOTE: ignore method not found error dues to older plugin version
-	if err != nil && strings.HasPrefix(err.Error(), "unknown method SourceCollectionComplete") {
-		slog.Info(fmt.Sprintf("PluginSourceWrapper.OnCollectionComplete - plugin '%s' does not implement SourceCollectionComplete - ignoring method not found error", w.pluginName))
-		err = nil
+	if err != nil {
+		e := err.Error()
+		if strings.Contains(e, "unknown method SourceCollectionComplete") {
+			slog.Info(fmt.Sprintf("PluginSourceWrapper.OnCollectionComplete - plugin '%s' does not implement SourceCollectionComplete - ignoring method not found error", w.pluginName))
+			err = nil
+		}
 	}
 	return err
 }
