@@ -23,7 +23,7 @@ package collection_state
 //	}
 //	for _, tt := range tests {
 //		t.Run(tt.name, func(t *testing.T) {
-//			s := &TimeRangeCollectionStateImpl{
+//			s := &timeRangeCollectionState{
 //				StartTime:     tt.fields.FirstEntryTime,
 //				LastEntryTime: tt.fields.LastEntryTime,
 //				EndTime:       tt.fields.EndTime,

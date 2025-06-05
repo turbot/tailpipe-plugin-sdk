@@ -3,123 +3,363 @@ package collection_state
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"sync"
+	"log/slog"
 	"time"
-
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 )
 
-// TODO #collectionstate COMBINE WITH REVERSE ORDER THEN IN END, set the end time to time.Now-granularity-delay
-type TimeRangeCollectionState[T parse.Config] struct {
-	TimeRangeCollectionStateImpl
+type CollectionOrder int
 
-	// path to the serialised collection state JSON
-	jsonPath         string
-	lastModifiedTime time.Time
-	lastSaveTime     time.Time
+const (
+	CollectionOrderChronological CollectionOrder = iota
+	CollectionOrderReverse
+)
 
-	mut *sync.RWMutex
+// timeRangeCollectionState is a struct that tracks time ranges and objects that have been collected
+// it is used by the ArtifactCollectionStateImpl and TimeRangeCollectionState
+// NOTE: we do not implement mutex locking here - it is assumed that the caller will lock the state before calling
+type timeRangeCollectionState struct {
+	// the start time of the range
+	From time.Time `json:"from,omitzero"`
+	// the end time of the range - we have all data up to this time (non-inclusive)
+	// so - if the granularity is 1 hour, and the end time is 12:00:00, we have all data up to 11:59:59
+	To time.Time `json:"to,omitzero"`
+
+	//// TODO: add Export & add JSON tags to firstEntryTime, lastEntryTime, endTime once we can replace the serialization in go1.24 with omitzero
+	//// the time range of the data
+	//// the time of the earliest entry in the data
+	//firstEntryTime time.Time
+	//lastEntryTime  time.Time
+	//// the time we are sure we have collected all data up to - this is (LastEntryTime - granularity)
+	//endTime time.Time
+
+	// for end boundary (i.e. the end granularity) we store the metadata
+	// whenever the end time changes, we must clear the map
+	EndObjects map[string]struct{} `json:"end_objects"`
+
+	// the granularity of the file naming scheme - so we must keep track of object metadata
+	// this will depend on the template used to name the files
+	// TODO CAN THIS BE ZERO????
+	Granularity time.Duration `json:"granularity"`
+
+	// are we collecting forwards (the default) or backwards
+	CollectionOrder CollectionOrder `json:"collection_order"`
 }
 
-func NewTimeRangeCollectionState[T parse.Config]() CollectionState[T] {
-	s := NewTimeRangeCollectionStateImpl(CollectionOrderChronological)
-	return &TimeRangeCollectionState[T]{
-		TimeRangeCollectionStateImpl: *s,
-		mut:                          &sync.RWMutex{},
+func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRangeCollectionState {
+	return &timeRangeCollectionState{
+		From: from,
+		// initially the end time is the same as the start time, i.e. we are empty
+		To:         from,
+		EndObjects: make(map[string]struct{}),
+		// default granularity is 1 nanosecond - the default for api sources
+		// this will be overridden by ArtifactCollectionStateImpl as needed
+		Granularity:     1 * time.Nanosecond,
+		CollectionOrder: order,
 	}
 }
 
-// Init sets the filepath of the collection state and loads the state from the file if it exists
-func (s *TimeRangeCollectionState[T]) Init(_ T, path string) error {
-	s.jsonPath = path
+func (s *timeRangeCollectionState) IsEmpty() bool {
+	return s.To.Equal(s.From) && len(s.EndObjects) == 0
+}
 
-	// if there is a file at the path, load it
-	if _, err := os.Stat(path); err == nil {
-		// TODO #err should we just warn and delete/rename the file
-		// read the file
-		jsonBytes, err := os.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read collection state file '%s': %w", path, err)
-		}
-		err = json.Unmarshal(jsonBytes, s)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshal collection state file '%s': %w", path, err)
-		}
+// ShouldCollect returns whether the object should be collected
+func (s *timeRangeCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
+
+	// if we do not have a granularity set, that means the template does not provide any timing information
+	// - we use start objects to track everythinbg
+	if s.Granularity == 0 {
+		// if we do not have a granularity we only use the start map
+		return !s.endObjectsContain(id)
 	}
+
+	// if the time is between the start and end time (exclusive) we should NOT collect
+	// (as have already collected it- assuming consistent artifact ordering)
+	if timestamp.Compare(s.From) >= 0 && timestamp.Compare(s.To) < 0 {
+		return false
+	}
+
+	// if the timer is <= the end time + granularity, we must check if we have already collected it
+	// (as we have reached the limit of the granularity)
+	if timestamp.Compare(s.endTime.Add(s.Granularity)) <= 0 {
+		return !s.endObjectsContain(id)
+	}
+
+	// so it before the current start time or after the current end time - we should collect
+	return true
+}
+
+// OnCollected is called when an object has been collected - update the end time and end objects if needed
+// Note: the object name is the full path to the object
+func (s *timeRangeCollectionState) OnCollected(id string, timestamp time.Time) error {
+	// first handle special cases
+	// if granularity is zero, that means we have no time information about the object
+	// - we cannot store start/end times - just put all objects into the end objects map
+	if s.Granularity == 0 {
+		// NOTE: if granularity is zero but we ARE passed a timestamp, this is an error
+		if !timestamp.IsZero() {
+			return fmt.Errorf("OnCollected called with a non-zero timestamp but granularity is zero")
+		}
+		// store end object and return
+		s.EndObjects[id] = struct{}{}
+		return nil
+	}
+
+	// is this the first entry we have collected?
+	// if start time is not set, set it now
+	if s.firstEntryTime.IsZero() {
+		s.firstEntryTime = timestamp
+		s.setLastEntryTime(timestamp)
+		s.EndObjects[id] = struct{}{}
+		return nil
+	}
+
+	if s.CollectionOrder == CollectionOrderChronological {
+		// if this timestamp is BEFORE the start time, we must be recollecting with an earlier start time
+		// - clear collection state
+		// (we sdo not expect to hit this as in the case of recollection the collection state should already be cleared)
+		// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
+		if timestamp.Before(s.firstEntryTime) {
+			s.Clear()
+			s.firstEntryTime = timestamp
+			s.setLastEntryTime(timestamp)
+			s.EndObjects[id] = struct{}{}
+			return nil
+		}
+
+		// if the timestamp is before the current END time, this is unexpected
+		// - the end time represents the time which we THOUGHT we had collected all data up to
+		// this may indicate that the 'delivery delay'  for the source has been set incorrectly
+		// Delivery delay is the maximum lateness in reporting that we expect from a source.
+		// Thus if an API may report log entries up[ to 1 hour late, the delivery delay should be set to 1 hour
+		// If it is set to 1 hour but then reports an entry 2 hours late, this condition would occur
+		// TODO implement delivery delay
+		if timestamp.Before(s.endTime) {
+			slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate a delay in delivering log lines", "item timestamp", timestamp, "collection state end time", s.endTime)
+			return nil
+		}
+
+		// if the timestamp is after the last entry time, update the last entry time
+		// this may also update the end time
+		if timestamp.After(s.lastEntryTime) {
+			s.setLastEntryTime(timestamp)
+		}
+		// if the timestamp is after the end time, it must be in the granularity boundary zone
+		// so add to end objects
+		// (this is the same for forwards and backwards collection)
+		if timestamp.After(s.endTime) {
+			s.EndObjects[id] = struct{}{}
+		}
+
+		return nil
+	}
+	// reverse order collection
+
+	// if this timestamp is AFTER the last entry time, we must be recollecting
+	// - clear collection state
+	// NOTE: in future, we will be more intelligent about this this and support multiple time ranges for for now just reset
+	if timestamp.After(s.lastEntryTime) {
+		s.Clear()
+		s.firstEntryTime = timestamp
+		s.setLastEntryTime(timestamp)
+		s.EndObjects[id] = struct{}{}
+		return nil
+	}
+
+	// if the timestamp is before the current first entry time, just update the first entry time
+	if timestamp.Before(s.firstEntryTime) {
+		s.firstEntryTime = timestamp
+	}
+
+	// if the timestamp is after the end time, it must be in the granularity boundary zone
+	// so add to end objects
+	// (this is the same for forwards and backwards collection)
+	if timestamp.After(s.endTime) {
+		s.EndObjects[id] = struct{}{}
+	}
+
 	return nil
-}
-
-// ShouldCollect returns whether the object should be collected, based on the time metadata in the object
-func (s *TimeRangeCollectionState[T]) ShouldCollect(id string, timestamp time.Time) bool {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-
-	return s.TimeRangeCollectionStateImpl.ShouldCollect(id, timestamp)
-}
-
-// OnCollected is called when an object has been collected - update our end time and end objects if needed
-func (s *TimeRangeCollectionState[T]) OnCollected(id string, timestamp time.Time) error {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-
-	// store modified time to ensure we save the state
-	s.lastModifiedTime = time.Now()
-
-	return s.TimeRangeCollectionStateImpl.OnCollected(id, timestamp)
 }
 
 // SetEndTime sets the end time for the collection state
-// It may be called to set the end time to earlier than the current end time if a --from flag is used to force recollection
-func (s *TimeRangeCollectionState[T]) SetEndTime(newEndTime time.Time) {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-
-	s.TimeRangeCollectionStateImpl.SetEndTime(newEndTime)
-}
-
-func (s *TimeRangeCollectionState[T]) Clear() {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-	s.TimeRangeCollectionStateImpl.Clear()
-}
-
-// Save serialises the collection state to a JSON file
-func (s *TimeRangeCollectionState[T]) Save() error {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-
-	// if the last save time is after the last modified time, then we have nothing to do
-	if s.lastSaveTime.After(s.lastModifiedTime) {
-		// nothing to do
-		return nil
+func (s *timeRangeCollectionState) SetEndTime(newEndTime time.Time) {
+	// if we have zero granularity, do not set end time as we do not have timing information
+	// (this is not expected)
+	if s.Granularity == 0 {
+		return
 	}
-	jsonBytes, err := json.Marshal(s)
+
+	// truncate the time to the granularity
+	newEndTime = newEndTime.Truncate(s.Granularity)
+
+	// if endtime is unchanged, do nothing
+	if newEndTime.Equal(s.endTime) {
+		return
+	}
+
+	// if the new end time is before the start time, clear the state
+	if newEndTime.Before(s.firstEntryTime) {
+		s.Clear()
+		return
+	}
+
+	// set the new end time
+	s.endTime = newEndTime
+	s.lastEntryTime = newEndTime
+	// clear the end objects
+	s.EndObjects = make(map[string]struct{})
+}
+
+func (s *timeRangeCollectionState) GetStartTime() time.Time {
+	return s.firstEntryTime
+}
+
+// GetEndTime returns the time we know have collected ALL data up until
+// (we may have collected some data after this - within the granularity period
+func (s *timeRangeCollectionState) GetEndTime() time.Time {
+	// i.e. the last time period we are sure we have ALL data for
+	return s.endTime
+}
+
+// SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
+// granularity of the time metadata it contains
+func (s *timeRangeCollectionState) SetGranularity(granularity time.Duration) {
+	s.Granularity = granularity
+}
+
+// GetGranularity returns the granularity of the collection state
+func (s *timeRangeCollectionState) GetGranularity() time.Duration {
+	return s.Granularity
+}
+
+func (s *timeRangeCollectionState) Clear() {
+	// clear the times
+	s.firstEntryTime = time.Time{}
+	s.lastEntryTime = time.Time{}
+	s.endTime = time.Time{}
+	// clear the map
+	s.EndObjects = make(map[string]struct{})
+}
+
+// TODO we do not want to serialise start and end time if they are zero
+// until go 1.24 comes out, we manage this by having separate fields to serialise
+// https://github.com/turbot/tailpipe-plugin-sdk/issues/84
+func (s *timeRangeCollectionState) MarshalJSON() ([]byte, error) {
+	// Create a temporary struct to hold serialized values
+	type Alias timeRangeCollectionState
+	temp := struct {
+		*Alias
+		SerialisedStartTime     *time.Time `json:"first_entry_time,omitempty"`
+		SerialisedLastEntryTime *time.Time `json:"last_entry_time,omitempty"`
+		SerialisedEndTime       *time.Time `json:"end_time,omitempty"`
+	}{
+		Alias: (*Alias)(s),
+	}
+
+	// Set serialized values conditionally
+	if !s.firstEntryTime.IsZero() {
+		temp.SerialisedStartTime = &s.firstEntryTime
+	}
+	if !s.lastEntryTime.IsZero() {
+		temp.SerialisedLastEntryTime = &s.lastEntryTime
+	}
+	if !s.endTime.IsZero() {
+		temp.SerialisedEndTime = &s.endTime
+	}
+
+	return json.Marshal(temp)
+}
+
+// UnmarshalJSON override unmashal to handle the special case of the start and end time
+func (s *timeRangeCollectionState) UnmarshalJSON(data []byte) error {
+	// Create a temporary struct to hold serialized values
+	type Tmp struct {
+		// the time range of the data
+		// the time of the earliest entry in the data
+		FirstEntryTime time.Time `json:"first_entry_time,omitempty"`
+		LastEntryTime  time.Time `json:"last_entry_time,omitempty"`
+		// the time we are sure we have collected all data up to - this is (LastEntryTime - granularity)
+		EndTime time.Time `json:"end_time,omitempty"`
+
+		// for end boundary (i.e. the end granularity) we store the metadata
+		// whenever the end time changes, we must clear the map
+		EndObjects map[string]struct{} `json:"end_objects,omitempty"`
+
+		// the granularity of the file naming scheme - so we must keep track of object metadata
+		// this will depend on the template used to name the files
+		Granularity time.Duration `json:"granularity,omitempty"`
+	}
+
+	var dest Tmp
+
+	// Unmarshal into the temporary struct
+	err := json.Unmarshal(data, &dest)
 	if err != nil {
 		return err
 	}
-	// ensure the target file path is valid
-	if s.jsonPath == "" {
-		return fmt.Errorf("collection state path is not set")
+
+	// Set the values from the temporary struct
+	s.firstEntryTime = dest.FirstEntryTime
+	s.lastEntryTime = dest.LastEntryTime
+	s.endTime = dest.EndTime
+	s.EndObjects = dest.EndObjects
+	// ensure the map is not nil
+	if s.EndObjects == nil {
+		s.EndObjects = make(map[string]struct{})
 	}
-
-	// if we are empty, delete the file
-	if s.IsEmpty() {
-		err := os.Remove(s.jsonPath)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to delete collection state file: %w", err)
-		}
-		return nil
-	}
-
-	// write the JSON data to the file, overwriting any existing data
-	err = os.WriteFile(s.jsonPath, jsonBytes, 0644) //nolint:gosec // 0644 is the file permission we want
-	if err != nil {
-		return fmt.Errorf("failed to write collection state to file: %w", err)
-	}
-
-	// update the last save time
-	s.lastSaveTime = time.Now()
-
+	s.Granularity = dest.Granularity
 	return nil
+}
+
+// Contains returns whether a timestamp fall within the time range?
+// this checks if the timestamp lies within the first entry time and the end time PLUS the granularity
+// i.e. the end time plus the end objects
+func (s *timeRangeCollectionState) Contains(timestamp time.Time) bool {
+	// is this timestamp within the time range from the firstEntryTime to the end of the end objects?
+	// TODO: note if we are doing an initial collection we will end up with a series of time ranges equal to the granularity
+	//  as for each time range, we will only collect objects in the granularity period, i.e. the end time will be the previous day
+	//  these will get merged at the end of collection but if we are confident of in-order collection we could check for
+	//  timestamp < (endTime +2*granularity) to see if this
+
+	return timestamp.Compare(s.firstEntryTime) >= 0 && timestamp.Compare(s.lastEntryTime) <= 0
+}
+
+func (s *timeRangeCollectionState) CanMerge(nextRange *timeRangeCollectionState) bool {
+	// is next range the following granularity period?
+	return nextRange.GetStartTime().Compare(s.lastEntryTime.Add(s.Granularity)) < 1
+}
+
+func (s *timeRangeCollectionState) Merge(other *timeRangeCollectionState) {
+	s.endTime = other.endTime
+	s.EndObjects = other.EndObjects
+	s.lastEntryTime = other.lastEntryTime
+}
+
+// setLastEntryTime sets the last entry time. It also updates the end time if needed
+// the end time is the time up to which we are sure we have collected all data, i.e. the last entry time - granularity
+func (s *timeRangeCollectionState) setLastEntryTime(timestamp time.Time) {
+	s.lastEntryTime = timestamp
+
+	// sets the end time for the collection state. If the new end time is AFTER the current end time,
+	// we update the end time and identifu any objects that are now INSIDE the end time and remove from the end objects map
+
+	// NOTE: the end time is <granularity> less than the last entry time
+	// i.e if the granularity is 1 hour, and the artifact time is 12:00:00,
+	// we are sure we have collected ALL data up to 11:00 so the end time will be 11:00:00,
+	newEndTime := timestamp.Add(-s.Granularity).Truncate(s.Granularity)
+
+	switch {
+	case newEndTime.Equal(s.endTime):
+		// no change
+		return
+	default:
+		// set the end time
+		s.endTime = newEndTime
+		// just clear the end objects
+		s.EndObjects = make(map[string]struct{})
+	}
+}
+
+func (s *timeRangeCollectionState) endObjectsContain(id string) bool {
+	_, ok := s.EndObjects[id]
+	return ok
 }

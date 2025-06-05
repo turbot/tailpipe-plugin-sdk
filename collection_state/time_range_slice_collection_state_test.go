@@ -8,7 +8,7 @@ import (
 
 func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 	type fields struct {
-		TimeRanges  []*TimeRangeCollectionStateImpl
+		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -20,7 +20,7 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 		{
 			name: "empty_ranges",
 			fields: fields{
-				TimeRanges:  []*TimeRangeCollectionStateImpl{},
+				TimeRanges:  []*timeRangeCollectionState{},
 				Granularity: time.Hour,
 				Order:       CollectionOrderChronological,
 			},
@@ -29,7 +29,7 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 		{
 			name: "single_range",
 			fields: fields{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 						lastEntryTime:  time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
@@ -44,7 +44,7 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 		{
 			name: "multiple_ranges",
 			fields: fields{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 						lastEntryTime:  time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
@@ -83,7 +83,7 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 
 func TestTimeRangeSliceCollectionState_GetGranularity(t1 *testing.T) {
 	type fields struct {
-		TimeRanges  []*TimeRangeCollectionStateImpl
+		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -110,7 +110,7 @@ func TestTimeRangeSliceCollectionState_GetGranularity(t1 *testing.T) {
 
 func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 	type fields struct {
-		TimeRanges  []*TimeRangeCollectionStateImpl
+		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -122,7 +122,7 @@ func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 		{
 			name: "empty_ranges",
 			fields: fields{
-				TimeRanges:  []*TimeRangeCollectionStateImpl{},
+				TimeRanges:  []*timeRangeCollectionState{},
 				Granularity: time.Hour,
 				Order:       CollectionOrderChronological,
 			},
@@ -131,7 +131,7 @@ func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 		{
 			name: "single_range",
 			fields: fields{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 						lastEntryTime:  time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
@@ -146,7 +146,7 @@ func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 		{
 			name: "multiple_ranges",
 			fields: fields{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 						lastEntryTime:  time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
@@ -185,7 +185,7 @@ func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 
 func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 	type fields struct {
-		TimeRanges  []*TimeRangeCollectionStateImpl
+		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -197,7 +197,7 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 		{
 			name: "empty_ranges",
 			fields: fields{
-				TimeRanges:  []*TimeRangeCollectionStateImpl{},
+				TimeRanges:  []*timeRangeCollectionState{},
 				Granularity: time.Hour,
 				Order:       CollectionOrderChronological,
 			},
@@ -206,7 +206,7 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 		{
 			name: "single_range",
 			fields: fields{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 						lastEntryTime:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
@@ -224,7 +224,7 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 		{
 			name: "multiple_ranges",
 			fields: fields{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
 						lastEntryTime:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
@@ -264,7 +264,7 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 
 func TestTimeRangeSliceCollectionState_SetEndTime(t1 *testing.T) {
 	type fields struct {
-		TimeRanges  []*TimeRangeCollectionStateImpl
+		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -292,7 +292,7 @@ func TestTimeRangeSliceCollectionState_SetEndTime(t1 *testing.T) {
 
 func TestTimeRangeSliceCollectionState_SetGranularity(t1 *testing.T) {
 	type fields struct {
-		TimeRanges  []*TimeRangeCollectionStateImpl
+		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -320,7 +320,7 @@ func TestTimeRangeSliceCollectionState_SetGranularity(t1 *testing.T) {
 
 //func TestTimeRangeSliceCollectionState_addRange(t1 *testing.T) {
 //	type fields struct {
-//		TimeRanges  []*TimeRangeCollectionStateImpl
+//		TimeRanges  []*timeRangeCollectionState
 //		Granularity time.Duration
 //		Order       CollectionOrder
 //	}
@@ -351,7 +351,7 @@ func TestTimeRangeSliceCollectionState_SetGranularity(t1 *testing.T) {
 
 func TestTimeRangeSliceCollectionState_mergeRangeWithNext(t1 *testing.T) {
 	type fields struct {
-		TimeRanges  []*TimeRangeCollectionStateImpl
+		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -379,7 +379,7 @@ func TestTimeRangeSliceCollectionState_mergeRangeWithNext(t1 *testing.T) {
 
 //func TestTimeRangeSliceCollectionState_rangeForTime(t1 *testing.T) {
 //	type fields struct {
-//		TimeRanges  []*TimeRangeCollectionStateImpl
+//		TimeRanges  []*timeRangeCollectionState
 //		Granularity time.Duration
 //		Order       CollectionOrder
 //	}
@@ -413,12 +413,12 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 		name               string
 		state              *TimeRangeSliceCollectionState
 		expectedRangeCount int
-		expectedRanges     []*TimeRangeCollectionStateImpl
+		expectedRanges     []*timeRangeCollectionState
 	}{
 		{
 			name: "single_range",
 			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime:  time.Date(2025, 5, 3, 12, 0, 0, 0, time.UTC),
 						lastEntryTime:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
@@ -430,7 +430,7 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 				},
 			},
 			expectedRangeCount: 1,
-			expectedRanges: []*TimeRangeCollectionStateImpl{
+			expectedRanges: []*timeRangeCollectionState{
 				{
 					firstEntryTime:  time.Date(2025, 5, 3, 12, 0, 0, 0, time.UTC),
 					lastEntryTime:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
@@ -444,7 +444,7 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 		{
 			name: "adjacent_ranges_merge",
 			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
 						lastEntryTime:   time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
@@ -464,7 +464,7 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 				},
 			},
 			expectedRangeCount: 1,
-			expectedRanges: []*TimeRangeCollectionStateImpl{
+			expectedRanges: []*timeRangeCollectionState{
 				{
 					firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
 					lastEntryTime:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
@@ -478,7 +478,7 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 		{
 			name: "non_adjacent_ranges_no_merge",
 			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
 						lastEntryTime:   time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
@@ -498,7 +498,7 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 				},
 			},
 			expectedRangeCount: 2,
-			expectedRanges: []*TimeRangeCollectionStateImpl{
+			expectedRanges: []*timeRangeCollectionState{
 				{
 					firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
 					lastEntryTime:   time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
@@ -520,7 +520,7 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 		{
 			name: "multiple_ranges_merge",
 			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*TimeRangeCollectionStateImpl{
+				TimeRanges: []*timeRangeCollectionState{
 					{
 						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
 						lastEntryTime:   time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
@@ -556,7 +556,7 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 				},
 			},
 			expectedRangeCount: 2,
-			expectedRanges: []*TimeRangeCollectionStateImpl{
+			expectedRanges: []*timeRangeCollectionState{
 				{
 					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
 					lastEntryTime:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),

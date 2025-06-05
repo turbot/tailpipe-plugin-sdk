@@ -3,9 +3,6 @@ package plugin
 import (
 	"context"
 	"fmt"
-	"log/slog"
-	"time"
-
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
@@ -16,6 +13,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
+	"log/slog"
 )
 
 // PluginImpl should be created via NewPluginImpl method.
@@ -52,11 +50,6 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 
 		return nil, nil, err
 	}
-	// if the 'to' time is not set, set it to now
-	if collectRequest.To.IsZero() {
-		collectRequest.To = time.Now()
-	}
-
 	// ask the factory to create the collector
 	// - this will configure the requested source
 	collector, err := table.Factory.GetCollector(collectRequest)

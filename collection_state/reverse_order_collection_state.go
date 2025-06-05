@@ -16,9 +16,9 @@ import (
 
 type ReverseOrderCollectionState[T parse.Config] struct {
 	// collection of time ranges ordered by time
-	TimeRanges []*TimeRangeCollectionStateImpl `json:"time_ranges"`
+	TimeRanges []*timeRangeCollectionState `json:"time_ranges"`
 
-	activeTimeRange *TimeRangeCollectionStateImpl
+	activeTimeRange *timeRangeCollectionState
 
 	granularity time.Duration
 
@@ -32,7 +32,7 @@ type ReverseOrderCollectionState[T parse.Config] struct {
 
 func NewReverseOrderCollectionState[T parse.Config]() CollectionState[T] {
 	return &ReverseOrderCollectionState[T]{
-		//objectStateMap: make(map[string]*TimeRangeCollectionStateImpl),
+		//objectStateMap: make(map[string]*timeRangeCollectionState),
 		mut: &sync.RWMutex{},
 	}
 }
@@ -59,7 +59,7 @@ func (s *ReverseOrderCollectionState[T]) Init(_ T, path string) error {
 
 func (s *ReverseOrderCollectionState[T]) Start() {
 	// add a new time range
-	s.activeTimeRange = NewTimeRangeCollectionStateImpl(CollectionOrderReverse)
+	s.activeTimeRange = newTimeRangeCollectionState(CollectionOrderReverse)
 	s.TimeRanges = append(s.TimeRanges, s.activeTimeRange)
 }
 
@@ -118,7 +118,7 @@ func (s *ReverseOrderCollectionState[T]) SetEndTime(newEndTime time.Time) {
 
 	// if within a time range -> set the end time of the time range & discard subsequent time ranges
 	// or if between two time ranges -> discard subsequent time ranges
-	var newTimeRanges []*TimeRangeCollectionStateImpl
+	var newTimeRanges []*timeRangeCollectionState
 	for i, r := range s.TimeRanges {
 		if !newEndTime.Before(r.firstEntryTime) && !newEndTime.After(r.endTime) {
 			r.SetEndTime(newEndTime)
