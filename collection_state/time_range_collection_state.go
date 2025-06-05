@@ -18,19 +18,13 @@ const (
 // it is used by the ArtifactCollectionStateImpl and TimeRangeCollectionState
 // NOTE: we do not implement mutex locking here - it is assumed that the caller will lock the state before calling
 type timeRangeCollectionState struct {
-	// the start time of the range
-	From time.Time `json:"from,omitzero"`
-	// the end time of the range - we have all data up to this time (non-inclusive)
-	// so - if the granularity is 1 hour, and the end time is 12:00:00, we have all data up to 11:59:59
-	To time.Time `json:"to,omitzero"`
-
-	//// TODO: add Export & add JSON tags to firstEntryTime, lastEntryTime, endTime once we can replace the serialization in go1.24 with omitzero
-	//// the time range of the data
-	//// the time of the earliest entry in the data
-	//firstEntryTime time.Time
-	//lastEntryTime  time.Time
-	//// the time we are sure we have collected all data up to - this is (LastEntryTime - granularity)
-	//endTime time.Time
+	// TODO: add Export & add JSON tags to firstEntryTime, lastEntryTime, endTime once we can replace the serialization in go1.24 with omitzero
+	// the time range of the data
+	// the time of the earliest entry in the data
+	firstEntryTime time.Time
+	lastEntryTime  time.Time
+	// the time we are sure we have collected all data up to - this is (LastEntryTime - granularity)
+	endTime time.Time
 
 	// for end boundary (i.e. the end granularity) we store the metadata
 	// whenever the end time changes, we must clear the map
@@ -45,11 +39,8 @@ type timeRangeCollectionState struct {
 	CollectionOrder CollectionOrder `json:"collection_order"`
 }
 
-func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRangeCollectionState {
+func newTimeRangeCollectionState(order CollectionOrder) *timeRangeCollectionState {
 	return &timeRangeCollectionState{
-		From: from,
-		// initially the end time is the same as the start time, i.e. we are empty
-		To:         from,
 		EndObjects: make(map[string]struct{}),
 		// default granularity is 1 nanosecond - the default for api sources
 		// this will be overridden by ArtifactCollectionStateImpl as needed
@@ -59,7 +50,7 @@ func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRan
 }
 
 func (s *timeRangeCollectionState) IsEmpty() bool {
-	return s.To.Equal(s.From) && len(s.EndObjects) == 0
+	return s.firstEntryTime.IsZero() && len(s.EndObjects) == 0
 }
 
 // ShouldCollect returns whether the object should be collected
@@ -72,9 +63,9 @@ func (s *timeRangeCollectionState) ShouldCollect(id string, timestamp time.Time)
 		return !s.endObjectsContain(id)
 	}
 
-	// if the time is between the start and end time (exclusive) we should NOT collect
+	// if the time is between the start and end time (inclusive) we should NOT collect
 	// (as have already collected it- assuming consistent artifact ordering)
-	if timestamp.Compare(s.From) >= 0 && timestamp.Compare(s.To) < 0 {
+	if timestamp.Compare(s.firstEntryTime) >= 0 && timestamp.Compare(s.endTime) <= 0 {
 		return false
 	}
 
