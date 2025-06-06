@@ -21,7 +21,8 @@ type TimeRangeSliceCollectionState struct {
 	// used to store the range associated with each object between the ShouldCollect call and the OnCollected call
 	// (this is required because we do not want to have to recompute the range for each object on every OnCollected call)
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
-	objectRangeMap map[string]*timeRangeCollectionState
+	objectRangeMap    map[string]*timeRangeCollectionState
+	currentCollection *collectionMetadata
 }
 
 func (t *TimeRangeSliceCollectionState) IsEmpty() bool {
@@ -34,10 +35,16 @@ func (t *TimeRangeSliceCollectionState) IsEmpty() bool {
 	return true
 }
 
-func NewTimeRangeSliceCollectionState(order CollectionOrder) *TimeRangeSliceCollectionState {
-	return &TimeRangeSliceCollectionState{
-		Order: order,
+func NewTimeRangeSliceCollectionState(collection *collectionMetadata, order CollectionOrder) *TimeRangeSliceCollectionState {
+	res := &TimeRangeSliceCollectionState{
+		Order:             order,
+		currentCollection: collection,
+		objectRangeMap:    make(map[string]*timeRangeCollectionState),
 	}
+
+	// initialise the active range
+	res.updateActiveRange(collection.from)
+	return res
 }
 
 func (t *TimeRangeSliceCollectionState) SetGranularity(granularity time.Duration) {
@@ -66,31 +73,50 @@ func (t *TimeRangeSliceCollectionState) Clear() {
 	t.TimeRanges = nil
 }
 
-func (t *TimeRangeSliceCollectionState) SetEndTime(endTime time.Time) {
-	if len(t.TimeRanges) > 0 {
-		t.TimeRanges[len(t.TimeRanges)-1].SetEndTime(endTime)
+func (t *TimeRangeSliceCollectionState) OnCollectionStarted(fromTime, toTime time.Time) error {
+	// set the start time of the first range to the From time of the collection
+	t.currentCollection = &collectionMetadata{
+		from: fromTime,
+		to:   toTime,
 	}
+	t.updateActiveRange(t.currentCollection.from)
+	return nil
+
+}
+
+// OnCollectionComplete sets the end time of the collect - this is called from OnCollectionCOmplete after a successful collection
+// we set the end time as we know that we have collected all data up to the collection 'To' time
+// it sets the end time of the active range to the given end time
+func (t *TimeRangeSliceCollectionState) OnCollectionComplete() error {
+	if t.currentCollection == nil {
+		return fmt.Errorf("cannot complete collection - no current collection set, OnCollectionStarted must be called first")
+	}
+
+	t.activeRange.setEndTime(t.currentCollection.to)
+
 	// TODO this should merge all ranges which touch start and end time of current collection (how do we know the start time?)
 	//  maybe the TimeRangeSliceCollectionState need to store metadata for the current collection? active range, start time, end time, etc.
 	// compact
 	// todo pass start and end time?
 	t.compact()
+
+	return nil
 }
 
 func (t *TimeRangeSliceCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
 	// get the active range for this timestamp
 	// this will either return the current active range, or create a new one if needed
 	// (it also checks whether the current active range has joined with the next range and is so sets the active range to the next range)
-	activeRange := t.getActiveRange(timestamp)
+	t.updateActiveRange(timestamp)
 
 	// ask the active range if we should collect
-	if !activeRange.ShouldCollect(id, timestamp) {
+	if !t.activeRange.ShouldCollect(id, timestamp) {
 		return false
 	}
 
 	// so we should collect this object - cache the range for this object so that OnCollected can find the
 	//  correct range to update
-	t.objectRangeMap[id] = activeRange
+	t.objectRangeMap[id] = t.activeRange
 	return true
 }
 
@@ -106,10 +132,10 @@ func (t *TimeRangeSliceCollectionState) OnCollected(id string, timestamp time.Ti
 	return rangeForObject.OnCollected(id, timestamp)
 }
 
-// getActiveRange returns the currently active time range for the given timestamp
+// updateActiveRange returns the currently active time range for the given timestamp
 // If there is no active range, it creates a new one for the timestamp.
 // If the active range has joined with the next range, it updates the active range to the next range.
-func (t *TimeRangeSliceCollectionState) getActiveRange(timestamp time.Time) *timeRangeCollectionState {
+func (t *TimeRangeSliceCollectionState) updateActiveRange(timestamp time.Time) {
 	// check whether we currently have an active range, i.e. we have already started collection
 	if t.activeRange != nil {
 		// check the next range to see if it contains this timestamp - i.e. have we collected up to the next range
@@ -126,41 +152,42 @@ func (t *TimeRangeSliceCollectionState) getActiveRange(timestamp time.Time) *tim
 		// (note - this creates a new range if the timestamp is not contained in any existing range)
 		t.activeRange = t.rangeForTime(timestamp)
 	}
-	return t.activeRange
 }
 
 // compact merges adjacent time ranges that can be merged
 func (t *TimeRangeSliceCollectionState) compact() {
+	// TODO use current collection from and to
+
 	slog.Info("Compacting time ranges")
 	if len(t.TimeRanges) < 2 {
 		// nothing to merge
 		return
 	}
 
-	for i := len(t.TimeRanges) - 2; i >= 0; i-- {
-		if t.TimeRanges[i].CanMerge(t.TimeRanges[i+1]) {
-			slog.Info("Merging time ranges", "left range end time", t.TimeRanges[i].GetEndTime(), "right range start time", t.TimeRanges[i+1].GetStartTime())
-			t.mergeRangeWithNext(i)
-		} else {
-			slog.Info("Not merging time ranges", "left range end time", t.TimeRanges[i].GetEndTime(), "right range start time", t.TimeRanges[i+1].GetStartTime())
+	var compactedRanges []*timeRangeCollectionState
+	for i := 0; i < len(t.TimeRanges)-2; i += 2 {
+		r1 := t.TimeRanges[i]
+		r2 := t.TimeRanges[i+1]
+		// if there is no overlap, we cannot merge these ranges
+		if r2.GetStartTime().After(r1.GetEndTime()) {
+			slog.Info(fmt.Sprintf("Not merging time ranges %d and %d", i, i+2), "left range end time", r1.GetEndTime(), "right range start time", r2.GetStartTime())
+			continue
 		}
-	}
-}
 
-// mergeRangeWithNext merges the time range at index idx with the next time range in the list
-func (t *TimeRangeSliceCollectionState) mergeRangeWithNext(idx int) {
-	if idx+1 >= len(t.TimeRanges) {
-		// no next range
-		slog.Warn("No next range to merge with")
+		// tell r1 to merge with r2 - r1 will now include r2
+		r1.merge(r1)
+		// add r1 to the compacted ranges slice
+		compactedRanges = append(compactedRanges, r1)
+		// if we get here, we can merge these two ranges
+		slog.Info(fmt.Sprintf("Merging time ranges %d and %d", i, i+2), "left range end time", r1.GetEndTime(), "right range start time", r2.GetStartTime(), "right range end time", r2.GetEndTime(), "merged range end time", r1.GetEndTime())
+
+	}
+	// now update the TimeRanges slice with the compacted ranges
+	if len(compactedRanges) == 0 {
+		slog.Info("No time ranges could be merged")
 		return
 	}
-
-	l := t.TimeRanges[idx]
-	r := t.TimeRanges[idx+1]
-
-	l.Merge(r)
-	// remove r from the list
-	t.TimeRanges = append(t.TimeRanges[:idx+1], t.TimeRanges[idx+2:]...)
+	t.TimeRanges = compactedRanges
 }
 
 // rangeForTime returns the index of the time range that contains the given timestamp
@@ -168,10 +195,10 @@ func (t *TimeRangeSliceCollectionState) mergeRangeWithNext(idx int) {
 func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) *timeRangeCollectionState {
 	for _, r := range t.TimeRanges {
 		if r.Contains(timestamp) {
-			slog.Info("Found existing range for time", "timestamp", timestamp, "range firstEntryTime", r.firstEntryTime, "range lastEntryTime", r.lastEntryTime)
+			slog.Info("Found existing range for time", "timestamp", timestamp, "range From", r.From, "range TO", r.To)
 			return r
 		}
-		slog.Info("Range does not contain time", "timestamp", timestamp, "range firstEntryTime", r.firstEntryTime, "range lastEntryTime", r.lastEntryTime)
+		slog.Info("Range does not contain time", "timestamp", timestamp, "range From", r.From, "range TO", r.To)
 	}
 
 	// otherwise, add new range
@@ -182,7 +209,7 @@ func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) *timeR
 // addRange creates a new time range for the given timestamp and adds it to the collection in the correct position
 func (t *TimeRangeSliceCollectionState) addRange(timestamp time.Time) *timeRangeCollectionState {
 	// create a new time range
-	newRange := newTimeRangeCollectionState(t.Order)
+	newRange := newTimeRangeCollectionState(timestamp, t.Order)
 	newRange.SetGranularity(t.Granularity)
 	// find the appropriate location to insert the new range into our list
 	for i, r := range t.TimeRanges {

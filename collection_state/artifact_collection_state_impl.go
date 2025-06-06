@@ -44,6 +44,8 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	jsonPath     string
 	lastSaveTime time.Time
 
+	// the metadata for the underway collection - populated by OnCollectionStarted
+	currentCollection *collectionMetadata
 	// map of the trunk state for each object which has been passed to ShouldCollect
 	// this is to avoid recomputing the trunk state for each object on every OnCollected call
 	objectTrunkMap map[string]*TimeRangeSliceCollectionState
@@ -132,37 +134,37 @@ func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
 	return endTime
 }
 
-// TODO think about end time and continuation - should we use the following day for continuation
-// map out scenarios
-
-// SetEndTime sets the end time for the collection state - update all trunk states
-// This is called when we are using the --from flag to force recollection
-func (s *ArtifactCollectionStateImpl[T]) SetEndTime(newEndTime time.Time) {
-	if s.granularity == 0 {
-		if newEndTime.Before(s.LastModifiedTime) {
-			s.Clear()
-		}
-		return
+func (s *ArtifactCollectionStateImpl[T]) OnCollectionStarted(fromTime time.Time, toTime time.Time) error {
+	s.currentCollection = &collectionMetadata{
+		from: fromTime,
+		to:   toTime,
 	}
-
-	// do not lock mut until AFTER we have checked the granularity as Clear also locks mut
-	s.mut.Lock()
-	defer s.mut.Unlock()
-
-	// call set end time for each trunk state
 	for _, trunkState := range s.TrunkStates {
 		if trunkState == nil {
 			continue
 		}
-		trunkState.SetEndTime(newEndTime)
+		// set the start time of the trunk state to the from time of the current collection
+		trunkState.OnCollectionStarted(fromTime, toTime)
 	}
+	return nil
 }
 
-func (s *ArtifactCollectionStateImpl[T]) Clear() {
+// OnCollectionComplete sets the end time for the collection state - update all trunk states
+// This is called after a successful collection to set the collection state end time to the To time of the collection
+func (s *ArtifactCollectionStateImpl[T]) OnCollectionComplete() error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
-	// cleat the map
-	s.TrunkStates = make(map[string]*TimeRangeSliceCollectionState)
+	for _, trunkState := range s.TrunkStates {
+		if trunkState == nil {
+			continue
+		}
+		// set the end time of the trunk state to the end time of the current collection
+		err := trunkState.OnCollectionComplete()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RegisterPath registers a path with the collection state - we determine whether this is a potential trunk
@@ -230,9 +232,10 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 	if !ok || trunkState == nil {
 		// so we DO NOT have a collection state for this trunk
 		// create a new collection state
-		trunkState = NewTimeRangeSliceCollectionState(CollectionOrderChronological)
+		trunkState = NewTimeRangeSliceCollectionState(s.currentCollection, CollectionOrderChronological)
 		// set the granularity
 		trunkState.SetGranularity(s.granularity)
+
 		// write the state back to TrunStates
 		s.TrunkStates[trunkPath] = trunkState
 	}

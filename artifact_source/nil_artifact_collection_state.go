@@ -20,9 +20,6 @@ func (s *NilArtifactCollectionState) GetEndTime() time.Time {
 func (s *NilArtifactCollectionState) SetEndTime(_ time.Time) {
 }
 
-func (s *NilArtifactCollectionState) Clear() {
-}
-
 func (*NilArtifactCollectionState) Init(_ *NilArtifactSourceConfig, _ string) error {
 	return nil
 }
@@ -47,6 +44,14 @@ func (*NilArtifactCollectionState) GetGranularity() time.Duration {
 
 func (*NilArtifactCollectionState) IsEmpty() bool {
 	return true
+}
+
+func (*NilArtifactCollectionState) OnCollectionStarted(time.Time, time.Time) error {
+	return nil
+}
+
+func (*NilArtifactCollectionState) OnCollectionComplete() error {
+	return nil
 }
 
 func (*NilArtifactCollectionState) Save() error {

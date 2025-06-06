@@ -98,6 +98,7 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	return nil
 }
 
+// TODO who needs this
 func (r *RowSourceImpl[S, T]) SaveCollectionState() error {
 	return r.CollectionState.Save()
 }
@@ -183,6 +184,10 @@ func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.Pr
 	return properties
 }
 
+func (r *RowSourceImpl[S, T]) OnCollectionStarted() error {
+	return r.CollectionState.OnCollectionStarted(r.FromTime, r.ToTime)
+}
+
 // OnCollectionComplete must be called by the source Collect function when the collection is complete
 // this updates the end time of the collection state to the collection `To` and saves the collection state
 func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
@@ -196,8 +201,9 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 	}
 	// so the source collection was successful, set the end time of the collection state to the collection `To`
 	// this ensures that when we run the next collection, we will start from the end time of the previous collection
-	r.CollectionState.SetEndTime(r.ToTime)
+	r.CollectionState.OnCollectionComplete()
 
+	// save the collection state
 	if err := r.CollectionState.Save(); err != nil {
 		return fmt.Errorf("error saving collection state: %w", err)
 	}
