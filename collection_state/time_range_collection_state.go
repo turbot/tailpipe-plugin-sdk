@@ -195,21 +195,21 @@ func (s *timeRangeCollectionState) Contains(timestamp time.Time) bool {
 	return timestamp.Compare(s.From) >= 0 && timestamp.Compare(s.To) <= 0
 }
 
-// merge determines whether this range overlaps the other range and if so,
-// merges the next range into this range
-//   - if the other range starts before or at our end time and ends after our end time,
-//     extend our end to match theirs and update end objects
+// merge combines this time range with another time range
+// note - it is expected that the calling code has determined whether the two ranges should be merged
+// - we do not check that here
 func (s *timeRangeCollectionState) merge(other *timeRangeCollectionState) {
 	if s == nil || other == nil {
 		return
 	}
-	// only merge if other starts before or at our end, and ends after our end
-	if other.From.After(s.To) || other.To.Compare(s.To) <= 0 {
-		return
+	// set from and to the the latest of the two
+	if other.From.Before(s.From) {
+		s.From = other.From
 	}
-
-	s.To = other.To
-	s.EndObjects = other.EndObjects
+	if other.To.After(s.To) {
+		s.To = other.To
+		s.EndObjects = other.EndObjects
+	}
 }
 
 func (s *timeRangeCollectionState) endObjectsContain(id string) bool {

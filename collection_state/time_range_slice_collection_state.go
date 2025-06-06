@@ -42,13 +42,18 @@ func NewTimeRangeSliceCollectionState(collection *collectionMetadata, order Coll
 		objectRangeMap:    make(map[string]*timeRangeCollectionState),
 	}
 
-	// initialise the active range
+	// initialise the active range - this will create a new range for the collection From time if needed
 	res.updateActiveRange(collection.from)
 	return res
 }
 
 func (t *TimeRangeSliceCollectionState) SetGranularity(granularity time.Duration) {
 	t.Granularity = granularity
+	// set the granularity for all existing time ranges
+	// TODO it would be nice to set the granularity when we create the state - see if we can do this
+	for _, timeRange := range t.TimeRanges {
+		timeRange.SetGranularity(granularity)
+	}
 }
 
 func (t *TimeRangeSliceCollectionState) GetGranularity() time.Duration {
@@ -142,6 +147,9 @@ func (t *TimeRangeSliceCollectionState) updateActiveRange(timestamp time.Time) {
 		nextRange := t.getNextRange(t.activeRange)
 		if nextRange != nil {
 			if nextRange.Contains(timestamp) {
+				// set the end time of the active range to the start time of the next range so we merge them next time we
+				// compact the state
+				t.activeRange.setEndTime(nextRange.GetStartTime())
 				// use the next range as the active
 				t.activeRange = nextRange
 			}
@@ -155,35 +163,67 @@ func (t *TimeRangeSliceCollectionState) updateActiveRange(timestamp time.Time) {
 }
 
 // compact merges adjacent time ranges that can be merged
-func (t *TimeRangeSliceCollectionState) compact() {
-	// TODO use current collection from and to
+func (t *TimeRangeSliceCollectionState) compact() error {
+	if t.currentCollection == nil {
+		return fmt.Errorf("cannot compact time ranges - no current collection set, OnCollectionStarted must be called first")
+	}
+
+	// if there are less than 2 time ranges, we cannot compact
+	if len(t.TimeRanges) < 2 {
+		return nil
+	}
 
 	slog.Info("Compacting time ranges")
-
 	var compactedRanges []*timeRangeCollectionState
-	for i := 0; i <= len(t.TimeRanges)-2; i += 2 {
-		r1 := t.TimeRanges[i]
-		r2 := t.TimeRanges[i+1]
+	currentRange := t.TimeRanges[0]
+
+	for i := 1; i < len(t.TimeRanges); i++ {
+		nextRange := t.TimeRanges[i]
+
 		// if there is no overlap, we cannot merge these ranges
-		if r2.GetStartTime().After(r1.GetEndTime()) {
-			slog.Info(fmt.Sprintf("Not merging time ranges %d and %d", i, i+2), "left range end time", r1.GetEndTime(), "right range start time", r2.GetStartTime())
+		// UNLESS the collection From time is before the end time of currentRange and c	ollection To time is after the start time of nextRange
+		rangesFallWithinCollectionPeriod := currentRange.GetEndTime().After(t.currentCollection.from) &&
+			nextRange.GetStartTime().Before(t.currentCollection.to)
+
+		rangesOverlap := currentRange.GetEndTime().Compare(nextRange.GetStartTime()) >= 0
+
+		slog.Debug("Checking time ranges for merging",
+			"collection from", t.currentCollection.from,
+			"collection to", t.currentCollection.to,
+			"current range start time", currentRange.GetStartTime(),
+			"current range end time", currentRange.GetEndTime(),
+			"next range start time", nextRange.GetStartTime(),
+			"next range end time", nextRange.GetEndTime(),
+			"ranges overlap", rangesOverlap,
+			"ranges fall within collection period", rangesFallWithinCollectionPeriod)
+
+		// if the ranges do not overlap and do not fall within the collection period, we can add the current range to compacted ranges
+		if !rangesOverlap && !rangesFallWithinCollectionPeriod {
+			// add the current range to compacted ranges and move to next
+			compactedRanges = append(compactedRanges, currentRange)
+			currentRange = nextRange
 			continue
 		}
 
-		// tell r1 to merge with r2 - r1 will now include r2
-		r1.merge(r2)
-		// add r1 to the compacted ranges slice
-		compactedRanges = append(compactedRanges, r1)
-		// if we get here, we can merge these two ranges
-		slog.Info(fmt.Sprintf("Merging time ranges %d and %d", i, i+2), "left range end time", r1.GetEndTime(), "right range start time", r2.GetStartTime(), "right range end time", r2.GetEndTime(), "merged range end time", r1.GetEndTime())
-
+		// tell currentRange to merge with nextRange
+		currentRange.merge(nextRange)
+		slog.Info("Merging time ranges",
+			"left range end time", currentRange.GetEndTime(),
+			"right range start time", nextRange.GetStartTime(),
+			"right range end time", nextRange.GetEndTime(),
+			"merged range end time", currentRange.GetEndTime())
 	}
+
+	// add the last range
+	compactedRanges = append(compactedRanges, currentRange)
+
 	// now update the TimeRanges slice with the compacted ranges
 	if len(compactedRanges) == 0 {
 		slog.Info("No time ranges could be merged")
-		return
+		return nil
 	}
 	t.TimeRanges = compactedRanges
+	return nil
 }
 
 // rangeForTime returns the index of the time range that contains the given timestamp

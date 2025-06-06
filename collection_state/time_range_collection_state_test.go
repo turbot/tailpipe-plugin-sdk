@@ -17,63 +17,63 @@ func Test_timeRangeCollectionState_merge(t *testing.T) {
 	}{
 		{
 			name:  "merge overlapping ranges",
-			state: buildState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
-			other: buildState("2025-04-05 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
-			want:  buildState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
+			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
+			other: buildTimeRangeState("2025-04-05 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
+			want:  buildTimeRangeState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
 		},
 		{
-			name:  "no merge - other range starts after our end",
-			state: buildState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
-			other: buildState("2025-04-08 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
-			want:  buildState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
+			name:  "other range starts after our end",
+			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
+			other: buildTimeRangeState("2025-04-08 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
+			want:  buildTimeRangeState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
 		},
 		{
 			name:  "no merge - other range ends before our end",
-			state: buildState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
-			other: buildState("2025-04-02 00:00:00", "2025-04-05 00:00:00", 24*time.Hour, "obj2"),
-			want:  buildState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
+			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
+			other: buildTimeRangeState("2025-04-02 00:00:00", "2025-04-05 00:00:00", 24*time.Hour, "obj2"),
+			want:  buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
 		},
 		{
 			name:  "merge with nil other",
-			state: buildState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
+			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
 			other: nil,
-			want:  buildState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
+			want:  buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
 		},
 		{
 			name:  "no merge - our range contains other range",
-			state: buildState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj1"),
-			other: buildState("2025-04-03 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj2"),
-			want:  buildState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj1"),
+			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj1"),
+			other: buildTimeRangeState("2025-04-03 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj2"),
+			want:  buildTimeRangeState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj1"),
 		},
 		{
 			name:  "merge - other range contains our range",
-			state: buildState("2025-04-03 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
-			other: buildState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
-			want:  buildState("2025-04-03 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
+			state: buildTimeRangeState("2025-04-03 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj1"),
+			other: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
+			want:  buildTimeRangeState("2025-04-01 00:00:00", "2025-04-10 00:00:00", 24*time.Hour, "obj2"),
 		},
 		{
 			name:  "merge with second granularity",
-			state: buildState("2025-04-01 12:30:45", "2025-04-01 12:30:55", time.Second, "obj1"),
-			other: buildState("2025-04-01 12:30:50", "2025-04-01 12:31:00", time.Second, "obj2"),
-			want:  buildState("2025-04-01 12:30:45", "2025-04-01 12:31:00", time.Second, "obj2"),
+			state: buildTimeRangeState("2025-04-01 12:30:45", "2025-04-01 12:30:55", time.Second, "obj1"),
+			other: buildTimeRangeState("2025-04-01 12:30:50", "2025-04-01 12:31:00", time.Second, "obj2"),
+			want:  buildTimeRangeState("2025-04-01 12:30:45", "2025-04-01 12:31:00", time.Second, "obj2"),
 		},
 		{
 			name:  "merge with minute granularity",
-			state: buildState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, "obj1"),
-			other: buildState("2025-04-01 12:33:00", "2025-04-01 12:40:00", time.Minute, "obj2"),
-			want:  buildState("2025-04-01 12:30:00", "2025-04-01 12:40:00", time.Minute, "obj2"),
+			state: buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, "obj1"),
+			other: buildTimeRangeState("2025-04-01 12:33:00", "2025-04-01 12:40:00", time.Minute, "obj2"),
+			want:  buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:40:00", time.Minute, "obj2"),
 		},
 		{
 			name:  "merge with hour granularity",
-			state: buildState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, "obj1"),
-			other: buildState("2025-04-01 14:00:00", "2025-04-01 17:00:00", time.Hour, "obj2"),
-			want:  buildState("2025-04-01 12:00:00", "2025-04-01 17:00:00", time.Hour, "obj2"),
+			state: buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, "obj1"),
+			other: buildTimeRangeState("2025-04-01 14:00:00", "2025-04-01 17:00:00", time.Hour, "obj2"),
+			want:  buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 17:00:00", time.Hour, "obj2"),
 		},
 		{
 			name:  "merge with day granularity",
-			state: buildState("2025-04-01 00:00:00", "2025-04-05 00:00:00", 24*time.Hour, "obj1"),
-			other: buildState("2025-04-03 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj2"),
-			want:  buildState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj2"),
+			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-05 00:00:00", 24*time.Hour, "obj1"),
+			other: buildTimeRangeState("2025-04-03 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj2"),
+			want:  buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, "obj2"),
 		},
 	}
 	for _, tt := range tests {
@@ -81,14 +81,14 @@ func Test_timeRangeCollectionState_merge(t *testing.T) {
 			s := tt.state
 			s.merge(tt.other)
 
-			if equal, msg := stateEquals(s, tt.want, 0); !equal {
+			if equal, msg := timeRangeStateEquals(s, tt.want, 0); !equal {
 				t.Error(msg)
 			}
 		})
 	}
 }
 
-func buildState(fromStr, toStr string, granularity time.Duration, endObjects ...string) *timeRangeCollectionState {
+func buildTimeRangeState(fromStr, toStr string, granularity time.Duration, endObjects ...string) *timeRangeCollectionState {
 	from, err := time.Parse("2006-01-02 15:04:05", fromStr)
 	if err != nil {
 		panic(err)
@@ -110,7 +110,7 @@ func buildState(fromStr, toStr string, granularity time.Duration, endObjects ...
 	}
 }
 
-func stateEquals(actual, expected *timeRangeCollectionState, index int) (bool, string) {
+func timeRangeStateEquals(actual, expected *timeRangeCollectionState, index int) (bool, string) {
 	if !actual.From.Equal(expected.From) {
 		return false, fmt.Sprintf("range[%v].From = %v, want %v", index, actual.From, expected.From)
 	}

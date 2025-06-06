@@ -224,59 +224,79 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 	}
 }
 
-func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
+func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 	tests := []struct {
-		name           string
-		state          *TimeRangeSliceCollectionState
-		expectedRanges []*timeRangeCollectionState
+		name              string
+		state             *TimeRangeSliceCollectionState
+		expectedRanges    []*timeRangeCollectionState
+		currentCollection *collectionMetadata
 	}{
 		{
 			name: "single_range",
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
-					buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond),
+					buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 20, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 30, 12, 0, 0, 0, time.UTC),
 				},
 			},
 			expectedRanges: []*timeRangeCollectionState{
-				buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond),
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond),
 			},
 		},
 		{
 			name: "overlapping_ranges",
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
-					buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
-					buildState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+					buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
+					buildTimeRangeState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+				},
+				// collection from/to does not overlap multiple ranges - so will have no affect on the compacting
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 20, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 30, 12, 0, 0, 0, time.UTC),
 				},
 			},
 			expectedRanges: []*timeRangeCollectionState{
-				buildState("2025-05-03 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 			},
 		},
 		{
 			name: "non_overlapping_ranges",
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
-					buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
-					buildState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+					buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
+					buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+				},
+				// collection from/to does not overlap multiple ranges - so will have no affect on the compacting
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 20, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 30, 12, 0, 0, 0, time.UTC),
 				},
 			},
 			expectedRanges: []*timeRangeCollectionState{
-				buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
-				buildState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
+				buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 			},
 		},
 		{
 			name: "multiple_overlapping_ranges",
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
-					buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
-					buildState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
-					buildState("2025-05-13 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, "obj3"),
+					buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
+					buildTimeRangeState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+					buildTimeRangeState("2025-05-13 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, "obj3"),
+				},
+				// collection from/to does not overlap multiple ranges - so will have no affect on the compacting
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 20, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 30, 12, 0, 0, 0, time.UTC),
 				},
 			},
 			expectedRanges: []*timeRangeCollectionState{
-				buildState("2025-05-03 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, "obj3"),
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, "obj3"),
 			},
 		},
 		{
@@ -285,21 +305,186 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 				TimeRanges: []*timeRangeCollectionState{},
 			},
 			expectedRanges: []*timeRangeCollectionState{},
+			currentCollection: &collectionMetadata{
+				from: time.Date(2025, 5, 3, 12, 0, 0, 0, time.UTC),
+				to:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
+			},
+		},
+		{
+			name: "collection_overlaps_multiple_non_contiguous_ranges",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, "obj1"),
+					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
+				},
+			},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
+			},
+		},
+		{
+			name: "collection_overlaps_start_of_first_and_end_of_last_range",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, "obj1"),
+					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 1, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 25, 12, 0, 0, 0, time.UTC),
+				},
+			},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
+			},
+		},
+		{
+			name: "collection_overlaps_middle_ranges_only",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, "obj1"),
+					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 6, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 19, 12, 0, 0, 0, time.UTC),
+				},
+			},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, "obj1"),
+				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
+			},
+		},
+		{
+			name: "collection_overlaps_partial_ranges",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, "obj1"),
+					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 14, 12, 0, 0, 0, time.UTC),
+				},
+			},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
+			},
+		},
+		{
+			name: "collection_overlaps_ranges_with_second_granularity",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Second, "obj1"),
+					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Second, "obj2"),
+					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Second, "obj3"),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
+				},
+				Granularity: time.Second,
+			},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Second, "obj3"),
+			},
+		},
+		{
+			name: "collection_overlaps_ranges_with_minute_granularity",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Minute, "obj1"),
+					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Minute, "obj2"),
+					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Minute, "obj3"),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
+				},
+				Granularity: time.Minute,
+			},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Minute, "obj3"),
+			},
+		},
+		{
+			name: "collection_overlaps_ranges_with_hour_granularity",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Hour, "obj1"),
+					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, "obj2"),
+					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Hour, "obj3"),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
+				},
+				Granularity: time.Hour,
+			},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Hour, "obj3"),
+			},
+		},
+		{
+			name: "collection_overlaps_ranges_with_day_granularity",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", 24*time.Hour, "obj1"),
+					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", 24*time.Hour, "obj2"),
+					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", 24*time.Hour, "obj3"),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
+				},
+				Granularity: 24 * time.Hour,
+			},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", 24*time.Hour, "obj3"),
+			},
+		},
+		{
+			name: "collection_overlaps_ranges_with_mixed_granularity",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Minute, "obj1"),
+					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, "obj2"),
+					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Second, "obj3"),
+				},
+				currentCollection: &collectionMetadata{
+					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
+					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
+				},
+				Granularity: time.Minute,
+			},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Minute, "obj3"),
+			},
 		},
 	}
 	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			tt.state.compact()
 			if len(tt.state.TimeRanges) != len(tt.expectedRanges) {
-				t1.Errorf("compact() range count = %v, want %v", len(tt.state.TimeRanges), len(tt.expectedRanges))
+				t.Errorf("compact() range count = %v, want %v", len(tt.state.TimeRanges), len(tt.expectedRanges))
 			}
 			for i, expected := range tt.expectedRanges {
 				if i >= len(tt.state.TimeRanges) {
-					t1.Errorf("compact() missing range at index %v", i)
+					t.Errorf("compact() missing range at index %v", i)
 					continue
 				}
-				if equal, msg := stateEquals(tt.state.TimeRanges[i], expected, i); !equal {
-					t1.Error(msg)
+				if equal, msg := timeRangeStateEquals(tt.state.TimeRanges[i], expected, i); !equal {
+					t.Error(msg)
 				}
 			}
 		})
@@ -307,70 +492,40 @@ func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 }
 
 func TestTimeRangeSliceCollectionState(t *testing.T) {
-	collectionRunTime := time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC)
-	defaultFrom := collectionRunTime.Add(-time.Hour * 24 * 7) // default from 7 days before collectionRunTime
+	// 'to' defualts to 'now'
+	defaultTo := time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC)
+	// 'from' defaults to last 7 days
+	defaultFrom := defaultTo.Add(-time.Hour * 24 * 7) // default from 7 days before defaultTo
 	granularity := time.Hour
 
-	// default single range of `2025-04-19T12:00:00` to `2025-04-26T00:00:00`
-	defaultSingleRange := &timeRangeCollectionState{
-		From:            time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
-		To:              time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-		EndObjects:      map[string]struct{}{"20250426_000000.txt": {}},
-		Granularity:     granularity,
-		CollectionOrder: CollectionOrderChronological,
-	}
-
 	tests := []struct {
-		name  string
-		state *TimeRangeSliceCollectionState
-		from  time.Time
-		to    time.Time
-		//expectedRangesPreCompact []*timeRangeCollectionState
+		name           string
+		state          *TimeRangeSliceCollectionState
+		from           time.Time
+		to             time.Time
 		expectedRanges []*timeRangeCollectionState
 	}{
 		{
 			name:  "First Collection - Defaults (No Parameters)",
 			state: nil,
-			from:  defaultFrom,
-			to:    collectionRunTime,
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            defaultFrom,
-					To:              collectionRunTime,
-					EndObjects:      map[string]struct{}{"20250510_120000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", granularity, "20250510_120000.txt"),
 			},
 		},
 		{
 			name:  "First Collection - Default From, Custom To",
 			state: nil,
-			from:  defaultFrom,
 			to:    time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            defaultFrom,
-					To:              time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250505_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-05 00:00:00", granularity, "20250505_000000.txt"),
 			},
 		},
 		{
 			name:  "First Collection - Custom From, Default To",
 			state: nil,
 			from:  time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-			to:    collectionRunTime,
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					To:              collectionRunTime,
-					EndObjects:      map[string]struct{}{"20250510_120000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-05-01 00:00:00", "2025-05-10 12:00:00", granularity, "20250510_120000.txt"),
 			},
 		},
 		{
@@ -379,666 +534,261 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			from:  time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			to:    time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250505_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-05-01 00:00:00", "2025-05-05 00:00:00", granularity, "20250505_000000.txt"),
 			},
 		},
 		{
 			name: "One Existing Range - Defaults (No Parameters)",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges:  []*timeRangeCollectionState{defaultSingleRange},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
-			from: defaultSingleRange.GetEndTime(),
-			to:   collectionRunTime,
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt"),
+			),
+			// end time of range
+			from: time.Date(2025, 04, 26, 0, 0, 0, 0, time.UTC),
+			to:   defaultTo,
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            defaultSingleRange.GetStartTime(),
-					To:              collectionRunTime,
-					EndObjects:      map[string]struct{}{"20250510_120000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-10 12:00:00", granularity, "20250510_120000.txt"),
 			},
 		},
 		{
-			name: "One Existing Range - Collection of Non-Adjacent Range",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges:  []*timeRangeCollectionState{defaultSingleRange},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
-			from: time.Date(2025, 4, 28, 0, 0, 0, 0, time.UTC),
-			to:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
+			name:  "One Existing Range - Collection of Non-Adjacent Range",
+			state: buildTimeRangeSliceState(granularity, buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt")),
+			from:  time.Date(2025, 4, 28, 0, 0, 0, 0, time.UTC),
+			to:    time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				defaultSingleRange,
-				{
-					From:            time.Date(2025, 4, 28, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250503_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt"),
+				buildTimeRangeState("2025-04-28 00:00:00", "2025-05-03 00:00:00", granularity, "20250503_000000.txt"),
 			},
 		},
 		{
-			name: "One Existing Range - Collection of Adjacent Range",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges:  []*timeRangeCollectionState{defaultSingleRange},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
-			from: time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-			to:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
+			name:  "One Existing Range - Collection of Adjacent Range",
+			state: buildTimeRangeSliceState(granularity, buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt")),
+			from:  time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
+			to:    time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            defaultSingleRange.GetStartTime(),
-					To:              time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250503_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-03 00:00:00", granularity, "20250503_000000.txt"),
 			},
 		},
 		{
-			name: "One Existing Range - Collection Encompasses Existing Range",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges:  []*timeRangeCollectionState{defaultSingleRange},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
-			from: time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-			to:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+			name:  "One Existing Range - Collection Encompasses Existing Range",
+			state: buildTimeRangeSliceState(granularity, buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt")),
+			from:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+			to:    time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250501_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-05-01 00:00:00", granularity, "20250501_000000.txt"),
 			},
 		},
 		{
-			name: "One Existing Range - Collection Overlaps Beginning of Existing Range",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges:  []*timeRangeCollectionState{defaultSingleRange},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
-			from: time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-			to:   time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
+			name:  "One Existing Range - Collection Overlaps Beginning of Existing Range",
+			state: buildTimeRangeSliceState(granularity, buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt")),
+			from:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+			to:    time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250426_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt"),
 			},
 		},
 		{
 			name: "One Existing Range - Collection Overlaps End of Existing Range",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges:  []*timeRangeCollectionState{defaultSingleRange},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt"),
+			),
 			from: time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250426_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-01 00:00:00", granularity, "20250501_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Collection Between Two Ranges",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250415_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Collection Overlapping End of First Range and Start of Second Range",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 4, 5, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 17, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250417_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Collection Encompassing Multiple Ranges",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250412_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", granularity, "20250412_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250425_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-03-25 00:00:00", "2025-04-25 00:00:00", granularity, "20250425_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Collection Partially Overlapping Multiple Ranges",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 4, 5, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 17, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250417_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Collection Before All Existing Ranges",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250325_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-03-15 00:00:00", "2025-03-25 00:00:00", granularity, "20250325_000000.txt"),
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Collection After All Existing Ranges",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250501_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+				buildTimeRangeState("2025-04-25 00:00:00", "2025-05-01 00:00:00", granularity, "20250501_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Default Collection Parameters",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250510_120000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-05-10 12:00:00", granularity, "20250510_120000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Creating New Gap Between Ranges",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 27, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250427_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-20 00:00:00", "2025-04-27 00:00:00", granularity, "20250427_000000.txt"),
+			),
 			from: time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250415_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 27, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250427_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-15 00:00:00", granularity, "20250415_000000.txt"),
+				buildTimeRangeState("2025-04-20 00:00:00", "2025-04-27 00:00:00", granularity, "20250427_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Overlapping Only Some Ranges",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250412_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", granularity, "20250412_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 4, 5, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 11, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250412_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-12 00:00:00", granularity, "20250412_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Creating Multiple New Gaps",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250430_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+				buildTimeRangeState("2025-04-25 00:00:00", "2025-04-30 00:00:00", granularity, "20250430_000000.txt"),
+			),
 			from: time.Date(2025, 4, 23, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 23, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250424_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					From:            time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250430_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+				buildTimeRangeState("2025-04-23 00:00:00", "2025-04-24 00:00:00", granularity, "20250424_000000.txt"),
+				buildTimeRangeState("2025-04-25 00:00:00", "2025-04-30 00:00:00", granularity, "20250430_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Exactly Adjacent to Multiple Ranges",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250415_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
 			},
 		},
 		{
 			name: "Multiple Existing Ranges - Partial Overlap at Exact Boundaries",
-			state: &TimeRangeSliceCollectionState{
-				TimeRanges: []*timeRangeCollectionState{
-					{
-						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
-						Granularity:     granularity,
-						CollectionOrder: CollectionOrderChronological,
-					},
-				},
-				Granularity: granularity,
-				Order:       CollectionOrderChronological,
-			},
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
 			from: time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 18, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{"20250418_000000.txt": {}},
-					Granularity:     granularity,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Initialize the state if not provided
-			if tt.state == nil {
-				meta := &collectionMetadata{from: time.Time{}, to: time.Time{}}
-				tt.state = NewTimeRangeSliceCollectionState(meta, CollectionOrderChronological)
-				tt.state.SetGranularity(granularity)
+
+			from := tt.from
+			if from.IsZero() {
+				from = defaultFrom
+			}
+			to := tt.to
+			if to.IsZero() {
+				to = defaultTo
 			}
 
-			// TODO: We're no longer always going to recollect based on `from` so we don't need to truncate collection state - correct?
+			// Initialize the state if not provided
+			if tt.state == nil {
+				tt.state = NewTimeRangeSliceCollectionState(&collectionMetadata{from, to}, CollectionOrderChronological)
+				tt.state.SetGranularity(granularity)
+			} else {
+				tt.state.OnCollectionStarted(from, to)
+			}
 
 			// Simulate the collection process
-			for x := tt.from; !x.After(tt.to); x = x.Add(time.Minute) {
+			for fileTime := from; !fileTime.After(to); fileTime = fileTime.Add(time.Minute) {
 				// Only get a file every 15 mins past hour (simplicity)
-				if x.Minute()%15 != 0 {
+				if fileTime.Minute()%15 != 0 {
 					continue
 				}
-				fileName := x.Format("20060102_150405.txt")
+				fileName := fileTime.Format("20060102_150405.txt")
 
-				// Simulate adding a file to the collection state (if required - i.e.: not collected)
-				activeRange := tt.state.rangeForTime(x)
-
-				// TODO: Do I need to check if time is in next range? (i.e. a boundary time?)
-
-				if activeRange.ShouldCollect(fileName, x) {
-					err := activeRange.OnCollected(fileName, x)
+				if tt.state.ShouldCollect(fileName, fileTime) {
+					err := tt.state.OnCollected(fileName, fileTime)
 					if err != nil {
-						t.Errorf("Error collecting file %s at time %s: %v", fileName, x, err)
+						t.Errorf("Error collecting file %s at time %s: %v", fileName, fileTime, err)
 					}
 				}
 			}
@@ -1048,9 +798,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 
 			// Check the number of ranges after compaction
 			if len(tt.state.TimeRanges) != len(tt.expectedRanges) {
-				t.Errorf("Expected %d ranges after compaction, got %d", len(tt.expectedRanges), len(tt.state.TimeRanges))
+				t.Fatalf("Expected %d ranges after compaction, got %d", len(tt.expectedRanges), len(tt.state.TimeRanges))
 			}
-
 			// Check if the ranges match by comparing each field
 			for i, actual := range tt.state.TimeRanges {
 				expected := tt.expectedRanges[i]
@@ -1072,5 +821,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func buildTimeRangeSliceState(granularity time.Duration, ranges ...*timeRangeCollectionState) *TimeRangeSliceCollectionState {
+
+	return &TimeRangeSliceCollectionState{
+		TimeRanges:     ranges,
+		Granularity:    granularity,
+		objectRangeMap: map[string]*timeRangeCollectionState{},
+		Order:          CollectionOrderChronological,
 	}
 }
