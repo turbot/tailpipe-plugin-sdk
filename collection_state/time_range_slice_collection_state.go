@@ -159,13 +159,9 @@ func (t *TimeRangeSliceCollectionState) compact() {
 	// TODO use current collection from and to
 
 	slog.Info("Compacting time ranges")
-	if len(t.TimeRanges) < 2 {
-		// nothing to merge
-		return
-	}
 
 	var compactedRanges []*timeRangeCollectionState
-	for i := 0; i < len(t.TimeRanges)-2; i += 2 {
+	for i := 0; i <= len(t.TimeRanges)-2; i += 2 {
 		r1 := t.TimeRanges[i]
 		r2 := t.TimeRanges[i+1]
 		// if there is no overlap, we cannot merge these ranges
@@ -175,7 +171,7 @@ func (t *TimeRangeSliceCollectionState) compact() {
 		}
 
 		// tell r1 to merge with r2 - r1 will now include r2
-		r1.merge(r1)
+		r1.merge(r2)
 		// add r1 to the compacted ranges slice
 		compactedRanges = append(compactedRanges, r1)
 		// if we get here, we can merge these two ranges

@@ -31,9 +31,8 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 			fields: fields{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:  time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-						endTime:        time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						From: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+						To:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 					},
 				},
 				Granularity: time.Hour,
@@ -46,19 +45,16 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 			fields: fields{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:  time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-						endTime:        time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						From: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+						To:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 					},
 					{
-						firstEntryTime: time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:  time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
-						endTime:        time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
+						From: time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+						To:   time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
 					},
 					{
-						firstEntryTime: time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:  time.Date(2024, 1, 6, 0, 0, 0, 0, time.UTC),
-						endTime:        time.Date(2024, 1, 6, 0, 0, 0, 0, time.UTC),
+						From: time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC),
+						To:   time.Date(2024, 1, 6, 0, 0, 0, 0, time.UTC),
 					},
 				},
 				Granularity: time.Hour,
@@ -76,33 +72,6 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 			}
 			if got := t.GetEndTime(); !reflect.DeepEqual(got, tt.want) {
 				t1.Errorf("GetEndTime() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
-func TestTimeRangeSliceCollectionState_GetGranularity(t1 *testing.T) {
-	type fields struct {
-		TimeRanges  []*timeRangeCollectionState
-		Granularity time.Duration
-		Order       CollectionOrder
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		want   time.Duration
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			t := &TimeRangeSliceCollectionState{
-				TimeRanges:  tt.fields.TimeRanges,
-				Granularity: tt.fields.Granularity,
-				Order:       tt.fields.Order,
-			}
-			if got := t.GetGranularity(); got != tt.want {
-				t1.Errorf("GetGranularity() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -133,9 +102,8 @@ func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 			fields: fields{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:  time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-						endTime:        time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						From: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+						To:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 					},
 				},
 				Granularity: time.Hour,
@@ -148,19 +116,16 @@ func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 			fields: fields{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:  time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-						endTime:        time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						From: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+						To:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 					},
 					{
-						firstEntryTime: time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:  time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
-						endTime:        time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
+						From: time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+						To:   time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
 					},
 					{
-						firstEntryTime: time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:  time.Date(2024, 1, 6, 0, 0, 0, 0, time.UTC),
-						endTime:        time.Date(2024, 1, 6, 0, 0, 0, 0, time.UTC),
+						From: time.Date(2024, 1, 5, 0, 0, 0, 0, time.UTC),
+						To:   time.Date(2024, 1, 6, 0, 0, 0, 0, time.UTC),
 					},
 				},
 				Granularity: time.Hour,
@@ -208,9 +173,8 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 			fields: fields{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"obj1": {}},
 						Granularity:     time.Hour,
 						CollectionOrder: CollectionOrderChronological,
@@ -226,17 +190,15 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 			fields: fields{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"obj1": {}},
 						Granularity:     time.Hour,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"obj2": {}},
 						Granularity:     time.Hour,
 						CollectionOrder: CollectionOrderChronological,
@@ -262,347 +224,82 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 	}
 }
 
-func TestTimeRangeSliceCollectionState_SetEndTime(t1 *testing.T) {
-	type fields struct {
-		TimeRanges  []*timeRangeCollectionState
-		Granularity time.Duration
-		Order       CollectionOrder
-	}
-	type args struct {
-		endTime time.Time
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			t := &TimeRangeSliceCollectionState{
-				TimeRanges:  tt.fields.TimeRanges,
-				Granularity: tt.fields.Granularity,
-				Order:       tt.fields.Order,
-			}
-			t.SetEndTime(tt.args.endTime)
-		})
-	}
-}
-
-func TestTimeRangeSliceCollectionState_SetGranularity(t1 *testing.T) {
-	type fields struct {
-		TimeRanges  []*timeRangeCollectionState
-		Granularity time.Duration
-		Order       CollectionOrder
-	}
-	type args struct {
-		granularity time.Duration
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			t := &TimeRangeSliceCollectionState{
-				TimeRanges:  tt.fields.TimeRanges,
-				Granularity: tt.fields.Granularity,
-				Order:       tt.fields.Order,
-			}
-			t.SetGranularity(tt.args.granularity)
-		})
-	}
-}
-
-//func TestTimeRangeSliceCollectionState_addRange(t1 *testing.T) {
-//	type fields struct {
-//		TimeRanges  []*timeRangeCollectionState
-//		Granularity time.Duration
-//		Order       CollectionOrder
-//	}
-//	type args struct {
-//		timestamp time.Time
-//	}
-//	tests := []struct {
-//		name   string
-//		fields fields
-//		args   args
-//		want   int
-//	}{
-//		// TODO: Add test cases.
-//	}
-//	for _, tt := range tests {
-//		t1.Run(tt.name, func(t1 *testing.T) {
-//			t := &TimeRangeSliceCollectionState{
-//				TimeRanges:  tt.fields.TimeRanges,
-//				Granularity: tt.fields.Granularity,
-//				Order:       tt.fields.Order,
-//			}
-//			if got := t.addRange(tt.args.timestamp); got != tt.want {
-//				t1.Errorf("addRange() = %v, want %v", got, tt.want)
-//			}
-//		})
-//	}
-//}
-
-func TestTimeRangeSliceCollectionState_mergeRangeWithNext(t1 *testing.T) {
-	type fields struct {
-		TimeRanges  []*timeRangeCollectionState
-		Granularity time.Duration
-		Order       CollectionOrder
-	}
-	type args struct {
-		idx int
-	}
-	tests := []struct {
-		name   string
-		fields fields
-		args   args
-	}{
-		// TODO: Add test cases.
-	}
-	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
-			t := &TimeRangeSliceCollectionState{
-				TimeRanges:  tt.fields.TimeRanges,
-				Granularity: tt.fields.Granularity,
-				Order:       tt.fields.Order,
-			}
-			t.mergeRangeWithNext(tt.args.idx)
-		})
-	}
-}
-
-//func TestTimeRangeSliceCollectionState_rangeForTime(t1 *testing.T) {
-//	type fields struct {
-//		TimeRanges  []*timeRangeCollectionState
-//		Granularity time.Duration
-//		Order       CollectionOrder
-//	}
-//	type args struct {
-//		timestamp time.Time
-//	}
-//	tests := []struct {
-//		name   string
-//		fields fields
-//		args   args
-//		want   int
-//	}{
-//		// TODO: Add test cases.
-//	}
-//	for _, tt := range tests {
-//		t1.Run(tt.name, func(t1 *testing.T) {
-//			t := &TimeRangeSliceCollectionState{
-//				TimeRanges:  tt.fields.TimeRanges,
-//				Granularity: tt.fields.Granularity,
-//				Order:       tt.fields.Order,
-//			}
-//			if got := t.rangeForTime(tt.args.timestamp); got != tt.want {
-//				t1.Errorf("rangeForTime() = %v, want %v", got, tt.want)
-//			}
-//		})
-//	}
-//}
-
 func TestTimeRangeSliceCollectionState_compact(t1 *testing.T) {
 	tests := []struct {
-		name               string
-		state              *TimeRangeSliceCollectionState
-		expectedRangeCount int
-		expectedRanges     []*timeRangeCollectionState
+		name           string
+		state          *TimeRangeSliceCollectionState
+		expectedRanges []*timeRangeCollectionState
 	}{
 		{
 			name: "single_range",
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
-					{
-						firstEntryTime:  time.Date(2025, 5, 3, 12, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{},
-						Granularity:     time.Nanosecond,
-						CollectionOrder: CollectionOrderChronological,
-					},
+					buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond),
 				},
 			},
-			expectedRangeCount: 1,
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					firstEntryTime:  time.Date(2025, 5, 3, 12, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{},
-					Granularity:     time.Nanosecond,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond),
 			},
 		},
 		{
-			name: "adjacent_ranges_merge",
+			name: "overlapping_ranges",
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
-					{
-						firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{},
-						Granularity:     time.Nanosecond,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						firstEntryTime:  time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{},
-						Granularity:     time.Nanosecond,
-						CollectionOrder: CollectionOrderChronological,
-					},
+					buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
+					buildState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 				},
 			},
-			expectedRangeCount: 1,
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{},
-					Granularity:     time.Nanosecond,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildState("2025-05-03 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 			},
 		},
 		{
-			name: "non_adjacent_ranges_no_merge",
+			name: "non_overlapping_ranges",
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
-					{
-						firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{},
-						Granularity:     time.Nanosecond,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						firstEntryTime:  time.Date(2025, 4, 28, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{},
-						Granularity:     time.Nanosecond,
-						CollectionOrder: CollectionOrderChronological,
-					},
+					buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
+					buildState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 				},
 			},
-			expectedRangeCount: 2,
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{},
-					Granularity:     time.Nanosecond,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					firstEntryTime:  time.Date(2025, 4, 28, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{},
-					Granularity:     time.Nanosecond,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
+				buildState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 			},
 		},
 		{
-			name: "multiple_ranges_merge",
+			name: "multiple_overlapping_ranges",
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
-					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{},
-						Granularity:     time.Nanosecond,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						firstEntryTime:  time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{},
-						Granularity:     time.Nanosecond,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						firstEntryTime:  time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{},
-						Granularity:     time.Nanosecond,
-						CollectionOrder: CollectionOrderChronological,
-					},
-					{
-						firstEntryTime:  time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
-						EndObjects:      map[string]struct{}{},
-						Granularity:     time.Nanosecond,
-						CollectionOrder: CollectionOrderChronological,
-					},
+					buildState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, "obj1"),
+					buildState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
+					buildState("2025-05-13 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, "obj3"),
 				},
 			},
-			expectedRangeCount: 2,
 			expectedRanges: []*timeRangeCollectionState{
-				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{},
-					Granularity:     time.Nanosecond,
-					CollectionOrder: CollectionOrderChronological,
-				},
-				{
-					firstEntryTime:  time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
-					EndObjects:      map[string]struct{}{},
-					Granularity:     time.Nanosecond,
-					CollectionOrder: CollectionOrderChronological,
-				},
+				buildState("2025-05-03 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, "obj3"),
 			},
+		},
+		{
+			name: "empty_ranges",
+			state: &TimeRangeSliceCollectionState{
+				TimeRanges: []*timeRangeCollectionState{},
+			},
+			expectedRanges: []*timeRangeCollectionState{},
 		},
 	}
-
 	for _, tt := range tests {
 		t1.Run(tt.name, func(t1 *testing.T) {
-			t := tt.state
-			t.compact()
-
-			if len(t.TimeRanges) != tt.expectedRangeCount {
-				t1.Fatalf("compact() expected %d ranges, got %d", tt.expectedRangeCount, len(t.TimeRanges))
+			tt.state.compact()
+			if len(tt.state.TimeRanges) != len(tt.expectedRanges) {
+				t1.Errorf("compact() range count = %v, want %v", len(tt.state.TimeRanges), len(tt.expectedRanges))
 			}
-
-			// Check if the ranges match by comparing each field
-			for i, actual := range t.TimeRanges {
-				expected := tt.expectedRanges[i]
-
-				// Compare firstEntryTime
-				if !actual.firstEntryTime.Equal(expected.firstEntryTime) {
-					t1.Errorf("Range %d: firstEntryTime mismatch - expected: %v, got: %v", i, expected.firstEntryTime, actual.firstEntryTime)
+			for i, expected := range tt.expectedRanges {
+				if i >= len(tt.state.TimeRanges) {
+					t1.Errorf("compact() missing range at index %v", i)
+					continue
 				}
-
-				// Compare lastEntryTime
-				if !actual.lastEntryTime.Equal(expected.lastEntryTime) {
-					t1.Errorf("Range %d: lastEntryTime mismatch - expected: %v, got: %v", i, expected.lastEntryTime, actual.lastEntryTime)
-				}
-
-				// Compare endTime
-				if !actual.endTime.Equal(expected.endTime) {
-					t1.Errorf("Range %d: endTime mismatch - expected: %v, got: %v", i, expected.endTime, actual.endTime)
+				if equal, msg := stateEquals(tt.state.TimeRanges[i], expected, i); !equal {
+					t1.Error(msg)
 				}
 			}
 		})
@@ -616,9 +313,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 
 	// default single range of `2025-04-19T12:00:00` to `2025-04-26T00:00:00`
 	defaultSingleRange := &timeRangeCollectionState{
-		firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
-		lastEntryTime:   time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-		endTime:         time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
+		From:            time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
+		To:              time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
 		EndObjects:      map[string]struct{}{"20250426_000000.txt": {}},
 		Granularity:     granularity,
 		CollectionOrder: CollectionOrderChronological,
@@ -639,9 +335,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:    collectionRunTime,
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  defaultFrom,
-					lastEntryTime:   collectionRunTime,
-					endTime:         collectionRunTime,
+					From:            defaultFrom,
+					To:              collectionRunTime,
 					EndObjects:      map[string]struct{}{"20250510_120000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -655,9 +350,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:    time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  defaultFrom,
-					lastEntryTime:   time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
+					From:            defaultFrom,
+					To:              time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250505_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -671,9 +365,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:    collectionRunTime,
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   collectionRunTime,
-					endTime:         collectionRunTime,
+					From:            time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+					To:              collectionRunTime,
 					EndObjects:      map[string]struct{}{"20250510_120000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -687,9 +380,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:    time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250505_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -707,9 +399,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   collectionRunTime,
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  defaultSingleRange.GetStartTime(),
-					lastEntryTime:   collectionRunTime,
-					endTime:         collectionRunTime,
+					From:            defaultSingleRange.GetStartTime(),
+					To:              collectionRunTime,
 					EndObjects:      map[string]struct{}{"20250510_120000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -728,9 +419,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			expectedRanges: []*timeRangeCollectionState{
 				defaultSingleRange,
 				{
-					firstEntryTime:  time.Date(2025, 4, 28, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 28, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250503_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -748,9 +438,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  defaultSingleRange.GetStartTime(),
-					lastEntryTime:   time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
+					From:            defaultSingleRange.GetStartTime(),
+					To:              time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250503_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -768,9 +457,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250501_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -788,9 +476,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250426_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -808,9 +495,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 19, 12, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250426_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -822,17 +508,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -845,9 +529,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250415_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -859,17 +542,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -882,9 +563,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 17, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250417_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -896,25 +576,22 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250412_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -927,9 +604,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250425_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -941,17 +617,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -964,9 +638,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 17, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250417_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -978,17 +651,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -1001,25 +672,22 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250325_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -1031,17 +699,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -1054,25 +720,22 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250501_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -1084,17 +747,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -1107,17 +768,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250510_120000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -1129,17 +788,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 27, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 27, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 27, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250427_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -1152,25 +809,22 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250415_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 27, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 27, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 27, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250427_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -1182,25 +836,22 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250412_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -1213,17 +864,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 11, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250412_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -1235,25 +884,22 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250430_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -1266,33 +912,29 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 23, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 23, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250424_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
 				},
 				{
-					firstEntryTime:  time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250430_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -1304,17 +946,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -1327,9 +967,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250415_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -1341,17 +980,15 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			state: &TimeRangeSliceCollectionState{
 				TimeRanges: []*timeRangeCollectionState{
 					{
-						firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250407_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
 					},
 					{
-						firstEntryTime:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
-						lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-						endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+						From:            time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+						To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 						EndObjects:      map[string]struct{}{"20250422_000000.txt": {}},
 						Granularity:     granularity,
 						CollectionOrder: CollectionOrderChronological,
@@ -1364,9 +1001,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 18, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				{
-					firstEntryTime:  time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-					lastEntryTime:   time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
-					endTime:         time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+					From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+					To:              time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
 					EndObjects:      map[string]struct{}{"20250418_000000.txt": {}},
 					Granularity:     granularity,
 					CollectionOrder: CollectionOrderChronological,
@@ -1379,7 +1015,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Initialize the state if not provided
 			if tt.state == nil {
-				tt.state = NewTimeRangeSliceCollectionState(CollectionOrderChronological)
+				meta := &collectionMetadata{from: time.Time{}, to: time.Time{}}
+				tt.state = NewTimeRangeSliceCollectionState(meta, CollectionOrderChronological)
 				tt.state.SetGranularity(granularity)
 			}
 
@@ -1418,25 +1055,20 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			for i, actual := range tt.state.TimeRanges {
 				expected := tt.expectedRanges[i]
 
-				// Compare firstEntryTime
-				if !actual.firstEntryTime.Equal(expected.firstEntryTime) {
-					t.Errorf("Range %d: firstEntryTime mismatch - expected: %v, got: %v", i, expected.firstEntryTime, actual.firstEntryTime)
+				// Compare From
+				if !actual.From.Equal(expected.From) {
+					t.Errorf("Range %d: From mismatch - expected: %v, got: %v", i, expected.From, actual.From)
 				}
 
-				// Compare lastEntryTime
-				if !actual.lastEntryTime.Equal(expected.lastEntryTime) {
-					t.Errorf("Range %d: lastEntryTime mismatch - expected: %v, got: %v", i, expected.lastEntryTime, actual.lastEntryTime)
+				// Compare To
+				if !actual.To.Equal(expected.To) {
+					t.Errorf("Range %d: To mismatch - expected: %v, got: %v", i, expected.To, actual.To)
 				}
-
-				// Compare endTime
-				//if !actual.endTime.Equal(expected.endTime) {
-				//	t.Errorf("Range %d: endTime mismatch - expected: %v, got: %v", i, expected.endTime, actual.endTime)
-				//}
 
 				// Compare EndObjects
-				//if !reflect.DeepEqual(actual.EndObjects, expected.EndObjects) {
-				//	t.Errorf("Range %d: EndObjects mismatch - expected: %v, got: %v", i, expected.EndObjects, actual.EndObjects)
-				//}
+				if !reflect.DeepEqual(actual.EndObjects, expected.EndObjects) {
+					t.Errorf("Range %d: EndObjects mismatch - expected: %v, got: %v", i, expected.EndObjects, actual.EndObjects)
+				}
 			}
 
 		})
