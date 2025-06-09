@@ -9,11 +9,11 @@ import (
 type NilArtifactCollectionState struct {
 }
 
-func (s *NilArtifactCollectionState) GetStartTime() time.Time {
+func (s *NilArtifactCollectionState) GetFromTime() time.Time {
 	return time.Time{}
 }
 
-func (s *NilArtifactCollectionState) GetEndTime() time.Time {
+func (s *NilArtifactCollectionState) GetToTime() time.Time {
 	return time.Time{}
 }
 

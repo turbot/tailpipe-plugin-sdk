@@ -164,13 +164,13 @@ func (s *timeRangeCollectionState) setEndTime(newEndTime time.Time) {
 	s.EndObjects = make(map[string]struct{})
 }
 
-func (s *timeRangeCollectionState) GetStartTime() time.Time {
+func (s *timeRangeCollectionState) GetFromTime() time.Time {
 	return s.From
 }
 
-// GetEndTime returns the time we know have collected ALL data up until
+// GetToTime returns the time we know have collected ALL data up until
 // (we may have collected some data after this - within the granularity period
-func (s *timeRangeCollectionState) GetEndTime() time.Time {
+func (s *timeRangeCollectionState) GetToTime() time.Time {
 	// i.e. the last time period we are sure we have ALL data for
 	return s.To
 }
@@ -198,6 +198,8 @@ func (s *timeRangeCollectionState) Contains(timestamp time.Time) bool {
 // merge combines this time range with another time range
 // note - it is expected that the calling code has determined whether the two ranges should be merged
 // - we do not check that here
+// important to note that the states bing merged MAY NOT be contiguous
+// - as we merge all states between collection from and to on successful completion
 func (s *timeRangeCollectionState) merge(other *timeRangeCollectionState) {
 	if s == nil || other == nil {
 		return

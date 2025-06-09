@@ -219,7 +219,7 @@ func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
 	}
 	// if no from time was passed, set it to the end time of the collection state
 	if !r.CollectionState.IsEmpty() {
-		t := r.CollectionState.GetEndTime()
+		t := r.CollectionState.GetToTime()
 		if !t.IsZero() {
 			slog.Info("Setting from time from collection state end time", "end time", t)
 			r.FromTime = t

@@ -1,6 +1,7 @@
 package collection_state
 
 import (
+	"github.com/turbot/go-kit/helpers"
 	"reflect"
 	"testing"
 	"time"
@@ -70,8 +71,8 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 				Granularity: tt.fields.Granularity,
 				Order:       tt.fields.Order,
 			}
-			if got := t.GetEndTime(); !reflect.DeepEqual(got, tt.want) {
-				t1.Errorf("GetEndTime() = %v, want %v", got, tt.want)
+			if got := t.GetToTime(); !reflect.DeepEqual(got, tt.want) {
+				t1.Errorf("GetToTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -141,8 +142,8 @@ func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 				Granularity: tt.fields.Granularity,
 				Order:       tt.fields.Order,
 			}
-			if got := t.GetStartTime(); !reflect.DeepEqual(got, tt.want) {
-				t1.Errorf("GetStartTime() = %v, want %v", got, tt.want)
+			if got := t.GetFromTime(); !reflect.DeepEqual(got, tt.want) {
+				t1.Errorf("GetFromTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -229,7 +230,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 		name              string
 		state             *TimeRangeSliceCollectionState
 		expectedRanges    []*timeRangeCollectionState
-		currentCollection *collectionMetadata
+		currentCollection *timeRange
 	}{
 		{
 			name: "single_range",
@@ -237,7 +238,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 				TimeRanges: []*timeRangeCollectionState{
 					buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 20, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 30, 12, 0, 0, 0, time.UTC),
 				},
@@ -254,7 +255,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 				},
 				// collection from/to does not overlap multiple ranges - so will have no affect on the compacting
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 20, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 30, 12, 0, 0, 0, time.UTC),
 				},
@@ -271,7 +272,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 				},
 				// collection from/to does not overlap multiple ranges - so will have no affect on the compacting
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 20, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 30, 12, 0, 0, 0, time.UTC),
 				},
@@ -290,7 +291,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-13 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, "obj3"),
 				},
 				// collection from/to does not overlap multiple ranges - so will have no affect on the compacting
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 20, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 30, 12, 0, 0, 0, time.UTC),
 				},
@@ -305,7 +306,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 				TimeRanges: []*timeRangeCollectionState{},
 			},
 			expectedRanges: []*timeRangeCollectionState{},
-			currentCollection: &collectionMetadata{
+			currentCollection: &timeRange{
 				from: time.Date(2025, 5, 3, 12, 0, 0, 0, time.UTC),
 				to:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
 			},
@@ -318,7 +319,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
 				},
@@ -335,7 +336,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 1, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 25, 12, 0, 0, 0, time.UTC),
 				},
@@ -352,7 +353,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 6, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 19, 12, 0, 0, 0, time.UTC),
 				},
@@ -371,7 +372,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, "obj2"),
 					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, "obj3"),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 14, 12, 0, 0, 0, time.UTC),
 				},
@@ -389,7 +390,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Second, "obj2"),
 					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Second, "obj3"),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
 				},
@@ -407,7 +408,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Minute, "obj2"),
 					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Minute, "obj3"),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
 				},
@@ -425,7 +426,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, "obj2"),
 					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Hour, "obj3"),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
 				},
@@ -443,7 +444,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", 24*time.Hour, "obj2"),
 					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", 24*time.Hour, "obj3"),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
 				},
@@ -461,7 +462,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, "obj2"),
 					buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Second, "obj3"),
 				},
-				currentCollection: &collectionMetadata{
+				currentCollectionTimeRange: &timeRange{
 					from: time.Date(2025, 5, 4, 12, 0, 0, 0, time.UTC),
 					to:   time.Date(2025, 5, 21, 12, 0, 0, 0, time.UTC),
 				},
@@ -499,10 +500,12 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 	granularity := time.Hour
 
 	tests := []struct {
-		name           string
-		state          *TimeRangeSliceCollectionState
-		from           time.Time
-		to             time.Time
+		name  string
+		state *TimeRangeSliceCollectionState
+		from  time.Time
+		to    time.Time
+		// optional - a list of days with no data
+		emptyDays      []int
 		expectedRanges []*timeRangeCollectionState
 	}{
 		{
@@ -771,14 +774,20 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 
 			// Initialize the state if not provided
 			if tt.state == nil {
-				tt.state = NewTimeRangeSliceCollectionState(&collectionMetadata{from, to}, CollectionOrderChronological)
+				tt.state = NewTimeRangeSliceCollectionState(&timeRange{from, to}, CollectionOrderChronological)
 				tt.state.SetGranularity(granularity)
 			} else {
 				tt.state.OnCollectionStarted(from, to)
 			}
+			// convert emptyDays to a map for quick lookup
+			emptyDaysMap := helpers.SliceToLookup(tt.emptyDays)
 
 			// Simulate the collection process
 			for fileTime := from; !fileTime.After(to); fileTime = fileTime.Add(time.Minute) {
+				if _, isEmpty := emptyDaysMap[fileTime.Day()]; isEmpty {
+					continue // Skip empty days
+				}
+
 				// Only get a file every 15 mins past hour (simplicity)
 				if fileTime.Minute()%15 != 0 {
 					continue

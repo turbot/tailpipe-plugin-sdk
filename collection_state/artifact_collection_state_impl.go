@@ -32,7 +32,7 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	TrunkStates map[string]*TimeRangeSliceCollectionState `json:"trunk_states,omitempty"`
 
 	// the time the last artifact was collected
-	// TACTICAL: this is used in GetEndTime called by RowSourceImpl.setFromTime
+	// TACTICAL: this is used in GetToTime called by RowSourceImpl.setFromTime
 	// if there is no timing information in the files, we use this to determine the end time
 	// which we pass to the CLI to use as the --from time (if one has not been passed)
 	// NOTE: this assumes forward collection
@@ -44,8 +44,8 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 	jsonPath     string
 	lastSaveTime time.Time
 
-	// the metadata for the underway collection - populated by OnCollectionStarted
-	currentCollection *collectionMetadata
+	// the time range for the underway collection - populated by OnCollectionStarted
+	currentCollectionTimeRange *timeRange
 	// map of the trunk state for each object which has been passed to ShouldCollect
 	// this is to avoid recomputing the trunk state for each object on every OnCollected call
 	objectTrunkMap map[string]*TimeRangeSliceCollectionState
@@ -66,7 +66,6 @@ func (s *ArtifactCollectionStateImpl[T]) Init(_ T, path string) error {
 
 	// if there is a file at the path, load it
 	if _, err := os.Stat(path); err == nil {
-		// TODO #err should we just warn and delete/rename the file
 		// read the file
 		jsonBytes, err := os.ReadFile(path)
 		if err != nil {
@@ -75,6 +74,12 @@ func (s *ArtifactCollectionStateImpl[T]) Init(_ T, path string) error {
 		err = json.Unmarshal(jsonBytes, s)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal collection state file '%s': %w", path, err)
+		}
+	}
+	// call init on all trunk states to ensure they are initialised
+	for _, trunkState := range s.TrunkStates {
+		if trunkState != nil {
+			trunkState.Init()
 		}
 	}
 	return nil
@@ -95,14 +100,14 @@ func (s *ArtifactCollectionStateImpl[T]) GetGranularity() time.Duration {
 	return s.granularity
 }
 
-func (s *ArtifactCollectionStateImpl[T]) GetStartTime() time.Time {
+func (s *ArtifactCollectionStateImpl[T]) GetFromTime() time.Time {
 	// find the latest start time of all the trunk states
 	var startTime time.Time
 	for _, trunkState := range s.TrunkStates {
 		if trunkState == nil {
 			continue
 		}
-		s := trunkState.GetStartTime()
+		s := trunkState.GetFromTime()
 		if s.IsZero() {
 			continue
 		}
@@ -113,21 +118,21 @@ func (s *ArtifactCollectionStateImpl[T]) GetStartTime() time.Time {
 	return startTime
 }
 
-// GetEndTime returns the time we know have collected ALL data up until
+// GetToTime returns the time we know have collected ALL data up until
 // (we may have collected some data after this - within the granularity period)
 // return the earliest end time of all the trunk states
-func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
+func (s *ArtifactCollectionStateImpl[T]) GetToTime() time.Time {
 	// find the earliest end time of all the trunk states
 	var endTime time.Time
 	for _, trunkState := range s.TrunkStates {
 		if trunkState == nil {
 			continue
 		}
-		if trunkState.GetEndTime().IsZero() {
+		if trunkState.GetToTime().IsZero() {
 			continue
 		}
-		if endTime.IsZero() || trunkState.GetEndTime().Before(endTime) {
-			endTime = trunkState.GetEndTime()
+		if endTime.IsZero() || trunkState.GetToTime().Before(endTime) {
+			endTime = trunkState.GetToTime()
 		}
 	}
 
@@ -135,7 +140,7 @@ func (s *ArtifactCollectionStateImpl[T]) GetEndTime() time.Time {
 }
 
 func (s *ArtifactCollectionStateImpl[T]) OnCollectionStarted(fromTime time.Time, toTime time.Time) error {
-	s.currentCollection = &collectionMetadata{
+	s.currentCollectionTimeRange = &timeRange{
 		from: fromTime,
 		to:   toTime,
 	}
@@ -232,7 +237,7 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 	if !ok || trunkState == nil {
 		// so we DO NOT have a collection state for this trunk
 		// create a new collection state
-		trunkState = NewTimeRangeSliceCollectionState(s.currentCollection, CollectionOrderChronological)
+		trunkState = NewTimeRangeSliceCollectionState(s.currentCollectionTimeRange, CollectionOrderChronological)
 		// set the granularity
 		trunkState.SetGranularity(s.granularity)
 
