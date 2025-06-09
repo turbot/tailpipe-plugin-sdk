@@ -59,7 +59,6 @@ func (s *timeRangeCollectionState) IsEmpty() bool {
 
 // ShouldCollect returns whether the object should be collected
 func (s *timeRangeCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
-
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we use start objects to track everything
 	if s.Granularity == 0 {

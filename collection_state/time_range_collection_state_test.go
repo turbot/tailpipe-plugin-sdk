@@ -88,7 +88,7 @@ func Test_timeRangeCollectionState_merge(t *testing.T) {
 			s := tt.state
 			s.merge(tt.other)
 
-			if equal, msg := timeRangeStateEquals(s, tt.want, 0); !equal {
+			if equal, msg := timeRangeStateEquals(s, tt.want); !equal {
 				t.Error(msg)
 			}
 		})
@@ -117,26 +117,26 @@ func buildTimeRangeState(fromStr, toStr string, granularity time.Duration, endOb
 	}
 }
 
-func timeRangeStateEquals(actual, expected *timeRangeCollectionState, index int) (bool, string) {
+func timeRangeStateEquals(actual, expected *timeRangeCollectionState) (bool, string) {
 	if !actual.From.Equal(expected.From) {
-		return false, fmt.Sprintf("range[%v].From = %v, want %v", index, actual.From, expected.From)
+		return false, fmt.Sprintf("From = %v, want %v", actual.From, expected.From)
 	}
 	if !actual.To.Equal(expected.To) {
-		return false, fmt.Sprintf("range[%v].To = %v, want %v", index, actual.To, expected.To)
+		return false, fmt.Sprintf("To = %v, want %v", actual.To, expected.To)
 	}
 	if len(actual.EndObjects) != len(expected.EndObjects) {
-		return false, fmt.Sprintf("range[%v].EndObjects length = %v, want %v", index, len(actual.EndObjects), len(expected.EndObjects))
+		return false, fmt.Sprintf("EndObjects length = %v, want %v", len(actual.EndObjects), len(expected.EndObjects))
 	}
 	for k := range expected.EndObjects {
 		if _, ok := actual.EndObjects[k]; !ok {
-			return false, fmt.Sprintf("range[%v].EndObjects missing key %v", index, k)
+			return false, fmt.Sprintf("EndObjects missing key %v", k)
 		}
 	}
 	if actual.Granularity != expected.Granularity {
-		return false, fmt.Sprintf("range[%v].Granularity = %v, want %v", index, actual.Granularity, expected.Granularity)
+		return false, fmt.Sprintf("Granularity = %v, want %v", actual.Granularity, expected.Granularity)
 	}
 	if actual.CollectionOrder != expected.CollectionOrder {
-		return false, fmt.Sprintf("range[%v].CollectionOrder = %v, want %v", index, actual.CollectionOrder, expected.CollectionOrder)
+		return false, fmt.Sprintf("CollectionOrder = %v, want %v", actual.CollectionOrder, expected.CollectionOrder)
 	}
 	return true, ""
 }

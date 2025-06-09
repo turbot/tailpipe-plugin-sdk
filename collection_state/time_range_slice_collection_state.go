@@ -114,6 +114,10 @@ func (t *TimeRangeSliceCollectionState) GetToTime() time.Time {
 }
 
 func (t *TimeRangeSliceCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
+	// if the timestamp is outside the current collection time range, we should not collect
+	if t.currentCollectionTimeRange != nil && !t.currentCollectionTimeRange.Contains(timestamp) {
+		return false
+	}
 	// get the active range for this timestamp
 	// this will either return the current active range, or create a new one if needed
 	// (it also checks whether the current active range has joined with the next range and is so sets the active range to the next range)
@@ -146,51 +150,34 @@ func (t *TimeRangeSliceCollectionState) OnCollected(id string, timestamp time.Ti
 // If there is no active range, it creates a new one for the timestamp.
 // If the active range has joined with the next range, it updates the active range to the next range.
 func (t *TimeRangeSliceCollectionState) updateActiveRange(timestamp time.Time) {
-	// check whether we currently have an active range, i.e. we have already started collection
+	// get the range for the timestamp
+	rangeForTimestamp := t.rangeForTime(timestamp)
+
+	// if we have an active range, check whether a different range contains the timestamp - if so update it
 	if t.activeRange != nil {
-		// check the all subsequent ranges to see if they contains this timestamp
-		// TODO maybe do not worry about ordering ranges - just assume after compact they will be correct
-		// TODO ensure always compact before save
-		// e.g.
-		//
-		// #1 we may have no data from 1-5th, a range on 2nd and 4th, now we're collecting 1st-5th so active range starts at 1st
-		// but first data is 5th
-		//
-		// | 1st (active) | 2nd  (empty range) | 3rd | 4th (empty range) | 5th |
-		//
-		// we just extend initial range to 5th and compact will handle
-		//
-		// #2 we may have no data from 1-3rd, a range on 2nd and 4th, now we're collecting 1st-5th so active range starts at 1st
-		// (first data is 4th)
-		//
-		// | 1st (active) | 2nd  (empty range) | 3rd | 4th (range with data) | 5th |
-		//
-		// updateActiveRange should search forward and find that timestamp 4th is within that range and set it to active range
-		// compact should merge ALL ranges from colection from-to time, so it will merge the 1st, 2nd and 4th ranges into one
-		///
-		// search forwards until either:
-		// 1. we find a range that contains the timestamp - that is the new active range. The compaction will merge all ranges
-		// 2. we reach the end of the list of time ranges - in which case we use the existing active range
-		// 3. we find a range that starts after the timestamp - in which case we use the existing active range
-		// TODO just use rangeForTime here!
-		//  if so we need to change rangeForTime to not aleways create a new range, if none found - either accept options or just make calling code create
-		nextRange := t.getNextRange(t.activeRange)
-		if nextRange != nil {
-			if nextRange.Contains(timestamp) {
-				// set the end time of the active range to the start time of the next range so we merge them next time we
-				// compact the state
-				t.activeRange.setEndTime(nextRange.GetFromTime())
-				// use the next range as the active
-				t.activeRange = nextRange
-			}
+		if rangeForTimestamp != nil && rangeForTimestamp != t.activeRange {
+			slog.Info("Updating active range for time", "timestamp", timestamp, "active range end time", t.activeRange.GetToTime(), "range for timestamp start time", rangeForTimestamp.GetFromTime())
+			// if the range for the timestamp is different from the active range, we need to update the active range
+			// set the end time of the active range to the start time of the next range so we merge them next time we
+			// compact the state
+			t.activeRange.setEndTime(rangeForTimestamp.GetFromTime())
+			// use the next range as the active
+			t.activeRange = rangeForTimestamp
 		}
-	} else {
-		// we have no active range - this is the beginning of a collection
-		// find the range for this timestamp
-		// NOTE: there may already be ranges in the state - as we may  have loaded an existing
-		// (note - this creates a new range if the timestamp is not contained in any existing range)
-		t.activeRange = t.rangeForTime(timestamp)
+		return
 	}
+
+	// so we have no active range - did we find a range for the timestamp? If not, create a new one
+	if rangeForTimestamp == nil {
+		// no range for the timestamp - create a new one
+		rangeForTimestamp = t.addRange(timestamp)
+		slog.Info("Created new active range for time", "timestamp", timestamp, "active range start time", rangeForTimestamp.GetFromTime(), "active range end time", rangeForTimestamp.GetToTime())
+	} else {
+		slog.Info("Found existing active range for time", "timestamp", timestamp, "active range start time", rangeForTimestamp.GetFromTime(), "active range end time", rangeForTimestamp.GetToTime())
+	}
+
+	// now update the active range to the range for the timestamp
+	t.activeRange = rangeForTimestamp
 }
 
 // compact merges adjacent time ranges that can be merged
@@ -258,8 +245,7 @@ func (t *TimeRangeSliceCollectionState) compact() {
 	return
 }
 
-// rangeForTime returns the index of the time range that contains the given timestamp
-// if no existing range contains the timestamp, a new range is created and added into the list and its index is returned
+// rangeForTime returns the index of the time range that contains the given timestamp or nil if no such range exists.
 func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) *timeRangeCollectionState {
 	for _, r := range t.TimeRanges {
 		if r.Contains(timestamp) {
@@ -268,10 +254,7 @@ func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) *timeR
 		}
 		slog.Info("Range does not contain time", "timestamp", timestamp, "range From", r.From, "range TO", r.To)
 	}
-
-	// otherwise, add new range
-	slog.Info("No existing range for time, calling addRange", "timestamp", timestamp)
-	return t.addRange(timestamp)
+	return nil
 }
 
 // addRange creates a new time range for the given timestamp and adds it to the collection in the correct position

@@ -1,13 +1,14 @@
 package collection_state
 
 import (
-	"github.com/turbot/go-kit/helpers"
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/turbot/go-kit/helpers"
 )
 
-func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
+func TestTimeRangeSliceCollectionState_GetEndTime(t *testing.T) {
 	type fields struct {
 		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
@@ -65,7 +66,7 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
+		t.Run(tt.name, func(t1 *testing.T) {
 			t := &TimeRangeSliceCollectionState{
 				TimeRanges:  tt.fields.TimeRanges,
 				Granularity: tt.fields.Granularity,
@@ -78,7 +79,7 @@ func TestTimeRangeSliceCollectionState_GetEndTime(t1 *testing.T) {
 	}
 }
 
-func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
+func TestTimeRangeSliceCollectionState_GetStartTime(t *testing.T) {
 	type fields struct {
 		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
@@ -136,7 +137,7 @@ func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
+		t.Run(tt.name, func(t1 *testing.T) {
 			t := &TimeRangeSliceCollectionState{
 				TimeRanges:  tt.fields.TimeRanges,
 				Granularity: tt.fields.Granularity,
@@ -149,7 +150,7 @@ func TestTimeRangeSliceCollectionState_GetStartTime(t1 *testing.T) {
 	}
 }
 
-func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
+func TestTimeRangeSliceCollectionState_IsEmpty(t *testing.T) {
 	type fields struct {
 		TimeRanges  []*timeRangeCollectionState
 		Granularity time.Duration
@@ -212,7 +213,7 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t1 *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t1.Run(tt.name, func(t1 *testing.T) {
+		t.Run(tt.name, func(t1 *testing.T) {
 			t := &TimeRangeSliceCollectionState{
 				TimeRanges:  tt.fields.TimeRanges,
 				Granularity: tt.fields.Granularity,
@@ -484,7 +485,7 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 					t.Errorf("compact() missing range at index %v", i)
 					continue
 				}
-				if equal, msg := timeRangeStateEquals(tt.state.TimeRanges[i], expected, i); !equal {
+				if equal, msg := timeRangeStateEquals(tt.state.TimeRanges[i], expected); !equal {
 					t.Error(msg)
 				}
 			}
@@ -492,11 +493,13 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 	}
 }
 
-func TestTimeRangeSliceCollectionState(t *testing.T) {
-	// 'to' defualts to 'now'
+// TestTimeRangeSliceCollectionState_emulate_collection si,ulates a collection process then verifies the
+// resulting collection state
+func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
+	// 'to' defaults to 'now' (2025-05-10 12:00:00 UTC)
 	defaultTo := time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC)
 	// 'from' defaults to last 7 days
-	defaultFrom := defaultTo.Add(-time.Hour * 24 * 7) // default from 7 days before defaultTo
+	defaultFrom := time.Date(2025, 5, 3, 12, 0, 0, 0, time.UTC)
 	granularity := time.Hour
 
 	tests := []struct {
@@ -511,24 +514,28 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 		{
 			name:  "First Collection - Defaults (No Parameters)",
 			state: nil,
+			from:  defaultFrom,
+			to:    defaultTo,
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", granularity, "20250510_120000.txt"),
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", granularity),
 			},
 		},
 		{
 			name:  "First Collection - Default From, Custom To",
 			state: nil,
+			from:  defaultFrom,
 			to:    time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-05 00:00:00", granularity, "20250505_000000.txt"),
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-05 00:00:00", granularity),
 			},
 		},
 		{
 			name:  "First Collection - Custom From, Default To",
 			state: nil,
 			from:  time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+			to:    defaultTo,
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-05-01 00:00:00", "2025-05-10 12:00:00", granularity, "20250510_120000.txt"),
+				buildTimeRangeState("2025-05-01 00:00:00", "2025-05-10 12:00:00", granularity),
 			},
 		},
 		{
@@ -537,7 +544,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			from:  time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			to:    time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-05-01 00:00:00", "2025-05-05 00:00:00", granularity, "20250505_000000.txt"),
+				buildTimeRangeState("2025-05-01 00:00:00", "2025-05-05 00:00:00", granularity),
 			},
 		},
 		{
@@ -549,7 +556,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			from: time.Date(2025, 04, 26, 0, 0, 0, 0, time.UTC),
 			to:   defaultTo,
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-10 12:00:00", granularity, "20250510_120000.txt"),
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-10 12:00:00", granularity),
 			},
 		},
 		{
@@ -559,7 +566,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:    time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt"),
-				buildTimeRangeState("2025-04-28 00:00:00", "2025-05-03 00:00:00", granularity, "20250503_000000.txt"),
+				buildTimeRangeState("2025-04-28 00:00:00", "2025-05-03 00:00:00", granularity),
 			},
 		},
 		{
@@ -568,7 +575,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			from:  time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
 			to:    time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-03 00:00:00", granularity, "20250503_000000.txt"),
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-03 00:00:00", granularity),
 			},
 		},
 		{
@@ -577,7 +584,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			from:  time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
 			to:    time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-04-15 00:00:00", "2025-05-01 00:00:00", granularity, "20250501_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-05-01 00:00:00", granularity),
 			},
 		},
 		{
@@ -597,7 +604,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			from: time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-01 00:00:00", granularity, "20250501_000000.txt"),
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-01 00:00:00", granularity),
 			},
 		},
 		{
@@ -634,7 +641,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			from: time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-03-25 00:00:00", "2025-04-25 00:00:00", granularity, "20250425_000000.txt"),
+				buildTimeRangeState("2025-03-25 00:00:00", "2025-04-25 00:00:00", granularity),
 			},
 		},
 		{
@@ -658,7 +665,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			from: time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC),
 			to:   time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
-				buildTimeRangeState("2025-03-15 00:00:00", "2025-03-25 00:00:00", granularity, "20250325_000000.txt"),
+				buildTimeRangeState("2025-03-15 00:00:00", "2025-03-25 00:00:00", granularity),
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
 				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
 			},
@@ -674,7 +681,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			expectedRanges: []*timeRangeCollectionState{
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
 				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
-				buildTimeRangeState("2025-04-25 00:00:00", "2025-05-01 00:00:00", granularity, "20250501_000000.txt"),
+				buildTimeRangeState("2025-04-25 00:00:00", "2025-05-01 00:00:00", granularity),
 			},
 		},
 		{
@@ -687,7 +694,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
-				buildTimeRangeState("2025-04-15 00:00:00", "2025-05-10 12:00:00", granularity, "20250510_120000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-05-10 12:00:00", granularity),
 			},
 		},
 		{
@@ -700,7 +707,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			to:   time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
 			expectedRanges: []*timeRangeCollectionState{
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
-				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-15 00:00:00", granularity, "20250415_000000.txt"),
+				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-15 00:00:00", granularity),
 				buildTimeRangeState("2025-04-20 00:00:00", "2025-04-27 00:00:00", granularity, "20250427_000000.txt"),
 			},
 		},
@@ -730,7 +737,7 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 			expectedRanges: []*timeRangeCollectionState{
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
 				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
-				buildTimeRangeState("2025-04-23 00:00:00", "2025-04-24 00:00:00", granularity, "20250424_000000.txt"),
+				buildTimeRangeState("2025-04-23 00:00:00", "2025-04-24 00:00:00", granularity),
 				buildTimeRangeState("2025-04-25 00:00:00", "2025-04-30 00:00:00", granularity, "20250430_000000.txt"),
 			},
 		},
@@ -758,32 +765,297 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
 			},
 		},
+
+		{
+			name:      "First Collection - Defaults (No Parameters) - No Data",
+			state:     nil,
+			from:      defaultFrom,
+			to:        defaultTo,
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", granularity),
+			},
+		},
+		{
+			name:      "First Collection - Default From, Custom To - No Data",
+			state:     nil,
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			from:      defaultFrom,
+			to:        time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-05 00:00:00", granularity),
+			},
+		},
+		{
+			name:  "First Collection - Custom From, Default To",
+			state: nil,
+			from:  time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+			to:    defaultTo,
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 00:00:00", "2025-05-10 12:00:00", granularity),
+			},
+		},
+		{
+			name:      "First Collection - Custom From and To - No Data",
+			state:     nil,
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			from:      time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 5, 5, 0, 0, 0, 0, time.UTC),
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-05-01 00:00:00", "2025-05-05 00:00:00", granularity),
+			},
+		},
+		{
+			name: "One Existing Range - Defaults (No Parameters) - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt"),
+			),
+			// end time of range
+			from:      time.Date(2025, 04, 26, 0, 0, 0, 0, time.UTC),
+			to:        defaultTo,
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-10 12:00:00", granularity),
+			},
+		},
+		{
+			name:      "One Existing Range - Collection of Non-Adjacent Range - No Data",
+			state:     buildTimeRangeSliceState(granularity, buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt")),
+			from:      time.Date(2025, 4, 28, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt"),
+				buildTimeRangeState("2025-04-28 00:00:00", "2025-05-03 00:00:00", granularity),
+			},
+		},
+		{
+			name:      "One Existing Range - Collection of Adjacent Range - No Data",
+			state:     buildTimeRangeSliceState(granularity, buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt")),
+			from:      time.Date(2025, 4, 26, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 5, 3, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-03 00:00:00", granularity),
+			},
+		},
+		{
+			name:      "One Existing Range - Collection Encompasses Existing Range - No Data",
+			state:     buildTimeRangeSliceState(granularity, buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt")),
+			from:      time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-05-01 00:00:00", granularity),
+			},
+		},
+		{
+			name:      "One Existing Range - Collection Overlaps Beginning of Existing Range - No Data",
+			state:     buildTimeRangeSliceState(granularity, buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt")),
+			from:      time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 4, 20, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt"),
+			},
+		},
+		{
+			name: "One Existing Range - Collection Overlaps End of Existing Range - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", granularity, "20250426_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-01 00:00:00", granularity),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Collection Between Two Ranges - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Collection Overlapping End of First Range and Start of Second Range - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 5, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 4, 17, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Collection Encompassing Multiple Ranges - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", granularity, "20250412_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from:      time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-03-25 00:00:00", "2025-04-25 00:00:00", granularity),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Collection Partially Overlapping Multiple Ranges - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 5, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 4, 17, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Collection Before All Existing Ranges - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from:      time.Date(2025, 3, 15, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 3, 25, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-03-15 00:00:00", "2025-03-25 00:00:00", granularity),
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Collection After All Existing Ranges - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 25, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+				buildTimeRangeState("2025-04-25 00:00:00", "2025-05-01 00:00:00", granularity),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Default Collection Parameters - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 22, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 5, 10, 12, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-05-10 12:00:00", granularity),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Creating New Gap Between Ranges - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-20 00:00:00", "2025-04-27 00:00:00", granularity, "20250427_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-15 00:00:00", granularity),
+				buildTimeRangeState("2025-04-20 00:00:00", "2025-04-27 00:00:00", granularity, "20250427_000000.txt"),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Overlapping Only Some Ranges - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", granularity, "20250412_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from: time.Date(2025, 4, 5, 0, 0, 0, 0, time.UTC),
+			to:   time.Date(2025, 4, 11, 0, 0, 0, 0, time.UTC),
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-12 00:00:00", granularity, "20250412_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Creating Multiple New Gaps - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+				buildTimeRangeState("2025-04-25 00:00:00", "2025-04-30 00:00:00", granularity, "20250430_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 23, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 4, 24, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+				buildTimeRangeState("2025-04-23 00:00:00", "2025-04-24 00:00:00", granularity),
+				buildTimeRangeState("2025-04-25 00:00:00", "2025-04-30 00:00:00", granularity, "20250430_000000.txt"),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Exactly Adjacent to Multiple Ranges - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 4, 15, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			},
+		},
+		{
+			name: "Multiple Existing Ranges - Partial Overlap at Exact Boundaries - No Data",
+			state: buildTimeRangeSliceState(granularity,
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", granularity, "20250407_000000.txt"),
+				buildTimeRangeState("2025-04-15 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			),
+			from:      time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
+			to:        time.Date(2025, 4, 18, 0, 0, 0, 0, time.UTC),
+			emptyDays: []int{3, 4, 5, 6, 7, 8, 9},
+			expectedRanges: []*timeRangeCollectionState{
+				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-22 00:00:00", granularity, "20250422_000000.txt"),
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-
-			from := tt.from
-			if from.IsZero() {
-				from = defaultFrom
-			}
-			to := tt.to
-			if to.IsZero() {
-				to = defaultTo
-			}
-
 			// Initialize the state if not provided
 			if tt.state == nil {
-				tt.state = NewTimeRangeSliceCollectionState(&timeRange{from, to}, CollectionOrderChronological)
+				tt.state = NewTimeRangeSliceCollectionState(&timeRange{tt.from, tt.to}, CollectionOrderChronological)
 				tt.state.SetGranularity(granularity)
 			} else {
-				tt.state.OnCollectionStarted(from, to)
+				tt.state.OnCollectionStarted(tt.from, tt.to)
 			}
 			// convert emptyDays to a map for quick lookup
 			emptyDaysMap := helpers.SliceToLookup(tt.emptyDays)
 
 			// Simulate the collection process
-			for fileTime := from; !fileTime.After(to); fileTime = fileTime.Add(time.Minute) {
+			for fileTime := tt.from; !fileTime.After(tt.to); fileTime = fileTime.Add(time.Minute) {
 				if _, isEmpty := emptyDaysMap[fileTime.Day()]; isEmpty {
 					continue // Skip empty days
 				}
@@ -802,8 +1074,8 @@ func TestTimeRangeSliceCollectionState(t *testing.T) {
 				}
 			}
 
-			// Assume the collection completed successfully so compact
-			tt.state.compact()
+			// The collection completed successfully
+			tt.state.OnCollectionComplete()
 
 			// Check the number of ranges after compaction
 			if len(tt.state.TimeRanges) != len(tt.expectedRanges) {
@@ -840,5 +1112,319 @@ func buildTimeRangeSliceState(granularity time.Duration, ranges ...*timeRangeCol
 		Granularity:    granularity,
 		objectRangeMap: map[string]*timeRangeCollectionState{},
 		Order:          CollectionOrderChronological,
+	}
+}
+
+func TestTimeRangeSliceCollectionState_ShouldCollect(t *testing.T) {
+	type args struct {
+		state            *TimeRangeSliceCollectionState
+		granularity      time.Duration
+		activeRangeIndex int
+		from             time.Time
+		to               time.Time
+		objectTimestamp  time.Time
+		objectId         string
+	}
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "Should collect - no state, timestamp within collection time range",
+			args: args{
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				granularity:     time.Hour * 24,
+				objectTimestamp: time.Date(2025, 4, 15, 12, 0, 0, 0, time.UTC),
+				objectId:        "2025-04-15_120000.txt",
+			},
+			want: true,
+		},
+		{
+			name: "Should NOT collect - no state, timestamp outside collection time range",
+			args: args{
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				granularity:     time.Hour * 24,
+				objectTimestamp: time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC),
+				objectId:        "2025-05-01_000000.txt",
+			},
+			want: false,
+		},
+		{
+			name: "Should collect - timestamp within active range but not present in end objects",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, "20250407_000000.txt"),
+				),
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				objectTimestamp: time.Date(2025, 4, 07, 12, 0, 0, 0, time.UTC),
+				objectId:        "2025-04-07_120000.txt",
+				granularity:     time.Hour * 24,
+			},
+			want: true,
+		},
+		{
+			name: "Should NOT collect - timestamp within active range",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, "20250407_000000.txt"),
+				),
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				objectTimestamp: time.Date(2025, 4, 01, 12, 0, 0, 0, time.UTC),
+				objectId:        "2025-04-01_120000.txt",
+				granularity:     time.Hour * 24,
+			},
+			want: false,
+		},
+		{
+			name: "Should NOT collect - timestamp within active range but present in end objects",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, "20250407_000000.txt"),
+				),
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				objectTimestamp: time.Date(2025, 4, 7, 00, 0, 0, 0, time.UTC),
+				objectId:        "20250407_000000.txt",
+				granularity:     time.Hour * 24,
+			},
+			want: false,
+		},
+
+		{
+			name: "Should collect - timestamp within non active (2nd) range but not present in end objects",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, "20250407_000000.txt"),
+					buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", time.Hour*24, "20250412_000000.txt"),
+				),
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				objectTimestamp: time.Date(2025, 4, 12, 12, 0, 0, 0, time.UTC),
+				objectId:        "2025-04-12_120000.txt",
+				granularity:     time.Hour * 24,
+			},
+			want: true,
+		},
+		{
+			name: "Should NOT collect - timestamp within non active (2nd) range but present in end objects",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, "20250407_000000.txt"),
+					buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", time.Hour*24, "20250412_000000.txt"),
+				),
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				objectTimestamp: time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
+				objectId:        "20250412_000000.txt",
+				granularity:     time.Hour * 24,
+			},
+			want: false,
+		},
+		{
+			name: "Should NOT collect - timestamp within non active (2nd) range",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, "20250407_000000.txt"),
+					buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", time.Hour*24, "20250412_000000.txt"),
+				),
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				objectTimestamp: time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
+				objectId:        "2025-04-10_000000.txt",
+				granularity:     time.Hour * 24,
+			},
+			want: false,
+		},
+		{
+			name: "Should collect - timestamp within non active (3rd) range but not present in end objects",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-04 00:00:00", time.Hour*24, "20250407_000000.txt"),
+					buildTimeRangeState("2025-04-06 00:00:00", "2025-04-07 00:00:00", time.Hour*24, "20250407_000000.txt"),
+					buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", time.Hour*24, "20250412_000000.txt"),
+				),
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				objectTimestamp: time.Date(2025, 4, 12, 12, 0, 0, 0, time.UTC),
+				objectId:        "2025-04-12_120000.txt",
+				granularity:     time.Hour * 24,
+			},
+			want: true,
+		},
+		{
+			name: "Should NOT collect - timestamp within non active (3rd) range but present in end objects",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-04 00:00:00", time.Hour*24, "20250407_000000.txt"),
+					buildTimeRangeState("2025-04-06 00:00:00", "2025-04-07 00:00:00", time.Hour*24, "20250407_000000.txt"),
+					buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", time.Hour*24, "20250412_000000.txt"),
+				),
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				objectTimestamp: time.Date(2025, 4, 12, 0, 0, 0, 0, time.UTC),
+				objectId:        "20250412_000000.txt",
+				granularity:     time.Hour * 24,
+			},
+			want: false,
+		},
+		{
+			name: "Should NOT collect - timestamp within non active (3rd) range",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-04 00:00:00", time.Hour*24, "20250407_000000.txt"),
+					buildTimeRangeState("2025-04-06 00:00:00", "2025-04-07 00:00:00", time.Hour*24, "20250407_000000.txt"),
+					buildTimeRangeState("2025-04-10 00:00:00", "2025-04-12 00:00:00", time.Hour*24, "20250412_000000.txt"),
+				),
+				from:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
+				to:              time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC),
+				objectTimestamp: time.Date(2025, 4, 10, 0, 0, 0, 0, time.UTC),
+				objectId:        "2025-04-10_000000.txt",
+				granularity:     time.Hour * 24,
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t1 *testing.T) {
+
+			// Initialize the state if not provided
+			if tt.args.state == nil {
+				tt.args.state = NewTimeRangeSliceCollectionState(&timeRange{tt.args.from, tt.args.to}, CollectionOrderChronological)
+				tt.args.state.SetGranularity(tt.args.granularity)
+			} else {
+				tt.args.state.OnCollectionStarted(tt.args.from, tt.args.to)
+			}
+
+			if got := tt.args.state.ShouldCollect(tt.args.objectId, tt.args.objectTimestamp); got != tt.want {
+				t1.Errorf("ShouldCollect() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTimeRangeSliceCollectionState_updateActiveRange(t *testing.T) {
+	from := time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 4, 30, 0, 0, 0, 0, time.UTC)
+	type args struct {
+		timestamp   time.Time
+		granularity time.Duration
+		state       *TimeRangeSliceCollectionState
+	}
+	type want struct {
+		active    *timeRangeCollectionState
+		allRanges []*timeRangeCollectionState
+	}
+	tests := []struct {
+		name string
+		args args
+		want want
+	}{
+		{
+			name: "No existing ranges - check  initial active range",
+			args: args{
+				state:       buildTimeRangeSliceState(time.Hour * 24),
+				granularity: time.Hour * 24,
+			},
+			want: want{
+				active:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-01 00:00:00", time.Hour*24),
+				allRanges: []*timeRangeCollectionState{buildTimeRangeState("2025-04-01 00:00:00", "2025-04-01 00:00:00", time.Hour*24)},
+			},
+		},
+		{
+			name: "Existing range - extend active range",
+			args: args{
+				state:       buildTimeRangeSliceState(time.Hour*24, buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24)),
+				timestamp:   time.Date(2025, 4, 8, 0, 0, 0, 0, time.UTC),
+				granularity: time.Hour * 24,
+			},
+			// use original range time - the range will not be updated until OnCollected is called
+			want: want{
+				active:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24),
+				allRanges: []*timeRangeCollectionState{buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24)},
+			},
+		},
+		{
+			name: "Multiple ranges, timestamp in between ranges - extend	 initial active range",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24),
+					buildTimeRangeState("2025-04-03 00:00:00", "2025-04-04 00:00:00", time.Hour*24),
+					buildTimeRangeState("2025-04-06 00:00:00", "2025-04-07 00:00:00", time.Hour*24)),
+
+				timestamp:   time.Date(2025, 4, 9, 0, 0, 0, 0, time.UTC),
+				granularity: time.Hour * 24,
+			},
+			// use original range time - the range will not be updated until OnCollected is called
+			want: want{
+				active: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24),
+				allRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24),
+					buildTimeRangeState("2025-04-03 00:00:00", "2025-04-04 00:00:00", time.Hour*24),
+					buildTimeRangeState("2025-04-06 00:00:00", "2025-04-07 00:00:00", time.Hour*24),
+				},
+			},
+		},
+		{
+			name: "Multiple ranges, timestamp in 2nd range ranges - update active range and set original active range end time",
+			args: args{
+				state: buildTimeRangeSliceState(
+					time.Hour*24,
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24),
+					buildTimeRangeState("2025-04-03 00:00:00", "2025-04-04 00:00:00", time.Hour*24),
+					buildTimeRangeState("2025-04-06 00:00:00", "2025-04-07 00:00:00", time.Hour*24)),
+
+				timestamp:   time.Date(2025, 4, 3, 0, 0, 0, 0, time.UTC),
+				granularity: time.Hour * 24,
+			},
+			// use original range time - the range will not be updated until OnCollected is called
+			want: want{
+				active: buildTimeRangeState("2025-04-03 00:00:00", "2025-04-04 00:00:00", time.Hour*24),
+				allRanges: []*timeRangeCollectionState{
+					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-03 00:00:00", time.Hour*24),
+					buildTimeRangeState("2025-04-03 00:00:00", "2025-04-04 00:00:00", time.Hour*24),
+					buildTimeRangeState("2025-04-06 00:00:00", "2025-04-07 00:00:00", time.Hour*24),
+				},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t1 *testing.T) {
+			// call OnCollectionStarted to initialize the active range
+			tt.args.state.OnCollectionStarted(from, to)
+
+			// if there is a timesampe, update the active range
+			if !tt.args.timestamp.IsZero() {
+				tt.args.state.updateActiveRange(tt.args.timestamp)
+			}
+			// now check the active range
+			got := tt.args.state.activeRange
+			if equal, msg := timeRangeStateEquals(got, tt.want.active); !equal {
+				t1.Error(msg)
+			}
+			// check all ranges
+			if len(tt.args.state.TimeRanges) != len(tt.want.allRanges) {
+				t1.Errorf("Expected %d ranges, got %d", len(tt.want.allRanges), len(tt.args.state.TimeRanges))
+			}
+			for i, r := range tt.args.state.TimeRanges {
+				if equal, msg := timeRangeStateEquals(r, tt.want.allRanges[i]); !equal {
+					t1.Errorf("Range %d mismatch: %s", i, msg)
+				}
+			}
+		})
 	}
 }
