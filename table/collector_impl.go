@@ -16,7 +16,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
-type CollectorImpl[R types.RowStruct] struct {
+type CollectorImpl[R any] struct {
 	observable.PausableObservableImpl
 
 	source              row_source.RowSource

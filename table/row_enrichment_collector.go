@@ -24,7 +24,7 @@ const JSONLChunkSize = 10000
 // RowEnrichmentCollector is a generic implementation of the Collector interface
 // it is responsible for coordinating the collection process and reporting status
 // R is the type of the row struct
-type RowEnrichmentCollector[R types.RowStruct] struct {
+type RowEnrichmentCollector[R any] struct {
 	CollectorImpl[R]
 
 	table  Table[R]
@@ -46,7 +46,7 @@ type RowEnrichmentCollector[R types.RowStruct] struct {
 	headersMut sync.RWMutex
 }
 
-func NewRowEnrichmentCollector[R types.RowStruct](table Table[R]) *RowEnrichmentCollector[R] {
+func NewRowEnrichmentCollector[R any](table Table[R]) *RowEnrichmentCollector[R] {
 	return &RowEnrichmentCollector[R]{
 		table:     table,
 		rowBuffer: make([]any, 0, JSONLChunkSize),
@@ -239,11 +239,6 @@ func (c *RowEnrichmentCollector[R]) handleRowExtractedEvent(ctx context.Context,
 	if err != nil {
 		// call onRowError to update status with the row error, we do not return error to source
 		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeEnrichment, err, mappedRow)
-	}
-	// validate that the enriched row has required fields
-	if err = enrichedRow.Validate(); err != nil {
-		// call onRowError to update status with the row error, we do not return error to source
-		return c.onRowError(ctx, sourceLocation, error_types.RowOperationTypeValidation, err, enrichedRow)
 	}
 
 	// buffer the enriched row and write to JSON file if buffer is full

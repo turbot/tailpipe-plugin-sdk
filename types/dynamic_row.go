@@ -2,15 +2,12 @@ package types
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"golang.org/x/exp/maps"
-	"strings"
 	"time"
 
 	"github.com/rs/xid"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"github.com/turbot/tailpipe-plugin-sdk/error_types"
 	"github.com/turbot/tailpipe-plugin-sdk/schema"
 )
 
@@ -70,77 +67,78 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 	return nil
 }
 
-// TODO move all validation to the CLI https://github.com/turbot/tailpipe/issues/355
-// (one possible issue for this is that if a required field is missing and has not type, schema inference will fail - so maybe we also need to validate here)
-func (l *DynamicRow) Validate() error {
-	var missingFields []string
-	var invalidFields []string
-
-	// these fields are validated by CLI so we can ignore them
-	var excludedFromValidation = map[string]bool{
-		constants.TpIndex: true,
-		constants.TpDate:  true,
-	}
-
-	// only validate if there is no transform
-	var requiredFields []*schema.ColumnSchema
-
-	for _, column := range l.schema.Columns {
-		if column.Required && column.Transform == "" && !excludedFromValidation[column.ColumnName] {
-			requiredFields = append(requiredFields, column)
-		}
-	}
-	// Validate required fields
-	for _, column := range requiredFields {
-		val, ok := l.OutputColumns[column.ColumnName]
-		if !ok {
-			missingFields = append(missingFields, column.ColumnName)
-			continue
-		}
-
-		switch column.Type {
-		case "timestamp":
-			// if field is missing from output columns or invalid add to relevant collection
-			if err := l.validateTime(val); err != nil {
-				invalidFields = append(invalidFields, column.ColumnName)
-			}
-
-		default:
-			if val == "" {
-				missingFields = append(missingFields, column.ColumnName)
-			}
-			// TODO we need to move this to CLI as defaulting now happens there
-			// https://github.com/turbot/tailpipe/issues/364
-			// Special handling for tp_index - ensure lowercase
-			if column.ColumnName == constants.TpIndex {
-				l.OutputColumns[column.ColumnName] = strings.ToLower(val.(string))
-			}
-		}
-	}
-
-	if len(missingFields) > 0 || len(invalidFields) > 0 {
-		// return a RowErrorWithFields with the missing and invalid fields
-		return error_types.NewRowErrorWithFields(missingFields, invalidFields)
-	}
-
-	return nil
-}
-
-// validateTime validates the time field, return an error if time is missing or invalid
-func (l *DynamicRow) validateTime(t interface{}) error {
-	if t == nil {
-		return errors.New("time value is nil")
-	}
-	timeValue, ok := t.(time.Time)
-	if !ok {
-		return fmt.Errorf("time value is not a time.Time: %v", t)
-	}
-	if timeValue.IsZero() {
-		return errors.New("time value is zero")
-	}
-
-	return nil
-}
+//
+//// TODO move all validation to the CLI https://github.com/turbot/tailpipe/issues/355
+//// (one possible issue for this is that if a required field is missing and has not type, schema inference will fail - so maybe we also need to validate here)
+//func (l *DynamicRow) Validate() error {
+//	var missingFields []string
+//	var invalidFields []string
+//
+//	// these fields are validated by CLI so we can ignore them
+//	var excludedFromValidation = map[string]bool{
+//		constants.TpIndex: true,
+//		constants.TpDate:  true,
+//	}
+//
+//	// only validate if there is no transform
+//	var requiredFields []*schema.ColumnSchema
+//
+//	for _, column := range l.schema.Columns {
+//		if column.Required && column.Transform == "" && !excludedFromValidation[column.ColumnName] {
+//			requiredFields = append(requiredFields, column)
+//		}
+//	}
+//	// Validate required fields
+//	for _, column := range requiredFields {
+//		val, ok := l.OutputColumns[column.ColumnName]
+//		if !ok {
+//			missingFields = append(missingFields, column.ColumnName)
+//			continue
+//		}
+//
+//		switch column.Type {
+//		case "timestamp":
+//			// if field is missing from output columns or invalid add to relevant collection
+//			if err := l.validateTime(val); err != nil {
+//				invalidFields = append(invalidFields, column.ColumnName)
+//			}
+//
+//		default:
+//			if val == "" {
+//				missingFields = append(missingFields, column.ColumnName)
+//			}
+//			// TODO we need to move this to CLI as defaulting now happens there
+//			// https://github.com/turbot/tailpipe/issues/364
+//			// Special handling for tp_index - ensure lowercase
+//			if column.ColumnName == constants.TpIndex {
+//				l.OutputColumns[column.ColumnName] = strings.ToLower(val.(string))
+//			}
+//		}
+//	}
+//
+//	if len(missingFields) > 0 || len(invalidFields) > 0 {
+//		// return a RowErrorWithFields with the missing and invalid fields
+//		return error_types.NewRowErrorWithFields(missingFields, invalidFields)
+//	}
+//
+//	return nil
+//}
+//
+//// validateTime validates the time field, return an error if time is missing or invalid
+//func (l *DynamicRow) validateTime(t interface{}) error {
+//	if t == nil {
+//		return errors.New("time value is nil")
+//	}
+//	timeValue, ok := t.(time.Time)
+//	if !ok {
+//		return fmt.Errorf("time value is not a time.Time: %v", t)
+//	}
+//	if timeValue.IsZero() {
+//		return errors.New("time value is zero")
+//	}
+//
+//	return nil
+//}
 
 // MarshalJSON overrides JSON serialization to include the dynamic columns
 func (l *DynamicRow) MarshalJSON() ([]byte, error) {

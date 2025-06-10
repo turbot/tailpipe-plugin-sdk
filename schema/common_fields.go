@@ -1,11 +1,9 @@
 package schema
 
 import (
-	"fmt"
 	"strings"
 	"time"
 
-	"github.com/turbot/pipe-fittings/v2/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/constants"
 )
 
@@ -168,65 +166,6 @@ type CommonFields struct {
 	TpUsernames []string `json:"tp_usernames,omitempty"`
 }
 
-// Validate implements the Validatable interface and is used to validate that the required fields have been set
-// it can also be overridden by RowStruct implementations to perform additional validation - in this case
-// CommonFields.Validate() should be called first
-func (c *CommonFields) Validate() error {
-	var missingFields []string
-	var invalidFields []string
-	// ensure required fields are set
-	if c.TpID == "" {
-		missingFields = append(missingFields, constants.TpID)
-	}
-	if c.TpSourceType == "" {
-		missingFields = append(missingFields, constants.TpSourceType)
-	}
-	if c.TpIngestTimestamp.IsZero() {
-		missingFields = append(missingFields, constants.TpIngestTimestamp)
-	}
-	if c.TpTimestamp.IsZero() {
-		missingFields = append(missingFields, constants.TpTimestamp)
-	}
-	if c.TpTable == "" {
-		missingFields = append(missingFields, constants.TpTable)
-	}
-	if c.TpPartition == "" {
-		missingFields = append(missingFields, constants.TpPartition)
-	}
-	if c.TpIndex == "" {
-		missingFields = append(missingFields, constants.TpIndex)
-	} else {
-		// handles instances where tp_index is the same value with different casing (as seen on Azure data with subscription_id being either upper or lower case)
-		// when tp_index is differential in casing it causes data to not be set against the partition correctly
-		c.TpIndex = strings.ToLower(c.TpIndex)
-	}
-	if c.TpDate.IsZero() {
-		missingFields = append(missingFields, constants.TpDate)
-	}
-	// verify that the date is a date and not a datetime
-	if !c.TpDate.Equal(c.TpDate.Truncate(24 * time.Hour)) {
-		invalidFields = append(invalidFields, constants.TpDate)
-	}
-	var missingFieldsStr, invalidFieldsStr string
-	if len(missingFields) > 0 {
-		missingFieldsStr = fmt.Sprintf("missing required %s: %s", utils.Pluralize("field", len(missingFields)), strings.Join(missingFields, ", "))
-	}
-	if len(invalidFields) > 0 {
-		invalidFieldsStr = fmt.Sprintf("invalid fields: %s", strings.Join(invalidFields, ", "))
-	}
-	// Concatenate the messages without extra spaces
-	errorMsg := missingFieldsStr
-	if missingFieldsStr != "" && invalidFieldsStr != "" {
-		errorMsg += " "
-	}
-	errorMsg += invalidFieldsStr
-
-	if errorMsg != "" {
-		return fmt.Errorf("row validation failed: %s", errorMsg)
-	}
-	return nil
-}
-
 // InitialiseFromMap initializes a CommonFields struct using a source map
 func (c *CommonFields) InitialiseFromMap(source map[string]string) {
 	const timeFormat = time.RFC3339
@@ -361,7 +300,6 @@ func (c *CommonFields) AsMap() map[string]string {
 	return result
 }
 
-// TODO improve these descriptions https://github.com/turbot/tailpipe-plugin-sdk/issues/83
 var DefaultCommonFieldDescriptions = map[string]string{
 	constants.TpID:              "A unique identifier for the row.",
 	constants.TpSourceType:      "The name of the source that collected the row.",
