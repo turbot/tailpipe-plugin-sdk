@@ -52,6 +52,15 @@ func (l *DynamicRow) Enrich(tableSchema *schema.TableSchema, sourceEnrichmentFie
 		}
 	}
 
+	// build a map containing source columns, augmented with source metadata
+	// - this allows us to map any field which were/ extracted from the artifact name
+	for k, v := range sourceEnrichmentFields.Metadata {
+		if _, inSource := l.sourceColumns[k]; !inSource {
+			// if the column is not already in the source columns, add it
+			l.sourceColumns[k] = v
+		}
+	}
+
 	// now ask the schema to map the row for uas
 	outputColumns, err := tableSchema.MapRow(l.sourceColumns)
 	if err != nil {

@@ -1,6 +1,8 @@
 package artifact_source
 
 import (
+	"fmt"
+	"log/slog"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -70,7 +72,7 @@ func metadataSatisfiesFilters(metadata map[string]string, filters map[string]*fi
 }
 
 // getPathMetadata get the metadata from the given file path, based on the file layout
-// returns whether the path matches the layout pattern, and the medata map
+// returns whether the path matches the layout pattern, and the metadata map
 func getPathMetadata(targetPath, basePath string, layout string, isDir bool, g *grok.Grok) (bool, map[string]string, error) {
 	// remove the base path from the path
 	relPath, err := filepath.Rel(basePath, targetPath)
@@ -88,7 +90,8 @@ func getPathMetadata(targetPath, basePath string, layout string, isDir bool, g *
 	}
 	match, metadata, err := getMetadataFunc(g, relPath, layout)
 	if err != nil {
-		return false, nil, err
+		slog.Error("error extracting metadata from path '%s' using layout '%s': %v", relPath, strings.Replace(layout, "%", "%%", -1), err)
+		return false, nil, fmt.Errorf("error extracting metadata from path '%s': %w", relPath, err)
 	}
 
 	// convert the metadata to a string map
