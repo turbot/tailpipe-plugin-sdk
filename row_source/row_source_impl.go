@@ -188,7 +188,7 @@ func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.Pr
 // this updates the end time of the collection state to the collection `To` and saves the collection state
 func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 	if atomic.LoadInt32(&r.ErrorCount) > 0 {
-		slog.Info("OnCollectionComplete: Collection completed with errors - NOT setting end time of collcetion state to collection 'to' time as we may need to recollect some files")
+		slog.Info("OnCollectionComplete: Collection completed with errors - NOT setting end time of collection state to collection 'to' time as we may need to recollect some files")
 		return nil
 	}
 	if r.CollectionState == nil {
