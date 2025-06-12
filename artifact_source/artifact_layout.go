@@ -90,7 +90,7 @@ func getPathMetadata(targetPath, basePath string, layout string, isDir bool, g *
 	}
 	match, metadata, err := getMetadataFunc(g, relPath, layout)
 	if err != nil {
-		slog.Error("error extracting metadata from path '%s' using layout '%s': %v", relPath, strings.Replace(layout, "%", "%%", -1), err)
+		slog.Error(fmt.Sprintf("error extracting metadata from path '%s' using layout '%s': %v", relPath, strings.ReplaceAll(layout, "%", "%%"), err))
 		return false, nil, fmt.Errorf("error extracting metadata from path '%s': %w", relPath, err)
 	}
 
