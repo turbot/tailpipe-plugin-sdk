@@ -37,7 +37,7 @@ func RegisterCustomTable[T CustomTable](opts ...TableOption) {
 
 // RegisterTable registers a collector constructor with the factory
 // this is called from the package init function of the table implementation
-func RegisterTable[R types.RowStruct, T Table[R]]() {
+func RegisterTable[R any, T Table[R]]() {
 	t := utils.InstanceOf[T]()
 	collectorFunc := func() Collector {
 		return NewRowEnrichmentCollector[R](t)

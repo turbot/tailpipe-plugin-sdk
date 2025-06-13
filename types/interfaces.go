@@ -17,7 +17,3 @@ type Config interface {
 type DynamicTableConfig interface {
 	GetSchema() (*schema.TableSchema, error)
 }
-
-type RowStruct interface {
-	Validate() error
-}

@@ -23,7 +23,7 @@ type CustomTable interface {
 
 // Table is a generic interface representing a plugin table definition
 // R is the row struct type
-type Table[R types.RowStruct] interface {
+type Table[R any] interface {
 	// Identifier returns the table name
 	Identifier() string
 
