@@ -1,7 +1,6 @@
 package schema
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -482,7 +481,7 @@ func TestTableSchema_Validate(t *testing.T) {
 				Description: tt.fields.Description,
 				NullIf:      tt.fields.NullIf,
 			}
-			tt.wantErr(t, r.Validate(), fmt.Sprintf("Validate()"))
+			tt.wantErr(t, r.Validate(), "Validate()")
 		})
 	}
 }
