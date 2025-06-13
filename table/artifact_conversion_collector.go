@@ -297,7 +297,8 @@ func getCopyQuery(table, partition, destFile string, sourceColumns []string, tab
 	if len(tableSchema.Columns) > 0 {
 		for _, column := range tableSchema.Columns {
 			if column.Transform != "" {
-				// transforms are executed by the CLI JSONL-to-parquet conversion, so skip here
+				// add a select clause for the transformed column
+				selectClauses[column.ColumnName] = fmt.Sprintf(`%s as "%s"`, column.Transform, column.ColumnName)
 				continue
 			}
 

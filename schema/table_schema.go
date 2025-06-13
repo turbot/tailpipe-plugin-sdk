@@ -14,7 +14,7 @@ import (
 type TableSchema struct {
 	Name    string
 	Columns []*ColumnSchema
-	// optional list of source columns to include
+	// optional list of source columns match patterns to include in the table
 	MapFields []string
 	// the table description (optional)
 	Description string
@@ -155,6 +155,8 @@ func (r *TableSchema) isNullValue(c *ColumnSchema, v string) bool {
 	return v == nullValue
 }
 
+// Complete checks if the types for all columns is known and that no source fields m,ust be mapped
+// (if any types are unknown or any source fields are being mapped, we need to infer the full schema once we have some source data)
 func (r *TableSchema) Complete() bool {
 	return len(r.columnsWithNoType()) == 0 && len(r.MapFields) == 0
 }
@@ -302,8 +304,10 @@ func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
 	cloned := r.Clone()
 
 	for i, c := range cloned.Columns {
-		// set the source name to the column name
+		// set the source name to the column name - we have already mapped the source column
 		c.SourceName = c.ColumnName
+		// clear the transform as we have already applied it
+		c.Transform = ""
 		cloned.Columns[i] = c
 		for j, sf := range c.StructFields {
 			// set the source name to the column name
