@@ -21,7 +21,7 @@ type ColumnSchema struct {
 	ColumnName string
 	// DuckDB type for the column
 	Type string
-	// struct schema for for struct and struct[]
+	// struct schema for struct
 	StructFields []*ColumnSchema
 	// the column description (optional)
 	Description string
@@ -77,7 +77,7 @@ func (c *ColumnSchema) FullType() string {
 }
 
 func (c *ColumnSchema) Clone() *ColumnSchema {
-	return &ColumnSchema{
+	s := &ColumnSchema{
 		ColumnName:  c.ColumnName,
 		SourceName:  c.SourceName,
 		Type:        c.Type,
@@ -86,6 +86,12 @@ func (c *ColumnSchema) Clone() *ColumnSchema {
 		NullIf:      c.NullIf,
 		Transform:   c.Transform,
 	}
+	// clone struct fields
+	s.StructFields = make([]*ColumnSchema, len(c.StructFields))
+	for i, field := range c.StructFields {
+		s.StructFields[i] = field.Clone()
+	}
+	return s
 }
 
 func (c *ColumnSchema) structDef() string {

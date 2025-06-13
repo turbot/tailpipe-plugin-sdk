@@ -186,3 +186,302 @@ func Test_MergeWithCommonSchema(t *testing.T) {
 		})
 	}
 }
+
+func TestTableSchema_Validate(t *testing.T) {
+	type fields struct {
+		Name        string
+		Columns     []*ColumnSchema
+		MapFields   []string
+		Description string
+		NullIf      string
+	}
+	tests := []struct {
+		name    string
+		fields  fields
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "valid schema with required columns",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "id",
+						Type:       "integer",
+						Required:   true,
+					},
+					{
+						ColumnName: "name",
+						Type:       "varchar",
+						Required:   true,
+					},
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "valid schema with optional columns",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "id",
+						Type:       "integer",
+						Required:   true,
+					},
+					{
+						ColumnName: "description",
+						Type:       "varchar",
+						Required:   false,
+					},
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "invalid schema with optional column missing type",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "id",
+						Type:       "integer",
+						Required:   true,
+					},
+					{
+						ColumnName: "description",
+						Required:   false,
+					},
+				},
+			},
+			wantErr: func(t assert.TestingT, err error, msgAndArgs ...interface{}) bool {
+				return assert.ErrorContains(t, err, "column type must be specified if column is optional")
+			},
+		},
+		{
+			name: "invalid schema with invalid column type",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "id",
+						Type:       "invalid_type",
+						Required:   true,
+					},
+				},
+			},
+			wantErr: func(t assert.TestingT, err error, msgAndArgs ...interface{}) bool {
+				return assert.ErrorContains(t, err, "invalid column type")
+			},
+		},
+		{
+			name: "invalid schema with struct array type",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "data",
+						Type:       "struct[]",
+						Required:   true,
+					},
+				},
+			},
+			wantErr: func(t assert.TestingT, err error, msgAndArgs ...interface{}) bool {
+				return assert.ErrorContains(t, err, "invalid column type")
+			},
+		},
+		{
+			name: "valid schema with array type",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "tags",
+						Type:       "varchar[]",
+						Required:   true,
+					},
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "valid schema with struct type",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "metadata",
+						Type:       "struct",
+						Required:   true,
+						StructFields: []*ColumnSchema{
+							{
+								ColumnName: "created_at",
+								Type:       "timestamp",
+								Required:   true,
+							},
+						},
+					},
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "invalid schema with invalid struct field type",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "metadata",
+						Type:       "struct",
+						Required:   true,
+						StructFields: []*ColumnSchema{
+							{
+								ColumnName: "created_at",
+								Type:       "invalid_type",
+								Required:   true,
+							},
+						},
+					},
+				},
+			},
+			wantErr: func(t assert.TestingT, err error, msgAndArgs ...interface{}) bool {
+				return assert.ErrorContains(t, err, "invalid column type")
+			},
+		},
+		{
+			name: "valid schema with nested struct fields",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "user",
+						Type:       "struct",
+						Required:   true,
+						StructFields: []*ColumnSchema{
+							{
+								ColumnName: "name",
+								Type:       "varchar",
+								Required:   true,
+							},
+							{
+								ColumnName: "address",
+								Type:       "struct",
+								Required:   true,
+								StructFields: []*ColumnSchema{
+									{
+										ColumnName: "street",
+										Type:       "varchar",
+										Required:   true,
+									},
+									{
+										ColumnName: "city",
+										Type:       "varchar",
+										Required:   true,
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "invalid schema with optional struct field missing type",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "metadata",
+						Type:       "struct",
+						Required:   true,
+						StructFields: []*ColumnSchema{
+							{
+								ColumnName: "created_at",
+								Required:   false,
+							},
+						},
+					},
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "valid schema with struct field source name",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "metadata",
+						Type:       "struct",
+						Required:   true,
+						StructFields: []*ColumnSchema{
+							{
+								ColumnName: "created_at",
+								SourceName: "createdAt",
+								Type:       "timestamp",
+								Required:   true,
+							},
+						},
+					},
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "valid schema with struct field transform",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "metadata",
+						Type:       "struct",
+						Required:   true,
+						StructFields: []*ColumnSchema{
+							{
+								ColumnName: "created_at",
+								Transform:  "to_timestamp(created_at)",
+								Type:       "timestamp",
+								Required:   true,
+							},
+						},
+					},
+				},
+			},
+			wantErr: assert.NoError,
+		},
+		{
+			name: "valid schema with struct field array type",
+			fields: fields{
+				Name: "test_table",
+				Columns: []*ColumnSchema{
+					{
+						ColumnName: "metadata",
+						Type:       "struct",
+						Required:   true,
+						StructFields: []*ColumnSchema{
+							{
+								ColumnName: "tags",
+								Type:       "varchar[]",
+								Required:   true,
+							},
+						},
+					},
+				},
+			},
+			wantErr: assert.NoError,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &TableSchema{
+				Name:        tt.fields.Name,
+				Columns:     tt.fields.Columns,
+				MapFields:   tt.fields.MapFields,
+				Description: tt.fields.Description,
+				NullIf:      tt.fields.NullIf,
+			}
+			tt.wantErr(t, r.Validate(), "Validate()")
+		})
+	}
+}

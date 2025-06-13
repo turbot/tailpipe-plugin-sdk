@@ -8,23 +8,38 @@ import (
 
 // CustomTableImpl is a generic struct representing a plugin table definition with a format
 type CustomTableImpl struct {
+	// the full schema, i.e. common fields AND any custom schema,
+	// defined either in the plugin config or by the predefined custom table
 	Schema *schema.TableSchema
+	// the custom schema only
+	customTableSchema *schema.TableSchema
 	// the format
 	Format formats.Format
 }
 
 // Initialize sets the format and schema for the table
-func (c *CustomTableImpl) Initialize(format formats.Format, customTableSchema *schema.TableSchema) {
+func (c *CustomTableImpl) Initialize(format formats.Format, customTableSchema *schema.TableSchema) error {
 	c.Format = format
+	c.customTableSchema = customTableSchema
 	// merge the custom table schema with the common fields schema
 	c.Schema = customTableSchema.MergeWithCommonSchema()
+
 	// ensure the schema types are normalised to the lower case
 	c.Schema.NormaliseColumnTypes()
+	// validate the schema
+	return c.Schema.Validate()
 }
 
 // GetSchema implements the CustomTable interface
-func (c *CustomTableImpl) GetSchema() (*schema.TableSchema, error) {
-	return c.Schema, nil
+// and returns the full schema for the table, which includes common fields
+func (c *CustomTableImpl) GetSchema() *schema.TableSchema {
+	return c.Schema
+}
+
+// GetCustomSchema returns custom schema defined in the plugin config or by the predefined custom table
+// This DOES NOT include common fields
+func (c *CustomTableImpl) GetCustomSchema() *schema.TableSchema {
+	return c.customTableSchema
 }
 
 func (c *CustomTableImpl) EnrichRow(row *types.DynamicRow, sourceEnrichmentFields schema.SourceEnrichment) (*types.DynamicRow, error) {

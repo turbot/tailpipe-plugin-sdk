@@ -101,10 +101,8 @@ func (c *RowEnrichmentCollector[R]) Identifier() string {
 func (c *RowEnrichmentCollector[R]) GetSchema() (*schema.TableSchema, error) {
 	// if the table is a custom table, ask it for its schema
 	if ct, ok := any(c.table).(CustomTable); ok {
-		s, err := ct.GetSchema()
-		if err != nil {
-			return nil, fmt.Errorf("error getting schema from custom table: %w", err)
-		}
+		s := ct.GetSchema()
+
 		// NOTE: for row enrichment custom tables, the SourceColumn field is used for mapping _within_ the plugin,
 		// not by the CLI for JSONL conversion
 		// DynamicRow.Enrich executes the source-output field name mapping by calling schema.MapRow

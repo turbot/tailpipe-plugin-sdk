@@ -94,10 +94,8 @@ func (c *ArtifactConversionCollector) Identifier() string {
 
 // GetSchema returns the schema of the table
 func (c *ArtifactConversionCollector) GetSchema() (*schema.TableSchema, error) {
-	s, err := c.table.GetSchema()
-	if err != nil {
-		return nil, err
-	}
+	s := c.table.GetSchema()
+
 	// we have already mapped source fields to output fields, so clear the source fields
 	return s.WithSourceFieldsCleared(), nil
 }
@@ -124,7 +122,7 @@ func (c *ArtifactConversionCollector) initDb() (*sql.DB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening duckdb: %w", err)
 	}
-	// instrall JSON extension
+	// install JSON extension
 	if _, err := db.Exec("install 'json'; load 'json';"); err != nil {
 		return nil, fmt.Errorf("error installing json extension: %w", err)
 	}
@@ -197,8 +195,14 @@ func (c *ArtifactConversionCollector) executeConversionQuery(e *events.ArtifactD
 
 	columns := strings.Split(columnsStr, ",")
 
+	// Get the custom table schema to use for the copy query
+	// NOTE: we get the custom schema from the table - this will be populated with just the custom schema defined either
+	// in the table config or the custom table definition
+	// (The full schema included common fields, but we do not want to include those in the copy query)
+	schema := c.table.GetCustomSchema()
+
 	// Now that we have the columns, generate and execute the copy query
-	copyQuery := getCopyQuery(c.req.TableName, c.req.PartitionName, destFile, columns, c.req.CustomTableSchema, time.Now(), e.Info.SourceEnrichment)
+	copyQuery := getCopyQuery(c.req.TableName, c.req.PartitionName, destFile, columns, schema, time.Now(), e.Info.SourceEnrichment)
 
 	// Execute copy query and get row count
 	row := c.db.QueryRow(copyQuery)
@@ -293,7 +297,8 @@ func getCopyQuery(table, partition, destFile string, sourceColumns []string, tab
 	if len(tableSchema.Columns) > 0 {
 		for _, column := range tableSchema.Columns {
 			if column.Transform != "" {
-				// transforms are executed by the CLI JSONL-to-parquet conversion, so skip here
+				// add a select clause for the transformed column
+				selectClauses[column.ColumnName] = fmt.Sprintf(`%s as "%s"`, column.Transform, column.ColumnName)
 				continue
 			}
 
@@ -302,6 +307,11 @@ func getCopyQuery(table, partition, destFile string, sourceColumns []string, tab
 			if sourceColumn == "" {
 				// if no source column is specified, use the column name
 				sourceColumn = column.ColumnName
+			}
+			// now verify that source column is present in the sourceColumnMap
+			if _, ok := sourceColumnMap[sourceColumn]; !ok {
+				// skip this column	if it is not present in the source data
+				continue
 			}
 
 			selectClauses[column.ColumnName] = fmt.Sprintf(`"%s" as "%s"`, sourceColumn, column.ColumnName)

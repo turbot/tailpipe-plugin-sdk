@@ -56,42 +56,13 @@ func ParseParquetTag(tag string) (*ParquetTag, error) {
 	return pt.validate()
 }
 
-// Define valid DuckDB types using a struct{} map for efficient membership checking
-var validDuckDBTypes = map[string]struct{}{
-	// TODO #schema STRUCT/LIST/ https://github.com/turbot/tailpipe-plugin-sdk/issues/21
-	// TODO #schema test all types for parquet conversion https://github.com/turbot/tailpipe-plugin-sdk/issues/22
-
-	"boolean":   {},
-	"tinyint":   {},
-	"smallint":  {},
-	"integer":   {},
-	"bigint":    {},
-	"utinyint":  {},
-	"usmallint": {},
-	"uinteger":  {},
-	"ubigint":   {},
-	"float":     {},
-	"double":    {},
-	"varchar":   {},
-	"blob":      {},
-	"date":      {},
-	"timestamp": {},
-	"time":      {},
-	"interval":  {},
-	"decimal":   {},
-	"uuid":      {},
-	"json":      {},
-}
-
 func (t *ParquetTag) validate() (*ParquetTag, error) {
-	// TODO #validation validate name is duckdb compliant? https://github.com/turbot/tailpipe-plugin-sdk/issues/70
+	if t.Name != "" && !IsValidColumnName(t.Name) {
+		return nil, fmt.Errorf("invalid parquet tag: 'name' must be a valid DuckDB column name")
+	}
 
-	if t.Type != "" {
-		// Convert type to lower case for case-insensitive comparison
-		normalizedType := strings.ToLower(t.Type)
-		if _, valid := validDuckDBTypes[normalizedType]; !valid {
-			return nil, fmt.Errorf("invalid parquet tag: 'type' must be one of %v", maps.Keys(validDuckDBTypes))
-		}
+	if t.Type != "" && !IsValidColumnType(t.Type) {
+		return nil, fmt.Errorf("invalid parquet tag: 'type' must be one of %v", maps.Keys(validDuckDBTypes))
 	}
 	// If everything is valid, return the ParquetTag instance
 	return t, nil

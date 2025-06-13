@@ -13,8 +13,9 @@ import (
 // CustomTable is an interface representing a plugin table definition with a format
 type CustomTable interface {
 	Table[*types.DynamicRow]
-	Initialize(formats.Format, *schema.TableSchema)
-	GetSchema() (*schema.TableSchema, error)
+	Initialize(formats.Format, *schema.TableSchema) error
+	GetSchema() *schema.TableSchema
+	GetCustomSchema() *schema.TableSchema
 	GetDefaultFormat() formats.Format
 	GetTableDefinition() *schema.TableSchema
 	GetFormat() formats.Format

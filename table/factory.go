@@ -267,7 +267,10 @@ func (f *TableFactory) getCustomTableCollector(req *types.CollectRequest, custom
 		tableDef = req.CustomTableSchema
 	}
 	// now initialize the custom table with the format and table definition
-	customTable.Initialize(format, tableDef)
+	err = customTable.Initialize(format, tableDef)
+	if err != nil {
+		return nil, fmt.Errorf("error initializing custom table '%s': %w", req.TableName, err)
+	}
 
 	// now create the appropriate type of collector
 	if FormatSupportsDirectConversion(format.Identifier()) {
@@ -346,11 +349,14 @@ func (f *TableFactory) populateSchemas() (err error) {
 
 		tableDef := customTable.GetTableDefinition()
 		// initialize the table
-		customTable.Initialize(customTable.GetDefaultFormat(), tableDef)
+		err := customTable.Initialize(customTable.GetDefaultFormat(), tableDef)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("error initializing custom table '%s': %w", customTable.Identifier(), err))
+			continue
+		}
 		// now get the schema
-		s, _ := customTable.GetSchema()
 		// only add the schema if it is not nil (which would not be expected - as we should at least have the common row schema)
-		if s != nil {
+		if s := customTable.GetSchema(); s != nil {
 			f.schemaMap[customTable.Identifier()] = s
 		}
 	}

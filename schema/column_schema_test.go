@@ -2,6 +2,8 @@ package schema
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestNormaliseColumnTypes(t *testing.T) {
@@ -347,6 +349,166 @@ func TestNormaliseComplexType(t *testing.T) {
 			result := cs.normaliseType(tt.input)
 			if result != tt.expected {
 				t.Errorf("normaliseType() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}
+
+func TestColumnSchema_Clone(t *testing.T) {
+	type fields struct {
+		SourceName   string
+		ColumnName   string
+		Type         string
+		StructFields []*ColumnSchema
+		Description  string
+		Required     bool
+		NullIf       string
+		Transform    string
+	}
+	tests := []struct {
+		name   string
+		fields fields
+		want   *ColumnSchema
+	}{
+		{
+			name: "basic fields",
+			fields: fields{
+				SourceName:  "source1",
+				ColumnName:  "col1",
+				Type:        "varchar",
+				Description: "test description",
+				Required:    true,
+				NullIf:      "null",
+				Transform:   "upper",
+			},
+			want: &ColumnSchema{
+				SourceName:  "source1",
+				ColumnName:  "col1",
+				Type:        "varchar",
+				Description: "test description",
+				Required:    true,
+				NullIf:      "null",
+				Transform:   "upper",
+			},
+		},
+		{
+			name: "with struct fields",
+			fields: fields{
+				SourceName: "source2",
+				ColumnName: "col2",
+				Type:       "struct",
+				StructFields: []*ColumnSchema{
+					{
+						ColumnName: "nested1",
+						Type:       "varchar",
+					},
+					{
+						ColumnName: "nested2",
+						Type:       "integer",
+					},
+				},
+			},
+			want: &ColumnSchema{
+				SourceName: "source2",
+				ColumnName: "col2",
+				Type:       "struct",
+				StructFields: []*ColumnSchema{
+					{
+						ColumnName: "nested1",
+						Type:       "varchar",
+					},
+					{
+						ColumnName: "nested2",
+						Type:       "integer",
+					},
+				},
+			},
+		},
+		{
+			name:   "empty fields",
+			fields: fields{},
+			want:   &ColumnSchema{},
+		},
+		{
+			name: "complex nested structure",
+			fields: fields{
+				SourceName: "source3",
+				ColumnName: "col3",
+				Type:       "struct",
+				StructFields: []*ColumnSchema{
+					{
+						ColumnName: "nested1",
+						Type:       "struct",
+						StructFields: []*ColumnSchema{
+							{
+								ColumnName: "deep1",
+								Type:       "varchar",
+							},
+						},
+					},
+				},
+				Description: "complex nested structure",
+				Required:    true,
+			},
+			want: &ColumnSchema{
+				SourceName: "source3",
+				ColumnName: "col3",
+				Type:       "struct",
+				StructFields: []*ColumnSchema{
+					{
+						ColumnName: "nested1",
+						Type:       "struct",
+						StructFields: []*ColumnSchema{
+							{
+								ColumnName: "deep1",
+								Type:       "varchar",
+							},
+						},
+					},
+				},
+				Description: "complex nested structure",
+				Required:    true,
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := &ColumnSchema{
+				SourceName:   tt.fields.SourceName,
+				ColumnName:   tt.fields.ColumnName,
+				Type:         tt.fields.Type,
+				StructFields: tt.fields.StructFields,
+				Description:  tt.fields.Description,
+				Required:     tt.fields.Required,
+				NullIf:       tt.fields.NullIf,
+				Transform:    tt.fields.Transform,
+			}
+			got := c.Clone()
+
+			// Test that the clone has the same values
+			assert.Equal(t, tt.want.SourceName, got.SourceName)
+			assert.Equal(t, tt.want.ColumnName, got.ColumnName)
+			assert.Equal(t, tt.want.Type, got.Type)
+			assert.Equal(t, tt.want.Description, got.Description)
+			assert.Equal(t, tt.want.Required, got.Required)
+			assert.Equal(t, tt.want.NullIf, got.NullIf)
+			assert.Equal(t, tt.want.Transform, got.Transform)
+
+			// Test that the clone is a deep copy
+			if c.StructFields != nil {
+				// Verify the slice is a new instance
+				assert.NotSame(t, &c.StructFields, &got.StructFields, "StructFields should be a new slice")
+
+				// Verify each nested field is a new instance
+				for i := range c.StructFields {
+					assert.NotSame(t, c.StructFields[i], got.StructFields[i], "Nested StructFields should be new instances")
+
+					// For complex nested structures, verify deeper nesting
+					if c.StructFields[i].StructFields != nil {
+						assert.NotSame(t, &c.StructFields[i].StructFields, &got.StructFields[i].StructFields,
+							"Deeply nested StructFields should be new instances")
+					}
+				}
 			}
 		})
 	}
