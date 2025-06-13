@@ -6,7 +6,7 @@ import (
 )
 
 // Loader is an interface which provides a method for loading a locally saved artifact
-// Sources provided by the SDK: [GzipLoader], [GzipRowLoader], [FileSystemLoader], [FileSystemRowLoader]
+// Sources provided by the SDK: [GzipLoader], [GzipRowLoader], [FileSystemLoader], [FileSystemRowLoader], [ZipLoader], [ZipRowLoader], [ZstdLoader], [ZstdRowLoader]
 type Loader interface {
 	Identifier() string
 	// Load locally saved artifact data and perform any necessary decompression/decryption
