@@ -46,8 +46,7 @@ func (*NilArtifactCollectionState) IsEmpty() bool {
 	return true
 }
 
-func (*NilArtifactCollectionState) OnCollectionStarted(time.Time, time.Time) error {
-	return nil
+func (*NilArtifactCollectionState) OnCollectionStarted(time.Time, time.Time) {
 }
 
 func (*NilArtifactCollectionState) OnCollectionComplete() error {

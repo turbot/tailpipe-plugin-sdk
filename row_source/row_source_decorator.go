@@ -58,10 +58,7 @@ func (r *RowSourceDecorator) SaveCollectionState() error {
 }
 
 func (r *RowSourceDecorator) Collect(ctx context.Context) error {
-	err := r.rowSource.OnCollectionStarted()
-	if err != nil {
-		return err
-	}
+	r.rowSource.OnCollectionStarted()
 
 	if err := r.rowSource.Collect(ctx); err != nil {
 		return err
@@ -70,8 +67,8 @@ func (r *RowSourceDecorator) Collect(ctx context.Context) error {
 	return r.rowSource.OnCollectionComplete()
 }
 
-func (r *RowSourceDecorator) OnCollectionStarted() error {
-	return r.rowSource.OnCollectionStarted()
+func (r *RowSourceDecorator) OnCollectionStarted() {
+	r.rowSource.OnCollectionStarted()
 }
 
 func (r *RowSourceDecorator) OnCollectionComplete() error {

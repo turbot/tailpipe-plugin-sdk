@@ -43,7 +43,9 @@ type RowSource interface {
 	// (config, collection state or default)
 	GetFromTime() *ResolvedFromTime
 
-	OnCollectionStarted() error
+	// OnCollectionStarted is called when the source collection is started
+	// set the start time of the first range to the From time of the collection
+	OnCollectionStarted()
 	// 	OnCollectionComplete is called when the source collection is SUCCESSFULLY completed
 	// this sets the collection state end time to the collection 'to' time to ensure that the next collection
 	// continues from the end of the last collection

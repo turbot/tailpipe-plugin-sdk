@@ -139,7 +139,7 @@ func (s *ArtifactCollectionStateImpl[T]) GetToTime() time.Time {
 	return endTime
 }
 
-func (s *ArtifactCollectionStateImpl[T]) OnCollectionStarted(fromTime time.Time, toTime time.Time) error {
+func (s *ArtifactCollectionStateImpl[T]) OnCollectionStarted(fromTime time.Time, toTime time.Time) {
 	s.currentCollectionTimeRange = &timeRange{
 		from: fromTime,
 		to:   toTime,
@@ -151,7 +151,6 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollectionStarted(fromTime time.Time,
 		// set the start time of the trunk state to the from time of the current collection
 		trunkState.OnCollectionStarted(fromTime, toTime)
 	}
-	return nil
 }
 
 // OnCollectionComplete sets the end time for the collection state - update all trunk states

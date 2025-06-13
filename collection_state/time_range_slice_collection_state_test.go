@@ -1075,7 +1075,7 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			}
 
 			// The collection completed successfully
-			tt.state.OnCollectionComplete()
+			_ = tt.state.OnCollectionComplete()
 
 			// Check the number of ranges after compaction
 			if len(tt.state.TimeRanges) != len(tt.expectedRanges) {
@@ -1117,13 +1117,12 @@ func buildTimeRangeSliceState(granularity time.Duration, ranges ...*timeRangeCol
 
 func TestTimeRangeSliceCollectionState_ShouldCollect(t *testing.T) {
 	type args struct {
-		state            *TimeRangeSliceCollectionState
-		granularity      time.Duration
-		activeRangeIndex int
-		from             time.Time
-		to               time.Time
-		objectTimestamp  time.Time
-		objectId         string
+		state           *TimeRangeSliceCollectionState
+		granularity     time.Duration
+		from            time.Time
+		to              time.Time
+		objectTimestamp time.Time
+		objectId        string
 	}
 	tests := []struct {
 		name string

@@ -7,8 +7,6 @@ import (
 )
 
 func Test_timeRangeCollectionState_merge(t *testing.T) {
-	type args struct {
-	}
 	tests := []struct {
 		name  string
 		state *timeRangeCollectionState

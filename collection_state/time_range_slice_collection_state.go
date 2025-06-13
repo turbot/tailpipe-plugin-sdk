@@ -59,7 +59,7 @@ func (t *TimeRangeSliceCollectionState) Init() {
 
 // OnCollectionStarted is called when a new collection is started - set the currentCollectionTimeRange
 // and initialise the active range
-func (t *TimeRangeSliceCollectionState) OnCollectionStarted(fromTime, toTime time.Time) error {
+func (t *TimeRangeSliceCollectionState) OnCollectionStarted(fromTime, toTime time.Time) {
 	// set the start time of the first range to the From time of the collection
 	t.currentCollectionTimeRange = &timeRange{
 		from: fromTime,
@@ -67,8 +67,6 @@ func (t *TimeRangeSliceCollectionState) OnCollectionStarted(fromTime, toTime tim
 	}
 
 	t.updateActiveRange(t.currentCollectionTimeRange.from)
-	return nil
-
 }
 
 // OnCollectionComplete sets the end time of the collect - this is called from OnCollectionCOmplete after a successful collection
@@ -242,7 +240,6 @@ func (t *TimeRangeSliceCollectionState) compact() {
 		return
 	}
 	t.TimeRanges = compactedRanges
-	return
 }
 
 // rangeForTime returns the index of the time range that contains the given timestamp or nil if no such range exists.
@@ -274,18 +271,4 @@ func (t *TimeRangeSliceCollectionState) addRange(timestamp time.Time) *timeRange
 	t.TimeRanges = append(t.TimeRanges, newRange)
 
 	return newRange
-}
-
-// getNextRange returns the next time range in the collection after the given timeRange
-// TODO think about optimising - decorate timeRangeCollectionState in linked list???
-func (t *TimeRangeSliceCollectionState) getNextRange(timeRange *timeRangeCollectionState) *timeRangeCollectionState {
-	for i, r := range t.TimeRanges {
-		if r == timeRange {
-			if i+1 < len(t.TimeRanges) {
-				return t.TimeRanges[i+1]
-			}
-			return nil // no next range
-		}
-	}
-	return nil // timeRange not found in the list
 }
