@@ -173,11 +173,16 @@ func (r *TableSchema) columnsWithNoType() []string {
 // The purpose of this function is to validate the TableDefinition provided by a 'predefined custom table'
 // This validation ensures that any optional columns have a type specified, so we can correctly create the parquet schema
 // even if the column is not present in the source data
-// NOTE: this is the same validation as we perform in tailpipe Table.Validate - that validfates the TableDef in config,
+// NOTE: this is the same validation as we perform in tailpipe Table.Validate - that validates the TableDef in config,
 // whereas as this validates the hardcoded TableDef provided by the plugin
 func (r *TableSchema) Validate() error {
 	var optionalColumnsWithNoType []string
 	for _, c := range r.Columns {
+		// validate the column and its struct fields
+		if err := r.validateColumn(c, r.Name); err != nil {
+			return err
+		}
+
 		if !c.Required && c.Type == "" {
 			optionalColumnsWithNoType = append(optionalColumnsWithNoType, c.ColumnName)
 		}
@@ -186,6 +191,39 @@ func (r *TableSchema) Validate() error {
 	if len(optionalColumnsWithNoType) > 0 {
 		return fmt.Errorf("column type must be specified if column is optional (%s '%s')", utils.Pluralize("column", len(optionalColumnsWithNoType)), strings.Join(optionalColumnsWithNoType, "', '"))
 	}
+	return nil
+}
+
+// validateColumn validates a single column and its struct fields recursively
+func (r *TableSchema) validateColumn(c *ColumnSchema, tableName string) error {
+	// if no source is specified, use the column name
+	if c.SourceName == "" && c.Transform == "" {
+		c.SourceName = c.ColumnName
+	}
+
+	// validate struct fields recursively
+	for _, sf := range c.StructFields {
+		// if no source is specified, use the column name
+		if sf.SourceName == "" && sf.Transform == "" {
+			sf.SourceName = sf.ColumnName
+		}
+		// validate the struct field type
+		if sf.Type != "" {
+			// special case - struct arrays not supported
+			if strings.ToLower(sf.Type) == "struct[]" || !IsValidColumnType(sf.Type) {
+				return fmt.Errorf("invalid column type '%s' for struct field '%s' in column '%s' in table '%s'", sf.Type, sf.ColumnName, c.ColumnName, tableName)
+			}
+		}
+	}
+
+	// validate the column type
+	if c.Type != "" {
+		// special case cannot specify a struct in a tag
+		if strings.ToLower(c.Type) == "struct[]" || !IsValidColumnType(c.Type) {
+			return fmt.Errorf("invalid column type '%s' for column '%s' in table '%s'", c.Type, c.ColumnName, tableName)
+		}
+	}
+
 	return nil
 }
 
@@ -267,6 +305,11 @@ func (r *TableSchema) WithSourceFieldsCleared() *TableSchema {
 		// set the source name to the column name
 		c.SourceName = c.ColumnName
 		cloned.Columns[i] = c
+		for j, sf := range c.StructFields {
+			// set the source name to the column name
+			sf.SourceName = sf.ColumnName
+			c.StructFields[j] = sf
+		}
 	}
 	return cloned
 }

@@ -2,6 +2,7 @@ package schema
 
 import (
 	"regexp"
+	"strings"
 )
 
 // IsValidColumnName checks if a column name is valid in DuckDB.
@@ -20,8 +21,44 @@ func IsValidColumnName(name string) bool {
 	return len(name) <= 255
 }
 
-// IsValidColumnType checks if a column type is valid in DuckDB.
-func IsValidColumnType(columnType string) bool {
-	_, isValid := validDuckDBTypes[columnType]
-	return isValid
+// Lookup table of valid DuckDB types
+// Note: this excludes structs, lists, and other complex types
+var validDuckDBTypes = map[string]struct{}{
+	// TODO #schema test all types for parquet conversion https://github.com/turbot/tailpipe-plugin-sdk/issues/22
+	"boolean":   {},
+	"tinyint":   {},
+	"smallint":  {},
+	"integer":   {},
+	"bigint":    {},
+	"utinyint":  {},
+	"usmallint": {},
+	"uinteger":  {},
+	"ubigint":   {},
+	"float":     {},
+	"double":    {},
+	"varchar":   {},
+	"blob":      {},
+	"date":      {},
+	"timestamp": {},
+	"time":      {},
+	"interval":  {},
+	"decimal":   {},
+	"uuid":      {},
+	"json":      {},
+	"struct":    {},
+}
+
+func IsValidColumnType(ty string) bool {
+	// Convert type to lower case for case-insensitive comparison
+	normalizedType := strings.ToLower(ty)
+
+	// special case - we do not support struct arrays for column types
+	if ty == "struct[]" {
+		return false
+	}
+
+	// strip trailing `[]` - just check the underlying type
+	normalizedType = strings.TrimSuffix(normalizedType, "[]")
+	_, valid := validDuckDBTypes[normalizedType]
+	return valid
 }
