@@ -3,8 +3,8 @@ _Whats new_
 * Remove row validation and rely entirely on CLI to execute validation. ([#202](https://github.com/turbot/tailpipe-plugin-sdk/issues/202))
   * Remove row validation
   * Remove `RowStruct` interface and use any for type constraint for Mapper etc. instead
-  * remove `row.Validate` call from `handleRowExtractedEvent`
-  * remove `DynamicRow.Validate`
+  * Remove `row.Validate` call from `handleRowExtractedEvent`
+  * Remove `DynamicRow.Validate`
 * Update ArtifactConversionCollector to support for Pre-Defined Custom Tables .([#230](https://github.com/turbot/tailpipe-plugin-sdk/issues/230))
   * `executeConversionQuery` gets schema using CustomTable.GetCustomSchema instead of reading schema from request
   * `executeConversionQuery` now performs column transforms instead of cli
@@ -14,7 +14,7 @@ _Whats new_
   * `CustomTableImpl.Initialize` now calls validate and returns error
   * `TableSchema.Validate` now validates column types
   * Add `GetCustomSchema` to `CustomTable` interface to return the schema excluding common fields
-
+* Add support for zstandard loaders (.zst files). ([#232](https://github.com/turbot/tailpipe-plugin-sdk/issues/232))
 
 ## v0.7.2 [2025-06-04]
 _Bug fixes_
