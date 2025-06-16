@@ -116,6 +116,8 @@ func (c *RowEnrichmentCollector[R]) GetSchema() (*schema.TableSchema, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting schema from struct: %w", err)
 	}
+	// merge this with the common fields schema
+	s = s.MergeWithCommonSchema()
 
 	// if the table implements DescriptionProvider, use this to populate the table description
 	if getDesc, ok := c.table.(schema.DescriptionProvider); ok {
