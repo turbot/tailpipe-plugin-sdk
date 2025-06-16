@@ -55,6 +55,10 @@ func NewTimeRangeSliceCollectionState(collection *timeRange, order CollectionOrd
 // we may have a collection state with multiple ranges that can be merged)
 func (t *TimeRangeSliceCollectionState) Init() {
 	t.compact()
+	// create map for object ranges if needed (i.e. if we were loaded from file)
+	if t.objectRangeMap == nil {
+		t.objectRangeMap = make(map[string]*timeRangeCollectionState)
+	}
 }
 
 // OnCollectionStarted is called when a new collection is started - set the currentCollectionTimeRange
@@ -203,16 +207,6 @@ func (t *TimeRangeSliceCollectionState) compact() {
 		rangesFallWithinCollectionPeriod := t.currentCollectionTimeRange != nil &&
 			currentRange.GetToTime().After(t.currentCollectionTimeRange.from) &&
 			nextRange.GetFromTime().Before(t.currentCollectionTimeRange.to)
-
-		slog.Debug("Checking time ranges for merging",
-			"collection from", t.currentCollectionTimeRange.from,
-			"collection to", t.currentCollectionTimeRange.to,
-			"current range start time", currentRange.GetFromTime(),
-			"current range end time", currentRange.GetToTime(),
-			"next range start time", nextRange.GetFromTime(),
-			"next range end time", nextRange.GetToTime(),
-			"ranges overlap", rangesOverlap,
-			"ranges fall within collection period", rangesFallWithinCollectionPeriod)
 
 		// if the ranges do not overlap and do not fall within the collection period, we can add the current range to compacted ranges
 		if !rangesOverlap && !rangesFallWithinCollectionPeriod {
