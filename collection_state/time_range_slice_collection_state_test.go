@@ -412,8 +412,6 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 	}
 }
 
-// TestTimeRangeSliceCollectionState_emulate_collection si,ulates a collection process then verifies the
-// resulting collection state
 func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -422,7 +420,7 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 		expectedState     *TimeRangeSliceCollectionState
 	}{
 		{
-			name: "single_range",
+			name: "forward_single_range",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Nanosecond,
@@ -439,7 +437,24 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "overlapping_ranges",
+			name: "backward_single_range",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderReverse),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-20 12:00:00"),
+				to:   parseTime("2025-05-30 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderReverse),
+			),
+		},
+		{
+			name: "forward_overlapping_ranges",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Nanosecond,
@@ -457,7 +472,25 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "non_overlapping_ranges",
+			name: "backward_overlapping_ranges",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj2"),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-20 12:00:00"),
+				to:   parseTime("2025-05-30 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj2"),
+			),
+		},
+		{
+			name: "forward_non_overlapping_ranges",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Nanosecond,
@@ -476,7 +509,26 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "multiple_overlapping_ranges",
+			name: "backward_non_overlapping_ranges",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj2"),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-20 12:00:00"),
+				to:   parseTime("2025-05-30 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj2"),
+			),
+		},
+		{
+			name: "forward_multiple_overlapping_ranges",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Nanosecond,
@@ -495,7 +547,26 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "empty_ranges",
+			name: "backward_multiple_overlapping_ranges",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj2"),
+				buildTimeRangeState("2025-05-13 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj3"),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-20 12:00:00"),
+				to:   parseTime("2025-05-30 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj3"),
+			),
+		},
+		{
+			name: "forward_empty_ranges",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Nanosecond,
@@ -510,7 +581,22 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "collection_overlaps_multiple_non_contiguous_ranges",
+			name: "backward_empty_ranges",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-03 12:00:00"),
+				to:   parseTime("2025-05-10 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+			),
+		},
+		{
+			name: "forward_collection_overlaps_multiple_non_contiguous_ranges",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Nanosecond,
@@ -529,7 +615,26 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "collection_overlaps_start_of_first_and_end_of_last_range",
+			name: "backward_collection_overlaps_multiple_non_contiguous_ranges",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj2"),
+				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj3"),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-04 12:00:00"),
+				to:   parseTime("2025-05-21 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj3"),
+			),
+		},
+		{
+			name: "forward_collection_overlaps_start_of_first_and_end_of_last_range",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Nanosecond,
@@ -548,7 +653,26 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "collection_overlaps_ranges_with_minute_granularity",
+			name: "backward_collection_overlaps_start_of_first_and_end_of_last_range",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj2"),
+				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj3"),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-01 12:00:00"),
+				to:   parseTime("2025-05-25 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Nanosecond,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderReverse, "obj3"),
+			),
+		},
+		{
+			name: "forward_collection_overlaps_ranges_with_minute_granularity",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Minute,
@@ -567,7 +691,26 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "collection_overlaps_ranges_with_hour_granularity",
+			name: "backward_collection_overlaps_ranges_with_minute_granularity",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Minute,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Minute, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Minute, CollectionOrderReverse, "obj2"),
+				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Minute, CollectionOrderReverse, "obj3"),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-04 12:00:00"),
+				to:   parseTime("2025-05-21 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Minute,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Minute, CollectionOrderReverse, "obj3"),
+			),
+		},
+		{
+			name: "forward_collection_overlaps_ranges_with_hour_granularity",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Hour,
@@ -586,7 +729,26 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "collection_overlaps_ranges_with_day_granularity",
+			name: "backward_collection_overlaps_ranges_with_hour_granularity",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Hour,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Hour, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, CollectionOrderReverse, "obj2"),
+				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Hour, CollectionOrderReverse, "obj3"),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-04 12:00:00"),
+				to:   parseTime("2025-05-21 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Hour,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Hour, CollectionOrderReverse, "obj3"),
+			),
+		},
+		{
+			name: "forward_collection_overlaps_ranges_with_day_granularity",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				24*time.Hour,
@@ -605,7 +767,26 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			),
 		},
 		{
-			name: "collection_overlaps_ranges_with_mixed_granularity",
+			name: "backward_collection_overlaps_ranges_with_day_granularity",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				24*time.Hour,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", 24*time.Hour, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", 24*time.Hour, CollectionOrderReverse, "obj2"),
+				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", 24*time.Hour, CollectionOrderReverse, "obj3"),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-04 12:00:00"),
+				to:   parseTime("2025-05-21 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				24*time.Hour,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", 24*time.Hour, CollectionOrderReverse, "obj3"),
+			),
+		},
+		{
+			name: "forward_collection_overlaps_ranges_with_mixed_granularity",
 			state: buildTimeRangeSliceState(
 				CollectionOrderChronological,
 				time.Minute,
@@ -623,10 +804,33 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Minute, CollectionOrderChronological, "obj3"),
 			),
 		},
+		{
+			name: "backward_collection_overlaps_ranges_with_mixed_granularity",
+			state: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Minute,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Minute, CollectionOrderReverse, "obj1"),
+				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, CollectionOrderReverse, "obj2"),
+				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Second, CollectionOrderReverse, "obj3"),
+			),
+			currentCollection: &timeRange{
+				from: parseTime("2025-05-04 12:00:00"),
+				to:   parseTime("2025-05-21 12:00:00"),
+			},
+			expectedState: buildTimeRangeSliceState(
+				CollectionOrderReverse,
+				time.Minute,
+				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Minute, CollectionOrderReverse, "obj3"),
+			),
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.state.currentCollectionTimeRange = tt.currentCollection
+
+			// Add a small delay to ensure the collection state is updated
+			time.Sleep(1 * time.Millisecond)
+
 			tt.state.compact()
 			if equal, msg := timeRangeSliceStateEquals(tt.state, tt.expectedState); !equal {
 				t.Error(msg)
