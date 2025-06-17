@@ -56,7 +56,7 @@ func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRan
 }
 
 func (s *timeRangeCollectionState) IsEmpty() bool {
-	return s.To.Equal(s.From) && len(s.EndObjects) == 0
+	return s.To.Equal(s.From) || (s.From.IsZero() || s.To.IsZero()) && len(s.EndObjects) == 0
 }
 
 // ShouldCollect returns whether the object should be collected
