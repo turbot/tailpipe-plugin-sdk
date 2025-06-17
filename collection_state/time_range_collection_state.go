@@ -68,15 +68,15 @@ func (s *timeRangeCollectionState) ShouldCollect(id string, timestamp time.Time)
 		return !s.endObjectsContain(id)
 	}
 
-	// if the time is between the start and end time (exclusive) we should NOT collect
+	// if the time is between the lowe and upper boundary we should NOT collect
 	// (as have already collected it- assuming consistent artifact ordering)
-	if timestamp.Compare(s.From) >= 0 && timestamp.Compare(s.To) < 0 {
+	if s.onOrInsideLowerBoundary(timestamp) && s.insideUpperBoundary(timestamp) {
 		return false
 	}
 
 	// if the time within a granularity period of the upper boundary time, we must check if we have already collected it
 	// (as we have reached the limit of the granularity)
-	if timestamp.Sub(s.upperBoundaryTime(s.CollectionOrder)) <= s.Granularity {
+	if timestamp.Sub(s.upperBoundaryTime()) <= s.Granularity {
 		return !s.endObjectsContain(id)
 	}
 
@@ -159,6 +159,13 @@ func (s *timeRangeCollectionState) Contains(timestamp time.Time) bool {
 	return timestamp.Compare(s.From) >= 0 && timestamp.Compare(s.To) <= 0
 }
 
+func (s *timeRangeCollectionState) onOrInsideLowerBoundary(timestamp time.Time) bool {
+	// this is true if the timestamp is on the lower boundary time, or inside the lower boundary time
+	// for chronological collection, this returns whether the time isON or  AFTER the start time
+	// for reverse collection, this returns whether the time is ON or BEFORE the end time
+	return s.lowerBoundaryTime().Equal(timestamp) || s.insideLowerBoundary(timestamp)
+}
+
 // insideLowerBoundary returns whether the timestamp is inside the lower boundary time (exclusive, i.e. NOT including the boundary time itself)
 // for chronological collection, this returns whether the time is AFTER the start time
 // for reverse collection, this returns whether the time is BEFORE the end time
@@ -203,8 +210,8 @@ func (s *timeRangeCollectionState) outsideUpperBoundary(timestamp time.Time) boo
 // upperBoundaryTime returns the the furthest time in the direction of collection
 // i.e. if we are collecting forwards, the upperBoundaryTime is the end time of the range,
 // if we are collecting backwards, the upperBoundaryTime is the start time of the range
-func (s *timeRangeCollectionState) upperBoundaryTime(order CollectionOrder) time.Time {
-	if order == CollectionOrderChronological {
+func (s *timeRangeCollectionState) upperBoundaryTime() time.Time {
+	if s.CollectionOrder == CollectionOrderChronological {
 		return s.To
 	}
 	return s.From
@@ -213,8 +220,8 @@ func (s *timeRangeCollectionState) upperBoundaryTime(order CollectionOrder) time
 // lowerBoundaryTime returns the the furthest time in the opposite direction of collection
 // i.e. if we are collecting forwards, the lowerBoundaryTime is the start time of the range,
 // if we are collecting backwards, the lowerBoundaryTime is the end time of the range
-func (s *timeRangeCollectionState) lowerBoundaryTime(order CollectionOrder) time.Time {
-	if order == CollectionOrderChronological {
+func (s *timeRangeCollectionState) lowerBoundaryTime() time.Time {
+	if s.CollectionOrder == CollectionOrderChronological {
 		return s.From
 	}
 	return s.To

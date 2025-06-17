@@ -186,12 +186,12 @@ func (t *TimeRangeSliceCollectionState) updateActiveRange(timestamp time.Time) {
 		if rangeForTimestamp != nil && rangeForTimestamp != t.activeRange {
 			slog.Info("Updating active range for time",
 				"timestamp", timestamp,
-				"active range upper boundary time", t.activeRange.upperBoundaryTime(t.Order),
-				"range for timestamp lower boundary time", rangeForTimestamp.lowerBoundaryTime(t.Order))
+				"active range upper boundary time", t.activeRange.upperBoundaryTime(),
+				"range for timestamp lower boundary time", rangeForTimestamp.lowerBoundaryTime())
 			// if the range for the timestamp is different from the active range, we need to update the active range
 			// set the end time of the active range to the start time of the next range so we merge them next time we
 			// compact the state
-			t.activeRange.setUpperBoundaryTime(rangeForTimestamp.lowerBoundaryTime(t.Order))
+			t.activeRange.setUpperBoundaryTime(rangeForTimestamp.lowerBoundaryTime())
 			// use the next range as the active
 			t.activeRange = rangeForTimestamp
 		}

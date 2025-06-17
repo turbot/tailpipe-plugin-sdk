@@ -103,73 +103,213 @@ func Test_timeRangeCollectionState_ShouldCollect(t *testing.T) {
 		want      bool
 	}{
 		{
-			name:      "forward - within range",
+			name:      "forward - within range - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			id:        "obj1",
 			timestamp: parseTime("2025-04-03 00:00:00"),
 			want:      false,
 		},
 		{
-			name:      "reverse - within range",
+			name:      "forward - within range - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderChronological),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 13:30:00"),
+			want:      false,
+		},
+		{
+			name:      "forward - within range - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderChronological),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 12:32:30"),
+			want:      false,
+		},
+		{
+			name:      "reverse - within range - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 			id:        "obj1",
 			timestamp: parseTime("2025-04-03 00:00:00"),
 			want:      false,
 		},
 		{
-			name:      "forward - before From time",
+			name:      "reverse - within range - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderReverse),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 13:30:00"),
+			want:      false,
+		},
+		{
+			name:      "reverse - within range - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderReverse),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 12:32:30"),
+			want:      false,
+		},
+		{
+			name:      "forward - before From time - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			id:        "obj1",
 			timestamp: parseTime("2025-03-30 00:00:00"),
 			want:      true,
 		},
 		{
-			name:      "reverse - before From time",
+			name:      "forward - before From time - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderChronological),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 11:30:00"),
+			want:      true,
+		},
+		{
+			name:      "forward - before From time - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderChronological),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 12:29:30"),
+			want:      true,
+		},
+		{
+			name:      "reverse - before From time - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 			id:        "obj1",
 			timestamp: parseTime("2025-03-30 00:00:00"),
 			want:      true,
 		},
 		{
-			name:      "forward - after To time",
+			name:      "reverse - before From time - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderReverse),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 11:30:00"),
+			want:      true,
+		},
+		{
+			name:      "reverse - before From time - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderReverse),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 12:29:30"),
+			want:      true,
+		},
+		{
+			name:      "forward - after To time - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			id:        "obj1",
 			timestamp: parseTime("2025-04-08 00:00:00"),
 			want:      true,
 		},
 		{
-			name:      "reverse - after To time",
+			name:      "forward - after To time - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderChronological),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 15:30:00"),
+			want:      true,
+		},
+		{
+			name:      "forward - after To time - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderChronological),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 12:35:30"),
+			want:      true,
+		},
+		{
+			name:      "reverse - after To time - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 			id:        "obj1",
 			timestamp: parseTime("2025-04-08 00:00:00"),
 			want:      true,
 		},
 		{
-			name:      "forward - at To time - object not in end objects",
+			name:      "reverse - after To time - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderReverse),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 15:30:00"),
+			want:      true,
+		},
+		{
+			name:      "reverse - after To time - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderReverse),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 12:35:30"),
+			want:      true,
+		},
+		{
+			name:      "forward - at To time - object not in end objects - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
 			id:        "obj2",
 			timestamp: parseTime("2025-04-07 00:00:00"),
 			want:      true,
 		},
 		{
-			name:      "reverse - at From time - object not in end objects",
+			name:      "forward - at To time - object not in end objects - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+			id:        "obj2",
+			timestamp: parseTime("2025-04-01 15:00:00"),
+			want:      true,
+		},
+		{
+			name:      "forward - at To time - object not in end objects - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderChronological, "obj1"),
+			id:        "obj2",
+			timestamp: parseTime("2025-04-01 12:35:00"),
+			want:      true,
+		},
+		{
+			name:      "reverse - at From time - object not in end objects - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse, "obj1"),
 			id:        "obj2",
-			timestamp: parseTime("2025-04-07 00:00:00"),
+			timestamp: parseTime("2025-04-01 00:00:00"),
 			want:      true,
 		},
 		{
-			name:      "forward - at To time - object in end objects",
+			name:      "reverse - at From time - object not in end objects - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderReverse, "obj1"),
+			id:        "obj2",
+			timestamp: parseTime("2025-04-01 12:00:00"),
+			want:      true,
+		},
+		{
+			name:      "reverse - at From time - object not in end objects - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderReverse, "obj1"),
+			id:        "obj2",
+			timestamp: parseTime("2025-04-01 12:30:00"),
+			want:      true,
+		},
+		{
+			name:      "forward - at To time - object in end objects - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
 			id:        "obj1",
 			timestamp: parseTime("2025-04-07 00:00:00"),
 			want:      false,
 		},
 		{
-			name:      "reverse - at From time - object in end objects",
+			name:      "forward - at To time - object in end objects - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 15:00:00"),
+			want:      false,
+		},
+		{
+			name:      "forward - at To time - object in end objects - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderChronological, "obj1"),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 12:35:00"),
+			want:      false,
+		},
+		{
+			name:      "reverse - at From time - object in end objects - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse, "obj1"),
 			id:        "obj1",
 			timestamp: parseTime("2025-04-01 00:00:00"),
+			want:      false,
+		},
+		{
+			name:      "reverse - at From time - object in end objects - hour granularity",
+			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderReverse, "obj1"),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 12:00:00"),
+			want:      false,
+		},
+		{
+			name:      "reverse - at From time - object in end objects - minute granularity",
+			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderReverse, "obj1"),
+			id:        "obj1",
+			timestamp: parseTime("2025-04-01 12:30:00"),
 			want:      false,
 		},
 		{
@@ -185,34 +325,6 @@ func Test_timeRangeCollectionState_ShouldCollect(t *testing.T) {
 			id:        "obj2",
 			timestamp: time.Time{},
 			want:      true,
-		},
-		{
-			name:      "forward - hour granularity",
-			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour, CollectionOrderChronological),
-			id:        "obj1",
-			timestamp: parseTime("2025-04-03 14:00:00"),
-			want:      false,
-		},
-		{
-			name:      "reverse - hour granularity",
-			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour, CollectionOrderReverse),
-			id:        "obj1",
-			timestamp: parseTime("2025-04-03 14:00:00"),
-			want:      false,
-		},
-		{
-			name:      "forward - minute granularity",
-			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Minute, CollectionOrderChronological),
-			id:        "obj1",
-			timestamp: parseTime("2025-04-03 14:30:00"),
-			want:      false,
-		},
-		{
-			name:      "reverse - minute granularity",
-			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Minute, CollectionOrderReverse),
-			id:        "obj1",
-			timestamp: parseTime("2025-04-03 14:30:00"),
-			want:      false,
 		},
 	}
 	for _, tt := range tests {
@@ -810,7 +922,7 @@ func Test_timeRangeCollectionState_lowerBoundaryTime(t *testing.T) {
 				Granularity:     tt.fields.Granularity,
 				CollectionOrder: tt.fields.CollectionOrder,
 			}
-			if got := s.lowerBoundaryTime(tt.args.order); !reflect.DeepEqual(got, tt.want) {
+			if got := s.lowerBoundaryTime(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("lowerBoundaryTime() = %v, want %v", got, tt.want)
 			}
 		})
@@ -872,7 +984,7 @@ func Test_timeRangeCollectionState_upperBoundaryTime(t *testing.T) {
 				Granularity:     tt.fields.Granularity,
 				CollectionOrder: tt.fields.CollectionOrder,
 			}
-			if got := s.upperBoundaryTime(tt.args.order); !reflect.DeepEqual(got, tt.want) {
+			if got := s.upperBoundaryTime(); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("upperBoundaryTime() = %v, want %v", got, tt.want)
 			}
 		})
