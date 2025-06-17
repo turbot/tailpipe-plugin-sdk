@@ -20,57 +20,57 @@ func Test_timeRange_Contains(t *testing.T) {
 		want   bool
 	}{
 		{
-			name: "timestamp before range",
+			name: "before range",
 			fields: fields{
-				from: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-				to:   time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+				from: parseTime("2024-01-02 00:00:00"),
+				to:   parseTime("2024-01-03 00:00:00"),
 			},
 			args: args{
-				timestamp: time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+				timestamp: parseTime("2024-01-01 00:00:00"),
 			},
 			want: false,
 		},
 		{
-			name: "timestamp at range start",
+			name: "at start",
 			fields: fields{
-				from: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-				to:   time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+				from: parseTime("2024-01-02 00:00:00"),
+				to:   parseTime("2024-01-03 00:00:00"),
 			},
 			args: args{
-				timestamp: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+				timestamp: parseTime("2024-01-02 00:00:00"),
 			},
 			want: true,
 		},
 		{
-			name: "timestamp in middle of range",
+			name: "within range",
 			fields: fields{
-				from: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-				to:   time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+				from: parseTime("2024-01-02 00:00:00"),
+				to:   parseTime("2024-01-03 00:00:00"),
 			},
 			args: args{
-				timestamp: time.Date(2024, 1, 2, 12, 0, 0, 0, time.UTC),
+				timestamp: parseTime("2024-01-02 12:00:00"),
 			},
 			want: true,
 		},
 		{
-			name: "timestamp at range end - FALSE",
+			name: "at end",
 			fields: fields{
-				from: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-				to:   time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+				from: parseTime("2024-01-02 00:00:00"),
+				to:   parseTime("2024-01-03 00:00:00"),
 			},
 			args: args{
-				timestamp: time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+				timestamp: parseTime("2024-01-03 00:00:00"),
 			},
-			want: false,
+			want: true,
 		},
 		{
-			name: "timestamp after range",
+			name: "after range",
 			fields: fields{
-				from: time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-				to:   time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+				from: parseTime("2024-01-02 00:00:00"),
+				to:   parseTime("2024-01-03 00:00:00"),
 			},
 			args: args{
-				timestamp: time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
+				timestamp: parseTime("2024-01-04 00:00:00"),
 			},
 			want: false,
 		},

@@ -28,8 +28,10 @@ type timeRangeCollectionState struct {
 	// so - if the granularity is 1 hour, and the end time is 12:00:00, we have all data up to 11:59:59
 	To time.Time `json:"to,omitzero"`
 
-	// for end boundary (i.e. the end granularity) we store the metadata
-	// whenever the end time changes, we must clear the map
+	// for upper boundary (i.e. the end granularity) we store the metadata
+	// whenever the upper boundary time changes, we must clear the map
+	// NOTE: for forwards collection, the end objects are at the To time
+	// for backwards collection, the end objects are at the From time
 	EndObjects map[string]struct{} `json:"end_objects"`
 
 	// the granularity of the file naming scheme - so we must keep track of object metadata
@@ -72,9 +74,9 @@ func (s *timeRangeCollectionState) ShouldCollect(id string, timestamp time.Time)
 		return false
 	}
 
-	// if the timer is <= the end time + granularity, we must check if we have already collected it
+	// if the time within a granularity period of the upper boundary time, we must check if we have already collected it
 	// (as we have reached the limit of the granularity)
-	if timestamp.Compare(s.To.Add(s.Granularity)) <= 0 {
+	if timestamp.Sub(s.upperBoundaryTime(s.CollectionOrder)) <= s.Granularity {
 		return !s.endObjectsContain(id)
 	}
 
@@ -98,69 +100,32 @@ func (s *timeRangeCollectionState) OnCollected(id string, timestamp time.Time) e
 		return nil
 	}
 
-	if s.CollectionOrder == CollectionOrderChronological {
-		// if the timestamp is before the current END time, this is unexpected
-		// - the end time represents the time which we THOUGHT we had collected all data up to
-		// this may indicate that the 'delivery delay'  for the source has been set incorrectly
-		// Delivery delay is the maximum lateness in reporting that we expect from a source.
-		// Thus if an API may report log entries up[ to 1 hour late, the delivery delay should be set to 1 hour
-		// If it is set to 1 hour but then reports an entry 2 hours late, this condition would occur
-		if timestamp.Before(s.To) {
-			slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate a delay in delivering log lines", "item timestamp", timestamp, "collection state end time", s.To)
-			return nil
+	// if the timestamp is INSIDE the upper boundary (i.e. before the current END time for chronological),
+	// this is unexpected - the upper boundary represents the time which we THOUGHT we had collected all data up to
+	// this may indicate that the 'delivery delay'  for the source has been set incorrectly
+	// Delivery delay is the maximum lateness in reporting that we expect from a source.
+	// Thus if an API may report log entries up[ to 1 hour late, the delivery delay should be set to 1 hour
+	// If it is set to 1 hour but then reports an entry 2 hours late, this condition would occur
+	switch {
+	case s.insideUpperBoundary(timestamp):
+		slog.Warn("Artifact timestamp is before the end time, i.e. the time up to which we believed we had collected all data - this may indicate a delay in delivering log lines", "item timestamp", timestamp, "collection state end time", s.To)
+		return nil
+	case s.outsideUpperBoundary(timestamp):
+		// set the upper boundary time to the timestamp
+		s.setUpperBoundaryTime(timestamp)
+		// clear the end objects map and add the object to the end objects
+		s.EndObjects = map[string]struct{}{
+			id: struct{}{},
 		}
-
-		// if the timestamp is after the To time, update the To time
-		// this may also update the end time
-		if timestamp.After(s.To) {
-			s.setEndTime(timestamp)
-		}
-		// if the timestamp is at the To time, add object to end objects
-		if timestamp.Equal(s.To) {
+	default:
+		// the timestamp must be ON the upper boundary, add object to end objects
+		if (s.CollectionOrder == CollectionOrderChronological && timestamp.Equal(s.To)) ||
+			(s.CollectionOrder == CollectionOrderReverse && timestamp.Equal(s.From)) {
 			s.EndObjects[id] = struct{}{}
 		}
-
-		return nil
 	}
-
-	// TODO think about this
-	// reverse order collection
-	//// if the timestamp is before the current first entry time, just update the first entry time
-	//if timestamp.Before(s.firstEntryTime) {
-	//	s.firstEntryTime = timestamp
-	//}
-	//
-	//// if the timestamp is at or after after the end time, it must be in the granularity boundary zone
-	//// so add to end objects
-	//// (this is the same for forwards and backwards collection)
-	//if timestamp.Compare(s.To) >= 0 {
-	//	s.EndObjects[id] = struct{}{}
-	//}
 
 	return nil
-}
-
-// setEndTime sets the 'To' time for the collection state. This is called:
-// - when an object is collected with a timestamp that is after the current 'To' time
-// - at the end of a successful collection to indicate that we have collected up to the collection 'To' time
-func (s *timeRangeCollectionState) setEndTime(newEndTime time.Time) {
-
-	// truncate the time to the granularity (this will be necessary if the end time is the now-time of a collection)
-	newEndTime = newEndTime.Truncate(s.Granularity)
-
-	// if timestamp is before current To time, do nothing (?) - this function expected end time to always move forwards
-	// TODO
-	//  - think about how we clear state in case of explcit recolleciton - add explicit Clear(fro, to) method?
-	//  - think about reverse order collection - everything is reversed
-	if newEndTime.Compare(s.To) <= 0 {
-		slog.Debug("setEndTime called with a time that is before or equal to the current end time - ignoring", "new end time", newEndTime, "current end time", s.To)
-		return
-	}
-
-	// set the new end time
-	s.To = newEndTime
-	// clear the end objects
-	s.EndObjects = make(map[string]struct{})
 }
 
 func (s *timeRangeCollectionState) GetFromTime() time.Time {
@@ -192,6 +157,93 @@ func (s *timeRangeCollectionState) Contains(timestamp time.Time) bool {
 
 	// is this timestamp within the time range from the firstEntryTime to the end of the end objects?
 	return timestamp.Compare(s.From) >= 0 && timestamp.Compare(s.To) <= 0
+}
+
+// insideLowerBoundary returns whether the timestamp is inside the lower boundary time (exclusive, i.e. NOT including the boundary time itself)
+// for chronological collection, this returns whether the time is AFTER the start time
+// for reverse collection, this returns whether the time is BEFORE the end time
+func (s *timeRangeCollectionState) insideLowerBoundary(timestamp time.Time) bool {
+
+	if s.CollectionOrder == CollectionOrderChronological {
+		return timestamp.After(s.From)
+	}
+	return timestamp.Before(s.To)
+}
+
+// insideUpperBoundary returns whether the timestamp is inside the upper boundary time (exclusive, i.e. NOT including the boundary time itself)
+// for chronological collection, this returns whether the time is BEFORE the end time
+// for reverse collection, this returns whether the time is AFTER the start time
+func (s *timeRangeCollectionState) insideUpperBoundary(timestamp time.Time) bool {
+	if s.CollectionOrder == CollectionOrderChronological {
+		return timestamp.Before(s.To)
+	}
+	return timestamp.After(s.From)
+}
+
+// outsideLowerBoundary returns whether the timestamp is outside the lower boundary time
+// for chronological collection, this returns whether the time is BEFORE the start time
+// for reverse collection, this returns whether the time is AFTER the end time
+func (s *timeRangeCollectionState) outsideLowerBoundary(timestamp time.Time) bool {
+	if s.CollectionOrder == CollectionOrderChronological {
+		return timestamp.Before(s.From)
+	}
+	return timestamp.After(s.To)
+}
+
+// outsideUpperBoundary returns whether the timestamp is outside the upper boundary time
+// for chronological collection, this returns whether the time is AFTER the end time
+// for reverse collection, this returns whether the time is BEFORE the start time
+func (s *timeRangeCollectionState) outsideUpperBoundary(timestamp time.Time) bool {
+	if s.CollectionOrder == CollectionOrderChronological {
+		return timestamp.After(s.To)
+	}
+	return timestamp.Before(s.From)
+}
+
+// upperBoundaryTime returns the the furthest time in the direction of collection
+// i.e. if we are collecting forwards, the upperBoundaryTime is the end time of the range,
+// if we are collecting backwards, the upperBoundaryTime is the start time of the range
+func (s *timeRangeCollectionState) upperBoundaryTime(order CollectionOrder) time.Time {
+	if order == CollectionOrderChronological {
+		return s.To
+	}
+	return s.From
+}
+
+// lowerBoundaryTime returns the the furthest time in the opposite direction of collection
+// i.e. if we are collecting forwards, the lowerBoundaryTime is the start time of the range,
+// if we are collecting backwards, the lowerBoundaryTime is the end time of the range
+func (s *timeRangeCollectionState) lowerBoundaryTime(order CollectionOrder) time.Time {
+	if order == CollectionOrderChronological {
+		return s.From
+	}
+	return s.To
+}
+
+// setUpperBoundaryTime sets the 'To' time for the collection state. This is called:
+// - when an object is collected with a timestamp that is after the current 'To' time
+// - at the end of a successful collection to indicate that we have collected up to the collection 'To' time
+func (s *timeRangeCollectionState) setUpperBoundaryTime(newEndTime time.Time) {
+
+	// truncate the time to the granularity (this will be necessary if the end time is the now-time of a collection)
+	newEndTime = newEndTime.Truncate(s.Granularity)
+
+	// if timestamp is inside current re, do nothing (?) - this function expected end time to always move forwards
+	//  - think about how we clear state in case of explicit recolleciton - add explicit Clear(fro, to) method?
+	if s.insideUpperBoundary(newEndTime) {
+		slog.Debug("setUpperBoundaryTime called with a time that is before or equal to the current end time - ignoring", "new end time", newEndTime, "current end time", s.To)
+		return
+	}
+
+	if s.CollectionOrder == CollectionOrderChronological {
+		// set the new end time
+		s.To = newEndTime
+	} else {
+		// for reverse collection, we set the From time to the new end time
+		s.From = newEndTime
+	}
+	// clear the end objects
+	s.EndObjects = make(map[string]struct{})
 }
 
 // merge combines this time range with another time range
