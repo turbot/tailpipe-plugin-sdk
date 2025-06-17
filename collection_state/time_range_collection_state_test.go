@@ -392,181 +392,139 @@ func Test_timeRangeCollectionState_IsEmpty(t *testing.T) {
 }
 
 func Test_timeRangeCollectionState_OnCollected(t *testing.T) {
-	type fields struct {
-		From            time.Time
-		To              time.Time
-		EndObjects      map[string]struct{}
-		Granularity     time.Duration
-		CollectionOrder CollectionOrder
-	}
-	type args struct {
-		id        string
-		timestamp time.Time
-	}
 	tests := []struct {
 		name          string
 		startState    *timeRangeCollectionState
-		args          args
+		id            string
+		timestamp     time.Time
 		wantErr       bool
 		expectedState *timeRangeCollectionState
 	}{
 		{
-			name:       "forward - collect within range (between From and To)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 3, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "forward - collect within range (between From and To)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 3, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
 		{
-			name:       "forward - collect at From boundary (exactly at start time)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "forward - collect at From boundary (exactly at start time)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
 		{
-			name:       "forward - collect at To boundary (exactly at end time)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "forward - collect at To boundary (exactly at end time)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
 		},
 		{
-			name:       "forward - collect before From time (outside range)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 3, 31, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "forward - collect before From time (outside range)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 3, 31, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
 		{
-			name:       "forward - collect after To time (extends range)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 8, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "forward - collect after To time (extends range)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 8, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-08 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
 		},
 		{
-			name:       "reverse - collect within range (between From and To)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 3, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "reverse - collect within range (between From and To)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 3, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 		},
 		{
-			name:       "reverse - collect at To boundary (exactly at end time)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "reverse - collect at To boundary (exactly at end time)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 		},
 		{
-			name:       "reverse - collect at From boundary (exactly at start time)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "reverse - collect at From boundary (exactly at start time)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse, "obj1"),
 		},
 		{
-			name:       "reverse - collect after To time (outside range)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 8, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "reverse - collect after To time (outside range)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 8, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 		},
 		{
-			name:       "reverse - collect before From time (extends range)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 3, 31, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "reverse - collect before From time (extends range)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 3, 31, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-03-31 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse, "obj1"),
 		},
 		{
-			name:       "forward - collect with hour granularity (within range, non-zero hours)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 1, 13, 30, 0, 0, time.UTC),
-			},
+			name:          "forward - collect with hour granularity (within range, non-zero hours)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 1, 13, 30, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
 		{
-			name:       "forward - collect with minute granularity (within range, non-zero minutes)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 1, 12, 32, 30, 0, time.UTC),
-			},
+			name:          "forward - collect with minute granularity (within range, non-zero minutes)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 1, 12, 32, 30, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
 		{
-			name:       "forward - collect with second granularity (within range, non-zero seconds)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 1, 12, 30, 50, 0, time.UTC),
-			},
+			name:          "forward - collect with second granularity (within range, non-zero seconds)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 1, 12, 30, 50, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
 		{
-			name:       "forward - collect with zero time (within range, zero time value)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Time{}, // Use zero time for zero granularity
-			},
+			name:          "forward - collect with zero time (within range, zero time value)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "obj1",
+			timestamp:     time.Time{}, // Use zero time for zero granularity
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
 		{
-			name:       "forward - collect with existing end objects (within range, preserves existing objects)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj2"),
-			args: args{
-				id:        "obj1",
-				timestamp: time.Date(2025, 4, 3, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "forward - collect with existing end objects (within range, preserves existing objects)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj2"),
+			id:            "obj1",
+			timestamp:     time.Date(2025, 4, 3, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj2"),
 		},
 		{
-			name:       "forward - collect with empty id (within range, empty identifier)",
-			startState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			args: args{
-				id:        "",
-				timestamp: time.Date(2025, 4, 3, 0, 0, 0, 0, time.UTC),
-			},
+			name:          "forward - collect with empty id (within range, empty identifier)",
+			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			id:            "",
+			timestamp:     time.Date(2025, 4, 3, 0, 0, 0, 0, time.UTC),
 			wantErr:       false,
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
@@ -574,7 +532,7 @@ func Test_timeRangeCollectionState_OnCollected(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := tt.startState
-			err := s.OnCollected(tt.args.id, tt.args.timestamp)
+			err := s.OnCollected(tt.id, tt.timestamp)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("OnCollected() error = %v, wantErr %v", err, tt.wantErr)
 			}
