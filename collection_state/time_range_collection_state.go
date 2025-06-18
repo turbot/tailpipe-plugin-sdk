@@ -236,7 +236,7 @@ func (s *timeRangeCollectionState) setUpperBoundaryTime(newEndTime time.Time) {
 	newEndTime = newEndTime.Truncate(s.Granularity)
 
 	// if timestamp is inside current re, do nothing (?) - this function expected end time to always move forwards
-	//  - think about how we clear state in case of explicit recolleciton - add explicit Clear(fro, to) method?
+	//  TODO - think about how we clear state in case of explicit recollection - add explicit Clear(fro, to) method?
 	if s.insideUpperBoundary(newEndTime) {
 		slog.Debug("setUpperBoundaryTime called with a time that is before or equal to the current end time - ignoring", "new end time", newEndTime, "current end time", s.To)
 		return

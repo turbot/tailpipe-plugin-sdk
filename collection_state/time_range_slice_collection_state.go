@@ -271,11 +271,11 @@ func (t *TimeRangeSliceCollectionState) compact() {
 func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) *timeRangeCollectionState {
 	for _, r := range t.TimeRanges {
 		if r.Contains(timestamp) {
-			slog.Info("Found existing range for time", "timestamp", timestamp, "range From", r.From, "range TO", r.To)
+			slog.Debug("Found existing range for time", "timestamp", timestamp, "range From", r.From, "range TO", r.To)
 			return r
 		}
-		slog.Info("Range does not contain time", "timestamp", timestamp, "range From", r.From, "range TO", r.To)
 	}
+	slog.Debug("No existing range found for time", "timestamp", timestamp)
 	return nil
 }
 
