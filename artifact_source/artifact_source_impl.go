@@ -68,8 +68,8 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
 
-	// shadow the CollectionState property, but using ArtifactCollectionState
-	CollectionState collection_state.ArtifactCollectionState[S]
+	// shadow the CollectionState property, but store as a CollectionStateWithPaths so we can easily register paths
+	CollectionState collection_state.CollectionStateWithPaths[S]
 
 	defaultConfig *artifact_source_config.ArtifactSourceConfigImpl
 	// map of loaders created, keyed by identifier
@@ -123,8 +123,8 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	}
 	a.Source = impl
 
-	// store the collection state as an ArtifactCollectionState (shadow the base CollectionState property)
-	cs, ok := any(a.RowSourceImpl.CollectionState).(collection_state.ArtifactCollectionState[S])
+	// store the collection state as an CollectionStateWithPaths (shadow the base CollectionState property)
+	cs, ok := any(a.RowSourceImpl.CollectionState).(collection_state.CollectionStateWithPaths[S])
 	if !ok {
 		return errors.New("ArtifactSourceImpl.CollectionState must implement ArtifactCollectionState")
 	}

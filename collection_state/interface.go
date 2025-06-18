@@ -5,10 +5,13 @@ import (
 	"time"
 )
 
+type SaveableCollectionState[T parse.Config] interface {
+	CollectionState[T]
+	Save() error
+}
 type CollectionState[T parse.Config] interface {
 	IsEmpty() bool
 	Init(config T, path string) error
-	Save() error
 	SetGranularity(time.Duration)
 	ShouldCollect(id string, timestamp time.Time) bool
 	OnCollected(id string, timestamp time.Time) error
@@ -20,4 +23,9 @@ type CollectionState[T parse.Config] interface {
 	GetToTime() time.Time
 	OnCollectionStarted(fromTime time.Time, toTime time.Time)
 	OnCollectionComplete() error
+}
+
+type CollectionStateWithPaths[T parse.Config] interface {
+	CollectionState[T]
+	RegisterPath(path string, metadata map[string]string)
 }

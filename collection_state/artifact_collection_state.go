@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
@@ -17,45 +16,32 @@ const MinArtifactGranularity = time.Hour * 24
 
 // ArtifactCollectionState is a collection state implementation for artifact sources
 // it tracks the collection state for each trunk (a path segment that does not contain any time metadata)
+// NOTE: in use, this will be wrapped in a SaveableCollectionStateImpl to allow saving to disk.
+// This also implements locking for OnCollected and ShouldCollect methods so we do not need to do that here.
 type ArtifactCollectionState[T artifact_source_config.ArtifactSourceConfig] struct {
 	// map of trunk paths to collection state for that trunk
 	// a trunk is a path segment that does not contain any time metadata
 	// for example if the path is s3://bucket/folder1/folder2/2021/01/01/file.txt then the trunk is s3://bucket/folder1/folder2
-	TrunkStates map[string]*TimeRangeSliceCollectionState `json:"trunk_states,omitempty"`
-
-	// the time the last artifact was collected
-	// TACTICAL: this is used in GetToTime called by RowSourceImpl.setFromTime
-	// if there is no timing information in the files, we use this to determine the end time
-	// which we pass to the CLI to use as the --from time (if one has not been passed)
-	// NOTE: this assumes forward collection
-	LastModifiedTime time.Time `json:"last_modified_time,omitempty"`
+	TrunkStates map[string]*TimeRangeSliceCollectionState[T] `json:"trunk_states,omitempty"`
 
 	granularity time.Duration
-
-	// path to the serialised collection state JSON
-	jsonPath     string
-	lastSaveTime time.Time
 
 	// the time range for the underway collection - populated by OnCollectionStarted
 	currentCollectionTimeRange *timeRange
 	// map of the trunk state for each object which has been passed to ShouldCollect
 	// this is to avoid recomputing the trunk state for each object on every OnCollected call
-	objectTrunkMap map[string]*TimeRangeSliceCollectionState
-	mut            *sync.RWMutex
+	objectTrunkMap map[string]*TimeRangeSliceCollectionState[T]
 }
 
 func NewArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
 	return &ArtifactCollectionState[T]{
-		TrunkStates:    make(map[string]*TimeRangeSliceCollectionState),
-		objectTrunkMap: make(map[string]*TimeRangeSliceCollectionState),
-		mut:            &sync.RWMutex{},
+		TrunkStates:    make(map[string]*TimeRangeSliceCollectionState[T]),
+		objectTrunkMap: make(map[string]*TimeRangeSliceCollectionState[T]),
 	}
 }
 
 // Init sets the filepath of the collection state and loads the state from the file if it exists
-func (s *ArtifactCollectionState[T]) Init(_ T, path string) error {
-	s.jsonPath = path
-
+func (s *ArtifactCollectionState[T]) Init(config T, path string) error {
 	// if there is a file at the path, load it
 	if _, err := os.Stat(path); err == nil {
 		// read the file
@@ -71,7 +57,7 @@ func (s *ArtifactCollectionState[T]) Init(_ T, path string) error {
 	// call init on all trunk states to ensure they are initialised
 	for _, trunkState := range s.TrunkStates {
 		if trunkState != nil {
-			trunkState.Init()
+			trunkState.Init(config, path)
 		}
 	}
 	return nil
@@ -148,8 +134,6 @@ func (s *ArtifactCollectionState[T]) OnCollectionStarted(fromTime time.Time, toT
 // OnCollectionComplete sets the end time for the collection state - update all trunk states
 // This is called after a successful collection to set the collection state end time to the To time of the collection
 func (s *ArtifactCollectionState[T]) OnCollectionComplete() error {
-	s.mut.Lock()
-	defer s.mut.Unlock()
 	for _, trunkState := range s.TrunkStates {
 		if trunkState == nil {
 			continue
@@ -200,8 +184,6 @@ func (s *ArtifactCollectionState[T]) RegisterPath(path string, metadata map[stri
 
 // ShouldCollect returns whether the object should be collected, based on the time metadata in the object
 func (s *ArtifactCollectionState[T]) ShouldCollect(id string, timestamp time.Time) bool {
-	s.mut.Lock()
-	defer s.mut.Unlock()
 	rootChar := "/"
 	var trunkPath string
 
@@ -228,7 +210,7 @@ func (s *ArtifactCollectionState[T]) ShouldCollect(id string, timestamp time.Tim
 	if !ok || trunkState == nil {
 		// so we DO NOT have a collection state for this trunk
 		// create a new collection state
-		trunkState = NewTimeRangeSliceCollectionState(s.currentCollectionTimeRange, CollectionOrderChronological)
+		trunkState = NewTimeRangeSliceCollectionState[T](s.currentCollectionTimeRange, CollectionOrderChronological)
 		// set the granularity
 		trunkState.SetGranularity(s.granularity)
 
@@ -244,11 +226,6 @@ func (s *ArtifactCollectionState[T]) ShouldCollect(id string, timestamp time.Tim
 
 // OnCollected is called when an object has been collected - update our end time and end objects if needed
 func (s *ArtifactCollectionState[T]) OnCollected(id string, timestamp time.Time) error {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-
-	// store modified time to ensure we save the state
-	s.LastModifiedTime = time.Now()
 
 	// we should have a trunk cached for this object
 	trunkState, ok := s.objectTrunkMap[id]
@@ -260,47 +237,6 @@ func (s *ArtifactCollectionState[T]) OnCollected(id string, timestamp time.Time)
 
 	return trunkState.OnCollected(id, timestamp)
 
-}
-
-// Save serialises the collection state to a JSON file
-func (s *ArtifactCollectionState[T]) Save() error {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-
-	// if the last save time is after the last modified time, then we have nothing to do
-	if s.lastSaveTime.After(s.LastModifiedTime) {
-		// nothing to do
-		return nil
-	}
-
-	jsonBytes, err := json.Marshal(s)
-	if err != nil {
-		return err
-	}
-	// ensure the target file path is valid
-	if s.jsonPath == "" {
-		return fmt.Errorf("collection state path is not set")
-	}
-
-	// if we are empty, delete the file
-	if s.IsEmpty() {
-		err := os.Remove(s.jsonPath)
-		if err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to delete collection state file: %w", err)
-		}
-		return nil
-	}
-
-	// write the JSON data to the file, overwriting any existing data
-	err = os.WriteFile(s.jsonPath, jsonBytes, 0644) //nolint:gosec // 0644 is the file permission we want
-	if err != nil {
-		return fmt.Errorf("failed to write collection state to file: %w", err)
-	}
-
-	// update the last save time
-	s.lastSaveTime = time.Now()
-
-	return nil
 }
 
 // IsEmpty returns whether the collection state is empty

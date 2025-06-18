@@ -38,7 +38,7 @@ type RowSourceImpl[S, T parse.Config] struct {
 	Source RowSource
 
 	// the collection state data for this source
-	CollectionState collection_state.CollectionState[S]
+	CollectionState collection_state.SaveableCollectionState[S]
 	// a function to create empty collection state data
 	NewCollectionStateFunc func() collection_state.CollectionState[S]
 	// the start time for the data collection
@@ -82,9 +82,9 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 		return err
 	}
 
-	// create empty collection state
+	// create empty collection state and wrap in a SaveableCollectionState
 	slog.Info("Creating empty collection state")
-	r.CollectionState = r.NewCollectionStateFunc()
+	r.CollectionState = collection_state.NewSaveableCollectionState(r.NewCollectionStateFunc())
 	// initialise the collection state - this will load itself form json (if JSON file exists)
 	err = r.CollectionState.Init(r.Config, params.CollectionStatePath)
 	if err != nil {
@@ -98,7 +98,6 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	return nil
 }
 
-// TODO who needs this
 func (r *RowSourceImpl[S, T]) SaveCollectionState() error {
 	return r.CollectionState.Save()
 }

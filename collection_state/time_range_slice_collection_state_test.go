@@ -60,7 +60,7 @@ func TestTimeRangeSliceCollectionState_GetToTime(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t1 *testing.T) {
-			t := &TimeRangeSliceCollectionState{
+			t := &TimeRangeSliceCollectionState[testConfig]{
 				TimeRanges:  tt.fields.TimeRanges,
 				Granularity: tt.fields.Granularity,
 				Order:       tt.fields.Order,
@@ -131,7 +131,7 @@ func TestTimeRangeSliceCollectionState_GetFromTime(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t1 *testing.T) {
-			t := &TimeRangeSliceCollectionState{
+			t := &TimeRangeSliceCollectionState[testConfig]{
 				TimeRanges:  tt.fields.TimeRanges,
 				Granularity: tt.fields.Granularity,
 				Order:       tt.fields.Order,
@@ -207,7 +207,7 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t1 *testing.T) {
-			t := &TimeRangeSliceCollectionState{
+			t := &TimeRangeSliceCollectionState[testConfig]{
 				TimeRanges:  tt.fields.TimeRanges,
 				Granularity: tt.fields.Granularity,
 				Order:       tt.fields.Order,
@@ -222,7 +222,7 @@ func TestTimeRangeSliceCollectionState_IsEmpty(t *testing.T) {
 func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 	tests := []struct {
 		name              string
-		state             *TimeRangeSliceCollectionState
+		state             *TimeRangeSliceCollectionState[testConfig]
 		expectedRanges    []*timeRangeCollectionState
 		currentCollection *timeRange
 	}{
@@ -423,13 +423,13 @@ func TestTimeRangeSliceCollectionState_compact(t *testing.T) {
 func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 	tests := []struct {
 		name          string
-		state         *TimeRangeSliceCollectionState
+		state         *TimeRangeSliceCollectionState[testConfig]
 		from          time.Time
 		to            time.Time
 		emptyDays     []time.Time
 		order         CollectionOrder
 		granularity   time.Duration
-		expectedState *TimeRangeSliceCollectionState
+		expectedState *TimeRangeSliceCollectionState[testConfig]
 	}{
 		{
 			name:        "First Collection - Defaults (No Parameters) - Forward",
@@ -567,6 +567,36 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-30 12:00:00", time.Hour, CollectionOrderChronological)),
 		},
+		/*
+			"Multiple Ranges - Forward - Collection between ranges (not joined)"
+			"Multiple Ranges - Reverse - Collection between ranges (not joined)"
+			"Multiple Ranges - Forward - Collection connects two ranges"
+			"Multiple Ranges - Reverse - Collection connects two ranges"
+			"Multiple Ranges - Forward - Collection extends from after first into second"
+			"Multiple Ranges - Reverse - Collection extends from after first into second"
+			"Multiple Ranges - Forward - Collection overlaps end of first range"
+			"Multiple Ranges - Reverse - Collection overlaps end of first range"
+			"Multiple Ranges - Forward - Collection starts between ranges, extends into second"
+			"Multiple Ranges - Reverse - Collection starts between ranges, extends into second"
+			"Multiple Ranges - Forward - Collection overlaps both ranges"
+			"Multiple Ranges - Reverse - Collection overlaps both ranges"
+			"Multiple Ranges - Forward - Collection extends first range backwards"
+			"Multiple Ranges - Reverse - Collection extends first range backwards"
+			"Multiple Ranges - Forward - Collection extends second range forwards"
+			"Multiple Ranges - Reverse - Collection extends second range forwards"
+			"Multiple Ranges - Forward - Collection completely subsumes both ranges"
+			"Multiple Ranges - Reverse - Collection completely subsumes both ranges"
+			"Multiple Ranges - Forward - Collection exactly spans both ranges"
+			"Multiple Ranges - Reverse - Collection exactly spans both ranges"
+			"Multiple Ranges - Forward - Collection contained within first range"
+			"Multiple Ranges - Reverse - Collection contained within first range"
+			"Multiple Ranges - Forward - Collection contained within second range"
+			"Multiple Ranges - Reverse - Collection contained within second range"
+			"Multiple Ranges - Forward - Collection extends first range backwards, doesn't reach second"
+			"Multiple Ranges - Reverse - Collection extends first range backwards, doesn't reach second"
+			"Multiple Ranges - Forward - Collection extends second range forwards, doesn't reach first"
+			"Multiple Ranges - Reverse - Collection extends second range forwards, doesn't reach first"
+		*/
 	}
 
 	for _, tt := range tests {
@@ -574,7 +604,7 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 			// Initialize state if not provided
 			state := tt.state
 			if state == nil {
-				state = NewTimeRangeSliceCollectionState(&timeRange{from: tt.from, to: tt.to}, tt.order)
+				state = NewTimeRangeSliceCollectionState[testConfig](&timeRange{from: tt.from, to: tt.to}, tt.order)
 				// set the granularity
 				state.SetGranularity(tt.granularity)
 			}
@@ -636,7 +666,7 @@ func TestTimeRangeSliceCollectionState_emulate_collection(t *testing.T) {
 func TestTimeRangeSliceCollectionState_ShouldCollect(t *testing.T) {
 	tests := []struct {
 		name            string
-		state           *TimeRangeSliceCollectionState
+		state           *TimeRangeSliceCollectionState[testConfig]
 		objectTimestamp time.Time
 		objectId        string
 		want            bool
@@ -783,9 +813,9 @@ func TestTimeRangeSliceCollectionState_ShouldCollect(t *testing.T) {
 func TestTimeRangeSliceCollectionState_updateActiveRange(t *testing.T) {
 	tests := []struct {
 		name          string
-		state         *TimeRangeSliceCollectionState
+		state         *TimeRangeSliceCollectionState[testConfig]
 		timestamp     time.Time
-		expectedState *TimeRangeSliceCollectionState
+		expectedState *TimeRangeSliceCollectionState[testConfig]
 	}{
 		{
 			name: "No existing ranges - check initial active range",
@@ -870,7 +900,7 @@ func TestTimeRangeSliceCollectionState_updateActiveRange(t *testing.T) {
 func TestTimeRangeSliceCollectionState_upperBoundaryTime(t1 *testing.T) {
 	tests := []struct {
 		name  string
-		state *TimeRangeSliceCollectionState
+		state *TimeRangeSliceCollectionState[testConfig]
 		want  time.Time
 	}{
 		{
@@ -936,7 +966,7 @@ func TestTimeRangeSliceCollectionState_upperBoundaryTime(t1 *testing.T) {
 func TestTimeRangeSliceCollectionState_lowerBoundaryTime(t1 *testing.T) {
 	tests := []struct {
 		name  string
-		state *TimeRangeSliceCollectionState
+		state *TimeRangeSliceCollectionState[testConfig]
 		want  time.Time
 	}{
 		{
@@ -1003,7 +1033,7 @@ func TestTimeRangeSliceCollectionState_rangeForTime(t1 *testing.T) {
 
 	tests := []struct {
 		name      string
-		state     *TimeRangeSliceCollectionState
+		state     *TimeRangeSliceCollectionState[testConfig]
 		timestamp time.Time
 		want      *timeRangeCollectionState
 	}{
@@ -1138,9 +1168,9 @@ func TestTimeRangeSliceCollectionState_rangeForTime(t1 *testing.T) {
 func TestTimeRangeSliceCollectionState_addRange(t1 *testing.T) {
 	tests := []struct {
 		name          string
-		state         *TimeRangeSliceCollectionState
+		state         *TimeRangeSliceCollectionState[testConfig]
 		timestamp     time.Time
-		expectedState *TimeRangeSliceCollectionState
+		expectedState *TimeRangeSliceCollectionState[testConfig]
 	}{
 		{
 			name: "empty state - add first range",
@@ -1249,8 +1279,8 @@ func TestTimeRangeSliceCollectionState_addRange(t1 *testing.T) {
 	}
 }
 
-func buildTimeRangeSliceState(order CollectionOrder, granularity time.Duration, ranges ...*timeRangeCollectionState) *TimeRangeSliceCollectionState {
-	return &TimeRangeSliceCollectionState{
+func buildTimeRangeSliceState(order CollectionOrder, granularity time.Duration, ranges ...*timeRangeCollectionState) *TimeRangeSliceCollectionState[testConfig] {
+	return &TimeRangeSliceCollectionState[testConfig]{
 		TimeRanges:     ranges,
 		Granularity:    granularity,
 		objectRangeMap: map[string]*timeRangeCollectionState{},
@@ -1258,7 +1288,7 @@ func buildTimeRangeSliceState(order CollectionOrder, granularity time.Duration, 
 	}
 }
 
-func timeRangeSliceStateEquals(got, want *TimeRangeSliceCollectionState) (bool, string) {
+func timeRangeSliceStateEquals(got, want *TimeRangeSliceCollectionState[testConfig]) (bool, string) {
 	if len(got.TimeRanges) != len(want.TimeRanges) {
 		return false, fmt.Sprintf("range count = %v, want %v", len(got.TimeRanges), len(want.TimeRanges))
 	}
