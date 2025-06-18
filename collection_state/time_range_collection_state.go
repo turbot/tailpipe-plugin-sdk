@@ -13,13 +13,12 @@ const (
 	CollectionOrderReverse
 )
 
-// TODO think about reverse order collection - everything is reversed
-// TODO think abolut artifact source with zero granularity - i.e. no time information - how does source handle this???
+// TODO think about artifact source with zero granularity - i.e. no time information - how does source handle this???
 //
 //	do we need a different collection state for this?
 //
 // timeRangeCollectionState is a struct that tracks time ranges and objects that have been collected
-// it is used by the ArtifactCollectionStateImpl and TimeRangeCollectionState
+// it is used by TimeRandSliceCollectionState
 // NOTE: we do not implement mutex locking here - it is assumed that the caller will lock the state before calling
 type timeRangeCollectionState struct {
 	// the start time of the range
@@ -49,7 +48,7 @@ func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRan
 		To:         from,
 		EndObjects: make(map[string]struct{}),
 		// default granularity is 1 nanosecond - the default for api sources
-		// this will be overridden by ArtifactCollectionStateImpl as needed
+		// this will be overridden by ArtifactCollectionState as needed
 		Granularity:     1 * time.Nanosecond,
 		CollectionOrder: order,
 	}

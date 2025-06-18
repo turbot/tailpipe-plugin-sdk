@@ -68,7 +68,7 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
 
-	// shadow the CollectionState property, but using ArtifactCollectionStateImpl
+	// shadow the CollectionState property, but using ArtifactCollectionState
 	CollectionState collection_state.ArtifactCollectionState[S]
 
 	defaultConfig *artifact_source_config.ArtifactSourceConfigImpl

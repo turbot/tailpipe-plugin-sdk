@@ -21,8 +21,3 @@ type CollectionState[T parse.Config] interface {
 	OnCollectionStarted(fromTime time.Time, toTime time.Time)
 	OnCollectionComplete() error
 }
-
-type ArtifactCollectionState[T parse.Config] interface {
-	CollectionState[T]
-	RegisterPath(path string, metadata map[string]string)
-}

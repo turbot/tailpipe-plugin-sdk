@@ -15,17 +15,9 @@ import (
 
 const MinArtifactGranularity = time.Hour * 24
 
-// ArtifactCollectionStateImpl is the interface for the collection state of an S3 bucket
-// return the start time and the end time for the data downloaded
-
-//type trunkRange struct {
-//	// the trunk path
-//	//trunkPath string
-//	// the time range slice of the current collection state
-//	timeRange *timeRangeCollectionState
-//}
-
-type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] struct {
+// ArtifactCollectionState is a collection state implementation for artifact sources
+// it tracks the collection state for each trunk (a path segment that does not contain any time metadata)
+type ArtifactCollectionState[T artifact_source_config.ArtifactSourceConfig] struct {
 	// map of trunk paths to collection state for that trunk
 	// a trunk is a path segment that does not contain any time metadata
 	// for example if the path is s3://bucket/folder1/folder2/2021/01/01/file.txt then the trunk is s3://bucket/folder1/folder2
@@ -53,7 +45,7 @@ type ArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig] 
 }
 
 func NewArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfig]() CollectionState[T] {
-	return &ArtifactCollectionStateImpl[T]{
+	return &ArtifactCollectionState[T]{
 		TrunkStates:    make(map[string]*TimeRangeSliceCollectionState),
 		objectTrunkMap: make(map[string]*TimeRangeSliceCollectionState),
 		mut:            &sync.RWMutex{},
@@ -61,7 +53,7 @@ func NewArtifactCollectionStateImpl[T artifact_source_config.ArtifactSourceConfi
 }
 
 // Init sets the filepath of the collection state and loads the state from the file if it exists
-func (s *ArtifactCollectionStateImpl[T]) Init(_ T, path string) error {
+func (s *ArtifactCollectionState[T]) Init(_ T, path string) error {
 	s.jsonPath = path
 
 	// if there is a file at the path, load it
@@ -87,7 +79,7 @@ func (s *ArtifactCollectionStateImpl[T]) Init(_ T, path string) error {
 
 // SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
 // granularity of the time metadata it contains
-func (s *ArtifactCollectionStateImpl[T]) SetGranularity(granularity time.Duration) {
+func (s *ArtifactCollectionState[T]) SetGranularity(granularity time.Duration) {
 	// ensure the granularity is no smaller than the minimum
 	if granularity < MinArtifactGranularity && granularity != 0 {
 		granularity = MinArtifactGranularity
@@ -96,11 +88,11 @@ func (s *ArtifactCollectionStateImpl[T]) SetGranularity(granularity time.Duratio
 }
 
 // GetGranularity returns the granularity of the collection state
-func (s *ArtifactCollectionStateImpl[T]) GetGranularity() time.Duration {
+func (s *ArtifactCollectionState[T]) GetGranularity() time.Duration {
 	return s.granularity
 }
 
-func (s *ArtifactCollectionStateImpl[T]) GetFromTime() time.Time {
+func (s *ArtifactCollectionState[T]) GetFromTime() time.Time {
 	// find the latest start time of all the trunk states
 	var startTime time.Time
 	for _, trunkState := range s.TrunkStates {
@@ -121,7 +113,7 @@ func (s *ArtifactCollectionStateImpl[T]) GetFromTime() time.Time {
 // GetToTime returns the time we know have collected ALL data up until
 // (we may have collected some data after this - within the granularity period)
 // return the earliest end time of all the trunk states
-func (s *ArtifactCollectionStateImpl[T]) GetToTime() time.Time {
+func (s *ArtifactCollectionState[T]) GetToTime() time.Time {
 	// find the earliest end time of all the trunk states
 	var endTime time.Time
 	for _, trunkState := range s.TrunkStates {
@@ -139,7 +131,7 @@ func (s *ArtifactCollectionStateImpl[T]) GetToTime() time.Time {
 	return endTime
 }
 
-func (s *ArtifactCollectionStateImpl[T]) OnCollectionStarted(fromTime time.Time, toTime time.Time) {
+func (s *ArtifactCollectionState[T]) OnCollectionStarted(fromTime time.Time, toTime time.Time) {
 	s.currentCollectionTimeRange = &timeRange{
 		from: fromTime,
 		to:   toTime,
@@ -155,7 +147,7 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollectionStarted(fromTime time.Time,
 
 // OnCollectionComplete sets the end time for the collection state - update all trunk states
 // This is called after a successful collection to set the collection state end time to the To time of the collection
-func (s *ArtifactCollectionStateImpl[T]) OnCollectionComplete() error {
+func (s *ArtifactCollectionState[T]) OnCollectionComplete() error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	for _, trunkState := range s.TrunkStates {
@@ -174,7 +166,7 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollectionComplete() error {
 // RegisterPath registers a path with the collection state - we determine whether this is a potential trunk
 // (i.e. a path segment with no time metadata for which we need to track collection state separately)
 // and if so, add it to the map of trunk states
-func (s *ArtifactCollectionStateImpl[T]) RegisterPath(path string, metadata map[string]string) {
+func (s *ArtifactCollectionState[T]) RegisterPath(path string, metadata map[string]string) {
 	// if this a trunk (i.e. there is no time component)
 	// if so, add an entry in the trunk states map
 	if s.containsTimeMetadata(metadata) {
@@ -207,7 +199,7 @@ func (s *ArtifactCollectionStateImpl[T]) RegisterPath(path string, metadata map[
 }
 
 // ShouldCollect returns whether the object should be collected, based on the time metadata in the object
-func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time.Time) bool {
+func (s *ArtifactCollectionState[T]) ShouldCollect(id string, timestamp time.Time) bool {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 	rootChar := "/"
@@ -251,7 +243,7 @@ func (s *ArtifactCollectionStateImpl[T]) ShouldCollect(id string, timestamp time
 }
 
 // OnCollected is called when an object has been collected - update our end time and end objects if needed
-func (s *ArtifactCollectionStateImpl[T]) OnCollected(id string, timestamp time.Time) error {
+func (s *ArtifactCollectionState[T]) OnCollected(id string, timestamp time.Time) error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
@@ -271,7 +263,7 @@ func (s *ArtifactCollectionStateImpl[T]) OnCollected(id string, timestamp time.T
 }
 
 // Save serialises the collection state to a JSON file
-func (s *ArtifactCollectionStateImpl[T]) Save() error {
+func (s *ArtifactCollectionState[T]) Save() error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
 
@@ -312,7 +304,7 @@ func (s *ArtifactCollectionStateImpl[T]) Save() error {
 }
 
 // IsEmpty returns whether the collection state is empty
-func (s *ArtifactCollectionStateImpl[T]) IsEmpty() bool {
+func (s *ArtifactCollectionState[T]) IsEmpty() bool {
 	for _, trunkState := range s.TrunkStates {
 		if trunkState != nil && !trunkState.IsEmpty() {
 			return false
@@ -322,7 +314,7 @@ func (s *ArtifactCollectionStateImpl[T]) IsEmpty() bool {
 }
 
 // helper to determine if the metadata contains any time metadata
-func (s *ArtifactCollectionStateImpl[T]) containsTimeMetadata(metadata map[string]string) bool {
+func (s *ArtifactCollectionState[T]) containsTimeMetadata(metadata map[string]string) bool {
 	// check for any time metadata
 	timeFields := []string{
 		constants.TemplateFieldYear, constants.TemplateFieldMonth, constants.TemplateFieldDay, constants.TemplateFieldHour, constants.TemplateFieldMinute, constants.TemplateFieldSecond,
