@@ -69,7 +69,7 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	Source ArtifactSource
 
 	// shadow the CollectionState property, but store as a CollectionStateWithPaths so we can easily register paths
-	CollectionState collection_state.CollectionStateWithPaths[S]
+	CollectionState collection_state.CollectionStateWithPaths
 
 	defaultConfig *artifact_source_config.ArtifactSourceConfigImpl
 	// map of loaders created, keyed by identifier
@@ -124,14 +124,15 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	a.Source = impl
 
 	// store the collection state as an CollectionStateWithPaths (shadow the base CollectionState property)
-	cs, ok := any(a.RowSourceImpl.CollectionState).(collection_state.CollectionStateWithPaths[S])
+	cs, ok := any(a.RowSourceImpl.CollectionState).(collection_state.CollectionStateWithPaths)
 	if !ok {
 		return errors.New("ArtifactSourceImpl.CollectionState must implement ArtifactCollectionState")
 	}
 	a.CollectionState = cs
 
-	// set the granularity
-	a.CollectionState.SetGranularity(helpers.GetGranularityFromFileLayout(a.Config.GetFileLayout()))
+	// set the granularity of the collection state using the value derived from the file layout
+	granularity := helpers.GetGranularityFromFileLayout(a.Config.GetFileLayout())
+	a.CollectionState.SetGranularity(granularity)
 
 	// setup rate limiter
 	a.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{

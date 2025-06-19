@@ -17,10 +17,11 @@ const (
 //
 //	do we need a different collection state for this?
 //
-// timeRangeCollectionState is a struct that tracks time ranges and objects that have been collected
-// it is used by TimeRandSliceCollectionState
+// timeRangeObjectState is a struct that tracks time ranges and objects that have been collected
+// it is used by TimeRangeSliceCollectionState
 // NOTE: we do not implement mutex locking here - it is assumed that the caller will lock the state before calling
-type timeRangeCollectionState struct {
+// NOTE: this struct DOES NOT implement the CollectionState interface directly
+type timeRangeObjectState struct {
 	// the start time of the range
 	From time.Time `json:"from,omitzero"`
 	// the end time of the range - we have all data up to this time (non-inclusive)
@@ -41,8 +42,8 @@ type timeRangeCollectionState struct {
 	CollectionOrder CollectionOrder `json:"collection_order"`
 }
 
-func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRangeCollectionState {
-	return &timeRangeCollectionState{
+func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRangeObjectState {
+	return &timeRangeObjectState{
 		From: from,
 		// initially the end time is the same as the start time, i.e. we are empty
 		To:         from,
@@ -54,12 +55,12 @@ func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRan
 	}
 }
 
-func (s *timeRangeCollectionState) IsEmpty() bool {
+func (s *timeRangeObjectState) IsEmpty() bool {
 	return s.To.Equal(s.From) || (s.From.IsZero() || s.To.IsZero()) && len(s.EndObjects) == 0
 }
 
 // ShouldCollect returns whether the object should be collected
-func (s *timeRangeCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
+func (s *timeRangeObjectState) ShouldCollect(id string, timestamp time.Time) bool {
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we use start objects to track everything
 	if s.Granularity == 0 {
@@ -85,7 +86,7 @@ func (s *timeRangeCollectionState) ShouldCollect(id string, timestamp time.Time)
 
 // OnCollected is called when an object has been collected - update the end time and end objects if needed
 // Note: the object name is the full path to the object
-func (s *timeRangeCollectionState) OnCollected(id string, timestamp time.Time) error {
+func (s *timeRangeObjectState) OnCollected(id string, timestamp time.Time) error {
 	// first handle special cases
 	// if granularity is zero, that means we have no time information about the object
 	// - we cannot store start/end times - just put all objects into the end objects map
@@ -127,38 +128,38 @@ func (s *timeRangeCollectionState) OnCollected(id string, timestamp time.Time) e
 	return nil
 }
 
-func (s *timeRangeCollectionState) GetFromTime() time.Time {
+func (s *timeRangeObjectState) GetFromTime() time.Time {
 	return s.From
 }
 
 // GetToTime returns the time we know have collected ALL data up until
 // (we may have collected some data after this - within the granularity period
-func (s *timeRangeCollectionState) GetToTime() time.Time {
+func (s *timeRangeObjectState) GetToTime() time.Time {
 	// i.e. the last time period we are sure we have ALL data for
 	return s.To
 }
 
 // SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
 // granularity of the time metadata it contains
-func (s *timeRangeCollectionState) SetGranularity(granularity time.Duration) {
+func (s *timeRangeObjectState) SetGranularity(granularity time.Duration) {
 	s.Granularity = granularity
 }
 
 // GetGranularity returns the granularity of the collection state
-func (s *timeRangeCollectionState) GetGranularity() time.Duration {
+func (s *timeRangeObjectState) GetGranularity() time.Duration {
 	return s.Granularity
 }
 
 // Contains returns whether a timestamp fall within the time range?
-// this checks if the timestamp lies within the from and to times of the collection state (inclusive)
-func (s *timeRangeCollectionState) Contains(timestamp time.Time) bool {
+// this checks if the timestamp lies within the From and to times of the collection state (inclusive)
+func (s *timeRangeObjectState) Contains(timestamp time.Time) bool {
 	// TODO can this be called if granularity is zero, i.e. there is no time information?? how does calling code handle this???
 
 	// is this timestamp within the time range from the firstEntryTime to the end of the end objects?
 	return timestamp.Compare(s.From) >= 0 && timestamp.Compare(s.To) <= 0
 }
 
-func (s *timeRangeCollectionState) onOrInsideLowerBoundary(timestamp time.Time) bool {
+func (s *timeRangeObjectState) onOrInsideLowerBoundary(timestamp time.Time) bool {
 	// this is true if the timestamp is on the lower boundary time, or inside the lower boundary time
 	// for chronological collection, this returns whether the time isON or  AFTER the start time
 	// for reverse collection, this returns whether the time is ON or BEFORE the end time
@@ -168,7 +169,7 @@ func (s *timeRangeCollectionState) onOrInsideLowerBoundary(timestamp time.Time) 
 // insideLowerBoundary returns whether the timestamp is inside the lower boundary time (exclusive, i.e. NOT including the boundary time itself)
 // for chronological collection, this returns whether the time is AFTER the start time
 // for reverse collection, this returns whether the time is BEFORE the end time
-func (s *timeRangeCollectionState) insideLowerBoundary(timestamp time.Time) bool {
+func (s *timeRangeObjectState) insideLowerBoundary(timestamp time.Time) bool {
 
 	if s.CollectionOrder == CollectionOrderChronological {
 		return timestamp.After(s.From)
@@ -179,7 +180,7 @@ func (s *timeRangeCollectionState) insideLowerBoundary(timestamp time.Time) bool
 // insideUpperBoundary returns whether the timestamp is inside the upper boundary time (exclusive, i.e. NOT including the boundary time itself)
 // for chronological collection, this returns whether the time is BEFORE the end time
 // for reverse collection, this returns whether the time is AFTER the start time
-func (s *timeRangeCollectionState) insideUpperBoundary(timestamp time.Time) bool {
+func (s *timeRangeObjectState) insideUpperBoundary(timestamp time.Time) bool {
 	if s.CollectionOrder == CollectionOrderChronological {
 		return timestamp.Before(s.To)
 	}
@@ -189,7 +190,7 @@ func (s *timeRangeCollectionState) insideUpperBoundary(timestamp time.Time) bool
 // outsideLowerBoundary returns whether the timestamp is outside the lower boundary time
 // for chronological collection, this returns whether the time is BEFORE the start time
 // for reverse collection, this returns whether the time is AFTER the end time
-func (s *timeRangeCollectionState) outsideLowerBoundary(timestamp time.Time) bool {
+func (s *timeRangeObjectState) outsideLowerBoundary(timestamp time.Time) bool {
 	if s.CollectionOrder == CollectionOrderChronological {
 		return timestamp.Before(s.From)
 	}
@@ -199,7 +200,7 @@ func (s *timeRangeCollectionState) outsideLowerBoundary(timestamp time.Time) boo
 // outsideUpperBoundary returns whether the timestamp is outside the upper boundary time
 // for chronological collection, this returns whether the time is AFTER the end time
 // for reverse collection, this returns whether the time is BEFORE the start time
-func (s *timeRangeCollectionState) outsideUpperBoundary(timestamp time.Time) bool {
+func (s *timeRangeObjectState) outsideUpperBoundary(timestamp time.Time) bool {
 	if s.CollectionOrder == CollectionOrderChronological {
 		return timestamp.After(s.To)
 	}
@@ -209,7 +210,7 @@ func (s *timeRangeCollectionState) outsideUpperBoundary(timestamp time.Time) boo
 // upperBoundaryTime returns the the furthest time in the direction of collection
 // i.e. if we are collecting forwards, the upperBoundaryTime is the end time of the range,
 // if we are collecting backwards, the upperBoundaryTime is the start time of the range
-func (s *timeRangeCollectionState) upperBoundaryTime() time.Time {
+func (s *timeRangeObjectState) upperBoundaryTime() time.Time {
 	if s.CollectionOrder == CollectionOrderChronological {
 		return s.To
 	}
@@ -219,34 +220,34 @@ func (s *timeRangeCollectionState) upperBoundaryTime() time.Time {
 // lowerBoundaryTime returns the the furthest time in the opposite direction of collection
 // i.e. if we are collecting forwards, the lowerBoundaryTime is the start time of the range,
 // if we are collecting backwards, the lowerBoundaryTime is the end time of the range
-func (s *timeRangeCollectionState) lowerBoundaryTime() time.Time {
+func (s *timeRangeObjectState) lowerBoundaryTime() time.Time {
 	if s.CollectionOrder == CollectionOrderChronological {
 		return s.From
 	}
 	return s.To
 }
 
-// setUpperBoundaryTime sets the 'To' time for the collection state. This is called:
-// - when an object is collected with a timestamp that is after the current 'To' time
-// - at the end of a successful collection to indicate that we have collected up to the collection 'To' time
-func (s *timeRangeCollectionState) setUpperBoundaryTime(newEndTime time.Time) {
+// setUpperBoundaryTime sets the 'to' time for the collection state. This is called:
+// - when an object is collected with a timestamp that is after the current 'to' time
+// - at the end of a successful collection to indicate that we have collected up to the collection 'to' time
+func (s *timeRangeObjectState) setUpperBoundaryTime(newTime time.Time) {
 
 	// truncate the time to the granularity (this will be necessary if the end time is the now-time of a collection)
-	newEndTime = newEndTime.Truncate(s.Granularity)
+	newTime = newTime.Truncate(s.Granularity)
 
 	// if timestamp is inside current re, do nothing (?) - this function expected end time to always move forwards
 	//  TODO - think about how we clear state in case of explicit recollection - add explicit Clear(fro, to) method?
-	if s.insideUpperBoundary(newEndTime) {
-		slog.Debug("setUpperBoundaryTime called with a time that is before or equal to the current end time - ignoring", "new end time", newEndTime, "current end time", s.To)
+	if s.insideUpperBoundary(newTime) {
+		slog.Debug("setUpperBoundaryTime called with a time that is before or equal To the current end time - ignoring", "new end time", newTime, "current end time", s.To)
 		return
 	}
 
 	if s.CollectionOrder == CollectionOrderChronological {
 		// set the new end time
-		s.To = newEndTime
+		s.To = newTime
 	} else {
-		// for reverse collection, we set the From time to the new end time
-		s.From = newEndTime
+		// for reverse collection, we set the from time to the new end time
+		s.From = newTime
 	}
 	// clear the end objects
 	s.EndObjects = make(map[string]struct{})
@@ -256,8 +257,8 @@ func (s *timeRangeCollectionState) setUpperBoundaryTime(newEndTime time.Time) {
 // note - it is expected that the calling code has determined whether the two ranges should be merged
 // - we do not check that here
 // important to note that the states bing merged MAY NOT be contiguous
-// - as we merge all states between collection from and to on successful completion
-func (s *timeRangeCollectionState) merge(other *timeRangeCollectionState) {
+// - as we merge all states between collection From and to on successful completion
+func (s *timeRangeObjectState) merge(other *timeRangeObjectState) {
 	if s == nil || other == nil {
 		return
 	}
@@ -271,7 +272,7 @@ func (s *timeRangeCollectionState) merge(other *timeRangeCollectionState) {
 	}
 }
 
-func (s *timeRangeCollectionState) endObjectsContain(id string) bool {
+func (s *timeRangeObjectState) endObjectsContain(id string) bool {
 	_, ok := s.EndObjects[id]
 	return ok
 }

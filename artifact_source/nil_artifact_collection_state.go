@@ -1,6 +1,7 @@
 package artifact_source
 
 import (
+	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"time"
 )
 
@@ -20,7 +21,7 @@ func (s *NilArtifactCollectionState) GetToTime() time.Time {
 func (s *NilArtifactCollectionState) SetEndTime(_ time.Time) {
 }
 
-func (*NilArtifactCollectionState) Init(_ *NilArtifactSourceConfig, _ string) error {
+func (*NilArtifactCollectionState) Init(*collection_state.TimeRange) error {
 	return nil
 }
 

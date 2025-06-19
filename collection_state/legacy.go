@@ -17,3 +17,8 @@ type TimeRangeCollectionStateLegacy struct {
 	Granularity     time.Duration       `json:"granularity,omitempty"`
 	CollectionOrder CollectionOrder     `json:"collection_order,omitempty"`
 }
+
+type ArtifactCollectionStateLegacy struct {
+	TrunkStates      map[string]*TimeRangeCollectionStateLegacy `json:"trunk_states,omitempty"`
+	LastModifiedTime time.Time                                  `json:"last_modified_time,omitempty"`
+}

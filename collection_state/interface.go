@@ -1,20 +1,15 @@
 package collection_state
 
 import (
-	"github.com/turbot/tailpipe-plugin-sdk/parse"
 	"time"
 )
 
-type SaveableCollectionState[T parse.Config] interface {
-	CollectionState[T]
-	Save() error
-}
-type CollectionState[T parse.Config] interface {
+type CollectionState interface {
 	IsEmpty() bool
-	Init(config T, path string) error
-	SetGranularity(time.Duration)
+	Init(*TimeRange) error
 	ShouldCollect(id string, timestamp time.Time) bool
 	OnCollected(id string, timestamp time.Time) error
+	SetGranularity(time.Duration)
 	GetGranularity() time.Duration
 	GetFromTime() time.Time
 	// GetToTime returns the time 1 granularity period AFTER the last time we are sure we have collected ALL data for
@@ -23,9 +18,10 @@ type CollectionState[T parse.Config] interface {
 	GetToTime() time.Time
 	OnCollectionStarted(fromTime time.Time, toTime time.Time)
 	OnCollectionComplete() error
+	MigrateFromLegacyState(bytes []byte) error
 }
 
-type CollectionStateWithPaths[T parse.Config] interface {
-	CollectionState[T]
+type CollectionStateWithPaths interface {
+	CollectionState
 	RegisterPath(path string, metadata map[string]string)
 }

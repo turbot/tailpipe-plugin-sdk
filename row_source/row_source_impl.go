@@ -38,9 +38,9 @@ type RowSourceImpl[S, T parse.Config] struct {
 	Source RowSource
 
 	// the collection state data for this source
-	CollectionState collection_state.SaveableCollectionState[S]
+	CollectionState *collection_state.SaveableCollectionState
 	// a function to create empty collection state data
-	NewCollectionStateFunc func() collection_state.CollectionState[S]
+	NewCollectionStateFunc func() collection_state.CollectionState
 	// the start time for the data collection
 	FromTime time.Time
 	// how was from time set (config, collection state, default)
@@ -86,7 +86,11 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	slog.Info("Creating empty collection state")
 	r.CollectionState = collection_state.NewSaveableCollectionState(r.NewCollectionStateFunc())
 	// initialise the collection state - this will load itself form json (if JSON file exists)
-	err = r.CollectionState.Init(r.Config, params.CollectionStatePath)
+	timeRange := &collection_state.TimeRange{
+		From: params.From,
+		To:   params.To,
+	}
+	err = r.CollectionState.Init(timeRange, params.CollectionStatePath)
 	if err != nil {
 		return err
 	}
@@ -188,7 +192,7 @@ func (r *RowSourceImpl[S, T]) OnCollectionStarted() {
 }
 
 // OnCollectionComplete must be called by the source Collect function when the collection is complete
-// this updates the end time of the collection state to the collection `To` and saves the collection state
+// this updates the end time of the collection state to the collection `to` and saves the collection state
 func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 	if atomic.LoadInt32(&r.ErrorCount) > 0 {
 		slog.Info("OnCollectionComplete: Collection completed with errors - NOT setting end time of collection state to collection 'to' time as we may need to recollect some files")
@@ -198,7 +202,7 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 		slog.Info("OnCollectionComplete: Collection state is nil - not setting end time")
 		return nil
 	}
-	// so the source collection was successful, set the end time of the collection state to the collection `To`
+	// so the source collection was successful, set the end time of the collection state to the collection `to`
 	// this ensures that when we run the next collection, we will start from the end time of the previous collection
 	if err := r.CollectionState.OnCollectionComplete(); err != nil {
 		return fmt.Errorf("error completing collection state: %w", err)
