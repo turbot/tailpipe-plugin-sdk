@@ -1,39 +1,150 @@
 package collection_state
 
-import "time"
+import (
+	"time"
+)
 
-type TimeRange struct {
-	From time.Time
-	To   time.Time
-}
-
-// Contains checks if the given timestamp is within the time range.
-// The logic differs depending on the collection order:
-// For chronological order, the from time is inclusive and the to time is exclusive
-// For reverse order, the from time is exclusive and the to time is inclusive
-func (r TimeRange) Contains(timestamp time.Time, order CollectionOrder) bool {
-	if order == CollectionOrderChronological {
-		return timestamp.Compare(r.From) >= 0 && timestamp.Compare(r.To) < 0
-	}
-	return timestamp.Compare(r.From) < 0 && timestamp.Compare(r.To) >= 0
+type CollectionTimeRange struct {
+	From            time.Time
+	To              time.Time
+	CollectionOrder CollectionOrder
 }
 
 // upperBoundaryTime returns the the furthest time in the direction of collection
 // i.e. if we are collecting forwards, the upperBoundaryTime is the end time of the range,
 // if we are collecting backwards, the upperBoundaryTime is the start time of the range
-func (r TimeRange) upperBoundaryTime(order CollectionOrder) time.Time {
-	if order == CollectionOrderChronological {
-		return r.To
+func (t *CollectionTimeRange) upperBoundaryTime() time.Time {
+	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
+
+	if t.CollectionOrder == CollectionOrderUnset {
+		panic("CollectionOrder is unset")
 	}
-	return r.From
+
+	if t.CollectionOrder == CollectionOrderChronological {
+		return t.To
+	}
+	return t.From
 }
 
 // lowerBoundaryTime returns the the furthest time in the opposite direction of collection
 // i.e. if we are collecting forwards, the lowerBoundaryTime is the start time of the range,
 // if we are collecting backwards, the lowerBoundaryTime is the end time of the range
-func (r TimeRange) lowerBoundaryTime(order CollectionOrder) time.Time {
-	if order == CollectionOrderChronological {
-		return r.From
+func (t *CollectionTimeRange) lowerBoundaryTime() time.Time {
+	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
+	if t.CollectionOrder == CollectionOrderUnset {
+		panic("CollectionOrder is unset")
 	}
-	return r.To
+
+	if t.CollectionOrder == CollectionOrderChronological {
+		return t.From
+	}
+	return t.To
+}
+
+// insideLowerBoundary returns whether the timestamp is inside the lower boundary time (exclusive, i.e. NOT including the boundary time itself)
+// for chronological collection, this returns whether the time is AFTER the start time
+// for reverse collection, this returns whether the time is BEFORE the end time
+func (t *CollectionTimeRange) insideLowerBoundary(timestamp time.Time) bool {
+	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
+	if t.CollectionOrder == CollectionOrderUnset {
+		panic("CollectionOrder is unset")
+	}
+
+	if t.CollectionOrder == CollectionOrderChronological {
+		return timestamp.After(t.From)
+	}
+	return timestamp.Before(t.To)
+}
+
+// insideUpperBoundary returns whether the timestamp is inside the upper boundary time (exclusive, i.e. NOT including the boundary time itself)
+// for chronological collection, this returns whether the time is BEFORE the end time
+// for reverse collection, this returns whether the time is AFTER the start time
+func (t *CollectionTimeRange) insideUpperBoundary(timestamp time.Time) bool {
+	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
+	if t.CollectionOrder == CollectionOrderUnset {
+		panic("CollectionOrder is unset")
+	}
+
+	if t.CollectionOrder == CollectionOrderChronological {
+		return timestamp.Before(t.To)
+	}
+	return timestamp.After(t.From)
+}
+
+// outsideLowerBoundary returns whether the timestamp is outside the lower boundary time
+// for chronological collection, this returns whether the time is BEFORE the start time
+// for reverse collection, this returns whether the time is AFTER the end time
+func (t *CollectionTimeRange) outsideLowerBoundary(timestamp time.Time) bool {
+	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
+	if t.CollectionOrder == CollectionOrderUnset {
+		panic("CollectionOrder is unset")
+	}
+
+	if t.CollectionOrder == CollectionOrderChronological {
+		return timestamp.Before(t.From)
+	}
+	return timestamp.After(t.To)
+}
+
+// outsideUpperBoundary returns whether the timestamp is outside the upper boundary time
+// for chronological collection, this returns whether the time is AFTER the end time
+// for reverse collection, this returns whether the time is BEFORE the start time
+func (t *CollectionTimeRange) outsideUpperBoundary(timestamp time.Time) bool {
+	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
+	if t.CollectionOrder == CollectionOrderUnset {
+		panic("CollectionOrder is unset")
+	}
+
+	if t.CollectionOrder == CollectionOrderChronological {
+		return timestamp.After(t.To)
+	}
+	return timestamp.Before(t.From)
+}
+
+// onOrInsideLowerBoundary returns whether the timestamp is on the lower boundary time, or inside the lower boundary time
+// for chronological collection, this returns whether the time is ON or AFTER the start time
+// for reverse collection, this returns whether the time is ON or BEFORE the end time
+func (t *CollectionTimeRange) onOrInsideLowerBoundary(timestamp time.Time) bool {
+	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
+	if t.CollectionOrder == CollectionOrderUnset {
+		panic("CollectionOrder is unset")
+	}
+
+	return t.lowerBoundaryTime().Equal(timestamp) || t.insideLowerBoundary(timestamp)
+}
+
+//	onOrInsideUpperBoundary returns whether the timestamp is on the upper boundary time, or inside the upper boundary time
+//
+// for chronological collection, this returns whether the time is ON or BEFORE the end time
+// for reverse collection, this returns whether the time is ON or AFTER the start time
+func (t *CollectionTimeRange) onOrInsideUpperBoundary(timestamp time.Time) bool {
+	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
+	if t.CollectionOrder == CollectionOrderUnset {
+		panic("CollectionOrder is unset")
+	}
+
+	return t.upperBoundaryTime().Equal(timestamp) || t.insideUpperBoundary(timestamp)
+}
+
+// setUpperBoundaryTime extends the upper boundary time of the collection range
+// NOTE: we DO NOT set the upper boundary time if the new time is not extending the range
+func (t *CollectionTimeRange) setUpperBoundaryTime(newTime time.Time) {
+	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
+	if t.CollectionOrder == CollectionOrderUnset {
+		panic("CollectionOrder is unset")
+	}
+
+	if t.CollectionOrder == CollectionOrderChronological {
+		// only set if the new time extends the range
+		if newTime.After(t.To) {
+			t.To = newTime
+		}
+	} else {
+		// for reverse collection, only set if the new time extends the range (backwards in time)
+		// the upper boundary for reverse collection is the From time
+		// to extend the range, we need to set From to an earlier time
+		if newTime.Before(t.From) {
+			t.From = newTime
+		}
+	}
 }

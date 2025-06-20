@@ -47,6 +47,8 @@ type RowSourceImpl[S, T parse.Config] struct {
 	FromTimeSource string
 	// the end time for the data collection
 	ToTime time.Time
+	// the collection direction
+	CollectionOrder collection_state.CollectionOrder
 	// store errors - we only use this to determine whether the source collection was successful,
 	// and therefore whether we should set the CollectionState EndTime to the collection To time from OnCollectionComplete
 	ErrorCount int32
@@ -57,6 +59,8 @@ type RowSourceImpl[S, T parse.Config] struct {
 func (r *RowSourceImpl[S, T]) RegisterSource(source RowSource) {
 	r.Source = source
 }
+
+// TODO #CS kai how do we set order
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
@@ -86,10 +90,12 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	slog.Info("Creating empty collection state")
 	r.CollectionState = collection_state.NewSaveableCollectionState(r.NewCollectionStateFunc())
 	// initialise the collection state - this will load itself form json (if JSON file exists)
-	timeRange := &collection_state.TimeRange{
-		From: params.From,
-		To:   params.To,
+	timeRange := &collection_state.CollectionTimeRange{
+		From:            params.From,
+		To:              params.To,
+		CollectionOrder: r.CollectionOrder,
 	}
+
 	err = r.CollectionState.Init(timeRange, params.CollectionStatePath)
 	if err != nil {
 		return err
@@ -185,10 +191,6 @@ func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.Pr
 		}
 	}
 	return properties
-}
-
-func (r *RowSourceImpl[S, T]) OnCollectionStarted() {
-	r.CollectionState.OnCollectionStarted(r.FromTime, r.ToTime)
 }
 
 // OnCollectionComplete must be called by the source Collect function when the collection is complete

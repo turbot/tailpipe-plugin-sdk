@@ -6,7 +6,7 @@ import (
 
 type CollectionState interface {
 	IsEmpty() bool
-	Init(*TimeRange) error
+	Init(*CollectionTimeRange) error
 	ShouldCollect(id string, timestamp time.Time) bool
 	OnCollected(id string, timestamp time.Time) error
 	SetGranularity(time.Duration)
@@ -16,7 +16,6 @@ type CollectionState interface {
 	// e.g. if end time is 2023-10-10T00:00:00Z and granularity is 1 hour,
 	// then we have collected all data up to and including 2023-10-09:23:00:00Z
 	GetToTime() time.Time
-	OnCollectionStarted(fromTime time.Time, toTime time.Time)
 	OnCollectionComplete() error
 	MigrateFromLegacyState(bytes []byte) error
 }

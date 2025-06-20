@@ -21,7 +21,7 @@ func (s *NilArtifactCollectionState) GetToTime() time.Time {
 func (s *NilArtifactCollectionState) SetEndTime(_ time.Time) {
 }
 
-func (*NilArtifactCollectionState) Init(*collection_state.TimeRange) error {
+func (*NilArtifactCollectionState) Init(*collection_state.CollectionTimeRange) error {
 	return nil
 }
 
@@ -47,13 +47,14 @@ func (*NilArtifactCollectionState) IsEmpty() bool {
 	return true
 }
 
-func (*NilArtifactCollectionState) OnCollectionStarted(time.Time, time.Time) {
-}
-
 func (*NilArtifactCollectionState) OnCollectionComplete() error {
 	return nil
 }
 
 func (*NilArtifactCollectionState) Save() error {
+	return nil
+}
+
+func (*NilArtifactCollectionState) MigrateFromLegacyState(_ []byte) error {
 	return nil
 }

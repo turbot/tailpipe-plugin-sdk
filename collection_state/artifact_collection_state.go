@@ -20,26 +20,28 @@ type ArtifactCollectionState struct {
 	// map of trunk paths to collection state for that trunk
 	// a trunk is a path segment that does not contain any time metadata
 	// for example if the path is s3://bucket/folder1/folder2/2021/01/01/file.txt then the trunk is s3://bucket/folder1/folder2
-	TrunkStates map[string]*TimeRangeSliceCollectionState `json:"trunk_states,omitempty"`
+	TrunkStates map[string]*TimeRangeCollectionState `json:"trunk_states,omitempty"`
 
 	granularity time.Duration
 
-	// the time range for the underway collection - populated by OnCollectionStarted
-	currentCollectionTimeRange *TimeRange
+	// the time range for the underway collection - populated by Init
+	currentCollectionTimeRange *CollectionTimeRange
 	// map of the trunk state for each object which has been passed to ShouldCollect
 	// this is to avoid recomputing the trunk state for each object on every OnCollected call
-	objectTrunkMap map[string]*TimeRangeSliceCollectionState
+	objectTrunkMap map[string]*TimeRangeCollectionState
 }
 
-func NewArtifactCollectionStateImpl() CollectionState {
+func NewArtifactCollectionState() CollectionState {
 	return &ArtifactCollectionState{
-		TrunkStates:    make(map[string]*TimeRangeSliceCollectionState),
-		objectTrunkMap: make(map[string]*TimeRangeSliceCollectionState),
+		TrunkStates:    make(map[string]*TimeRangeCollectionState),
+		objectTrunkMap: make(map[string]*TimeRangeCollectionState),
 	}
 }
 
 // Init sets the filepath of the collection state and loads the state from the file if it exists
-func (s *ArtifactCollectionState) Init(collectionTimeRange *TimeRange) error {
+func (s *ArtifactCollectionState) Init(collectionTimeRange *CollectionTimeRange) error {
+	s.currentCollectionTimeRange = collectionTimeRange
+
 	// call init on all trunk states to ensure they are initialised
 	for _, trunkState := range s.TrunkStates {
 		if trunkState != nil {
@@ -101,36 +103,6 @@ func (s *ArtifactCollectionState) GetToTime() time.Time {
 	}
 
 	return endTime
-}
-
-func (s *ArtifactCollectionState) OnCollectionStarted(fromTime time.Time, toTime time.Time) {
-	s.currentCollectionTimeRange = &TimeRange{
-		From: fromTime,
-		To:   toTime,
-	}
-	for _, trunkState := range s.TrunkStates {
-		if trunkState == nil {
-			continue
-		}
-		// set the start time of the trunk state to the from time of the current collection
-		trunkState.OnCollectionStarted(fromTime, toTime)
-	}
-}
-
-// OnCollectionComplete sets the end time for the collection state - update all trunk states
-// This is called after a successful collection to set the collection state end time to the to time of the collection
-func (s *ArtifactCollectionState) OnCollectionComplete() error {
-	for _, trunkState := range s.TrunkStates {
-		if trunkState == nil {
-			continue
-		}
-		// set the end time of the trunk state to the end time of the current collection
-		err := trunkState.OnCollectionComplete()
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // RegisterPath registers a path with the collection state - we determine whether this is a potential trunk
@@ -196,7 +168,7 @@ func (s *ArtifactCollectionState) ShouldCollect(id string, timestamp time.Time) 
 	if !ok || trunkState == nil {
 		// so we DO NOT have a collection state for this trunk
 		// create a new collection state
-		trunkState = NewTimeRangeSliceCollectionState().(*TimeRangeSliceCollectionState)
+		trunkState = NewTimeRangeCollectionState().(*TimeRangeCollectionState)
 		// initialize the trunk state with the current collection time range
 		trunkState.Init(s.currentCollectionTimeRange)
 		// set the granularity
@@ -227,6 +199,22 @@ func (s *ArtifactCollectionState) OnCollected(id string, timestamp time.Time) er
 
 }
 
+// OnCollectionComplete sets the end time for the collection state - update all trunk states
+// This is called after a successful collection to set the collection state end time to the to time of the collection
+func (s *ArtifactCollectionState) OnCollectionComplete() error {
+	for _, trunkState := range s.TrunkStates {
+		if trunkState == nil {
+			continue
+		}
+		// set the end time of the trunk state to the end time of the current collection
+		err := trunkState.OnCollectionComplete()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // IsEmpty returns whether the collection state is empty
 func (s *ArtifactCollectionState) IsEmpty() bool {
 	for _, trunkState := range s.TrunkStates {
@@ -253,7 +241,7 @@ func (s *ArtifactCollectionState) MigrateFromLegacyState(bytes []byte) error {
 		}
 
 		// Use the new constructor for legacy trunk states
-		s.TrunkStates[trunkPath] = NewTimeRangeSliceCollectionStateFromLegacy(legacyTrunkState)
+		s.TrunkStates[trunkPath] = NewTimeRangeCollectionStateFromLegacy(legacyTrunkState)
 	}
 
 	// Set the granularity from the first trunk state if available

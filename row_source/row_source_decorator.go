@@ -58,17 +58,11 @@ func (r *RowSourceDecorator) SaveCollectionState() error {
 }
 
 func (r *RowSourceDecorator) Collect(ctx context.Context) error {
-	r.rowSource.OnCollectionStarted()
-
 	if err := r.rowSource.Collect(ctx); err != nil {
 		return err
 	}
 	// if there was no error, call OnCollectionComplete
 	return r.rowSource.OnCollectionComplete()
-}
-
-func (r *RowSourceDecorator) OnCollectionStarted() {
-	r.rowSource.OnCollectionStarted()
 }
 
 func (r *RowSourceDecorator) OnCollectionComplete() error {

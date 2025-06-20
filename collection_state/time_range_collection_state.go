@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type TimeRangeSliceCollectionState struct {
+type TimeRangeCollectionState struct {
 	TimeRanges  []*timeRangeObjectState `json:"TimeRanges"`
 	Granularity time.Duration           `json:"granularity"`
 	Order       CollectionOrder         `json:"order"`
@@ -25,30 +25,31 @@ type TimeRangeSliceCollectionState struct {
 	// (this is required because we do not want to have to recompute the range for each object on every OnCollected call)
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
 	objectRangeMap             map[string]*timeRangeObjectState
-	currentCollectionTimeRange *TimeRange
+	currentCollectionTimeRange *CollectionTimeRange
 }
 
-func NewTimeRangeSliceCollectionState() CollectionState {
-	return &TimeRangeSliceCollectionState{
+func NewTimeRangeCollectionState() CollectionState {
+	return &TimeRangeCollectionState{
+		TimeRanges:     make([]*timeRangeObjectState, 0),
 		objectRangeMap: make(map[string]*timeRangeObjectState),
 	}
 }
 
-// NewReverseOrderTimeRangeSliceCollectionState creates a new TimeRangeSliceCollectionState with reverse order
+// NewReverseOrderTimeRangeSliceCollectionState creates a new TimeRangeCollectionState with reverse order
 func NewReverseOrderTimeRangeSliceCollectionState() CollectionState {
-	return &TimeRangeSliceCollectionState{
+	return &TimeRangeCollectionState{
 		objectRangeMap: make(map[string]*timeRangeObjectState),
 		Order:          CollectionOrderReverse,
 	}
 }
 
-// NewTimeRangeSliceCollectionStateFromLegacy constructs a new TimeRangeSliceCollectionState from a legacy state
-func NewTimeRangeSliceCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegacy) *TimeRangeSliceCollectionState {
-	state := &TimeRangeSliceCollectionState{
+// NewTimeRangeCollectionStateFromLegacy constructs a new TimeRangeCollectionState from a legacy state
+func NewTimeRangeCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegacy) *TimeRangeCollectionState {
+	state := &TimeRangeCollectionState{
 		objectRangeMap: make(map[string]*timeRangeObjectState),
 	}
 	// Convert the single legacy time range to the new format
-	state.populateFromLegacy(legacy)
+	state.addRangeFromLegacy(legacy)
 	return state
 }
 
@@ -56,11 +57,11 @@ func NewTimeRangeSliceCollectionStateFromLegacy(legacy *TimeRangeCollectionState
 // compact the time ranges in case the previous collection was not completed successfully
 // (normally the state is compacted before the final save but if the process was killed before that,
 // we may have a collection state with multiple ranges that can be merged)
-func (t *TimeRangeSliceCollectionState) Init(collectionTimeRange *TimeRange) error {
+func (t *TimeRangeCollectionState) Init(collectionTimeRange *CollectionTimeRange) error {
 	// initialise the active range - this will create a new range for the collectionTimeRange from time if needed
-	t.setTimeRange(collectionTimeRange)
+	t.setCurrentCollectionTimeRange(collectionTimeRange)
 
-	// perform initial compact
+	// perform initial compact - in case the saved data was uncompacted
 	t.compact()
 
 	// create map for object ranges if needed (i.e. if we were loaded from file)
@@ -71,7 +72,7 @@ func (t *TimeRangeSliceCollectionState) Init(collectionTimeRange *TimeRange) err
 	return nil
 }
 
-func (t *TimeRangeSliceCollectionState) IsEmpty() bool {
+func (t *TimeRangeCollectionState) IsEmpty() bool {
 	for _, timeRange := range t.TimeRanges {
 		if !timeRange.IsEmpty() {
 			return false
@@ -81,32 +82,23 @@ func (t *TimeRangeSliceCollectionState) IsEmpty() bool {
 	return true
 }
 
-// OnCollectionStarted is called when a new collection is started - set the currentCollectionTimeRange
-// and initialise the active range
-func (t *TimeRangeSliceCollectionState) OnCollectionStarted(fromTime, toTime time.Time) {
-	t.setTimeRange(&TimeRange{
-		From: fromTime,
-		To:   toTime,
-	})
-}
-
 // OnCollectionComplete sets the end time of the collect - this is called  after a successful collection
 // we the end time as we know that we have collected all data up to the collection 'to' time
 // it sets the upper boundary (end time) of the active range to the upper boundary time of the collection time range
-func (t *TimeRangeSliceCollectionState) OnCollectionComplete() error {
+func (t *TimeRangeCollectionState) OnCollectionComplete() error {
 	if t.currentCollectionTimeRange == nil {
-		return fmt.Errorf("cannot complete collection - no current collection set, OnCollectionStarted must be called first")
+		return fmt.Errorf("cannot complete collection - no current collection set, Init must be called first")
 	}
-
-	t.activeRange.setUpperBoundaryTime(t.currentCollectionTimeRange.upperBoundaryTime(t.Order))
+	// set the upper boundary time of the active range to the upper boundary time of the collection time range
+	t.activeRange.setUpperBoundaryTime(t.currentCollectionTimeRange.upperBoundaryTime())
 
 	// perform a compact to merge any adjacent time ranges that can be merged
-	t.compact()
+	t.compactForCollectionPeriod()
 
 	return nil
 }
 
-func (t *TimeRangeSliceCollectionState) SetGranularity(granularity time.Duration) {
+func (t *TimeRangeCollectionState) SetGranularity(granularity time.Duration) {
 	t.Granularity = granularity
 	// set the granularity for all existing time ranges
 	// TODO it would be nice to set the granularity when we create the state - see if we can do this
@@ -115,29 +107,33 @@ func (t *TimeRangeSliceCollectionState) SetGranularity(granularity time.Duration
 	}
 }
 
-func (t *TimeRangeSliceCollectionState) GetGranularity() time.Duration {
+func (t *TimeRangeCollectionState) GetGranularity() time.Duration {
 	return t.Granularity
 }
 
-func (t *TimeRangeSliceCollectionState) GetFromTime() time.Time {
+func (t *TimeRangeCollectionState) GetFromTime() time.Time {
 	if len(t.TimeRanges) == 0 {
 		return time.Time{}
 	}
 	return t.TimeRanges[0].GetFromTime()
 }
 
-func (t *TimeRangeSliceCollectionState) GetToTime() time.Time {
+func (t *TimeRangeCollectionState) GetToTime() time.Time {
 	if len(t.TimeRanges) == 0 {
 		return time.Time{}
 	}
 	return t.TimeRanges[len(t.TimeRanges)-1].GetToTime()
 }
 
-func (t *TimeRangeSliceCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
+func (t *TimeRangeCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
+	// does the timestamp fall within the current collection time range?
+	// NOTE the upper boundary is exclusive, so we check that the timestamp is on or inside the lower boundary but inside the upper boundary
+	withinCollectionTimeRange := t.currentCollectionTimeRange.onOrInsideLowerBoundary(timestamp) && t.currentCollectionTimeRange.insideUpperBoundary(timestamp)
 	// if the timestamp is outside the current collection time range, we should not collect
-	if t.currentCollectionTimeRange != nil && !t.currentCollectionTimeRange.Contains(timestamp, t.Order) {
+	if !withinCollectionTimeRange {
 		return false
 	}
+
 	// get the active range for this timestamp
 	// this will either return the current active range, or create a new one if needed
 	// (it also checks whether the current active range has joined with the next range and is so sets the active range to the next range)
@@ -154,7 +150,7 @@ func (t *TimeRangeSliceCollectionState) ShouldCollect(id string, timestamp time.
 	return true
 }
 
-func (t *TimeRangeSliceCollectionState) OnCollected(id string, timestamp time.Time) error {
+func (t *TimeRangeCollectionState) OnCollected(id string, timestamp time.Time) error {
 	// we should have stored a collection state mapping for this object
 	rangeForObject, ok := t.objectRangeMap[id]
 	if !ok {
@@ -167,8 +163,8 @@ func (t *TimeRangeSliceCollectionState) OnCollected(id string, timestamp time.Ti
 }
 
 // MigrateFromLegacyState attempts to migrate from a legacy collection state
-func (t *TimeRangeSliceCollectionState) MigrateFromLegacyState(bytes []byte) error {
-	// the legacy state will be either 	TimeRangeCollectionStateLegacy or ReverseOrderCollectionStateLegacy
+func (t *TimeRangeCollectionState) MigrateFromLegacyState(bytes []byte) error {
+	// the legacy state will be either	TimeRangeCollectionStateLegacy or ReverseOrderCollectionStateLegacy
 	// try both in turn
 
 	// First, try to unmarshal as TimeRangeCollectionStateLegacy
@@ -177,7 +173,7 @@ func (t *TimeRangeSliceCollectionState) MigrateFromLegacyState(bytes []byte) err
 		// Validate that this is actually a TimeRangeCollectionStateLegacy by checking for FirstEntryTime
 		if !timeRangeLegacy.FirstEntryTime.IsZero() {
 			// Successfully unmarshaled as time range legacy state
-			t.populateFromLegacy(&timeRangeLegacy)
+			t.addRangeFromLegacy(&timeRangeLegacy)
 			return nil
 		}
 	}
@@ -185,20 +181,17 @@ func (t *TimeRangeSliceCollectionState) MigrateFromLegacyState(bytes []byte) err
 	// If that failed, try to unmarshal as ReverseOrderCollectionStateLegacy
 	var reverseOrderLegacy ReverseOrderCollectionStateLegacy
 	if err := json.Unmarshal(bytes, &reverseOrderLegacy); err == nil {
-		// Validate that this is actually a ReverseOrderCollectionStateLegacy by checking for actual time range data
-		if len(reverseOrderLegacy.TimeRanges) > 0 && !reverseOrderLegacy.TimeRanges[0].FirstEntryTime.IsZero() {
-			// Successfully unmarshaled as reverse order legacy state
-			t.populateFromReverseOrderLegacy(&reverseOrderLegacy)
-			return nil
-		}
+		// Successfully unmarshaled as reverse order legacy state
+		t.populateFromReverseOrderLegacy(&reverseOrderLegacy)
+		return nil
 	}
 
 	// If both failed, return an error
 	return fmt.Errorf("failed to unmarshal legacy collection state - not a recognized legacy format")
 }
 
-// populateFromLegacy populates the state from a legacy TimeRangeCollectionStateLegacy
-func (t *TimeRangeSliceCollectionState) populateFromLegacy(legacy *TimeRangeCollectionStateLegacy) {
+// addRangeFromLegacy populates the state from a legacy TimeRangeCollectionStateLegacy
+func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectionStateLegacy) {
 	// Set the order and granularity on the main state
 	t.Order = legacy.CollectionOrder
 	t.Granularity = legacy.Granularity
@@ -218,11 +211,13 @@ func (t *TimeRangeSliceCollectionState) populateFromLegacy(legacy *TimeRangeColl
 
 	// Create the new time range object state
 	newRange := &timeRangeObjectState{
-		From:            fromTime,
-		To:              toTime,
-		EndObjects:      legacy.EndObjects,
-		Granularity:     legacy.Granularity,
-		CollectionOrder: legacy.CollectionOrder,
+		TimeRange: CollectionTimeRange{
+			From:            fromTime,
+			To:              toTime,
+			CollectionOrder: legacy.CollectionOrder,
+		},
+		EndObjects:  legacy.EndObjects,
+		Granularity: legacy.Granularity,
 	}
 
 	// Add the new range to the state
@@ -230,30 +225,25 @@ func (t *TimeRangeSliceCollectionState) populateFromLegacy(legacy *TimeRangeColl
 }
 
 // populateFromReverseOrderLegacy populates the state from ReverseOrderCollectionStateLegacy
-func (t *TimeRangeSliceCollectionState) populateFromReverseOrderLegacy(legacy *ReverseOrderCollectionStateLegacy) {
+func (t *TimeRangeCollectionState) populateFromReverseOrderLegacy(legacy *ReverseOrderCollectionStateLegacy) {
 	// Convert each legacy time range to the new format
 	for _, legacyRange := range legacy.TimeRanges {
-		t.populateFromLegacy(legacyRange)
-	}
-
-	// Ensure all time ranges have the same granularity
-	if len(t.TimeRanges) > 0 {
-		t.SetGranularity(t.Granularity)
+		t.addRangeFromLegacy(legacyRange)
 	}
 }
 
-// setTimeRange sets the current collection time range and updates the active range to the start of the collection time range
-func (t *TimeRangeSliceCollectionState) setTimeRange(tr *TimeRange) {
+// setCurrentCollectionTimeRange sets the current collection time range and updates the active range to the start of the collection time range
+func (t *TimeRangeCollectionState) setCurrentCollectionTimeRange(tr *CollectionTimeRange) {
 	t.currentCollectionTimeRange = tr
 	// rather than pass 'from'  time (which we use for forward collection), pass the 'lower boundary time of the range
 	// this resolves to the 'from' time for forward collection and the 'to' time for reverse collection
-	t.updateActiveRange(t.currentCollectionTimeRange.lowerBoundaryTime(t.Order))
+	t.updateActiveRange(t.currentCollectionTimeRange.lowerBoundaryTime())
 }
 
 // upperBoundaryTime returns the the furthest time in the direction of collection
 // i.e. if we are collecting forwards, the upperBoundaryTime is the end time of the range,
 // if we are collecting backwards, the upperBoundaryTime is the start time of the range
-func (t *TimeRangeSliceCollectionState) upperBoundaryTime() time.Time {
+func (t *TimeRangeCollectionState) upperBoundaryTime() time.Time {
 	if t.Order == CollectionOrderChronological {
 		return t.GetToTime()
 	}
@@ -261,35 +251,46 @@ func (t *TimeRangeSliceCollectionState) upperBoundaryTime() time.Time {
 }
 
 // lowerBoundaryTime returns the the furthest time in the opposite direction of collection
-func (t *TimeRangeSliceCollectionState) lowerBoundaryTime() time.Time {
+func (t *TimeRangeCollectionState) lowerBoundaryTime() time.Time {
 	if t.Order == CollectionOrderChronological {
 		return t.GetFromTime()
 	}
 	return t.GetToTime()
 }
 
-// updateActiveRange determines the time range containing the given timestamp
-// If there is no active range, it creates a new one for the timestamp.
-// If the range following active range (in the direction of collection) contains the timestamp, the active range is updated
-// to this range
-func (t *TimeRangeSliceCollectionState) updateActiveRange(timestamp time.Time) {
+// updateActiveRange determines the time range 'associated' with the given timestamp.
+// If there is no active range:
+//   - creates a new one for the timestamp.
+//
+// If there is an active range:
+//   - if timestamp falls within a subsequent range, the current active range is extended to the start of that range
+//     and the active range is updated to that range.
+//   - if the timestamp does not fall within a different range, the active range remains unchangeed.
+//     In OnCollected, it will be extended to the timestamp
+func (t *TimeRangeCollectionState) updateActiveRange(timestamp time.Time) {
 	// get the range for the timestamp
 	rangeForTimestamp := t.rangeForTime(timestamp)
 
 	// if we have an active range, check whether a different range contains the timestamp - if so update it
 	if t.activeRange != nil {
+		// if the timestamp is within the a different range, we need to update the active range
 		if rangeForTimestamp != nil && rangeForTimestamp != t.activeRange {
 			slog.Info("Updating active range for time",
 				"timestamp", timestamp,
-				"active range upper boundary time", t.activeRange.upperBoundaryTime(),
-				"range for timestamp lower boundary time", rangeForTimestamp.lowerBoundaryTime())
+				"active range upper boundary time", t.activeRange.TimeRange.upperBoundaryTime(),
+				"range for timestamp lower boundary time", rangeForTimestamp.TimeRange.lowerBoundaryTime())
 			// if the range for the timestamp is different from the active range, we need to update the active range
 			// set the end time of the active range to the start time of the next range so we merge them next time we
 			// compact the state
-			t.activeRange.setUpperBoundaryTime(rangeForTimestamp.lowerBoundaryTime())
+			t.activeRange.setUpperBoundaryTime(rangeForTimestamp.TimeRange.lowerBoundaryTime())
 			// use the next range as the active
 			t.activeRange = rangeForTimestamp
 		}
+
+		// to get here, either:
+		// - the timestamp is outside all current ranges (the most common case as we collect)
+		// - the timestamp is within the current active range
+		// In either case, leave the active range as is - it will be extended to the timestamp in OnCollected
 		return
 	}
 
@@ -307,33 +308,24 @@ func (t *TimeRangeSliceCollectionState) updateActiveRange(timestamp time.Time) {
 }
 
 // compact merges adjacent time ranges that can be merged
-func (t *TimeRangeSliceCollectionState) compact() {
-	// currentCollectionTimeRange may not be set yet if this is  being called from Init
-
+func (t *TimeRangeCollectionState) compact() {
 	// if there are less than 2 time ranges, we cannot compact
 	if len(t.TimeRanges) < 2 {
 		return
 	}
 
-	slog.Info("Compacting time ranges")
+	slog.Info("Compacting adjacent time ranges")
 	var compactedRanges []*timeRangeObjectState
 	currentRange := t.TimeRanges[0]
 
 	for i := 1; i < len(t.TimeRanges); i++ {
 		nextRange := t.TimeRanges[i]
 
-		// we will merge the ranges if EITHER:
-		//  - if the ranges overlap, OR
-		//  - if the ranges fall within the collection period (i.e. the collection from time is before the end time of currentRange
-
+		// we will merge the ranges if they overlap
 		rangesOverlap := currentRange.GetToTime().Compare(nextRange.GetFromTime()) >= 0
 
-		rangesFallWithinCollectionPeriod := t.currentCollectionTimeRange != nil &&
-			currentRange.GetToTime().After(t.currentCollectionTimeRange.From) &&
-			nextRange.GetFromTime().Before(t.currentCollectionTimeRange.To)
-
-		// if the ranges do not overlap and do not fall within the collection period, we can add the current range to compacted ranges
-		if !rangesOverlap && !rangesFallWithinCollectionPeriod {
+		// if the ranges do not overlap, we can add the current range to compacted ranges
+		if !rangesOverlap {
 			// add the current range to compacted ranges and move to next
 			compactedRanges = append(compactedRanges, currentRange)
 			currentRange = nextRange
@@ -342,7 +334,7 @@ func (t *TimeRangeSliceCollectionState) compact() {
 
 		// tell currentRange to merge with nextRange
 		currentRange.merge(nextRange)
-		slog.Info("Merging time ranges",
+		slog.Info("Merging adjacent time ranges",
 			"left range end time", currentRange.GetToTime(),
 			"right range start time", nextRange.GetFromTime(),
 			"right range end time", nextRange.GetToTime(),
@@ -360,22 +352,82 @@ func (t *TimeRangeSliceCollectionState) compact() {
 	t.TimeRanges = compactedRanges
 }
 
+// compactForCollectionPeriod merges all time ranges which fall within the current collection period
+func (t *TimeRangeCollectionState) compactForCollectionPeriod() {
+	// currentCollectionTimeRange may not be set yet if this is being called from Init
+	if t.currentCollectionTimeRange == nil {
+		return
+	}
+
+	// if there are less than 2 time ranges, we cannot compact
+	if len(t.TimeRanges) < 2 {
+		return
+	}
+
+	slog.Info("Compacting time ranges within collection period")
+	var compactedRanges []*timeRangeObjectState
+	currentRange := t.TimeRanges[0]
+
+	for i := 1; i < len(t.TimeRanges); i++ {
+		nextRange := t.TimeRanges[i]
+
+		// we will merge the ranges if EITHER:
+		//  - if the ranges overlap, OR
+		//  - if the ranges fall within the collection period (i.e. the collection from time is before the end time of currentRange
+
+		rangesOverlap := currentRange.GetToTime().Compare(nextRange.GetFromTime()) >= 0
+
+		rangesFallWithinCollectionPeriod := currentRange.GetToTime().After(t.currentCollectionTimeRange.From) &&
+			nextRange.GetFromTime().Before(t.currentCollectionTimeRange.To)
+
+		// if the ranges do not overlap and do not fall within the collection period, we can add the current range to compacted ranges
+		if !rangesOverlap && !rangesFallWithinCollectionPeriod {
+			// add the current range to compacted ranges and move to next
+			compactedRanges = append(compactedRanges, currentRange)
+			currentRange = nextRange
+			continue
+		}
+
+		// tell currentRange to merge with nextRange
+		currentRange.merge(nextRange)
+		slog.Info("Merging time ranges within collection period",
+			"left range end time", currentRange.GetToTime(),
+			"right range start time", nextRange.GetFromTime(),
+			"right range end time", nextRange.GetToTime(),
+			"merged range end time", currentRange.GetToTime())
+	}
+
+	// add the last range
+	compactedRanges = append(compactedRanges, currentRange)
+
+	// now update the TimeRanges slice with the compacted ranges
+	if len(compactedRanges) == 0 {
+		slog.Info("No time ranges could be merged within collection period")
+		return
+	}
+	t.TimeRanges = compactedRanges
+}
+
 // rangeForTime returns the index of the time range that contains the given timestamp or nil if no such range exists.
 // we expect ranges will not overlap, so we can return the first range that contains the timestamp
 // NOTE: we DO NOT need to take collection order into account
-func (t *TimeRangeSliceCollectionState) rangeForTime(timestamp time.Time) *timeRangeObjectState {
+func (t *TimeRangeCollectionState) rangeForTime(timestamp time.Time) *timeRangeObjectState {
+
 	for _, r := range t.TimeRanges {
-		if r.Contains(timestamp) {
-			slog.Debug("Found existing range for time", "timestamp", timestamp, "range from", r.From, "range TO", r.To)
+		// if the timestamp is within the range, return the range
+		// NOTE: in this case the upper boundary IS included - as we will extend the range to include the timestamp
+		if r.TimeRange.onOrInsideLowerBoundary(timestamp) && r.TimeRange.onOrInsideUpperBoundary(timestamp) {
+			slog.Debug("Found existing range for time", "timestamp", timestamp, "range from", r.TimeRange.From, "range TO", r.TimeRange.To)
 			return r
 		}
 	}
+
 	slog.Debug("No existing range found for time", "timestamp", timestamp)
 	return nil
 }
 
 // addRange creates a new time range for the given timestamp and adds it to the collection in the correct position
-func (t *TimeRangeSliceCollectionState) addRange(timestamp time.Time) *timeRangeObjectState {
+func (t *TimeRangeCollectionState) addRange(timestamp time.Time) *timeRangeObjectState {
 	// create a new time range
 	newRange := newTimeRangeCollectionState(timestamp, t.Order)
 	newRange.SetGranularity(t.Granularity)

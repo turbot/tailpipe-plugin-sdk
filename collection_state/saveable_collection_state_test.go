@@ -20,12 +20,12 @@ func (t testConfig) Identifier() string {
 	return "test"
 }
 
-func TestTimeRangeSliceCollectionState_migrate(t1 *testing.T) {
+func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 	tests := []struct {
 		name               string
 		source             any
 		newCollectionState func() CollectionState
-		expectedState      *TimeRangeSliceCollectionState
+		expectedState      *TimeRangeCollectionState
 		expectError        bool
 	}{
 		{
@@ -35,7 +35,7 @@ func TestTimeRangeSliceCollectionState_migrate(t1 *testing.T) {
 					buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 				},
 			},
-			newCollectionState: NewTimeRangeSliceCollectionState,
+			newCollectionState: NewTimeRangeCollectionState,
 			expectedState: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24,
 				buildTimeRangeState("2023-12-01 01:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 			),
@@ -50,7 +50,7 @@ func TestTimeRangeSliceCollectionState_migrate(t1 *testing.T) {
 				Granularity:     time.Hour * 12,
 				CollectionOrder: CollectionOrderChronological,
 			},
-			newCollectionState: NewTimeRangeSliceCollectionState,
+			newCollectionState: NewTimeRangeCollectionState,
 			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour*12,
 				buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*12, CollectionOrderChronological, "object1", "object2"),
 			),
@@ -63,19 +63,20 @@ func TestTimeRangeSliceCollectionState_migrate(t1 *testing.T) {
 					buildTimeRangeCollectionStateLegacy("2023-11-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object2"),
 				},
 			},
-			newCollectionState: NewTimeRangeSliceCollectionState,
+			newCollectionState: NewTimeRangeCollectionState,
 			expectedState: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24,
 				buildTimeRangeState("2023-11-01 00:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1"),
 				buildTimeRangeState("2023-12-01 01:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object2"),
 			),
 		},
 		{
-			name: "invalid legacy format should fail gracefully",
+			name: "invalid legacy format should result in empty state",
 			source: map[string]interface{}{
 				"invalid_field": "invalid_value",
 			},
-			newCollectionState: NewTimeRangeSliceCollectionState,
-			expectError:        true,
+			expectedState:      buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24),
+			newCollectionState: NewTimeRangeCollectionState,
+			expectError:        false,
 		},
 	}
 
@@ -113,7 +114,7 @@ func TestTimeRangeSliceCollectionState_migrate(t1 *testing.T) {
 			}
 
 			// Compare the migrated state with expected
-			state := saveableState.State.(*TimeRangeSliceCollectionState)
+			state := saveableState.State.(*TimeRangeCollectionState)
 			equal, diff := timeRangeSliceStateEquals(state, tt.expectedState)
 			if !equal {
 				t1.Errorf("migrated state does not match expected: %s", diff)
@@ -131,7 +132,7 @@ func TestSaveableCollectionState_SaveAndLoad(t *testing.T) {
 		setupFile   func(string) error
 	}{
 		{
-			name: "save and load TimeRangeSliceCollectionState",
+			name: "save and load TimeRangeCollectionState",
 			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour*24,
 				buildTimeRangeState("2023-10-01 00:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
 			),
@@ -156,14 +157,14 @@ func TestSaveableCollectionState_SaveAndLoad(t *testing.T) {
 		{
 			name: "save without path should fail",
 			setupState: func() *SaveableCollectionState {
-				return NewSaveableCollectionState(NewTimeRangeSliceCollectionState())
+				return NewSaveableCollectionState(NewTimeRangeCollectionState())
 			},
 			expectError: true,
 		},
 		{
 			name: "save with invalid path should fail",
 			setupState: func() *SaveableCollectionState {
-				state := NewSaveableCollectionState(NewTimeRangeSliceCollectionState())
+				state := NewSaveableCollectionState(NewTimeRangeCollectionState())
 				state.jsonPath = "/invalid/path/that/does/not/exist/collection_state.json"
 				return state
 			},
@@ -249,7 +250,7 @@ func TestSaveableCollectionState_SaveAndLoad(t *testing.T) {
 			// Test Load (if we have setupFile or if state is not empty)
 			if tt.setupFile != nil || (tt.state != nil && !tt.state.IsEmpty()) {
 				// Create a new saveable state to test loading
-				newSaveableState := NewSaveableCollectionState(NewTimeRangeSliceCollectionState())
+				newSaveableState := NewSaveableCollectionState(NewTimeRangeCollectionState())
 				newSaveableState.jsonPath = tmpFile
 
 				err := newSaveableState.LoadFromFile(tmpFile)
@@ -265,8 +266,8 @@ func TestSaveableCollectionState_SaveAndLoad(t *testing.T) {
 
 				// Compare the loaded state with original (only for successful loads)
 				if tt.state != nil {
-					loadedState := newSaveableState.State.(*TimeRangeSliceCollectionState)
-					originalState := tt.state.(*TimeRangeSliceCollectionState)
+					loadedState := newSaveableState.State.(*TimeRangeCollectionState)
+					originalState := tt.state.(*TimeRangeCollectionState)
 					equal, diff := timeRangeSliceStateEquals(loadedState, originalState)
 					if !equal {
 						t.Errorf("loaded state does not match original: %s", diff)
@@ -357,7 +358,7 @@ func TestSaveableCollectionState_LoadWithLegacyMigration(t *testing.T) {
 	}
 
 	// Create saveable state and test load
-	state := NewSaveableCollectionState(NewTimeRangeSliceCollectionState())
+	state := NewSaveableCollectionState(NewTimeRangeCollectionState())
 	err = state.LoadFromFile(tmpFile)
 	if err != nil {
 		t.Fatalf("unexpected error during legacy load: %v", err)
@@ -368,7 +369,7 @@ func TestSaveableCollectionState_LoadWithLegacyMigration(t *testing.T) {
 		buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*12, CollectionOrderChronological, "object1", "object2"),
 	)
 
-	loadedState := state.State.(*TimeRangeSliceCollectionState)
+	loadedState := state.State.(*TimeRangeCollectionState)
 	equal, diff := timeRangeSliceStateEquals(loadedState, expectedState)
 	if !equal {
 		t.Errorf("migrated state does not match expected: %s", diff)

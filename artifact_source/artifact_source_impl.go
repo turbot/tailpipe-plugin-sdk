@@ -94,7 +94,7 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	// if no collection state func has been set by a derived struct,
 	// set it to the default for artifacts
 	if a.NewCollectionStateFunc == nil {
-		a.NewCollectionStateFunc = collection_state.NewArtifactCollectionStateImpl
+		a.NewCollectionStateFunc = collection_state.NewArtifactCollectionState
 	}
 
 	// set the artifact directory

@@ -36,13 +36,16 @@ func NewSaveableCollectionState(state CollectionState) *SaveableCollectionState 
 	}
 }
 
-func (s *SaveableCollectionState) Init(collectionTimeRange *TimeRange, path string) error {
+// Init initializes the SaveableCollectionState with a CollectionTimeRange and a file path
+// if the file exists, it loads the state from the file
+func (s *SaveableCollectionState) Init(collectionTimeRange *CollectionTimeRange, path string) error {
 	s.jsonPath = path
 	// if there is a file at the path, load it
 	if _, err := os.Stat(path); err == nil {
 		if err = s.LoadFromFile(path); err != nil {
 			return err
 		}
+		// fall through to ensure the state is initialized
 	}
 
 	return s.State.Init(collectionTimeRange)
@@ -68,12 +71,6 @@ func (s *SaveableCollectionState) GetToTime() time.Time {
 		endTime = s.LastModifiedTime
 	}
 	return endTime
-}
-
-func (s *SaveableCollectionState) OnCollectionStarted(fromTime time.Time, toTime time.Time) {
-	s.mut.Lock()
-	defer s.mut.Unlock()
-	s.State.OnCollectionStarted(fromTime, toTime)
 }
 
 func (s *SaveableCollectionState) OnCollectionComplete() error {
