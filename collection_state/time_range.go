@@ -1,6 +1,8 @@
 package collection_state
 
 import (
+	"errors"
+	"fmt"
 	"time"
 )
 
@@ -14,11 +16,6 @@ type CollectionTimeRange struct {
 // i.e. if we are collecting forwards, the upperBoundaryTime is the end time of the range,
 // if we are collecting backwards, the upperBoundaryTime is the start time of the range
 func (t *CollectionTimeRange) upperBoundaryTime() time.Time {
-	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
-
-	if t.CollectionOrder == CollectionOrderUnset {
-		panic("CollectionOrder is unset")
-	}
 
 	if t.CollectionOrder == CollectionOrderChronological {
 		return t.To
@@ -30,10 +27,6 @@ func (t *CollectionTimeRange) upperBoundaryTime() time.Time {
 // i.e. if we are collecting forwards, the lowerBoundaryTime is the start time of the range,
 // if we are collecting backwards, the lowerBoundaryTime is the end time of the range
 func (t *CollectionTimeRange) lowerBoundaryTime() time.Time {
-	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
-	if t.CollectionOrder == CollectionOrderUnset {
-		panic("CollectionOrder is unset")
-	}
 
 	if t.CollectionOrder == CollectionOrderChronological {
 		return t.From
@@ -45,10 +38,6 @@ func (t *CollectionTimeRange) lowerBoundaryTime() time.Time {
 // for chronological collection, this returns whether the time is AFTER the start time
 // for reverse collection, this returns whether the time is BEFORE the end time
 func (t *CollectionTimeRange) insideLowerBoundary(timestamp time.Time) bool {
-	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
-	if t.CollectionOrder == CollectionOrderUnset {
-		panic("CollectionOrder is unset")
-	}
 
 	if t.CollectionOrder == CollectionOrderChronological {
 		return timestamp.After(t.From)
@@ -60,10 +49,6 @@ func (t *CollectionTimeRange) insideLowerBoundary(timestamp time.Time) bool {
 // for chronological collection, this returns whether the time is BEFORE the end time
 // for reverse collection, this returns whether the time is AFTER the start time
 func (t *CollectionTimeRange) insideUpperBoundary(timestamp time.Time) bool {
-	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
-	if t.CollectionOrder == CollectionOrderUnset {
-		panic("CollectionOrder is unset")
-	}
 
 	if t.CollectionOrder == CollectionOrderChronological {
 		return timestamp.Before(t.To)
@@ -75,10 +60,6 @@ func (t *CollectionTimeRange) insideUpperBoundary(timestamp time.Time) bool {
 // for chronological collection, this returns whether the time is BEFORE the start time
 // for reverse collection, this returns whether the time is AFTER the end time
 func (t *CollectionTimeRange) outsideLowerBoundary(timestamp time.Time) bool {
-	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
-	if t.CollectionOrder == CollectionOrderUnset {
-		panic("CollectionOrder is unset")
-	}
 
 	if t.CollectionOrder == CollectionOrderChronological {
 		return timestamp.Before(t.From)
@@ -90,10 +71,6 @@ func (t *CollectionTimeRange) outsideLowerBoundary(timestamp time.Time) bool {
 // for chronological collection, this returns whether the time is AFTER the end time
 // for reverse collection, this returns whether the time is BEFORE the start time
 func (t *CollectionTimeRange) outsideUpperBoundary(timestamp time.Time) bool {
-	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
-	if t.CollectionOrder == CollectionOrderUnset {
-		panic("CollectionOrder is unset")
-	}
 
 	if t.CollectionOrder == CollectionOrderChronological {
 		return timestamp.After(t.To)
@@ -105,10 +82,6 @@ func (t *CollectionTimeRange) outsideUpperBoundary(timestamp time.Time) bool {
 // for chronological collection, this returns whether the time is ON or AFTER the start time
 // for reverse collection, this returns whether the time is ON or BEFORE the end time
 func (t *CollectionTimeRange) onOrInsideLowerBoundary(timestamp time.Time) bool {
-	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
-	if t.CollectionOrder == CollectionOrderUnset {
-		panic("CollectionOrder is unset")
-	}
 
 	return t.lowerBoundaryTime().Equal(timestamp) || t.insideLowerBoundary(timestamp)
 }
@@ -118,10 +91,6 @@ func (t *CollectionTimeRange) onOrInsideLowerBoundary(timestamp time.Time) bool 
 // for chronological collection, this returns whether the time is ON or BEFORE the end time
 // for reverse collection, this returns whether the time is ON or AFTER the start time
 func (t *CollectionTimeRange) onOrInsideUpperBoundary(timestamp time.Time) bool {
-	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
-	if t.CollectionOrder == CollectionOrderUnset {
-		panic("CollectionOrder is unset")
-	}
 
 	return t.upperBoundaryTime().Equal(timestamp) || t.insideUpperBoundary(timestamp)
 }
@@ -129,10 +98,6 @@ func (t *CollectionTimeRange) onOrInsideUpperBoundary(timestamp time.Time) bool 
 // setUpperBoundaryTime extends the upper boundary time of the collection range
 // NOTE: we DO NOT set the upper boundary time if the new time is not extending the range
 func (t *CollectionTimeRange) setUpperBoundaryTime(newTime time.Time) {
-	// ensure that for all usages of CollectionTimeRange, the CollectionOrder is set
-	if t.CollectionOrder == CollectionOrderUnset {
-		panic("CollectionOrder is unset")
-	}
 
 	if t.CollectionOrder == CollectionOrderChronological {
 		// only set if the new time extends the range
@@ -147,4 +112,20 @@ func (t *CollectionTimeRange) setUpperBoundaryTime(newTime time.Time) {
 			t.From = newTime
 		}
 	}
+}
+
+func (t *CollectionTimeRange) Validate() error {
+	if t.From.IsZero() {
+		return errors.New("from time is zero")
+	}
+	if t.To.IsZero() {
+		return errors.New("to time is zero")
+	}
+	if t.From.After(t.To) {
+		return errors.New("from time is after to time")
+	}
+	if t.CollectionOrder != CollectionOrderChronological && t.CollectionOrder != CollectionOrderReverse {
+		return fmt.Errorf("invalid collection order: %v", t.CollectionOrder)
+	}
+	return nil
 }

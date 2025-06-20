@@ -2,6 +2,7 @@ package collection_state
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -188,6 +189,19 @@ func (t *TimeRangeCollectionState) MigrateFromLegacyState(bytes []byte) error {
 
 	// If both failed, return an error
 	return fmt.Errorf("failed to unmarshal legacy collection state - not a recognized legacy format")
+}
+
+func (t *TimeRangeCollectionState) Validate() error {
+	var errorList []error
+	for _, timeRange := range t.TimeRanges {
+		if err := timeRange.Validate(); err != nil {
+			errorList = append(errorList, err)
+		}
+	}
+	if len(errorList) > 0 {
+		return fmt.Errorf("validation failed for TimeRangeCollectionState: %w", errors.Join(errorList...))
+	}
+	return nil
 }
 
 // addRangeFromLegacy populates the state from a legacy TimeRangeCollectionStateLegacy

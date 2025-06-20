@@ -3,6 +3,7 @@ package artifact_source
 import (
 	"context"
 	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"log/slog"
 	"strings"
 	"sync"
@@ -52,7 +53,7 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params *row_source.RowSo
 	}
 	// create a NilArtifactCollectionState - this will do nothing but is required to avoid
 	// nil reference exceptions in ArtifactSourceImpl.OnArtifactDownloaded
-	w.CollectionState = &NilArtifactCollectionState{}
+	w.CollectionState = collection_state.NewSaveableCollectionState(&NilArtifactCollectionState{})
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {

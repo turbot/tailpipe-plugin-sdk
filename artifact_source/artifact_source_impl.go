@@ -68,9 +68,6 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
 
-	// shadow the CollectionState property, but store as a CollectionStateWithPaths so we can easily register paths
-	CollectionState collection_state.CollectionStateWithPaths
-
 	defaultConfig *artifact_source_config.ArtifactSourceConfigImpl
 	// map of loaders created, keyed by identifier
 	// an optional extractor which the table may specify
@@ -122,13 +119,6 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 		return errors.New("ArtifactSourceImpl.Source must implement ArtifactSource")
 	}
 	a.Source = impl
-
-	// store the collection state as an CollectionStateWithPaths (shadow the base CollectionState property)
-	cs, ok := any(a.RowSourceImpl.CollectionState).(collection_state.CollectionStateWithPaths)
-	if !ok {
-		return errors.New("ArtifactSourceImpl.CollectionState must implement ArtifactCollectionState")
-	}
-	a.CollectionState = cs
 
 	// set the granularity of the collection state using the value derived from the file layout
 	granularity := helpers.GetGranularityFromFileLayout(a.Config.GetFileLayout())

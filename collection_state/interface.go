@@ -18,6 +18,7 @@ type CollectionState interface {
 	GetToTime() time.Time
 	OnCollectionComplete() error
 	MigrateFromLegacyState(bytes []byte) error
+	Validate() error
 }
 
 type CollectionStateWithPaths interface {

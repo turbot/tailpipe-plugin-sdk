@@ -19,7 +19,7 @@ service TailpipePlugin {
   rpc SourcePause(Empty) returns (Empty);
   rpc SourceResume(Empty) returns (Empty);
   rpc SourceCollectionComplete(Empty) returns (Empty);
-
+  rpc GetSupportedOperations(Empty) returns (GetSupportedOperationsResponse);
 }
 
 message Empty{}
@@ -383,4 +383,8 @@ message OperationErrorAggregate {
   repeated string invalid_fields = 2;
   repeated string messages = 3;
   int64 count = 4;
+}
+
+message GetSupportedOperationsResponse {
+  bool time_ranges = 1;
 }

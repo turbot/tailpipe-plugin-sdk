@@ -58,3 +58,6 @@ func (*NilArtifactCollectionState) Save() error {
 func (*NilArtifactCollectionState) MigrateFromLegacyState(_ []byte) error {
 	return nil
 }
+func (*NilArtifactCollectionState) Validate() error {
+	return nil
+}

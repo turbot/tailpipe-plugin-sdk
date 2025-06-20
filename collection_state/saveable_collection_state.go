@@ -48,7 +48,10 @@ func (s *SaveableCollectionState) Init(collectionTimeRange *CollectionTimeRange,
 		// fall through to ensure the state is initialized
 	}
 
-	return s.State.Init(collectionTimeRange)
+	if err := s.State.Init(collectionTimeRange); err != nil {
+		return fmt.Errorf("failed to initialize collection state: %w", err)
+	}
+	return s.State.Validate()
 }
 
 func (s *SaveableCollectionState) SetGranularity(duration time.Duration) {
@@ -157,6 +160,12 @@ func (s *SaveableCollectionState) Save() error {
 	s.lastSaveTime = time.Now()
 
 	return nil
+}
+
+func (s *SaveableCollectionState) RegisterPath(path string, metadata map[string]string) {
+	if cs, ok := s.State.(CollectionStateWithPaths); ok {
+		cs.RegisterPath(path, metadata)
+	}
 }
 
 func (s *SaveableCollectionState) LoadFromFile(path string) error {

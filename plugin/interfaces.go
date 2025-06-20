@@ -40,6 +40,7 @@ type TailpipePlugin interface {
 	SourcePause(context.Context) error
 	SourceResume(context.Context) error
 	SourceCollectionComplete(context.Context) error
+	GetSupportedOperations(context.Context) (*proto.GetSupportedOperationsResponse, error)
 
 	// Other interface functions
 

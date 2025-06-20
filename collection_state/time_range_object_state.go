@@ -9,8 +9,7 @@ import (
 type CollectionOrder int
 
 const (
-	CollectionOrderUnset CollectionOrder = iota
-	CollectionOrderChronological
+	CollectionOrderChronological CollectionOrder = iota
 	CollectionOrderReverse
 )
 
@@ -136,6 +135,10 @@ func (s *timeRangeObjectState) SetGranularity(granularity time.Duration) {
 // GetGranularity returns the granularity of the collection state
 func (s *timeRangeObjectState) GetGranularity() time.Duration {
 	return s.Granularity
+}
+
+func (s *timeRangeObjectState) Validate() error {
+	return s.TimeRange.Validate()
 }
 
 // setUpperBoundaryTime sets the upper boundary time to the new time

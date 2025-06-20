@@ -2,6 +2,7 @@ package collection_state
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -254,6 +255,19 @@ func (s *ArtifactCollectionState) MigrateFromLegacyState(bytes []byte) error {
 		}
 	}
 
+	return nil
+}
+
+func (s *ArtifactCollectionState) Validate() error {
+	var errorList []error
+	for _, trunkState := range s.TrunkStates {
+		if trunkErr := trunkState.Validate(); trunkErr != nil {
+			errorList = append(errorList, trunkErr)
+		}
+	}
+	if len(errorList) > 0 {
+		return fmt.Errorf("validation failed for artifact collection state: %w", errors.Join(errorList...))
+	}
 	return nil
 }
 

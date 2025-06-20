@@ -29,6 +29,7 @@ type TailpipePluginServer interface {
 	SourcePause(context.Context, *proto.Empty) (*proto.Empty, error)
 	SourceResume(context.Context, *proto.Empty) (*proto.Empty, error)
 	SourceCollectionComplete(context.Context, *proto.Empty) (*proto.Empty, error)
+	GetSupportedOperations(context.Context, *proto.Empty) (*proto.GetSupportedOperationsResponse, error)
 }
 
 // TailpipePluginClient is the client interface that we're exposing as a plugin.
@@ -44,6 +45,7 @@ type TailpipePluginClient interface {
 	SourcePause(context.Context, *proto.Empty) (*proto.Empty, error)
 	SourceResume(context.Context, *proto.Empty) (*proto.Empty, error)
 	SourceCollectionComplete(context.Context, *proto.Empty) (*proto.Empty, error)
+	GetSupportedOperations(context.Context, *proto.Empty) (*proto.GetSupportedOperationsResponse, error)
 }
 
 // TailpipeGRPCPlugin is the implementation of plugin.GRPCPlugin so we can serve/consume this.
