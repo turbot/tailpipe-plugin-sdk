@@ -148,7 +148,6 @@ type CommonFields struct {
 	// Hive fields
 	TpTable     string    `json:"tp_table"`
 	TpPartition string    `json:"tp_partition"`
-	TpIndex     string    `json:"tp_index"`
 	TpDate      time.Time `json:"tp_date" parquet:"type=DATE"`
 
 	// Optional fields
@@ -194,9 +193,6 @@ func (c *CommonFields) InitialiseFromMap(source map[string]string) {
 	}
 	if value, ok := source[constants.TpPartition]; ok {
 		c.TpPartition = value
-	}
-	if value, ok := source[constants.TpIndex]; ok {
-		c.TpIndex = value
 	}
 	if value, ok := source[constants.TpDate]; ok {
 		if t, err := time.Parse(timeFormat, value); err == nil {
@@ -258,7 +254,6 @@ func (c *CommonFields) AsMap() map[string]string {
 	// Hive fields
 	result[constants.TpTable] = c.TpTable
 	result[constants.TpPartition] = c.TpPartition
-	result[constants.TpIndex] = c.TpIndex
 	if !c.TpDate.IsZero() {
 		result[constants.TpDate] = c.TpDate.Format(timeFormat)
 	}

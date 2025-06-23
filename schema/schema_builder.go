@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/iancoleman/strcase"
-	"golang.org/x/exp/maps"
 )
 
 const maxNesting = 10
@@ -43,9 +42,7 @@ func (b *SchemaBuilder) SchemaFromStruct(s any) (*TableSchema, error) {
 		// merge the default common field descriptions with column descriptions from the struct
 		// NOTE: the struct descriptions will overwrite the default descriptions - it may use this to override
 		// the descriptions for the common fields
-		columnDescriptions := DefaultCommonFieldDescriptions
-		maps.Copy(columnDescriptions, desc.GetColumnDescriptions())
-
+		columnDescriptions := desc.GetColumnDescriptions()
 		for _, c := range res.Columns {
 			if desc, ok := columnDescriptions[c.ColumnName]; ok {
 				c.Description = desc
