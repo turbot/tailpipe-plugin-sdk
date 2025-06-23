@@ -2334,7 +2334,7 @@ func buildTimeRangeCollectionState(order CollectionOrder, granularity time.Durat
 	return &TimeRangeCollectionState{
 		TimeRanges:     ranges,
 		Granularity:    granularity,
-		ObjectRangeMap: map[string]*TimeRangeObjectState{},
+		objectRangeMap: map[string]*TimeRangeObjectState{},
 		Order:          order,
 	}
 }

@@ -87,7 +87,8 @@ func (s *SaveableCollectionState) OnCollectionComplete() error {
 	}
 
 	// save the collection state
-	if err := s.Save(); err != nil {
+	// NOTE: call the non-exported version which does not lock the mutex
+	if err := s.save(); err != nil {
 		return fmt.Errorf("error saving collection state: %w", err)
 	}
 	return nil
@@ -117,10 +118,17 @@ func (s *SaveableCollectionState) IsEmpty() bool {
 }
 
 // Save serializes the underlying collection state to JSON and writes it to the file specified by jsonPath.
+// NOTE: This method locks the mutex to ensure thread safety.
 func (s *SaveableCollectionState) Save() error {
 	s.mut.Lock()
 	defer s.mut.Unlock()
+	// call the non-exported save method which does not lock the mutex
+	return s.save()
+}
 
+// save serializes the collection state to JSON and writes it to the file specified by jsonPath.
+// NOTE: This method assumes the mutex is already locked by the caller.
+func (s *SaveableCollectionState) save() error {
 	// if the last save time is after the last modified time, then we have nothing to do
 	if s.lastSaveTime.After(s.LastModifiedTime) {
 		// nothing to do

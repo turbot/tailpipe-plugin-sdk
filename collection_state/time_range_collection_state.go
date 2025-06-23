@@ -9,7 +9,7 @@ import (
 )
 
 type TimeRangeCollectionState struct {
-	TimeRanges  []*TimeRangeObjectState `json:"TimeRanges"`
+	TimeRanges  []*TimeRangeObjectState `json:"time_ranges"`
 	Granularity time.Duration           `json:"granularity"`
 	Order       CollectionOrder         `json:"order"`
 
@@ -25,21 +25,21 @@ type TimeRangeCollectionState struct {
 	// used to store the range associated with each object between the ShouldCollect call and the OnCollected call
 	// (this is required because we do not want to have to recompute the range for each object on every OnCollected call)
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
-	ObjectRangeMap             map[string]*TimeRangeObjectState
+	objectRangeMap             map[string]*TimeRangeObjectState
 	currentCollectionTimeRange *CollectionTimeRange
 }
 
 func NewTimeRangeCollectionState() CollectionState {
 	return &TimeRangeCollectionState{
 		TimeRanges:     make([]*TimeRangeObjectState, 0),
-		ObjectRangeMap: make(map[string]*TimeRangeObjectState),
+		objectRangeMap: make(map[string]*TimeRangeObjectState),
 	}
 }
 
 // NewReverseOrderTimeRangeSliceCollectionState creates a new TimeRangeCollectionState with reverse order
 func NewReverseOrderTimeRangeSliceCollectionState() CollectionState {
 	return &TimeRangeCollectionState{
-		ObjectRangeMap: make(map[string]*TimeRangeObjectState),
+		objectRangeMap: make(map[string]*TimeRangeObjectState),
 		Order:          CollectionOrderReverse,
 	}
 }
@@ -47,7 +47,7 @@ func NewReverseOrderTimeRangeSliceCollectionState() CollectionState {
 // NewTimeRangeCollectionStateFromLegacy constructs a new TimeRangeCollectionState from a legacy state
 func NewTimeRangeCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegacy) *TimeRangeCollectionState {
 	state := &TimeRangeCollectionState{
-		ObjectRangeMap: make(map[string]*TimeRangeObjectState),
+		objectRangeMap: make(map[string]*TimeRangeObjectState),
 	}
 	// Convert the single legacy time range to the new format
 	state.addRangeFromLegacy(legacy)
@@ -66,8 +66,8 @@ func (t *TimeRangeCollectionState) Init(collectionTimeRange CollectionTimeRange)
 	t.compact()
 
 	// create map for object ranges if needed (i.e. if we were loaded from file)
-	if t.ObjectRangeMap == nil {
-		t.ObjectRangeMap = make(map[string]*TimeRangeObjectState)
+	if t.objectRangeMap == nil {
+		t.objectRangeMap = make(map[string]*TimeRangeObjectState)
 	}
 }
 
@@ -145,18 +145,18 @@ func (t *TimeRangeCollectionState) ShouldCollect(id string, timestamp time.Time)
 
 	// so we should collect this object - cache the range for this object so that OnCollected can find the
 	//  correct range to update
-	t.ObjectRangeMap[id] = t.activeRange
+	t.objectRangeMap[id] = t.activeRange
 	return true
 }
 
 func (t *TimeRangeCollectionState) OnCollected(id string, timestamp time.Time) error {
 	// we should have stored a collection state mapping for this object
-	rangeForObject, ok := t.ObjectRangeMap[id]
+	rangeForObject, ok := t.objectRangeMap[id]
 	if !ok {
 		return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", id)
 	}
 	// clear the mapping
-	delete(t.ObjectRangeMap, id)
+	delete(t.objectRangeMap, id)
 
 	return rangeForObject.OnCollected(id, timestamp)
 }
