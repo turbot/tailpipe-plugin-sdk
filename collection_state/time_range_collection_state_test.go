@@ -1552,20 +1552,6 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 	}
 }
 
-func buildTimeRangeCollectionState(order CollectionOrder, granularity time.Duration, ranges ...*TimeRangeObjectState) *TimeRangeCollectionState {
-	return &TimeRangeCollectionState{
-		TimeRanges:     ranges,
-		Granularity:    granularity,
-		ObjectRangeMap: map[string]*TimeRangeObjectState{},
-		Order:          order,
-	}
-}
-
-func setActiveRange(state *TimeRangeCollectionState, activeRange *TimeRangeObjectState) *TimeRangeCollectionState {
-	state.activeRange = activeRange
-	return state
-}
-
 func TestTimeRangeCollectionState_Clear(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -1728,6 +1714,387 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
 		},
+		{
+			name: "subsumes_first_range_overlaps_second_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-15 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-15 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_overlaps_end_of_first_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-11 00:00:00"),
+				To:              timeString("2025-01-13 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-11 00:00:00", time.Hour, CollectionOrderChronological),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_overlaps_start_of_second_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-13 00:00:00"),
+				To:              timeString("2025-01-15 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-15 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_overlaps_end_first_start_second",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-11 00:00:00"),
+				To:              timeString("2025-01-15 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-11 00:00:00", time.Hour, CollectionOrderChronological),
+				buildTimeRangeState("2025-01-15 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_overlaps_end_first_subsume_second",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-11 00:00:00"),
+				To:              timeString("2025-01-17 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-11 00:00:00", time.Hour, CollectionOrderChronological),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_overlaps_end_first_subsume_second_start_third",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-11 00:00:00"),
+				To:              timeString("2025-01-19 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-11 00:00:00", time.Hour, CollectionOrderChronological),
+				buildTimeRangeState("2025-01-19 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_subsumes_first_two_ranges",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-17 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_subsumes_all_ranges",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-25 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour),
+		},
+		{
+			name: "multiple_ranges_overlaps_start_of_third_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-17 00:00:00"),
+				To:              timeString("2025-01-19 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-19 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_overlaps_end_of_third_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-19 00:00:00"),
+				To:              timeString("2025-01-21 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-19 00:00:00", time.Hour, CollectionOrderChronological),
+			),
+		},
+		{
+			name: "multiple_ranges_overlaps_middle_of_middle_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-15 00:00:00"),
+				To:              timeString("2025-01-15 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-15 00:00:00", time.Hour, CollectionOrderChronological),
+				buildTimeRangeState("2025-01-15 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_subsumes_middle_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-13 00:00:00"),
+				To:              timeString("2025-01-17 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_overlaps_multiple_ranges_partially",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-11 00:00:00"),
+				To:              timeString("2025-01-19 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-11 00:00:00", time.Hour, CollectionOrderChronological),
+				buildTimeRangeState("2025-01-19 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_exact_match_first_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-10 00:00:00"),
+				To:              timeString("2025-01-12 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_exact_match_middle_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-14 00:00:00"),
+				To:              timeString("2025-01-16 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_exact_match_last_range",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-18 00:00:00"),
+				To:              timeString("2025-01-20 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+			),
+		},
+		{
+			name: "multiple_ranges_clear_range_before_all_ranges",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-05 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
+		{
+			name: "multiple_ranges_clear_range_after_all_ranges",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: CollectionTimeRange{
+				From:            timeString("2025-01-25 00:00:00"),
+				To:              timeString("2025-01-30 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-12 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+		},
 	}
 
 	for _, tt := range tests {
@@ -1743,4 +2110,18 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 			}
 		})
 	}
+}
+
+func buildTimeRangeCollectionState(order CollectionOrder, granularity time.Duration, ranges ...*TimeRangeObjectState) *TimeRangeCollectionState {
+	return &TimeRangeCollectionState{
+		TimeRanges:     ranges,
+		Granularity:    granularity,
+		ObjectRangeMap: map[string]*TimeRangeObjectState{},
+		Order:          order,
+	}
+}
+
+func setActiveRange(state *TimeRangeCollectionState, activeRange *TimeRangeObjectState) *TimeRangeCollectionState {
+	state.activeRange = activeRange
+	return state
 }
