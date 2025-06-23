@@ -209,130 +209,14 @@ func (s *TimeRangeObjectState) endObjectsContain(id string) bool {
 	return ok
 }
 
-// TrimToRemoveOverlap checks if this state overlaps with the given collection range
-// and trims the range to remove overlap. Clears end objects if the range is truncated
-// or if the upper boundary changes.
-func TrimToRemoveOverlap(s *TimeRangeObjectState, timeRange *CollectionTimeRange) []*TimeRangeObjectState {
-	stateLower := s.TimeRange.lowerBoundaryTime()
-	stateUpper := s.TimeRange.upperBoundaryTime()
-	rangeLower := timeRange.lowerBoundaryTime()
-	rangeUpper := timeRange.upperBoundaryTime()
-
-	// If no overlap, return the original state unchanged
-	if !stateUpper.After(rangeLower) || !stateLower.Before(rangeUpper) {
-		copiedState := &TimeRangeObjectState{
-			TimeRange:   s.TimeRange,
-			EndObjects:  make(map[string]struct{}),
-			Granularity: s.Granularity,
-		}
-		for k := range s.EndObjects {
-			copiedState.EndObjects[k] = struct{}{}
-		}
-		return []*TimeRangeObjectState{copiedState}
+func (s *TimeRangeObjectState) Clone() *TimeRangeObjectState {
+	res := &TimeRangeObjectState{
+		TimeRange:   s.TimeRange,
+		EndObjects:  make(map[string]struct{}, len(s.EndObjects)),
+		Granularity: s.Granularity,
 	}
-
-	// If the state is completely contained within the removal range, remove it
-	if !stateLower.Before(rangeLower) && !stateUpper.After(rangeUpper) {
-		return []*TimeRangeObjectState{}
+	for k := range s.EndObjects {
+		res.EndObjects[k] = struct{}{}
 	}
-
-	var result []*TimeRangeObjectState
-
-	// Create state for the part before the removal range
-	if stateLower.Before(rangeLower) {
-		var beforeFrom, beforeTo time.Time
-		if s.TimeRange.CollectionOrder == CollectionOrderReverse {
-			// For reverse order: From (later) -> To (earlier)
-			beforeFrom = s.TimeRange.From
-			beforeTo = rangeLower
-		} else {
-			// For chronological order: From (earlier) -> To (later)
-			beforeFrom = s.TimeRange.From
-			beforeTo = rangeLower
-		}
-
-		beforeState := &TimeRangeObjectState{
-			TimeRange: CollectionTimeRange{
-				From:            beforeFrom,
-				To:              beforeTo,
-				CollectionOrder: s.TimeRange.CollectionOrder,
-			},
-			EndObjects:  make(map[string]struct{}),
-			Granularity: s.Granularity,
-		}
-
-		// Only preserve EndObjects if the upper boundary is unchanged
-		if s.TimeRange.CollectionOrder == CollectionOrderReverse {
-			// For reverse order, upper boundary is From
-			if beforeFrom.Equal(s.TimeRange.From) {
-				for k := range s.EndObjects {
-					beforeState.EndObjects[k] = struct{}{}
-				}
-			}
-		} else {
-			// For chronological order, upper boundary is To
-			if beforeTo.Equal(s.TimeRange.To) {
-				for k := range s.EndObjects {
-					beforeState.EndObjects[k] = struct{}{}
-				}
-			}
-		}
-		result = append(result, beforeState)
-	}
-
-	// Create state for the part after the removal range
-	if stateUpper.After(rangeUpper) {
-		var afterFrom, afterTo time.Time
-		if s.TimeRange.CollectionOrder == CollectionOrderReverse {
-			// For reverse order: From (later) -> To (earlier)
-			afterFrom = rangeUpper
-			afterTo = s.TimeRange.To
-		} else {
-			// For chronological order: From (earlier) -> To (later)
-			afterFrom = rangeUpper
-			afterTo = s.TimeRange.To
-		}
-
-		afterState := &TimeRangeObjectState{
-			TimeRange: CollectionTimeRange{
-				From:            afterFrom,
-				To:              afterTo,
-				CollectionOrder: s.TimeRange.CollectionOrder,
-			},
-			EndObjects:  make(map[string]struct{}),
-			Granularity: s.Granularity,
-		}
-
-		// Only preserve EndObjects if the upper boundary is unchanged
-		if s.TimeRange.CollectionOrder == CollectionOrderReverse {
-			// For reverse order, upper boundary is From
-			if afterFrom.Equal(s.TimeRange.From) {
-				for k := range s.EndObjects {
-					afterState.EndObjects[k] = struct{}{}
-				}
-			}
-		} else {
-			// For chronological order, upper boundary is To
-			if afterTo.Equal(s.TimeRange.To) {
-				for k := range s.EndObjects {
-					afterState.EndObjects[k] = struct{}{}
-				}
-			}
-		}
-		result = append(result, afterState)
-	}
-
-	return result
-}
-
-// chooseBoundary returns the correct boundary for From/To based on order and split direction
-func (order CollectionOrder) chooseBoundary(origFrom, origTo, boundary time.Time, isLeft bool) time.Time {
-	if order == CollectionOrderReverse {
-		if isLeft {
-			return boundary
-		} else {
-			return boundary
-		}
-	}
-	return boundary
+	return res
 }

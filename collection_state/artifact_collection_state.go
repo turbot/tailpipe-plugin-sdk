@@ -228,7 +228,7 @@ func (s *ArtifactCollectionState) IsEmpty() bool {
 	return true
 }
 
-func (s *ArtifactCollectionState) Clear(timeRange *CollectionTimeRange) {
+func (s *ArtifactCollectionState) Clear(timeRange CollectionTimeRange) {
 	for _, trunkState := range s.TrunkStates {
 		if trunkState == nil {
 			continue
