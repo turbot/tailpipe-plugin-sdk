@@ -10,7 +10,7 @@ import (
 
 func TestTimeRangeCollectionState_GetToTime(t *testing.T) {
 	type fields struct {
-		TimeRanges  []*timeRangeObjectState
+		TimeRanges  []*TimeRangeObjectState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -22,7 +22,7 @@ func TestTimeRangeCollectionState_GetToTime(t *testing.T) {
 		{
 			name: "empty_ranges",
 			fields: fields{
-				TimeRanges:  []*timeRangeObjectState{},
+				TimeRanges:  []*TimeRangeObjectState{},
 				Granularity: time.Hour,
 				Order:       CollectionOrderChronological,
 			},
@@ -31,7 +31,7 @@ func TestTimeRangeCollectionState_GetToTime(t *testing.T) {
 		{
 			name: "single_range",
 			fields: fields{
-				TimeRanges: []*timeRangeObjectState{
+				TimeRanges: []*TimeRangeObjectState{
 					buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
 				},
 				Granularity: time.Hour,
@@ -42,7 +42,7 @@ func TestTimeRangeCollectionState_GetToTime(t *testing.T) {
 		{
 			name: "multiple_ranges",
 			fields: fields{
-				TimeRanges: []*timeRangeObjectState{
+				TimeRanges: []*TimeRangeObjectState{
 					buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
 					buildTimeRangeState("2024-01-03 00:00:00", "2024-01-04 00:00:00", time.Hour, CollectionOrderChronological),
 					buildTimeRangeState("2024-01-05 00:00:00", "2024-01-06 00:00:00", time.Hour, CollectionOrderChronological),
@@ -69,7 +69,7 @@ func TestTimeRangeCollectionState_GetToTime(t *testing.T) {
 
 func TestTimeRangeCollectionState_GetFromTime(t *testing.T) {
 	type fields struct {
-		TimeRanges  []*timeRangeObjectState
+		TimeRanges  []*TimeRangeObjectState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -81,7 +81,7 @@ func TestTimeRangeCollectionState_GetFromTime(t *testing.T) {
 		{
 			name: "empty_ranges",
 			fields: fields{
-				TimeRanges:  []*timeRangeObjectState{},
+				TimeRanges:  []*TimeRangeObjectState{},
 				Granularity: time.Hour,
 				Order:       CollectionOrderChronological,
 			},
@@ -90,7 +90,7 @@ func TestTimeRangeCollectionState_GetFromTime(t *testing.T) {
 		{
 			name: "single_range",
 			fields: fields{
-				TimeRanges: []*timeRangeObjectState{
+				TimeRanges: []*TimeRangeObjectState{
 					{
 						TimeRange: CollectionTimeRange{
 							From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -108,7 +108,7 @@ func TestTimeRangeCollectionState_GetFromTime(t *testing.T) {
 			name: "multiple_ranges",
 			fields: fields{
 
-				TimeRanges: []*timeRangeObjectState{
+				TimeRanges: []*TimeRangeObjectState{
 					{
 						TimeRange: CollectionTimeRange{
 							From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -150,7 +150,7 @@ func TestTimeRangeCollectionState_GetFromTime(t *testing.T) {
 
 func TestTimeRangeCollectionState_IsEmpty(t *testing.T) {
 	type fields struct {
-		TimeRanges  []*timeRangeObjectState
+		TimeRanges  []*TimeRangeObjectState
 		Granularity time.Duration
 		Order       CollectionOrder
 	}
@@ -162,7 +162,7 @@ func TestTimeRangeCollectionState_IsEmpty(t *testing.T) {
 		{
 			name: "empty_ranges",
 			fields: fields{
-				TimeRanges:  []*timeRangeObjectState{},
+				TimeRanges:  []*TimeRangeObjectState{},
 				Granularity: time.Hour,
 				Order:       CollectionOrderChronological,
 			},
@@ -171,7 +171,7 @@ func TestTimeRangeCollectionState_IsEmpty(t *testing.T) {
 		{
 			name: "single_range",
 			fields: fields{
-				TimeRanges: []*timeRangeObjectState{
+				TimeRanges: []*TimeRangeObjectState{
 					{
 						TimeRange: CollectionTimeRange{
 							From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -190,7 +190,7 @@ func TestTimeRangeCollectionState_IsEmpty(t *testing.T) {
 		{
 			name: "multiple_ranges",
 			fields: fields{
-				TimeRanges: []*timeRangeObjectState{
+				TimeRanges: []*TimeRangeObjectState{
 					{
 						TimeRange: CollectionTimeRange{
 							From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
@@ -234,75 +234,75 @@ func TestTimeRangeCollectionState_compact(t *testing.T) {
 	tests := []struct {
 		name           string
 		state          *TimeRangeCollectionState
-		expectedRanges []*timeRangeObjectState
+		expectedRanges []*TimeRangeObjectState
 	}{
 		{
 			name: "single_range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological),
 			),
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological),
 			},
 		},
 		{
 			name: "overlapping_ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			),
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			},
 		},
 		{
 			name: "non_overlapping_ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			),
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			},
 		},
 		{
 			name: "multiple_overlapping_ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-13 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
 			),
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
 			},
 		},
 		{
 			name: "empty_ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 			),
-			expectedRanges: []*timeRangeObjectState{},
+			expectedRanges: []*TimeRangeObjectState{},
 		},
 		{
 			name: "adjacent_ranges_with_gap",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
 			),
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
@@ -310,14 +310,14 @@ func TestTimeRangeCollectionState_compact(t *testing.T) {
 		},
 		{
 			name: "ranges_with_different_granularity",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Minute,
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Minute, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Second, CollectionOrderChronological, "obj3"),
 			),
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Minute, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Second, CollectionOrderChronological, "obj3"),
@@ -327,8 +327,8 @@ func TestTimeRangeCollectionState_compact(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.state.compact()
-			expectedState := buildTimeRangeSliceState(tt.state.Order, tt.state.Granularity, tt.expectedRanges...)
-			if equal, msg := timeRangeSliceStateEquals(tt.state, expectedState); !equal {
+			expectedState := buildTimeRangeCollectionState(tt.state.Order, tt.state.Granularity, tt.expectedRanges...)
+			if equal, msg := tt.state.Compare(expectedState); !equal {
 				t.Error(msg)
 			}
 		})
@@ -340,11 +340,11 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 		name              string
 		state             *TimeRangeCollectionState
 		currentCollection *CollectionTimeRange
-		expectedRanges    []*timeRangeObjectState
+		expectedRanges    []*TimeRangeObjectState
 	}{
 		{
 			name: "single_range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological),
@@ -354,13 +354,13 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-30 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological),
 			},
 		},
 		{
 			name: "overlapping_ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
@@ -371,13 +371,13 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-30 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			},
 		},
 		{
 			name: "non_overlapping_ranges_outside_collection_period",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
@@ -388,14 +388,14 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-30 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			},
 		},
 		{
 			name: "non_overlapping_ranges_within_collection_period",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
@@ -406,13 +406,13 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			},
 		},
 		{
 			name: "multiple_overlapping_ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
@@ -424,13 +424,13 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-30 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
 			},
 		},
 		{
 			name: "empty_ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 			),
@@ -439,11 +439,11 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-10 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{},
+			expectedRanges: []*TimeRangeObjectState{},
 		},
 		{
 			name: "collection_overlaps_multiple_non_contiguous_ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
@@ -455,13 +455,13 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
 			},
 		},
 		{
 			name: "collection_overlaps_start_of_first_and_end_of_last_range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
@@ -473,13 +473,13 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-25 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
 			},
 		},
 		{
 			name: "collection_overlaps_ranges_with_minute_granularity",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Minute,
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Minute, CollectionOrderChronological, "obj1"),
@@ -491,13 +491,13 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Minute, CollectionOrderChronological, "obj3"),
 			},
 		},
 		{
 			name: "collection_overlaps_ranges_with_hour_granularity",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Hour, CollectionOrderChronological, "obj1"),
@@ -509,13 +509,13 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			},
 		},
 		{
 			name: "collection_overlaps_ranges_with_day_granularity",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				24*time.Hour,
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
@@ -527,13 +527,13 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", 24*time.Hour, CollectionOrderChronological, "obj3"),
 			},
 		},
 		{
 			name: "collection_overlaps_ranges_with_mixed_granularity",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Minute,
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Minute, CollectionOrderChronological, "obj1"),
@@ -545,20 +545,20 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				To:              timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-25 12:00:00", time.Minute, CollectionOrderChronological, "obj3"),
 			},
 		},
 		{
 			name: "no_current_collection_time_range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			),
 			currentCollection: nil,
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-05-01 12:00:00", "2025-05-05 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			},
@@ -568,8 +568,8 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.state.currentCollectionTimeRange = tt.currentCollection
 			tt.state.compactForCollectionPeriod()
-			expectedState := buildTimeRangeSliceState(tt.state.Order, tt.state.Granularity, tt.expectedRanges...)
-			if equal, msg := timeRangeSliceStateEquals(tt.state, expectedState); !equal {
+			expectedState := buildTimeRangeCollectionState(tt.state.Order, tt.state.Granularity, tt.expectedRanges...)
+			if equal, msg := tt.state.Compare(expectedState); !equal {
 				t.Error(msg)
 			}
 		})
@@ -596,7 +596,7 @@ func TestTimeRangeCollectionState_emulate_collection(t *testing.T) {
 			to:          timeString("2025-05-10 12:00:00"),
 			order:       CollectionOrderChronological,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Hour, CollectionOrderChronological),
 			),
 		},
@@ -607,122 +607,122 @@ func TestTimeRangeCollectionState_emulate_collection(t *testing.T) {
 			to:          timeString("2025-05-10 12:00:00"),
 			order:       CollectionOrderReverse,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Hour, CollectionOrderReverse),
 			),
 		},
 		{
 			name: "One Existing Range  - Forward - Join existing range",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderChronological, "20250426_000000.txt")),
 			from:        timeString("2025-04-26 00:00:00"),
 			to:          timeString("2025-05-10 12:00:00"),
 			order:       CollectionOrderChronological,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-10 12:00:00", time.Hour, CollectionOrderChronological),
 			),
 		},
 		{
 			name: "One Existing Range  - Reverse - join existing range",
-			state: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderReverse, "20250426_000000.txt")),
 			from:        timeString("2025-04-26 00:00:00"),
 			to:          timeString("2025-05-10 12:00:00"),
 			order:       CollectionOrderReverse,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-05-10 12:00:00", time.Hour, CollectionOrderReverse),
 			),
 		},
 		{
 			name: "One Existing Range  - Forward - separate from existing range",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderChronological, "20250426_000000.txt")),
 			from:        timeString("2025-04-30 00:00:00"),
 			to:          timeString("2025-05-10 12:00:00"),
 			order:       CollectionOrderChronological,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderChronological, "20250426_000000.txt"),
 				buildTimeRangeState("2025-04-30 00:00:00", "2025-05-10 12:00:00", time.Hour, CollectionOrderChronological)),
 		},
 		{
 			name: "One Existing Range  - Reverse - separate from existing range",
-			state: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderReverse, "20250426_000000.txt")),
 			from:        timeString("2025-04-30 00:00:00"),
 			to:          timeString("2025-05-10 12:00:00"),
 			order:       CollectionOrderReverse,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderReverse, "20250426_000000.txt"),
 				buildTimeRangeState("2025-04-30 00:00:00", "2025-05-10 12:00:00", time.Hour, CollectionOrderReverse)),
 		},
 		{
 			name: "One Existing Range  - Forward - overlap start of existing range",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderChronological, "20250426_000000.txt")),
 			from:        timeString("2025-04-10 00:00:00"),
 			to:          timeString("2025-04-20 12:00:00"),
 			order:       CollectionOrderChronological,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderChronological, "20250426_000000.txt")),
 		},
 		{
 			name: "One Existing Range  - Reverse - overlap start of existing range",
-			state: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderReverse, "20250426_000000.txt")),
 			from:        timeString("2025-04-10 00:00:00"),
 			to:          timeString("2025-04-20 12:00:00"),
 			order:       CollectionOrderReverse,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderReverse)),
 		},
 		{
 			name: "One Existing Range  - Forward - overlap end of existing range",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderChronological, "20250426_000000.txt")),
 			from:        timeString("2025-04-20 00:00:00"),
 			to:          timeString("2025-04-30 12:00:00"),
 			order:       CollectionOrderChronological,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-30 12:00:00", time.Hour, CollectionOrderChronological)),
 		},
 		{
 			name: "One Existing Range  - Reverse - overlap end of existing range",
-			state: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderReverse, "20250426_000000.txt")),
 			from:        timeString("2025-04-20 00:00:00"),
 			to:          timeString("2025-04-30 12:00:00"),
 			order:       CollectionOrderReverse,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-30 12:00:00", time.Hour, CollectionOrderReverse)),
 		},
 		{
 			name: "One Existing Range  - Forward - subsume existing range",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderChronological, "20250426_000000.txt")),
 			from:        timeString("2025-04-10 00:00:00"),
 			to:          timeString("2025-04-30 12:00:00"),
 			order:       CollectionOrderChronological,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour,
 				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-30 12:00:00", time.Hour, CollectionOrderChronological)),
 		},
 		{
 			name: "One Existing Range  - Reverse - subsume existing range",
-			state: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			state: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-04-19 12:00:00", "2025-04-26 00:00:00", time.Hour, CollectionOrderReverse, "20250426_000000.txt")),
 			from:        timeString("2025-04-10 00:00:00"),
 			to:          timeString("2025-04-30 12:00:00"),
 			order:       CollectionOrderReverse,
 			granularity: time.Hour,
-			expectedState: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
 				buildTimeRangeState("2025-04-10 00:00:00", "2025-04-30 12:00:00", time.Hour, CollectionOrderReverse)),
 		},
 		/*
@@ -816,7 +816,7 @@ func TestTimeRangeCollectionState_emulate_collection(t *testing.T) {
 			state.OnCollectionComplete()
 
 			// Compare final state with expected
-			if equal, msg := timeRangeSliceStateEquals(state, tt.expectedState); !equal {
+			if equal, msg := state.Compare(tt.expectedState); !equal {
 				t.Errorf("state after collection: %s", msg)
 			}
 		})
@@ -833,7 +833,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 	}{
 		{
 			name: "Should collect - no state, timestamp within collection time range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 			),
@@ -843,7 +843,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should NOT collect - no state, timestamp outside collection time range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 			),
@@ -853,7 +853,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should collect - timestamp within active range but not present in end objects",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological, "20250407_000000.txt"),
@@ -864,7 +864,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should NOT collect - timestamp within active range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological, "20250407_000000.txt"),
@@ -875,7 +875,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should NOT collect - timestamp within active range but present in end objects",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological, "20250407_000000.txt"),
@@ -886,7 +886,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should collect - timestamp within non active (2nd) range but not present in end objects",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological, "20250407_000000.txt"),
@@ -898,7 +898,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should NOT collect - timestamp within non active (2nd) range but present in end objects",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological, "20250407_000000.txt"),
@@ -910,7 +910,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should NOT collect - timestamp within non active (2nd) range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological, "20250407_000000.txt"),
@@ -922,7 +922,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should collect - timestamp within non active (3rd) range but not present in end objects",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-04 00:00:00", time.Hour*24, CollectionOrderChronological, "20250407_000000.txt"),
@@ -935,7 +935,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should NOT collect - timestamp within non active (3rd) range but present in end objects",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-04 00:00:00", time.Hour*24, CollectionOrderChronological, "20250407_000000.txt"),
@@ -948,7 +948,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 		},
 		{
 			name: "Should NOT collect - timestamp within non active (3rd) range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-04 00:00:00", time.Hour*24, CollectionOrderChronological, "20250407_000000.txt"),
@@ -984,12 +984,12 @@ func TestTimeRangeCollectionState_updateActiveRange(t *testing.T) {
 	}{
 		{
 			name: "No existing ranges - check initial active range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 			),
 			expectedState: setActiveRange(
-				buildTimeRangeSliceState(
+				buildTimeRangeCollectionState(
 					CollectionOrderChronological,
 					time.Hour*24,
 					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-01 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -999,14 +999,14 @@ func TestTimeRangeCollectionState_updateActiveRange(t *testing.T) {
 		},
 		{
 			name: "Existing range - extend active range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological),
 			),
 			timestamp: timeString("2025-04-08 00:00:00"),
 			expectedState: setActiveRange(
-				buildTimeRangeSliceState(
+				buildTimeRangeCollectionState(
 					CollectionOrderChronological,
 					time.Hour*24,
 					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1015,7 +1015,7 @@ func TestTimeRangeCollectionState_updateActiveRange(t *testing.T) {
 		},
 		{
 			name: "Multiple ranges, timestamp after all ranges - no action (active range would be extended in OnCollected",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1024,7 +1024,7 @@ func TestTimeRangeCollectionState_updateActiveRange(t *testing.T) {
 			),
 			timestamp: timeString("2025-04-09 00:00:00"),
 			expectedState: setActiveRange(
-				buildTimeRangeSliceState(
+				buildTimeRangeCollectionState(
 					CollectionOrderChronological,
 					time.Hour*24,
 					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1036,7 +1036,7 @@ func TestTimeRangeCollectionState_updateActiveRange(t *testing.T) {
 		},
 		{
 			name: "Multiple ranges, timestamp in 2nd range ranges - update active range and set original active range end time",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1045,7 +1045,7 @@ func TestTimeRangeCollectionState_updateActiveRange(t *testing.T) {
 			),
 			timestamp: timeString("2025-04-03 00:00:00"),
 			expectedState: setActiveRange(
-				buildTimeRangeSliceState(
+				buildTimeRangeCollectionState(
 					CollectionOrderChronological,
 					time.Hour*24,
 					buildTimeRangeState("2025-04-01 00:00:00", "2025-04-03 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1072,7 +1072,7 @@ func TestTimeRangeCollectionState_updateActiveRange(t *testing.T) {
 				tt.state.updateActiveRange(tt.timestamp)
 			}
 
-			if equal, msg := timeRangeSliceStateEquals(tt.state, tt.expectedState); !equal {
+			if equal, msg := tt.state.Compare(tt.expectedState); !equal {
 				t.Error(msg)
 			}
 		})
@@ -1087,17 +1087,17 @@ func TestTimeRangeCollectionState_upperBoundaryTime(t *testing.T) {
 	}{
 		{
 			name:  "empty_ranges_chronological",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour),
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour),
 			want:  time.Time{},
 		},
 		{
 			name:  "empty_ranges_reverse",
-			state: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour),
+			state: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour),
 			want:  time.Time{},
 		},
 		{
 			name: "single_range_chronological",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1106,7 +1106,7 @@ func TestTimeRangeCollectionState_upperBoundaryTime(t *testing.T) {
 		},
 		{
 			name: "single_range_reverse",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderReverse,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderReverse),
@@ -1115,7 +1115,7 @@ func TestTimeRangeCollectionState_upperBoundaryTime(t *testing.T) {
 		},
 		{
 			name: "multiple_ranges_chronological",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1126,7 +1126,7 @@ func TestTimeRangeCollectionState_upperBoundaryTime(t *testing.T) {
 		},
 		{
 			name: "multiple_ranges_reverse",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderReverse,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderReverse),
@@ -1153,17 +1153,17 @@ func TestTimeRangeCollectionState_lowerBoundaryTime(t1 *testing.T) {
 	}{
 		{
 			name:  "empty_ranges_chronological",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour),
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour),
 			want:  time.Time{},
 		},
 		{
 			name:  "empty_ranges_reverse",
-			state: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour),
+			state: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour),
 			want:  time.Time{},
 		},
 		{
 			name: "single_range_chronological",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1172,7 +1172,7 @@ func TestTimeRangeCollectionState_lowerBoundaryTime(t1 *testing.T) {
 		},
 		{
 			name: "single_range_reverse",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderReverse,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderReverse),
@@ -1181,7 +1181,7 @@ func TestTimeRangeCollectionState_lowerBoundaryTime(t1 *testing.T) {
 		},
 		{
 			name: "multiple_ranges_chronological",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1192,7 +1192,7 @@ func TestTimeRangeCollectionState_lowerBoundaryTime(t1 *testing.T) {
 		},
 		{
 			name: "multiple_ranges_reverse",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderReverse,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderReverse),
@@ -1217,17 +1217,17 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		name      string
 		state     *TimeRangeCollectionState
 		timestamp time.Time
-		want      *timeRangeObjectState
+		want      *TimeRangeObjectState
 	}{
 		{
 			name:      "empty state",
-			state:     buildTimeRangeSliceState(CollectionOrderChronological, time.Hour),
+			state:     buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour),
 			timestamp: timeString("2024-01-01 00:00:00"),
 			want:      nil,
 		},
 		{
 			name: "single range - within range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1237,7 +1237,7 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		},
 		{
 			name: "single range - at start time",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1247,7 +1247,7 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		},
 		{
 			name: "single range - at end time",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1257,7 +1257,7 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		},
 		{
 			name: "single range - outside range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1267,7 +1267,7 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		},
 		{
 			name: "multiple ranges - within first range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1279,7 +1279,7 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		},
 		{
 			name: "multiple ranges - within middle range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1291,7 +1291,7 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		},
 		{
 			name: "multiple ranges - within last range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1303,7 +1303,7 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		},
 		{
 			name: "multiple ranges - between ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1315,7 +1315,7 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		},
 		{
 			name: "multiple ranges - reverse order",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderReverse,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderReverse),
@@ -1327,7 +1327,7 @@ func TestTimeRangeCollectionState_rangeForTime(t1 *testing.T) {
 		},
 		{
 			name: "multiple ranges - with end objects",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2024-01-01 00:00:00", "2024-01-02 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
@@ -1356,12 +1356,12 @@ func TestTimeRangeCollectionState_addRange(t1 *testing.T) {
 	}{
 		{
 			name: "empty state - add first range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 			),
 			timestamp: timeString("2025-04-01 00:00:00"),
-			expectedState: buildTimeRangeSliceState(
+			expectedState: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-01 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1369,13 +1369,13 @@ func TestTimeRangeCollectionState_addRange(t1 *testing.T) {
 		},
 		{
 			name: "single range - add new range after",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological),
 			),
 			timestamp: timeString("2025-04-08 00:00:00"),
-			expectedState: buildTimeRangeSliceState(
+			expectedState: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1384,14 +1384,14 @@ func TestTimeRangeCollectionState_addRange(t1 *testing.T) {
 		},
 		{
 			name: "multiple ranges - add new range after existing ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24, CollectionOrderChronological),
 				buildTimeRangeState("2025-04-03 00:00:00", "2025-04-04 00:00:00", time.Hour*24, CollectionOrderChronological),
 			),
 			timestamp: timeString("2025-04-05 00:00:00"),
-			expectedState: buildTimeRangeSliceState(
+			expectedState: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1401,14 +1401,14 @@ func TestTimeRangeCollectionState_addRange(t1 *testing.T) {
 		},
 		{
 			name: "multiple ranges - add new range between existing ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24, CollectionOrderChronological),
 				buildTimeRangeState("2025-04-04 00:00:00", "2025-04-05 00:00:00", time.Hour*24, CollectionOrderChronological),
 			),
 			timestamp: timeString("2025-04-03 00:00:00"),
-			expectedState: buildTimeRangeSliceState(
+			expectedState: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-02 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1418,14 +1418,14 @@ func TestTimeRangeCollectionState_addRange(t1 *testing.T) {
 		},
 		{
 			name: "multiple ranges - add new range before existing ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-02 00:00:00", "2025-04-03 00:00:00", time.Hour*24, CollectionOrderChronological),
 				buildTimeRangeState("2025-04-04 00:00:00", "2025-04-05 00:00:00", time.Hour*24, CollectionOrderChronological),
 			),
 			timestamp: timeString("2025-04-01 00:00:00"),
-			expectedState: buildTimeRangeSliceState(
+			expectedState: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour*24,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-01 00:00:00", time.Hour*24, CollectionOrderChronological),
@@ -1435,14 +1435,14 @@ func TestTimeRangeCollectionState_addRange(t1 *testing.T) {
 		},
 		{
 			name: "different granularity - add new range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-01 01:00:00", time.Hour, CollectionOrderChronological),
 				buildTimeRangeState("2025-04-01 02:00:00", "2025-04-01 03:00:00", time.Hour, CollectionOrderChronological),
 			),
 			timestamp: timeString("2025-04-01 01:30:00"),
-			expectedState: buildTimeRangeSliceState(
+			expectedState: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2025-04-01 00:00:00", "2025-04-01 01:00:00", time.Hour, CollectionOrderChronological),
@@ -1454,7 +1454,7 @@ func TestTimeRangeCollectionState_addRange(t1 *testing.T) {
 	for _, tt := range tests {
 		t1.Run(tt.name, func(t *testing.T) {
 			tt.state.addRange(tt.timestamp)
-			if equal, msg := timeRangeSliceStateEquals(tt.state, tt.expectedState); !equal {
+			if equal, msg := tt.state.Compare(tt.expectedState); !equal {
 				t.Error(msg)
 			}
 		})
@@ -1471,14 +1471,14 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 		{
 			name:   "migrate TimeRangeCollectionStateLegacy chronological",
 			legacy: buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
-			expected: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour*24,
+			expected: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,
 				buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
 			),
 		},
 		{
 			name:   "migrate TimeRangeCollectionStateLegacy reverse",
 			legacy: buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
-			expected: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24,
+			expected: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
 				buildTimeRangeState("2023-12-01 01:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 			),
 		},
@@ -1489,7 +1489,7 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 					buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 				},
 			},
-			expected: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24,
+			expected: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
 				buildTimeRangeState("2023-12-01 01:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 			),
 		},
@@ -1501,7 +1501,7 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 					buildTimeRangeCollectionStateLegacy("2023-11-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object2"),
 				},
 			},
-			expected: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24,
+			expected: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
 				buildTimeRangeState("2023-11-01 00:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1"),
 				buildTimeRangeState("2023-12-01 01:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object2"),
 			),
@@ -1514,7 +1514,7 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 		{
 			name:     "empty object",
 			legacy:   map[string]interface{}{},
-			expected: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24),
+			expected: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24),
 		},
 	}
 
@@ -1542,7 +1542,7 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 			}
 
 			// Compare the migrated state with expected
-			equal, diff := timeRangeSliceStateEquals(state, tt.expected)
+			equal, diff := state.Compare(tt.expected)
 			if !equal {
 				t.Errorf("migrated state does not match expected: %s", diff)
 				t.Logf("expected: %+v", tt.expected)
@@ -1551,39 +1551,19 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 		})
 	}
 }
-func buildTimeRangeSliceState(order CollectionOrder, granularity time.Duration, ranges ...*timeRangeObjectState) *TimeRangeCollectionState {
+
+func buildTimeRangeCollectionState(order CollectionOrder, granularity time.Duration, ranges ...*TimeRangeObjectState) *TimeRangeCollectionState {
 	return &TimeRangeCollectionState{
 		TimeRanges:     ranges,
 		Granularity:    granularity,
-		objectRangeMap: map[string]*timeRangeObjectState{},
+		ObjectRangeMap: map[string]*TimeRangeObjectState{},
 		Order:          order,
 	}
 }
 
-func setActiveRange(state *TimeRangeCollectionState, activeRange *timeRangeObjectState) *TimeRangeCollectionState {
+func setActiveRange(state *TimeRangeCollectionState, activeRange *TimeRangeObjectState) *TimeRangeCollectionState {
 	state.activeRange = activeRange
 	return state
-}
-
-func timeRangeSliceStateEquals(got, want *TimeRangeCollectionState) (bool, string) {
-	if len(got.TimeRanges) != len(want.TimeRanges) {
-		return false, fmt.Sprintf("range count = %v, want %v", len(got.TimeRanges), len(want.TimeRanges))
-	}
-	for i, expected := range want.TimeRanges {
-		if i >= len(got.TimeRanges) {
-			return false, fmt.Sprintf("missing range at index %v", i)
-		}
-		if equal, msg := timeRangeStateEquals(got.TimeRanges[i], expected); !equal {
-			return false, msg
-		}
-	}
-
-	if want.activeRange != nil {
-		if ok, msg := timeRangeStateEquals(got.activeRange, want.activeRange); !ok {
-			return false, fmt.Sprintf("active range mismatch: %s", msg)
-		}
-	}
-	return true, ""
 }
 
 func TestTimeRangeCollectionState_Clear(t *testing.T) {
@@ -1591,11 +1571,11 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 		name           string
 		state          *TimeRangeCollectionState
 		clearRange     *CollectionTimeRange
-		expectedRanges []*timeRangeObjectState
+		expectedRanges []*TimeRangeObjectState
 	}{
 		{
 			name: "no_overlapping_ranges",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-02 00:00:00", time.Hour, CollectionOrderChronological),
@@ -1606,14 +1586,14 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				To:              timeString("2025-01-06 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-02 00:00:00", time.Hour, CollectionOrderChronological),
 				buildTimeRangeState("2025-01-03 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological),
 			},
 		},
 		{
 			name: "totally_subsumed_range",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-03 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
@@ -1623,11 +1603,11 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				To:              timeString("2025-01-04 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{},
+			expectedRanges: []*TimeRangeObjectState{},
 		},
 		{
 			name: "start_overlap_truncate",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
@@ -1637,13 +1617,13 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				To:              timeString("2025-01-05 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 			},
 		},
 		{
 			name: "end_overlap_truncate",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
@@ -1653,13 +1633,13 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				To:              timeString("2025-01-03 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-03 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 			},
 		},
 		{
 			name: "both_ends_overlap_truncate",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-05 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
@@ -1669,13 +1649,13 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				To:              timeString("2025-01-04 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 			},
 		},
 		{
 			name: "multiple_ranges_mixed_overlaps",
-			state: buildTimeRangeSliceState(
+			state: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
 				time.Hour,
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-02 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
@@ -1687,7 +1667,7 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				To:              timeString("2025-01-04 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
-			expectedRanges: []*timeRangeObjectState{
+			expectedRanges: []*TimeRangeObjectState{
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-02 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-01-04 00:00:00", "2025-01-05 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			},

@@ -228,6 +228,16 @@ func (s *ArtifactCollectionState) IsEmpty() bool {
 	return true
 }
 
+func (s *ArtifactCollectionState) Clear(timeRange *CollectionTimeRange) {
+	for _, trunkState := range s.TrunkStates {
+		if trunkState == nil {
+			continue
+		}
+		// clear the trunk state for the current collection time range
+		trunkState.Clear(timeRange)
+	}
+}
+
 // MigrateFromLegacyState attempts to migrate from a legacy collection state
 func (s *ArtifactCollectionState) MigrateFromLegacyState(bytes []byte) error {
 	legacyState := &ArtifactCollectionStateLegacy{}
@@ -273,6 +283,27 @@ func (s *ArtifactCollectionState) Validate() error {
 	return nil
 }
 
+// Compare compares the current state with another ArtifactCollectionState and returns whether they are equal
+// and a message describing any differences
+func (s *ArtifactCollectionState) Compare(want *ArtifactCollectionState) (bool, string) {
+	if len(s.TrunkStates) != len(want.TrunkStates) {
+		return false, fmt.Sprintf("trunk count = %v, want %v", len(s.TrunkStates), len(want.TrunkStates))
+	}
+	for k, expectedTrunk := range want.TrunkStates {
+		actualTrunk, ok := s.TrunkStates[k]
+		if !ok {
+			return false, fmt.Sprintf("missing trunk %v", k)
+		}
+		if equal, msg := actualTrunk.Compare(expectedTrunk); !equal {
+			return false, fmt.Sprintf("trunk %v: %s", k, msg)
+		}
+	}
+	if s.GetGranularity() != want.GetGranularity() {
+		return false, fmt.Sprintf("granularity = %v, want %v", s.GetGranularity(), want.GetGranularity())
+	}
+	return true, ""
+}
+
 // helper to determine if the metadata contains any time metadata
 func (s *ArtifactCollectionState) containsTimeMetadata(metadata map[string]string) bool {
 	// check for any time metadata
@@ -285,14 +316,4 @@ func (s *ArtifactCollectionState) containsTimeMetadata(metadata map[string]strin
 		}
 	}
 	return false
-}
-
-func (s *ArtifactCollectionState) Clear(timeRange *CollectionTimeRange) {
-	for _, trunkState := range s.TrunkStates {
-		if trunkState == nil {
-			continue
-		}
-		// clear the trunk state for the current collection time range
-		trunkState.Clear(timeRange)
-	}
 }

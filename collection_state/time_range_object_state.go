@@ -17,11 +17,12 @@ const (
 //
 //	do we need a different collection state for this?
 //
-// timeRangeObjectState is a struct that tracks time ranges and objects that have been collected
+
+// TimeRangeObjectState is a struct that tracks time ranges and objects that have been collected
 // it is used by TimeRangeCollectionState
 // NOTE: we do not implement mutex locking here - it is assumed that the caller will lock the state before calling
 // NOTE: this struct DOES NOT implement the CollectionState interface directly
-type timeRangeObjectState struct {
+type TimeRangeObjectState struct {
 	// the time range for this collection state
 	TimeRange CollectionTimeRange `json:"time_range"`
 
@@ -36,8 +37,8 @@ type timeRangeObjectState struct {
 	Granularity time.Duration `json:"granularity"`
 }
 
-func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRangeObjectState {
-	return &timeRangeObjectState{
+func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *TimeRangeObjectState {
+	return &TimeRangeObjectState{
 		TimeRange: CollectionTimeRange{
 			From:            from,
 			To:              from,
@@ -50,12 +51,12 @@ func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *timeRan
 	}
 }
 
-func (s *timeRangeObjectState) IsEmpty() bool {
+func (s *TimeRangeObjectState) IsEmpty() bool {
 	return s.TimeRange.To.Equal(s.TimeRange.From) || (s.TimeRange.From.IsZero() || s.TimeRange.To.IsZero()) && len(s.EndObjects) == 0
 }
 
 // ShouldCollect returns whether the object should be collected
-func (s *timeRangeObjectState) ShouldCollect(id string, timestamp time.Time) bool {
+func (s *TimeRangeObjectState) ShouldCollect(id string, timestamp time.Time) bool {
 	// if we do not have a granularity set, that means the template does not provide any timing information
 	// - we use start objects to track everything
 	if s.Granularity == 0 {
@@ -81,7 +82,7 @@ func (s *timeRangeObjectState) ShouldCollect(id string, timestamp time.Time) boo
 
 // OnCollected is called when an object has been collected - update the end time and end objects if needed
 // Note: the object name is the full path to the object
-func (s *timeRangeObjectState) OnCollected(id string, timestamp time.Time) error {
+func (s *TimeRangeObjectState) OnCollected(id string, timestamp time.Time) error {
 	// first handle special cases
 	// if granularity is zero, that means we have no time information about the object
 	// - we cannot store start/end times - just put all objects into the end objects map
@@ -115,36 +116,62 @@ func (s *timeRangeObjectState) OnCollected(id string, timestamp time.Time) error
 	return nil
 }
 
-func (s *timeRangeObjectState) GetFromTime() time.Time {
+func (s *TimeRangeObjectState) GetFromTime() time.Time {
 	return s.TimeRange.From
 }
 
 // GetToTime returns the time we know have collected ALL data up until
 // (we may have collected some data after this - within the granularity period
-func (s *timeRangeObjectState) GetToTime() time.Time {
+func (s *TimeRangeObjectState) GetToTime() time.Time {
 	// i.e. the last time period we are sure we have ALL data for
 	return s.TimeRange.To
 }
 
 // SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
 // granularity of the time metadata it contains
-func (s *timeRangeObjectState) SetGranularity(granularity time.Duration) {
+func (s *TimeRangeObjectState) SetGranularity(granularity time.Duration) {
 	s.Granularity = granularity
 }
 
 // GetGranularity returns the granularity of the collection state
-func (s *timeRangeObjectState) GetGranularity() time.Duration {
+func (s *TimeRangeObjectState) GetGranularity() time.Duration {
 	return s.Granularity
 }
 
-func (s *timeRangeObjectState) Validate() error {
+func (s *TimeRangeObjectState) Validate() error {
 	return s.TimeRange.Validate()
+}
+
+// Compare compares the current state with another TimeRangeObjectState and returns whether they are equal
+// and a message describing any differences
+func (s *TimeRangeObjectState) Compare(other *TimeRangeObjectState) (bool, string) {
+	if !s.TimeRange.From.Equal(other.TimeRange.From) {
+		return false, fmt.Sprintf("from = %v, want %v", s.TimeRange.From, other.TimeRange.From)
+	}
+	if !s.TimeRange.To.Equal(other.TimeRange.To) {
+		return false, fmt.Sprintf("To = %v, want %v", s.TimeRange.To, other.TimeRange.To)
+	}
+	if len(s.EndObjects) != len(other.EndObjects) {
+		return false, fmt.Sprintf("EndObjects length = %v, want %v", len(s.EndObjects), len(other.EndObjects))
+	}
+	for k := range other.EndObjects {
+		if _, ok := s.EndObjects[k]; !ok {
+			return false, fmt.Sprintf("EndObjects missing key %v", k)
+		}
+	}
+	if s.Granularity != other.Granularity {
+		return false, fmt.Sprintf("Granularity = %v, want %v", s.Granularity, other.Granularity)
+	}
+	if s.TimeRange.CollectionOrder != other.TimeRange.CollectionOrder {
+		return false, fmt.Sprintf("CollectionOrder = %v, want %v", s.TimeRange.CollectionOrder, other.TimeRange.CollectionOrder)
+	}
+	return true, ""
 }
 
 // setUpperBoundaryTime sets the upper boundary time to the new time
 // this is called when we have collected all data up to a new time
 // NOTE: this clears the end objects map as we are moving to a new time period
-func (s *timeRangeObjectState) setUpperBoundaryTime(newTime time.Time) {
+func (s *TimeRangeObjectState) setUpperBoundaryTime(newTime time.Time) {
 	// truncate the time to the granularity (this will be necessary if the end time is the now-time of a collection)
 	newTime = newTime.Truncate(s.Granularity)
 
@@ -163,7 +190,7 @@ func (s *timeRangeObjectState) setUpperBoundaryTime(newTime time.Time) {
 // - we do not check that here
 // important to note that the states bing merged MAY NOT be contiguous
 // - as we merge all states between collection From and to on successful completion
-func (s *timeRangeObjectState) merge(other *timeRangeObjectState) {
+func (s *TimeRangeObjectState) merge(other *TimeRangeObjectState) {
 	if s == nil || other == nil {
 		return
 	}
@@ -177,7 +204,7 @@ func (s *timeRangeObjectState) merge(other *timeRangeObjectState) {
 	}
 }
 
-func (s *timeRangeObjectState) endObjectsContain(id string) bool {
+func (s *TimeRangeObjectState) endObjectsContain(id string) bool {
 	_, ok := s.EndObjects[id]
 	return ok
 }
@@ -185,24 +212,127 @@ func (s *timeRangeObjectState) endObjectsContain(id string) bool {
 // TrimToRemoveOverlap checks if this state overlaps with the given collection range
 // and trims the range to remove overlap. Clears end objects if the range is truncated
 // or if the upper boundary changes.
-func (s *timeRangeObjectState) TrimToRemoveOverlap(timeRange *CollectionTimeRange) {
-	// Store the upper boundary before any changes
-	originalUpperBoundary := s.TimeRange.upperBoundaryTime()
+func TrimToRemoveOverlap(s *TimeRangeObjectState, timeRange *CollectionTimeRange) []*TimeRangeObjectState {
+	stateLower := s.TimeRange.lowerBoundaryTime()
+	stateUpper := s.TimeRange.upperBoundaryTime()
+	rangeLower := timeRange.lowerBoundaryTime()
+	rangeUpper := timeRange.upperBoundaryTime()
 
-	if s.TimeRange.RangesOverlap(timeRange) {
-		// If state starts before the parameter range, trim the state to end at the parameter's start
-		if s.GetFromTime().Before(timeRange.From) {
-			s.TimeRange.To = timeRange.From
+	// If no overlap, return the original state unchanged
+	if !stateUpper.After(rangeLower) || !stateLower.Before(rangeUpper) {
+		copiedState := &TimeRangeObjectState{
+			TimeRange:   s.TimeRange,
+			EndObjects:  make(map[string]struct{}),
+			Granularity: s.Granularity,
 		}
-		// If state ends after the parameter range, trim the state to start at the parameter's end
-		if s.GetToTime().After(timeRange.To) {
-			s.TimeRange.From = timeRange.To
+		for k := range s.EndObjects {
+			copiedState.EndObjects[k] = struct{}{}
 		}
+		return []*TimeRangeObjectState{copiedState}
 	}
 
-	// Check if the upper boundary has changed after any operations
-	newUpperBoundary := s.TimeRange.upperBoundaryTime()
-	if !originalUpperBoundary.Equal(newUpperBoundary) {
-		s.EndObjects = make(map[string]struct{})
+	// If the state is completely contained within the removal range, remove it
+	if !stateLower.Before(rangeLower) && !stateUpper.After(rangeUpper) {
+		return []*TimeRangeObjectState{}
 	}
+
+	var result []*TimeRangeObjectState
+
+	// Create state for the part before the removal range
+	if stateLower.Before(rangeLower) {
+		var beforeFrom, beforeTo time.Time
+		if s.TimeRange.CollectionOrder == CollectionOrderReverse {
+			// For reverse order: From (later) -> To (earlier)
+			beforeFrom = s.TimeRange.From
+			beforeTo = rangeLower
+		} else {
+			// For chronological order: From (earlier) -> To (later)
+			beforeFrom = s.TimeRange.From
+			beforeTo = rangeLower
+		}
+
+		beforeState := &TimeRangeObjectState{
+			TimeRange: CollectionTimeRange{
+				From:            beforeFrom,
+				To:              beforeTo,
+				CollectionOrder: s.TimeRange.CollectionOrder,
+			},
+			EndObjects:  make(map[string]struct{}),
+			Granularity: s.Granularity,
+		}
+
+		// Only preserve EndObjects if the upper boundary is unchanged
+		if s.TimeRange.CollectionOrder == CollectionOrderReverse {
+			// For reverse order, upper boundary is From
+			if beforeFrom.Equal(s.TimeRange.From) {
+				for k := range s.EndObjects {
+					beforeState.EndObjects[k] = struct{}{}
+				}
+			}
+		} else {
+			// For chronological order, upper boundary is To
+			if beforeTo.Equal(s.TimeRange.To) {
+				for k := range s.EndObjects {
+					beforeState.EndObjects[k] = struct{}{}
+				}
+			}
+		}
+		result = append(result, beforeState)
+	}
+
+	// Create state for the part after the removal range
+	if stateUpper.After(rangeUpper) {
+		var afterFrom, afterTo time.Time
+		if s.TimeRange.CollectionOrder == CollectionOrderReverse {
+			// For reverse order: From (later) -> To (earlier)
+			afterFrom = rangeUpper
+			afterTo = s.TimeRange.To
+		} else {
+			// For chronological order: From (earlier) -> To (later)
+			afterFrom = rangeUpper
+			afterTo = s.TimeRange.To
+		}
+
+		afterState := &TimeRangeObjectState{
+			TimeRange: CollectionTimeRange{
+				From:            afterFrom,
+				To:              afterTo,
+				CollectionOrder: s.TimeRange.CollectionOrder,
+			},
+			EndObjects:  make(map[string]struct{}),
+			Granularity: s.Granularity,
+		}
+
+		// Only preserve EndObjects if the upper boundary is unchanged
+		if s.TimeRange.CollectionOrder == CollectionOrderReverse {
+			// For reverse order, upper boundary is From
+			if afterFrom.Equal(s.TimeRange.From) {
+				for k := range s.EndObjects {
+					afterState.EndObjects[k] = struct{}{}
+				}
+			}
+		} else {
+			// For chronological order, upper boundary is To
+			if afterTo.Equal(s.TimeRange.To) {
+				for k := range s.EndObjects {
+					afterState.EndObjects[k] = struct{}{}
+				}
+			}
+		}
+		result = append(result, afterState)
+	}
+
+	return result
+}
+
+// chooseBoundary returns the correct boundary for From/To based on order and split direction
+func (order CollectionOrder) chooseBoundary(origFrom, origTo, boundary time.Time, isLeft bool) time.Time {
+	if order == CollectionOrderReverse {
+		if isLeft {
+			return boundary
+		} else {
+			return boundary
+		}
+	}
+	return boundary
 }

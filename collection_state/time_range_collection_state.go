@@ -9,7 +9,7 @@ import (
 )
 
 type TimeRangeCollectionState struct {
-	TimeRanges  []*timeRangeObjectState `json:"TimeRanges"`
+	TimeRanges  []*TimeRangeObjectState `json:"TimeRanges"`
 	Granularity time.Duration           `json:"granularity"`
 	Order       CollectionOrder         `json:"order"`
 
@@ -19,27 +19,27 @@ type TimeRangeCollectionState struct {
 	// if the timestamp for an object is contained within a different time range,
 	// the active range is set to that time range.
 	// NOTE: all ranges within the currentCollectionTimeRange will be merged by the final call to compact
-	activeRange *timeRangeObjectState
+	activeRange *TimeRangeObjectState
 
 	// map of object identifier to collection state which contains the object
 	// used to store the range associated with each object between the ShouldCollect call and the OnCollected call
 	// (this is required because we do not want to have to recompute the range for each object on every OnCollected call)
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
-	objectRangeMap             map[string]*timeRangeObjectState
+	ObjectRangeMap             map[string]*TimeRangeObjectState
 	currentCollectionTimeRange *CollectionTimeRange
 }
 
 func NewTimeRangeCollectionState() CollectionState {
 	return &TimeRangeCollectionState{
-		TimeRanges:     make([]*timeRangeObjectState, 0),
-		objectRangeMap: make(map[string]*timeRangeObjectState),
+		TimeRanges:     make([]*TimeRangeObjectState, 0),
+		ObjectRangeMap: make(map[string]*TimeRangeObjectState),
 	}
 }
 
 // NewReverseOrderTimeRangeSliceCollectionState creates a new TimeRangeCollectionState with reverse order
 func NewReverseOrderTimeRangeSliceCollectionState() CollectionState {
 	return &TimeRangeCollectionState{
-		objectRangeMap: make(map[string]*timeRangeObjectState),
+		ObjectRangeMap: make(map[string]*TimeRangeObjectState),
 		Order:          CollectionOrderReverse,
 	}
 }
@@ -47,7 +47,7 @@ func NewReverseOrderTimeRangeSliceCollectionState() CollectionState {
 // NewTimeRangeCollectionStateFromLegacy constructs a new TimeRangeCollectionState from a legacy state
 func NewTimeRangeCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegacy) *TimeRangeCollectionState {
 	state := &TimeRangeCollectionState{
-		objectRangeMap: make(map[string]*timeRangeObjectState),
+		ObjectRangeMap: make(map[string]*TimeRangeObjectState),
 	}
 	// Convert the single legacy time range to the new format
 	state.addRangeFromLegacy(legacy)
@@ -66,8 +66,8 @@ func (t *TimeRangeCollectionState) Init(collectionTimeRange *CollectionTimeRange
 	t.compact()
 
 	// create map for object ranges if needed (i.e. if we were loaded from file)
-	if t.objectRangeMap == nil {
-		t.objectRangeMap = make(map[string]*timeRangeObjectState)
+	if t.ObjectRangeMap == nil {
+		t.ObjectRangeMap = make(map[string]*TimeRangeObjectState)
 	}
 
 	return nil
@@ -147,18 +147,18 @@ func (t *TimeRangeCollectionState) ShouldCollect(id string, timestamp time.Time)
 
 	// so we should collect this object - cache the range for this object so that OnCollected can find the
 	//  correct range to update
-	t.objectRangeMap[id] = t.activeRange
+	t.ObjectRangeMap[id] = t.activeRange
 	return true
 }
 
 func (t *TimeRangeCollectionState) OnCollected(id string, timestamp time.Time) error {
 	// we should have stored a collection state mapping for this object
-	rangeForObject, ok := t.objectRangeMap[id]
+	rangeForObject, ok := t.ObjectRangeMap[id]
 	if !ok {
 		return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", id)
 	}
 	// clear the mapping
-	delete(t.objectRangeMap, id)
+	delete(t.ObjectRangeMap, id)
 
 	return rangeForObject.OnCollected(id, timestamp)
 }
@@ -204,6 +204,30 @@ func (t *TimeRangeCollectionState) Validate() error {
 	return nil
 }
 
+// Compare compares the current state with another TimeRangeCollectionState and returns whether they are equal
+// and a message describing any differences
+func (t *TimeRangeCollectionState) Compare(want *TimeRangeCollectionState) (bool, string) {
+
+	if len(t.TimeRanges) != len(want.TimeRanges) {
+		return false, fmt.Sprintf("range count = %v, want %v", len(t.TimeRanges), len(want.TimeRanges))
+	}
+	for i, expected := range want.TimeRanges {
+		if i >= len(t.TimeRanges) {
+			return false, fmt.Sprintf("missing range at index %v", i)
+		}
+		if equal, msg := t.TimeRanges[i].Compare(expected); !equal {
+			return false, msg
+		}
+	}
+
+	if want.activeRange != nil {
+		if ok, msg := t.activeRange.Compare(want.activeRange); !ok {
+			return false, fmt.Sprintf("active range mismatch: %s", msg)
+		}
+	}
+	return true, ""
+}
+
 // addRangeFromLegacy populates the state from a legacy TimeRangeCollectionStateLegacy
 func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectionStateLegacy) {
 	// Set the order and granularity on the main state
@@ -224,7 +248,7 @@ func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectio
 	}
 
 	// Create the new time range object state
-	newRange := &timeRangeObjectState{
+	newRange := &TimeRangeObjectState{
 		TimeRange: CollectionTimeRange{
 			From:            fromTime,
 			To:              toTime,
@@ -329,7 +353,7 @@ func (t *TimeRangeCollectionState) compact() {
 	}
 
 	slog.Info("Compacting adjacent time ranges")
-	var compactedRanges []*timeRangeObjectState
+	var compactedRanges []*TimeRangeObjectState
 	currentRange := t.TimeRanges[0]
 
 	for i := 1; i < len(t.TimeRanges); i++ {
@@ -379,7 +403,7 @@ func (t *TimeRangeCollectionState) compactForCollectionPeriod() {
 	}
 
 	slog.Info("Compacting time ranges within collection period")
-	var compactedRanges []*timeRangeObjectState
+	var compactedRanges []*TimeRangeObjectState
 	currentRange := t.TimeRanges[0]
 
 	for i := 1; i < len(t.TimeRanges); i++ {
@@ -425,7 +449,7 @@ func (t *TimeRangeCollectionState) compactForCollectionPeriod() {
 // rangeForTime returns the index of the time range that contains the given timestamp or nil if no such range exists.
 // we expect ranges will not overlap, so we can return the first range that contains the timestamp
 // NOTE: we DO NOT need to take collection order into account
-func (t *TimeRangeCollectionState) rangeForTime(timestamp time.Time) *timeRangeObjectState {
+func (t *TimeRangeCollectionState) rangeForTime(timestamp time.Time) *TimeRangeObjectState {
 
 	for _, r := range t.TimeRanges {
 		// if the timestamp is within the range, return the range
@@ -441,7 +465,7 @@ func (t *TimeRangeCollectionState) rangeForTime(timestamp time.Time) *timeRangeO
 }
 
 // addRange creates a new time range for the given timestamp and adds it to the collection in the correct position
-func (t *TimeRangeCollectionState) addRange(timestamp time.Time) *timeRangeObjectState {
+func (t *TimeRangeCollectionState) addRange(timestamp time.Time) *TimeRangeObjectState {
 	// create a new time range
 	newRange := newTimeRangeCollectionState(timestamp, t.Order)
 	newRange.SetGranularity(t.Granularity)
@@ -449,7 +473,7 @@ func (t *TimeRangeCollectionState) addRange(timestamp time.Time) *timeRangeObjec
 	for i, r := range t.TimeRanges {
 		if r.GetFromTime().After(timestamp) {
 			// insert the new range before this one
-			t.TimeRanges = append(t.TimeRanges[:i], append([]*timeRangeObjectState{newRange}, t.TimeRanges[i:]...)...)
+			t.TimeRanges = append(t.TimeRanges[:i], append([]*TimeRangeObjectState{newRange}, t.TimeRanges[i:]...)...)
 			return newRange
 		}
 	}
@@ -465,7 +489,7 @@ func (t *TimeRangeCollectionState) Clear(timeRange *CollectionTimeRange) {
 	slog.Info("Handling overlapping states with collection range", "total_ranges", len(t.TimeRanges))
 
 	// create a new slice to hold the processed ranges
-	var processedRanges []*timeRangeObjectState
+	var processedRanges []*TimeRangeObjectState
 
 	for _, timeRangeState := range t.TimeRanges {
 		// Check if totally subsumed
@@ -478,7 +502,10 @@ func (t *TimeRangeCollectionState) Clear(timeRange *CollectionTimeRange) {
 		if timeRangeState.TimeRange.RangesOverlap(timeRange) {
 
 			// Handle partial overlaps by telling the range to trim itself
-			timeRangeState.TrimToRemoveOverlap(timeRange)
+			trimmedStates := TrimToRemoveOverlap(timeRangeState, timeRange)
+			// Replace the original state with the trimmed states
+			processedRanges = append(processedRanges, trimmedStates...)
+			continue
 		}
 
 		processedRanges = append(processedRanges, timeRangeState)

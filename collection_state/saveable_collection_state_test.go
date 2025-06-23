@@ -36,7 +36,7 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 				},
 			},
 			newCollectionState: NewTimeRangeCollectionState,
-			expectedState: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
 				buildTimeRangeState("2023-12-01 01:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 			),
 		},
@@ -51,7 +51,7 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 				CollectionOrder: CollectionOrderChronological,
 			},
 			newCollectionState: NewTimeRangeCollectionState,
-			expectedState: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour*12,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*12,
 				buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*12, CollectionOrderChronological, "object1", "object2"),
 			),
 		},
@@ -64,7 +64,7 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 				},
 			},
 			newCollectionState: NewTimeRangeCollectionState,
-			expectedState: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24,
+			expectedState: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
 				buildTimeRangeState("2023-11-01 00:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1"),
 				buildTimeRangeState("2023-12-01 01:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object2"),
 			),
@@ -74,7 +74,7 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 			source: map[string]interface{}{
 				"invalid_field": "invalid_value",
 			},
-			expectedState:      buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*24),
+			expectedState:      buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24),
 			newCollectionState: NewTimeRangeCollectionState,
 			expectError:        false,
 		},
@@ -115,7 +115,7 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 
 			// Compare the migrated state with expected
 			state := saveableState.State.(*TimeRangeCollectionState)
-			equal, diff := timeRangeSliceStateEquals(state, tt.expectedState)
+			equal, diff := state.Compare(tt.expectedState)
 			if !equal {
 				t1.Errorf("migrated state does not match expected: %s", diff)
 			}
@@ -133,26 +133,26 @@ func TestSaveableCollectionState_SaveAndLoad(t *testing.T) {
 	}{
 		{
 			name: "save and load TimeRangeCollectionState",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour*24,
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,
 				buildTimeRangeState("2023-10-01 00:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
 			),
 		},
 		{
 			name: "save and load reverse order state",
-			state: buildTimeRangeSliceState(CollectionOrderReverse, time.Hour*12,
+			state: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*12,
 				buildTimeRangeState("2023-12-01 01:00:00", "2023-10-01 00:00:00", time.Hour*12, CollectionOrderReverse, "object1"),
 			),
 		},
 		{
 			name: "save and load multiple ranges",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour*6,
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*6,
 				buildTimeRangeState("2023-10-01 00:00:00", "2023-10-15 00:00:00", time.Hour*6, CollectionOrderChronological, "object1"),
 				buildTimeRangeState("2023-10-15 00:00:00", "2023-11-01 00:00:00", time.Hour*6, CollectionOrderChronological, "object2"),
 			),
 		},
 		{
 			name:  "save empty state should delete file",
-			state: buildTimeRangeSliceState(CollectionOrderChronological, time.Hour*24),
+			state: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24),
 		},
 		{
 			name: "save without path should fail",
@@ -268,7 +268,7 @@ func TestSaveableCollectionState_SaveAndLoad(t *testing.T) {
 				if tt.state != nil {
 					loadedState := newSaveableState.State.(*TimeRangeCollectionState)
 					originalState := tt.state.(*TimeRangeCollectionState)
-					equal, diff := timeRangeSliceStateEquals(loadedState, originalState)
+					equal, diff := loadedState.Compare(originalState)
 					if !equal {
 						t.Errorf("loaded state does not match original: %s", diff)
 					}
@@ -289,7 +289,7 @@ func TestSaveableCollectionState_SaveOptimization(t *testing.T) {
 	tmpFile := filepath.Join(tmpDir, "collection_state.json")
 
 	// Create initial state
-	initialState := buildTimeRangeSliceState(CollectionOrderChronological, time.Hour*24,
+	initialState := buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,
 		buildTimeRangeState("2023-10-01 00:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderChronological, "object1"),
 	)
 
@@ -365,12 +365,12 @@ func TestSaveableCollectionState_LoadWithLegacyMigration(t *testing.T) {
 	}
 
 	// Verify the state was migrated correctly
-	expectedState := buildTimeRangeSliceState(CollectionOrderChronological, time.Hour*12,
+	expectedState := buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*12,
 		buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*12, CollectionOrderChronological, "object1", "object2"),
 	)
 
 	loadedState := state.State.(*TimeRangeCollectionState)
-	equal, diff := timeRangeSliceStateEquals(loadedState, expectedState)
+	equal, diff := loadedState.Compare(expectedState)
 	if !equal {
 		t.Errorf("migrated state does not match expected: %s", diff)
 	}
