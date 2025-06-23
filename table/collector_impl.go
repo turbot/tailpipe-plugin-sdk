@@ -103,6 +103,7 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 		From:                req.From,
 		To:                  req.To,
 		CollectionTempDir:   req.CollectionTempDir,
+		Recollect:           req.Recollect,
 	}
 
 	// ask factory to create and initialise the source for us

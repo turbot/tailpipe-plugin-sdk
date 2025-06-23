@@ -32,6 +32,8 @@ type CollectRequest struct {
 	CustomTableSchema *schema.TableSchema
 	// the max space to take with temp files
 	TempDirMaxMb int64
+	// recollect all data for the specified time range even if it has been collected already
+	Recollect bool
 }
 
 func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
@@ -56,6 +58,7 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		CollectionStatePath: pr.CollectionStatePath,
 		SourceData:          sourceData,
 		TempDirMaxMb:        pr.TempDirMaxMb,
+		Recollect:           pr.Recollect,
 	}
 
 	if pr.FromTime != nil {

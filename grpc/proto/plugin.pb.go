@@ -83,7 +83,9 @@ type CollectRequest struct {
 	// the max space to take with temp files
 	TempDirMaxMb int64 `protobuf:"varint,12,opt,name=temp_dir_max_mb,json=tempDirMaxMb,proto3" json:"temp_dir_max_mb,omitempty"`
 	// the collection end time
-	ToTime        *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
+	ToTime *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
+	// recollect all data for the specified time range even if it has been collected already
+	Recollect     bool `protobuf:"varint,14,opt,name=recollect,proto3" json:"recollect,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -207,6 +209,13 @@ func (x *CollectRequest) GetToTime() *timestamppb.Timestamp {
 		return x.ToTime
 	}
 	return nil
+}
+
+func (x *CollectRequest) GetRecollect() bool {
+	if x != nil {
+		return x.Recollect
+	}
+	return false
 }
 
 type UpdateCollectionStateRequest struct {
@@ -2507,7 +2516,9 @@ type RowSourceParams struct {
 	// the path to the collection state file
 	CollectionStatePath string `protobuf:"bytes,5,opt,name=collection_state_path,json=collectionStatePath,proto3" json:"collection_state_path,omitempty"`
 	// the collection end time
-	ToTime        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
+	ToTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
+	// recollect all data for the specified time range even if it has been collected already
+	Recollect     bool `protobuf:"varint,14,opt,name=recollect,proto3" json:"recollect,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2582,6 +2593,13 @@ func (x *RowSourceParams) GetToTime() *timestamppb.Timestamp {
 		return x.ToTime
 	}
 	return nil
+}
+
+func (x *RowSourceParams) GetRecollect() bool {
+	if x != nil {
+		return x.Recollect
+	}
+	return false
 }
 
 // ArtifactSourceConfigBase is a configuration message for an artifact source.
@@ -2911,7 +2929,7 @@ var File_plugin_proto protoreflect.FileDescriptor
 const file_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\fplugin.proto\x12\x05proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\a\n" +
-	"\x05Empty\"\x9b\x05\n" +
+	"\x05Empty\"\xb9\x05\n" +
 	"\x0eCollectRequest\x12\x1d\n" +
 	"\n" +
 	"table_name\x18\x01 \x01(\tR\ttableName\x12%\n" +
@@ -2928,7 +2946,8 @@ const file_plugin_proto_rawDesc = "" +
 	" \x01(\v2\x1b.proto.SourcePluginReattachR\fsourcePlugin\x127\n" +
 	"\tfrom_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x12%\n" +
 	"\x0ftemp_dir_max_mb\x18\f \x01(\x03R\ftempDirMaxMb\x123\n" +
-	"\ato_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\"\xbf\x01\n" +
+	"\ato_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\x12\x1c\n" +
+	"\trecollect\x18\x0e \x01(\bR\trecollect\"\xbf\x01\n" +
 	"\x1cUpdateCollectionStateRequest\x122\n" +
 	"\x15collection_state_path\x18\x01 \x01(\tR\x13collectionStatePath\x122\n" +
 	"\vsource_data\x18\x02 \x01(\v2\x11.proto.ConfigDataR\n" +
@@ -3127,20 +3146,21 @@ const file_plugin_proto_rawDesc = "" +
 	"\x03pid\x18\x04 \x01(\x03R\x03pid\"=\n" +
 	"\aNetAddr\x12\x18\n" +
 	"\aNetwork\x18\x01 \x01(\tR\aNetwork\x12\x18\n" +
-	"\aAddress\x18\x02 \x01(\tR\aAddress\"\x96\x01\n" +
+	"\aAddress\x18\x02 \x01(\tR\aAddress\"\x94\x01\n" +
 	"\x11InitSourceRequest\x12B\n" +
-	"\x0edefault_config\x18\x01 \x01(\v2\x1b.proto.ArtifactSourceConfigR\rdefaultConfig\x12=\n" +
-	"\rsource_params\x18\x02 \x01(\v2\x18.proto.row_source_paramsR\fsourceParams\"J\n" +
+	"\x0edefault_config\x18\x01 \x01(\v2\x1b.proto.ArtifactSourceConfigR\rdefaultConfig\x12;\n" +
+	"\rsource_params\x18\x02 \x01(\v2\x16.proto.RowSourceParamsR\fsourceParams\"J\n" +
 	"\x12InitSourceResponse\x124\n" +
-	"\tfrom_time\x18\x01 \x01(\v2\x17.proto.ResolvedFromTimeR\bfromTime\"\xd5\x02\n" +
-	"\x11row_source_params\x122\n" +
+	"\tfrom_time\x18\x01 \x01(\v2\x17.proto.ResolvedFromTimeR\bfromTime\"\xf1\x02\n" +
+	"\x0fRowSourceParams\x122\n" +
 	"\vsource_data\x18\x01 \x01(\v2\x11.proto.ConfigDataR\n" +
 	"sourceData\x12:\n" +
 	"\x0fconnection_data\x18\x02 \x01(\v2\x11.proto.ConfigDataR\x0econnectionData\x127\n" +
 	"\tfrom_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x12.\n" +
 	"\x13collection_temp_dir\x18\x04 \x01(\tR\x11collectionTempDir\x122\n" +
 	"\x15collection_state_path\x18\x05 \x01(\tR\x13collectionStatePath\x123\n" +
-	"\ato_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\"\xd5\x01\n" +
+	"\ato_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\x12\x1c\n" +
+	"\trecollect\x18\x0e \x01(\bR\trecollect\"\xd5\x01\n" +
 	"\x14ArtifactSourceConfig\x12\x1f\n" +
 	"\vfile_layout\x18\x01 \x01(\tR\n" +
 	"fileLayout\x12E\n" +
@@ -3234,7 +3254,7 @@ var file_plugin_proto_goTypes = []any{
 	(*NetAddr)(nil),                        // 32: proto.NetAddr
 	(*InitSourceRequest)(nil),              // 33: proto.InitSourceRequest
 	(*InitSourceResponse)(nil),             // 34: proto.InitSourceResponse
-	(*RowSourceParams)(nil),                // 35: proto.row_source_params
+	(*RowSourceParams)(nil),                // 35: proto.RowSourceParams
 	(*ArtifactSourceConfig)(nil),           // 36: proto.ArtifactSourceConfig
 	(*SourceCollectRequest)(nil),           // 37: proto.SourceCollectRequest
 	(*RowErrors)(nil),                      // 38: proto.RowErrors
@@ -3304,12 +3324,12 @@ var file_plugin_proto_depIdxs = []int32{
 	31, // 45: proto.SourcePluginReattach.reattach_config:type_name -> proto.ReattachConfig
 	32, // 46: proto.ReattachConfig.addr:type_name -> proto.NetAddr
 	36, // 47: proto.InitSourceRequest.default_config:type_name -> proto.ArtifactSourceConfig
-	35, // 48: proto.InitSourceRequest.source_params:type_name -> proto.row_source_params
+	35, // 48: proto.InitSourceRequest.source_params:type_name -> proto.RowSourceParams
 	7,  // 49: proto.InitSourceResponse.from_time:type_name -> proto.ResolvedFromTime
-	11, // 50: proto.row_source_params.source_data:type_name -> proto.ConfigData
-	11, // 51: proto.row_source_params.connection_data:type_name -> proto.ConfigData
-	54, // 52: proto.row_source_params.from_time:type_name -> google.protobuf.Timestamp
-	54, // 53: proto.row_source_params.to_time:type_name -> google.protobuf.Timestamp
+	11, // 50: proto.RowSourceParams.source_data:type_name -> proto.ConfigData
+	11, // 51: proto.RowSourceParams.connection_data:type_name -> proto.ConfigData
+	54, // 52: proto.RowSourceParams.from_time:type_name -> google.protobuf.Timestamp
+	54, // 53: proto.RowSourceParams.to_time:type_name -> google.protobuf.Timestamp
 	51, // 54: proto.ArtifactSourceConfig.patterns:type_name -> proto.ArtifactSourceConfig.PatternsEntry
 	52, // 55: proto.RowErrors.errors:type_name -> proto.RowErrors.ErrorsEntry
 	53, // 56: proto.RowErrorsByOperation.operation_errors:type_name -> proto.RowErrorsByOperation.OperationErrorsEntry

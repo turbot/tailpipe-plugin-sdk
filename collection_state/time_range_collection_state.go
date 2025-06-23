@@ -458,3 +458,34 @@ func (t *TimeRangeCollectionState) addRange(timestamp time.Time) *timeRangeObjec
 
 	return newRange
 }
+
+// Clear updates the state clear any entries for the given time range.
+func (t *TimeRangeCollectionState) Clear(timeRange *CollectionTimeRange) {
+
+	slog.Info("Handling overlapping states with collection range", "total_ranges", len(t.TimeRanges))
+
+	// create a new slice to hold the processed ranges
+	var processedRanges []*timeRangeObjectState
+
+	for _, timeRangeState := range t.TimeRanges {
+		// Check if totally subsumed
+		if timeRangeState.TimeRange.IsRangeSubsumed(timeRange) {
+			slog.Info("Removing subsumed range", "range_from", timeRangeState.GetFromTime(), "range_to", timeRangeState.GetToTime())
+			// do not add this range to the processed ranges, so it is deleted
+			continue
+		}
+		// Check if this range overlaps with the collection range
+		if timeRangeState.TimeRange.RangesOverlap(timeRange) {
+
+			// Handle partial overlaps by telling the range to trim itself
+			timeRangeState.TrimToRemoveOverlap(timeRange)
+		}
+
+		processedRanges = append(processedRanges, timeRangeState)
+	}
+
+	// Now we have processed all ranges, we can set the TimeRanges to the processed ranges
+	t.TimeRanges = processedRanges
+	slog.Info("Finished handling overlapping states", "original_ranges", len(t.TimeRanges), "final_ranges", len(processedRanges))
+	return
+}

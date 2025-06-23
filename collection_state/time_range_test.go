@@ -751,3 +751,151 @@ func TestCollectionTimeRange_setUpperBoundaryTime(t1 *testing.T) {
 		})
 	}
 }
+
+func TestCollectionTimeRange_RangesOverlap(t *testing.T) {
+	tests := []struct {
+		name   string
+		range1 CollectionTimeRange
+		range2 CollectionTimeRange
+		want   bool
+	}{
+		{
+			name: "no_overlap",
+			range1: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-02 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			range2: CollectionTimeRange{
+				From:            timeString("2025-01-03 00:00:00"),
+				To:              timeString("2025-01-04 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			want: false,
+		},
+		{
+			name: "overlap",
+			range1: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-03 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			range2: CollectionTimeRange{
+				From:            timeString("2025-01-02 00:00:00"),
+				To:              timeString("2025-01-04 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			want: true,
+		},
+		{
+			name: "adjacent_touching",
+			range1: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-02 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			range2: CollectionTimeRange{
+				From:            timeString("2025-01-02 00:00:00"),
+				To:              timeString("2025-01-03 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			want: true,
+		},
+		{
+			name: "one_contains_other",
+			range1: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-05 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			range2: CollectionTimeRange{
+				From:            timeString("2025-01-02 00:00:00"),
+				To:              timeString("2025-01-03 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.range1.RangesOverlap(&tt.range2); got != tt.want {
+				t.Errorf("RangesOverlap() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCollectionTimeRange_IsRangeSubsumed(t *testing.T) {
+	tests := []struct {
+		name   string
+		range1 CollectionTimeRange
+		range2 CollectionTimeRange
+		want   bool
+	}{
+		{
+			name: "not_subsumed",
+			range1: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-03 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			range2: CollectionTimeRange{
+				From:            timeString("2025-01-02 00:00:00"),
+				To:              timeString("2025-01-04 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			want: false,
+		},
+		{
+			name: "subsumed",
+			range1: CollectionTimeRange{
+				From:            timeString("2025-01-02 00:00:00"),
+				To:              timeString("2025-01-03 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			range2: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-04 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			want: true,
+		},
+		{
+			name: "exact_match",
+			range1: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-02 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			range2: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-02 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			want: true,
+		},
+		{
+			name: "same_start_different_end",
+			range1: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-03 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			range2: CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-02 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := tt.range1.IsRangeSubsumed(&tt.range2); got != tt.want {
+				t.Errorf("IsRangeSubsumed() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

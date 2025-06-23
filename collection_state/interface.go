@@ -19,6 +19,7 @@ type CollectionState interface {
 	OnCollectionComplete() error
 	MigrateFromLegacyState(bytes []byte) error
 	Validate() error
+	Clear(*CollectionTimeRange)
 }
 
 type CollectionStateWithPaths interface {

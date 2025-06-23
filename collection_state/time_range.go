@@ -129,3 +129,15 @@ func (t *CollectionTimeRange) Validate() error {
 	}
 	return nil
 }
+
+// RangesOverlap checks if this time range overlaps with another time range
+// Two ranges overlap if the end of one is greater than or equal to the start of the other
+// and the start of one is less than or equal to the end of the other
+func (t *CollectionTimeRange) RangesOverlap(other *CollectionTimeRange) bool {
+	return t.To.Compare(other.From) >= 0 && other.To.Compare(t.From) >= 0
+}
+
+// IsRangeSubsumed checks if this time range is completely contained within another time range
+func (t *CollectionTimeRange) IsRangeSubsumed(other *CollectionTimeRange) bool {
+	return t.From.Compare(other.From) >= 0 && t.To.Compare(other.To) <= 0
+}

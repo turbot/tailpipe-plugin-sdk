@@ -1585,3 +1585,142 @@ func timeRangeSliceStateEquals(got, want *TimeRangeCollectionState) (bool, strin
 	}
 	return true, ""
 }
+
+func TestTimeRangeCollectionState_Clear(t *testing.T) {
+	tests := []struct {
+		name           string
+		state          *TimeRangeCollectionState
+		clearRange     *CollectionTimeRange
+		expectedRanges []*timeRangeObjectState
+	}{
+		{
+			name: "no_overlapping_ranges",
+			state: buildTimeRangeSliceState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-02 00:00:00", time.Hour, CollectionOrderChronological),
+				buildTimeRangeState("2025-01-03 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological),
+			),
+			clearRange: &CollectionTimeRange{
+				From:            timeString("2025-01-05 00:00:00"),
+				To:              timeString("2025-01-06 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expectedRanges: []*timeRangeObjectState{
+				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-02 00:00:00", time.Hour, CollectionOrderChronological),
+				buildTimeRangeState("2025-01-03 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological),
+			},
+		},
+		{
+			name: "totally_subsumed_range",
+			state: buildTimeRangeSliceState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-03 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+			),
+			clearRange: &CollectionTimeRange{
+				From:            timeString("2025-01-01 00:00:00"),
+				To:              timeString("2025-01-04 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expectedRanges: []*timeRangeObjectState{},
+		},
+		{
+			name: "start_overlap_truncate",
+			state: buildTimeRangeSliceState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+			),
+			clearRange: &CollectionTimeRange{
+				From:            timeString("2025-01-02 00:00:00"),
+				To:              timeString("2025-01-05 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expectedRanges: []*timeRangeObjectState{
+				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+			},
+		},
+		{
+			name: "end_overlap_truncate",
+			state: buildTimeRangeSliceState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+			),
+			clearRange: &CollectionTimeRange{
+				From:            timeString("2025-01-02 00:00:00"),
+				To:              timeString("2025-01-03 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expectedRanges: []*timeRangeObjectState{
+				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-03 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+			},
+		},
+		{
+			name: "both_ends_overlap_truncate",
+			state: buildTimeRangeSliceState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-05 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+			),
+			clearRange: &CollectionTimeRange{
+				From:            timeString("2025-01-02 00:00:00"),
+				To:              timeString("2025-01-04 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expectedRanges: []*timeRangeObjectState{
+				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+			},
+		},
+		{
+			name: "multiple_ranges_mixed_overlaps",
+			state: buildTimeRangeSliceState(
+				CollectionOrderChronological,
+				time.Hour,
+				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-02 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-03 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
+				buildTimeRangeState("2025-01-04 00:00:00", "2025-01-05 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			),
+			clearRange: &CollectionTimeRange{
+				From:            timeString("2025-01-02 00:00:00"),
+				To:              timeString("2025-01-04 00:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expectedRanges: []*timeRangeObjectState{
+				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-02 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
+				buildTimeRangeState("2025-01-04 00:00:00", "2025-01-05 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set the current collection time range
+			tt.state.currentCollectionTimeRange = tt.clearRange
+
+			// Call the method
+			tt.state.Clear(tt.clearRange)
+
+			if len(tt.state.TimeRanges) != len(tt.expectedRanges) {
+				t.Errorf("Expected %d ranges, got %d", len(tt.expectedRanges), len(tt.state.TimeRanges))
+				return
+			}
+
+			for i, expected := range tt.expectedRanges {
+				if i >= len(tt.state.TimeRanges) {
+					t.Errorf("Missing range at index %d", i)
+					continue
+				}
+
+				actual := tt.state.TimeRanges[i]
+				if !actual.GetFromTime().Equal(expected.GetFromTime()) {
+					t.Errorf("Range %d: expected From time %v, got %v", i, expected.GetFromTime(), actual.GetFromTime())
+				}
+				if !actual.GetToTime().Equal(expected.GetToTime()) {
+					t.Errorf("Range %d: expected To time %v, got %v", i, expected.GetToTime(), actual.GetToTime())
+				}
+			}
+		})
+	}
+}

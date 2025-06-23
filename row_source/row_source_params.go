@@ -14,6 +14,7 @@ type RowSourceParams struct {
 	From                time.Time
 	To                  time.Time
 	CollectionTempDir   string
+	Recollect           bool
 }
 
 func (r *RowSourceParams) ToProto() *proto.RowSourceParams {
@@ -22,6 +23,7 @@ func (r *RowSourceParams) ToProto() *proto.RowSourceParams {
 		FromTime:            timestamppb.New(r.From),
 		ToTime:              timestamppb.New(r.To),
 		CollectionTempDir:   r.CollectionTempDir,
+		Recollect:           r.Recollect,
 	}
 	if r.SourceConfigData != nil {
 		res.SourceData = r.SourceConfigData.ToProto()
@@ -38,6 +40,7 @@ func RowSourceParamsFromProto(pr *proto.RowSourceParams) (*RowSourceParams, erro
 		From:                pr.FromTime.AsTime(),
 		To:                  pr.ToTime.AsTime(),
 		CollectionTempDir:   pr.CollectionTempDir,
+		Recollect:           pr.Recollect,
 	}
 
 	if pr.SourceData != nil {

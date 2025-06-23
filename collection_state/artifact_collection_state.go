@@ -49,6 +49,7 @@ func (s *ArtifactCollectionState) Init(collectionTimeRange *CollectionTimeRange)
 			trunkState.Init(collectionTimeRange)
 		}
 	}
+
 	return nil
 }
 
@@ -89,6 +90,7 @@ func (s *ArtifactCollectionState) GetFromTime() time.Time {
 // (we may have collected some data after this - within the granularity period)
 // return the earliest end time of all the trunk states
 func (s *ArtifactCollectionState) GetToTime() time.Time {
+	// TODO #CS KAI think about continuation for reverse order
 	// find the earliest end time of all the trunk states
 	var endTime time.Time
 	for _, trunkState := range s.TrunkStates {
@@ -283,4 +285,14 @@ func (s *ArtifactCollectionState) containsTimeMetadata(metadata map[string]strin
 		}
 	}
 	return false
+}
+
+func (s *ArtifactCollectionState) Clear(timeRange *CollectionTimeRange) {
+	for _, trunkState := range s.TrunkStates {
+		if trunkState == nil {
+			continue
+		}
+		// clear the trunk state for the current collection time range
+		trunkState.Clear(timeRange)
+	}
 }

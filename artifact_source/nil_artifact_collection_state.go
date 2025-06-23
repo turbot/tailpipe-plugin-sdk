@@ -61,3 +61,5 @@ func (*NilArtifactCollectionState) MigrateFromLegacyState(_ []byte) error {
 func (*NilArtifactCollectionState) Validate() error {
 	return nil
 }
+func (*NilArtifactCollectionState) Clear(_ *collection_state.CollectionTimeRange) {
+}

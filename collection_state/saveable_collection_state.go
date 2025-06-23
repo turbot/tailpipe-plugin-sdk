@@ -185,3 +185,7 @@ func (s *SaveableCollectionState) LoadFromFile(path string) error {
 	}
 	return nil
 }
+
+func (s *SaveableCollectionState) Clear(timeRange *CollectionTimeRange) {
+	s.State.Clear(timeRange)
+}

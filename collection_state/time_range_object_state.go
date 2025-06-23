@@ -181,3 +181,28 @@ func (s *timeRangeObjectState) endObjectsContain(id string) bool {
 	_, ok := s.EndObjects[id]
 	return ok
 }
+
+// TrimToRemoveOverlap checks if this state overlaps with the given collection range
+// and trims the range to remove overlap. Clears end objects if the range is truncated
+// or if the upper boundary changes.
+func (s *timeRangeObjectState) TrimToRemoveOverlap(timeRange *CollectionTimeRange) {
+	// Store the upper boundary before any changes
+	originalUpperBoundary := s.TimeRange.upperBoundaryTime()
+
+	if s.TimeRange.RangesOverlap(timeRange) {
+		// If state starts before the parameter range, trim the state to end at the parameter's start
+		if s.GetFromTime().Before(timeRange.From) {
+			s.TimeRange.To = timeRange.From
+		}
+		// If state ends after the parameter range, trim the state to start at the parameter's end
+		if s.GetToTime().After(timeRange.To) {
+			s.TimeRange.From = timeRange.To
+		}
+	}
+
+	// Check if the upper boundary has changed after any operations
+	newUpperBoundary := s.TimeRange.upperBoundaryTime()
+	if !originalUpperBoundary.Equal(newUpperBoundary) {
+		s.EndObjects = make(map[string]struct{})
+	}
+}

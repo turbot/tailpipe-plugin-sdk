@@ -3,8 +3,6 @@ package proto;
 
 import "google/protobuf/timestamp.proto";
 
-
-
 option go_package = ".;proto";
 
 service TailpipePlugin {
@@ -49,6 +47,8 @@ message CollectRequest {
   int64 temp_dir_max_mb= 12;
   // the collection end time
   google.protobuf.Timestamp to_time = 13;
+  // recollect all data for the specified time range even if it has been collected already
+  bool recollect = 14;
 }
 
 message UpdateCollectionStateRequest {
@@ -319,7 +319,7 @@ message InitSourceRequest{
   // the default config for the source
   ArtifactSourceConfig default_config = 1;
   // params to use for the source
-  row_source_params source_params = 2;
+  RowSourceParams source_params = 2;
 }
 
 
@@ -328,7 +328,7 @@ message InitSourceResponse {
   ResolvedFromTime from_time = 1;
 }
 
-message row_source_params{
+message RowSourceParams{
   // the source to use (with raw config)
   ConfigData source_data = 1;
   // the raw hcl of the connection
@@ -341,7 +341,8 @@ message row_source_params{
   string collection_state_path = 5;
   // the collection end time
   google.protobuf.Timestamp to_time = 6;
-
+  // recollect all data for the specified time range even if it has been collected already
+  bool recollect = 14;
 }
 
 // ArtifactSourceConfigBase is a configuration message for an artifact source.
@@ -355,8 +356,6 @@ message ArtifactSourceConfig {
   // List of filters to apply to the path segments.
   // Note: each filter must refer to a single property only.
   repeated string filters = 3;
-
-
 }
 
 message SourceCollectRequest{

@@ -100,6 +100,11 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	if err != nil {
 		return err
 	}
+	if params.Recollect {
+		slog.Info("Recollecting data - setting collection state to empty")
+		// if we are recollecting, set the collection state to empty
+		r.CollectionState.Clear(timeRange)
+	}
 	// populate the from time, applying the from time passed in the params
 	// and falling back to the collection state/default value if needed
 	r.setFromTime(params)
