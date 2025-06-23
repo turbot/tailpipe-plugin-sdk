@@ -90,7 +90,7 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	slog.Info("Creating empty collection state")
 	r.CollectionState = collection_state.NewSaveableCollectionState(r.NewCollectionStateFunc())
 	// initialise the collection state - this will load itself form json (if JSON file exists)
-	timeRange := &collection_state.CollectionTimeRange{
+	timeRange := collection_state.CollectionTimeRange{
 		From:            params.From,
 		To:              params.To,
 		CollectionOrder: r.CollectionOrder,

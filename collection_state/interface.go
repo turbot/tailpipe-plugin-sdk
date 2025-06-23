@@ -6,7 +6,7 @@ import (
 
 type CollectionState interface {
 	IsEmpty() bool
-	Init(*CollectionTimeRange) error
+	Init(CollectionTimeRange)
 	ShouldCollect(id string, timestamp time.Time) bool
 	OnCollected(id string, timestamp time.Time) error
 	SetGranularity(time.Duration)

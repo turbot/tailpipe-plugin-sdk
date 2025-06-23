@@ -38,7 +38,7 @@ func NewSaveableCollectionState(state CollectionState) *SaveableCollectionState 
 
 // Init initializes the SaveableCollectionState with a CollectionTimeRange and a file path
 // if the file exists, it loads the state from the file
-func (s *SaveableCollectionState) Init(collectionTimeRange *CollectionTimeRange, path string) error {
+func (s *SaveableCollectionState) Init(collectionTimeRange CollectionTimeRange, path string) error {
 	s.jsonPath = path
 	// if there is a file at the path, load it
 	if _, err := os.Stat(path); err == nil {
@@ -48,9 +48,7 @@ func (s *SaveableCollectionState) Init(collectionTimeRange *CollectionTimeRange,
 		// fall through to ensure the state is initialized
 	}
 
-	if err := s.State.Init(collectionTimeRange); err != nil {
-		return fmt.Errorf("failed to initialize collection state: %w", err)
-	}
+	s.State.Init(collectionTimeRange)
 	return s.State.Validate()
 }
 

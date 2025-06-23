@@ -8,18 +8,6 @@ import (
 	"time"
 )
 
-// implement parse.COnfig
-type testConfig struct {
-}
-
-func (t testConfig) Validate() error {
-	return nil
-}
-
-func (t testConfig) Identifier() string {
-	return "test"
-}
-
 func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 	tests := []struct {
 		name               string
@@ -91,6 +79,7 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 			// Write the JSON to a temp file
 			tmpDir := t1.TempDir()
 			tmpFile := filepath.Join(tmpDir, "collection_state.json")
+			//nolint:gosec // test code
 			err = os.WriteFile(tmpFile, sourceJSON, 0644)
 			if err != nil {
 				t1.Fatalf("failed to write temp file: %v", err)
@@ -181,6 +170,7 @@ func TestSaveableCollectionState_SaveAndLoad(t *testing.T) {
 		{
 			name: "load invalid JSON should fail",
 			setupFile: func(path string) error {
+				//nolint:gosec // test code
 				return os.WriteFile(path, []byte("invalid json"), 0644)
 			},
 			expectError: true,
@@ -188,6 +178,7 @@ func TestSaveableCollectionState_SaveAndLoad(t *testing.T) {
 		{
 			name: "load empty file should fail",
 			setupFile: func(path string) error {
+				//nolint:gosec // test code
 				return os.WriteFile(path, []byte(""), 0644)
 			},
 			expectError: true,
@@ -239,11 +230,9 @@ func TestSaveableCollectionState_SaveAndLoad(t *testing.T) {
 					if fileInfo.Size() == 0 {
 						t.Errorf("expected file to have content but size is 0")
 					}
-				} else {
+				} else if err == nil {
 					// For empty states, file should be deleted
-					if err == nil {
-						t.Errorf("expected file to be deleted but it still exists")
-					}
+					t.Errorf("expected file to be deleted but it still exists")
 				}
 			}
 
@@ -352,6 +341,7 @@ func TestSaveableCollectionState_LoadWithLegacyMigration(t *testing.T) {
 	}
 
 	// Write legacy JSON to file
+	//nolint:gosec // test code
 	err = os.WriteFile(tmpFile, legacyJSON, 0644)
 	if err != nil {
 		t.Fatalf("failed to write legacy file: %v", err)

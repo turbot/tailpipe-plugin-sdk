@@ -40,8 +40,8 @@ func NewArtifactCollectionState() CollectionState {
 }
 
 // Init sets the filepath of the collection state and loads the state from the file if it exists
-func (s *ArtifactCollectionState) Init(collectionTimeRange *CollectionTimeRange) error {
-	s.currentCollectionTimeRange = collectionTimeRange
+func (s *ArtifactCollectionState) Init(collectionTimeRange CollectionTimeRange) {
+	s.currentCollectionTimeRange = &collectionTimeRange
 
 	// call init on all trunk states to ensure they are initialised
 	for _, trunkState := range s.TrunkStates {
@@ -49,8 +49,6 @@ func (s *ArtifactCollectionState) Init(collectionTimeRange *CollectionTimeRange)
 			trunkState.Init(collectionTimeRange)
 		}
 	}
-
-	return nil
 }
 
 // SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
@@ -145,6 +143,11 @@ func (s *ArtifactCollectionState) RegisterPath(path string, metadata map[string]
 
 // ShouldCollect returns whether the object should be collected, based on the time metadata in the object
 func (s *ArtifactCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
+	if s.currentCollectionTimeRange == nil {
+		slog.Error("ShouldCollect called before Init", "id", id, "timestamp", timestamp)
+		return false
+	}
+
 	rootChar := "/"
 	var trunkPath string
 
@@ -173,7 +176,7 @@ func (s *ArtifactCollectionState) ShouldCollect(id string, timestamp time.Time) 
 		// create a new collection state
 		trunkState = NewTimeRangeCollectionState().(*TimeRangeCollectionState)
 		// initialize the trunk state with the current collection time range
-		trunkState.Init(s.currentCollectionTimeRange)
+		trunkState.Init(*s.currentCollectionTimeRange)
 		// set the granularity
 		trunkState.SetGranularity(s.granularity)
 

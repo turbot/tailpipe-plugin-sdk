@@ -58,7 +58,7 @@ func NewTimeRangeCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegac
 // compact the time ranges in case the previous collection was not completed successfully
 // (normally the state is compacted before the final save but if the process was killed before that,
 // we may have a collection state with multiple ranges that can be merged)
-func (t *TimeRangeCollectionState) Init(collectionTimeRange *CollectionTimeRange) error {
+func (t *TimeRangeCollectionState) Init(collectionTimeRange CollectionTimeRange) {
 	// initialise the active range - this will create a new range for the collectionTimeRange from time if needed
 	t.setCurrentCollectionTimeRange(collectionTimeRange)
 
@@ -69,8 +69,6 @@ func (t *TimeRangeCollectionState) Init(collectionTimeRange *CollectionTimeRange
 	if t.ObjectRangeMap == nil {
 		t.ObjectRangeMap = make(map[string]*TimeRangeObjectState)
 	}
-
-	return nil
 }
 
 func (t *TimeRangeCollectionState) IsEmpty() bool {
@@ -266,8 +264,15 @@ func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 			endRange.TimeRange.From = clearRange.To
 
 			// add the  ranges to the processed ranges
-			processedRanges = append(processedRanges, startRange)
-			processedRanges = append(processedRanges, endRange)
+			// NOTE: if the clear range starts or ends on our start or end time,
+			// then either startRange or endRange will be empty - do not add the empty range
+			if !startRange.IsEmpty() {
+				processedRanges = append(processedRanges, startRange)
+			}
+			if !endRange.IsEmpty() {
+				processedRanges = append(processedRanges, endRange)
+			}
+
 		case timeRangeState.TimeRange.OverlapsStart(clearRange):
 			// if our END overlaps the START of the clear range, update our end time to the start of the clear range
 			// and clear our end objects
@@ -280,6 +285,7 @@ func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 			timeRangeState.TimeRange.From = clearRange.To
 			// we do not clear the end objects as they are still relevant for this range
 			processedRanges = append(processedRanges, timeRangeState)
+
 		default:
 			// If we get here, the timeRangeState does not overlap with the clearRange
 			// add the timeRangeState to the processed ranges as-is and continue
@@ -290,7 +296,6 @@ func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 	// Now we have processed all ranges, we can set the TimeRanges to the processed ranges
 	t.TimeRanges = processedRanges
 	slog.Info("Finished handling overlapping states", "original_ranges", len(t.TimeRanges), "final_ranges", len(processedRanges))
-	return
 }
 
 // addRangeFromLegacy populates the state from a legacy TimeRangeCollectionStateLegacy
@@ -336,8 +341,8 @@ func (t *TimeRangeCollectionState) populateFromReverseOrderLegacy(legacy *Revers
 }
 
 // setCurrentCollectionTimeRange sets the current collection time range and updates the active range to the start of the collection time range
-func (t *TimeRangeCollectionState) setCurrentCollectionTimeRange(tr *CollectionTimeRange) {
-	t.currentCollectionTimeRange = tr
+func (t *TimeRangeCollectionState) setCurrentCollectionTimeRange(tr CollectionTimeRange) {
+	t.currentCollectionTimeRange = &tr
 	// rather than pass 'from'  time (which we use for forward collection), pass the 'lower boundary time of the range
 	// this resolves to the 'from' time for forward collection and the 'to' time for reverse collection
 	t.updateActiveRange(t.currentCollectionTimeRange.lowerBoundaryTime())

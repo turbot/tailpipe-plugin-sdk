@@ -21,8 +21,7 @@ func (s *NilArtifactCollectionState) GetToTime() time.Time {
 func (s *NilArtifactCollectionState) SetEndTime(_ time.Time) {
 }
 
-func (*NilArtifactCollectionState) Init(*collection_state.CollectionTimeRange) error {
-	return nil
+func (*NilArtifactCollectionState) Init(collection_state.CollectionTimeRange) {
 }
 
 func (s *NilArtifactCollectionState) RegisterPath(_ string, _ map[string]string) {
@@ -61,5 +60,5 @@ func (*NilArtifactCollectionState) MigrateFromLegacyState(_ []byte) error {
 func (*NilArtifactCollectionState) Validate() error {
 	return nil
 }
-func (*NilArtifactCollectionState) Clear(_ *collection_state.CollectionTimeRange) {
+func (*NilArtifactCollectionState) Clear(_ collection_state.CollectionTimeRange) {
 }
