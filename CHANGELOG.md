@@ -1,4 +1,4 @@
-## v0.8.0 [tbd]
+## v0.8.0 [2025-06-23]
 _Whats new_
 * Remove row validation and rely entirely on CLI to execute validation. ([#202](https://github.com/turbot/tailpipe-plugin-sdk/issues/202))
   * Remove row validation
