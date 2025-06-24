@@ -986,7 +986,7 @@ func TestCollectionTimeRange_OverlapsStart(t1 *testing.T) {
 			name:  "other overlaps out end but To times the same",
 			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-05 00:00:00")},
 			other: CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-04 00:00:00")},
-			want:  true,
+			want:  false,
 		},
 	}
 	for _, tt := range tests {

@@ -232,6 +232,18 @@ func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 	// create a new slice to hold the processed ranges
 	var processedRanges []*TimeRangeObjectState
 
+	// NOTE: truncate the clear time range 'To' to the granularity
+	// this is to handle the case when we are recollecting for just today.
+	// For example, when collecting with no from time at 2023-10-10T12:00:00
+	// 		granularity: 1 day
+	// 		collection state from: 2023-10-01T00:00:00, to: 2023-10-10T00:00:00
+	// 		clear range from: 2023-10-10T00:00:00 to 2023-10-10T12:00:00
+	//
+	// we truncate the clear 'To' time by granularity of 1 day, so it becomes 2023-10-10T00:00:00
+	// this then falls into the clearRange.IsRangeSubsumed case, which results in the end objects being cleared
+	// but no other changes being made to the range
+	clearRange.To = clearRange.To.Truncate(t.Granularity)
+
 	slog.Info("Clear collection state for time range", "from", clearRange.From, "to", clearRange.To)
 	defer slog.Info("Finished clearing collection state", "original_ranges", len(t.TimeRanges), "final_ranges", len(processedRanges))
 

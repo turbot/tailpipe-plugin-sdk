@@ -131,22 +131,29 @@ func (t *CollectionTimeRange) Validate() error {
 
 // OverlapsEnd returns whether our START overlaps the END of the other time range
 // NOTE:
-// - returns true if our END is the same as the other end
+// - returns true if our START is within the other range (but not if either range subsumes the other)
 // - returns false if either range completely contains the other
 func (t *CollectionTimeRange) OverlapsEnd(other CollectionTimeRange) bool {
-	otherFromBeforeTo := other.From.Before(t.To)
-	otherToAfterTo := other.To.After(t.To)
-	otherToSubTo := other.To.Sub(t.To)
-	return otherFromBeforeTo && otherToAfterTo && otherToSubTo >= 0
+	// Check if either range subsumes the other - if so, return false
+	if t.IsRangeSubsumed(other) || other.IsRangeSubsumed(*t) {
+		return false
+	}
+
+	// Check if our start time is within the other range
+	// Our start should be after other's start but before other's end
+	return t.From.After(other.From) && t.From.Before(other.To)
 }
 
 // OverlapsStart returns whether our END overlaps the START of the other time range
+// NOTE:
+// - returns true if our END is after the other's start and before the other's end, but not if either range subsumes the other
 func (t *CollectionTimeRange) OverlapsStart(other CollectionTimeRange) bool {
-	otherFromBeforeTo := other.From.Before(t.To)
-	otherToAfterTo := other.To.After(t.To)
-	otherToSubTo := other.To.Sub(t.To)
-	return otherFromBeforeTo && otherToAfterTo && otherToSubTo >= 0
-
+	// Return false if either range subsumes the other
+	if t.IsRangeSubsumed(other) || other.IsRangeSubsumed(*t) {
+		return false
+	}
+	// Check if our end time overlaps with the other range
+	return t.To.After(other.From) && t.From.Before(other.From)
 }
 
 // IsRangeSubsumed checks if this time range is completely contained within another time range
