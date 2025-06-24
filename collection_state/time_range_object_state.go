@@ -61,21 +61,27 @@ func (s *TimeRangeObjectState) ShouldCollect(id string, timestamp time.Time) boo
 	// - we use start objects to track everything
 	if s.Granularity == 0 {
 		// if we do not have a granularity we only use the start map
-		return !s.endObjectsContain(id)
+		gotObject := s.endObjectsContain(id)
+		slog.Debug("ShouldCollect called with granularity 0 - checking end objects only", "object", id, "timestamp", timestamp, "got object", gotObject, "should collect", !gotObject)
+		return !gotObject
 	}
 
 	// if the time is between the lowe and upper boundary we should NOT collect
 	// (as have already collected it- assuming consistent artifact ordering)
 	if s.TimeRange.onOrInsideLowerBoundary(timestamp) && s.TimeRange.insideUpperBoundary(timestamp) {
+		slog.Debug("ShouldCollect called with time inside the current time range - not collecting", "object", id, "timestamp", timestamp)
 		return false
 	}
 
 	// if the time within a granularity period of the upper boundary time, we must check if we have already collected it
 	// (as we have reached the limit of the granularity)
 	if timestamp.Sub(s.TimeRange.upperBoundaryTime()) <= s.Granularity {
-		return !s.endObjectsContain(id)
+		gotObject := s.endObjectsContain(id)
+		slog.Debug("ShouldCollect called with time within granularity of upper boundary - checking end objects", "object", id, "timestamp", timestamp, "got object", gotObject, "should collect", !gotObject)
+		return !gotObject
 	}
 
+	slog.Debug("ShouldCollect called with time outside the current time range - collecting", "object", id, "timestamp", timestamp, "current start time", s.TimeRange.From, "current end time", s.TimeRange.To)
 	// so it before the current start time or after the current end time - we should collect
 	return true
 }
@@ -181,8 +187,14 @@ func (s *TimeRangeObjectState) setUpperBoundaryTime(newTime time.Time) {
 	}
 
 	s.TimeRange.setUpperBoundaryTime(newTime)
-	// clear the end objects
-	s.EndObjects = make(map[string]struct{})
+
+	// if the upper boundary time is NOT today, clear the end objects
+	// - we know we have collected all data for that time period
+	// (if it is today, we may not have colleceted all data for today yet)
+	// TODO #CS take delivery delay into account
+	if newTime.Sub(time.Now().Truncate(s.Granularity)) != 0 {
+		s.EndObjects = make(map[string]struct{})
+	}
 }
 
 // merge combines this time range with another time range
@@ -219,4 +231,12 @@ func (s *TimeRangeObjectState) Clone() *TimeRangeObjectState {
 		res.EndObjects[k] = struct{}{}
 	}
 	return res
+}
+
+func (s *TimeRangeObjectState) String() string {
+	return fmt.Sprintf("TimeRangeObjectState{From: %s, To: %s, Granularity: %s, EndObjects: %d}",
+		s.TimeRange.From.Format(time.RFC3339),
+		s.TimeRange.To.Format(time.RFC3339),
+		s.Granularity.String(), len(s.EndObjects))
+
 }

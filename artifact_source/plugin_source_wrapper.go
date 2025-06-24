@@ -53,7 +53,11 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params *row_source.RowSo
 	}
 	// create a NilArtifactCollectionState - this will do nothing but is required to avoid
 	// nil reference exceptions in ArtifactSourceImpl.OnArtifactDownloaded
-	w.CollectionState = collection_state.NewSaveableCollectionState(&NilArtifactCollectionState{})
+	s, err := collection_state.NewSaveableCollectionState(&NilArtifactCollectionState{}, "")
+	if err != nil {
+		return fmt.Errorf("error creating collection state: %w", err)
+	}
+	w.CollectionState = s
 
 	executionId, err := context_values.ExecutionIdFromContext(ctx)
 	if err != nil {

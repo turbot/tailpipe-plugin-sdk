@@ -229,37 +229,41 @@ func (t *TimeRangeCollectionState) Compare(want *TimeRangeCollectionState) (bool
 // Clear updates the state clear any entries for the given time range.
 func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 
-	slog.Info("Handling overlapping states with collection range", "total_ranges", len(t.TimeRanges))
-
 	// create a new slice to hold the processed ranges
 	var processedRanges []*TimeRangeObjectState
 
-	for _, timeRangeState := range t.TimeRanges {
+	slog.Info("Clear collection state for time range", "from", clearRange.From, "to", clearRange.To)
+	defer slog.Info("Finished clearing collection state", "original_ranges", len(t.TimeRanges), "final_ranges", len(processedRanges))
+
+	for _, timeRangeObjectState := range t.TimeRanges {
 		// 4 cases:
-		// 1. timeRangeState is totally subsumed by the clearRange
-		// 2. the clearRange is entirely contained within timeRangeState
-		// 3. the clearRange overlaps the start of timeRangeState
-		// 4. the clearRange overlaps the end of timeRangeState
+		// 1. timeRangeObjectState is totally subsumed by the clearRange
+		// 2. the clearRange is entirely contained within timeRangeObjectState
+		// 3. the clearRange overlaps the start of timeRangeObjectState
+		// 4. the clearRange overlaps the end of timeRangeObjectState
 
 		switch {
-		case timeRangeState.TimeRange.IsRangeSubsumed(clearRange):
-			// this timeRangeState is entirely within the clear range - delete (i.e. do not add to processedRanges)
+		case timeRangeObjectState.TimeRange.IsRangeSubsumed(clearRange):
+			slog.Debug("Time range object state is subsumed by clear range - deleting", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
+			// this timeRangeObjectState is entirely within the clear range - delete (i.e. do not add to processedRanges)
 			continue
-		case clearRange.IsRangeSubsumed(timeRangeState.TimeRange):
-			// if the clear range is totally contained within the timeRangeState, we ned toi create 2 new ranges:
-			// 1. a new range from the start of timeRangeState to the start of clearRange
-			// 2. a new range from the end of clearRange to the end of timeRangeState (including the end objects)
-			// create the first range from the start of timeRangeState to the start of clearRange
+		case clearRange.IsRangeSubsumed(timeRangeObjectState.TimeRange):
+			slog.Debug("Clear range is subsumed by time range object state - splitting into two ranges", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
 
-			// clone the timeRangeState to create a new range
-			startRange := timeRangeState.Clone()
+			// if the clear range is totally contained within the timeRangeObjectState, we ned toi create 2 new ranges:
+			// 1. a new range from the start of timeRangeObjectState to the start of clearRange
+			// 2. a new range from the end of clearRange to the end of timeRangeObjectState (including the end objects)
+			// create the first range from the start of timeRangeObjectState to the start of clearRange
+
+			// clone the timeRangeObjectState to create a new range
+			startRange := timeRangeObjectState.Clone()
 			// set the to time to the start of the clear range
 			startRange.TimeRange.To = clearRange.From
 			// clear the end objects as they are not relevant for this range
 			startRange.EndObjects = make(map[string]struct{})
 
 			// and the end range
-			endRange := timeRangeState.Clone()
+			endRange := timeRangeObjectState.Clone()
 			// set the from time to the end of the clear range
 			endRange.TimeRange.From = clearRange.To
 
@@ -273,29 +277,32 @@ func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 				processedRanges = append(processedRanges, endRange)
 			}
 
-		case timeRangeState.TimeRange.OverlapsStart(clearRange):
-			// if our END overlaps the START of the clear range, update our end time to the start of the clear range
+		case clearRange.OverlapsEnd(timeRangeObjectState.TimeRange):
+			// if the clear range START overlaps the END of the timeRangeObjectState, we need to update the end time
+			// update our end time to the start of the clear range
 			// and clear our end objects
-			timeRangeState.TimeRange.To = clearRange.From
-			timeRangeState.EndObjects = make(map[string]struct{})
-			processedRanges = append(processedRanges, timeRangeState)
+			slog.Debug("Time range object state overlaps start of clear range - updating end time and clearing end objects", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
+			timeRangeObjectState.TimeRange.To = clearRange.From
+			timeRangeObjectState.EndObjects = make(map[string]struct{})
+			processedRanges = append(processedRanges, timeRangeObjectState)
 
-		case timeRangeState.TimeRange.OverlapsEnd(clearRange):
-			// if our START overlaps the END of the clear range, update our start time to the end of the clear range
-			timeRangeState.TimeRange.From = clearRange.To
+		case clearRange.OverlapsStart(timeRangeObjectState.TimeRange):
+			// if the clear range END overlaps the START of the timeRangeObjectState, we need to update the start time
+			slog.Debug("Time range object state overlaps end of clear range - updating start time and keeping end objects", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
+			timeRangeObjectState.TimeRange.From = clearRange.To
 			// we do not clear the end objects as they are still relevant for this range
-			processedRanges = append(processedRanges, timeRangeState)
+			processedRanges = append(processedRanges, timeRangeObjectState)
 
 		default:
-			// If we get here, the timeRangeState does not overlap with the clearRange
-			// add the timeRangeState to the processed ranges as-is and continue
-			processedRanges = append(processedRanges, timeRangeState)
+			slog.Debug("Time range object state does not overlap with clear range - keeping as is", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
+			// If we get here, the timeRangeObjectState does not overlap with the clearRange
+			// add the timeRangeObjectState to the processed ranges as-is and continue
+			processedRanges = append(processedRanges, timeRangeObjectState)
 		}
 	}
 
 	// Now we have processed all ranges, we can set the TimeRanges to the processed ranges
 	t.TimeRanges = processedRanges
-	slog.Info("Finished handling overlapping states", "original_ranges", len(t.TimeRanges), "final_ranges", len(processedRanges))
 }
 
 // addRangeFromLegacy populates the state from a legacy TimeRangeCollectionStateLegacy
@@ -520,17 +527,14 @@ func (t *TimeRangeCollectionState) compactForCollectionPeriod() {
 // we expect ranges will not overlap, so we can return the first range that contains the timestamp
 // NOTE: we DO NOT need to take collection order into account
 func (t *TimeRangeCollectionState) rangeForTime(timestamp time.Time) *TimeRangeObjectState {
-
 	for _, r := range t.TimeRanges {
 		// if the timestamp is within the range, return the range
 		// NOTE: in this case the upper boundary IS included - as we will extend the range to include the timestamp
 		if r.TimeRange.onOrInsideLowerBoundary(timestamp) && r.TimeRange.onOrInsideUpperBoundary(timestamp) {
-			slog.Debug("Found existing range for time", "timestamp", timestamp, "range from", r.TimeRange.From, "range TO", r.TimeRange.To)
 			return r
 		}
 	}
 
-	slog.Debug("No existing range found for time", "timestamp", timestamp)
 	return nil
 }
 
@@ -551,4 +555,16 @@ func (t *TimeRangeCollectionState) addRange(timestamp time.Time) *TimeRangeObjec
 	t.TimeRanges = append(t.TimeRanges, newRange)
 
 	return newRange
+}
+
+func (t *TimeRangeCollectionState) String() string {
+	// return a string representation of the collection state
+	// this is used for debugging and logging
+	var ranges []string
+	for _, r := range t.TimeRanges {
+		ranges = append(ranges, r.String())
+	}
+	return fmt.Sprintf("TimeRangeCollectionState{TimeRanges: [%s], Granularity: %s, Order: %d, ActiveRange: %s}",
+		ranges, t.Granularity, t.Order, t.activeRange)
+
 }

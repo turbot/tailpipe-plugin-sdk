@@ -7,16 +7,15 @@ import (
 )
 
 type CollectionTimeRange struct {
-	From            time.Time
-	To              time.Time
-	CollectionOrder CollectionOrder
+	From            time.Time       `json:"from"`
+	To              time.Time       `json:"to"`
+	CollectionOrder CollectionOrder `json:"collection_order"`
 }
 
 // upperBoundaryTime returns the the furthest time in the direction of collection
 // i.e. if we are collecting forwards, the upperBoundaryTime is the end time of the range,
 // if we are collecting backwards, the upperBoundaryTime is the start time of the range
 func (t *CollectionTimeRange) upperBoundaryTime() time.Time {
-
 	if t.CollectionOrder == CollectionOrderChronological {
 		return t.To
 	}
@@ -131,13 +130,23 @@ func (t *CollectionTimeRange) Validate() error {
 }
 
 // OverlapsEnd returns whether our START overlaps the END of the other time range
+// NOTE:
+// - returns true if our END is the same as the other end
+// - returns false if either range completely contains the other
 func (t *CollectionTimeRange) OverlapsEnd(other CollectionTimeRange) bool {
-	return other.From.Before(t.From) && other.To.After(t.From) && other.To.Before(t.To)
+	otherFromBeforeTo := other.From.Before(t.To)
+	otherToAfterTo := other.To.After(t.To)
+	otherToSubTo := other.To.Sub(t.To)
+	return otherFromBeforeTo && otherToAfterTo && otherToSubTo >= 0
 }
 
 // OverlapsStart returns whether our END overlaps the START of the other time range
 func (t *CollectionTimeRange) OverlapsStart(other CollectionTimeRange) bool {
-	return other.From.After(t.From) && other.From.Before(t.To) && other.To.After(t.To)
+	otherFromBeforeTo := other.From.Before(t.To)
+	otherToAfterTo := other.To.After(t.To)
+	otherToSubTo := other.To.Sub(t.To)
+	return otherFromBeforeTo && otherToAfterTo && otherToSubTo >= 0
+
 }
 
 // IsRangeSubsumed checks if this time range is completely contained within another time range

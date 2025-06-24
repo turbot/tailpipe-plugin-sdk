@@ -166,8 +166,6 @@ func (s *ArtifactCollectionState) ShouldCollect(id string, timestamp time.Time) 
 		trunkPath = rootChar
 	}
 
-	slog.Info("ShouldCollect got trunk", "trunk", trunkPath, "item", itemPath, "timestamp", timestamp)
-
 	// now we have a trunk, find which time range collection state to use
 	trunkState, ok := s.TrunkStates[trunkPath]
 	// if we have a trunk state, get the range for this timestamp (this will create a new range if needed)
@@ -239,6 +237,9 @@ func (s *ArtifactCollectionState) Clear(timeRange CollectionTimeRange) {
 		// clear the trunk state for the current collection time range
 		trunkState.Clear(timeRange)
 	}
+
+	slog.Debug("Collection state after clearing", "state", s.String())
+
 }
 
 // MigrateFromLegacyState attempts to migrate from a legacy collection state
@@ -319,4 +320,17 @@ func (s *ArtifactCollectionState) containsTimeMetadata(metadata map[string]strin
 		}
 	}
 	return false
+}
+
+func (s *ArtifactCollectionState) String() any {
+	stringBuilder := strings.Builder{}
+	stringBuilder.WriteString("ArtifactCollectionState:\n")
+	for trunkPath, trunkState := range s.TrunkStates {
+		if trunkState == nil {
+			stringBuilder.WriteString(fmt.Sprintf("  %s: <nil>\n", trunkPath))
+			continue
+		}
+		stringBuilder.WriteString(fmt.Sprintf("  %s: %s\n", trunkPath, trunkState.String()))
+	}
+	return stringBuilder.String()
 }

@@ -3,6 +3,7 @@ package collection_state
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 	"time"
@@ -29,23 +30,31 @@ type SaveableCollectionState struct {
 	mut *sync.RWMutex
 }
 
-func NewSaveableCollectionState(state CollectionState) *SaveableCollectionState {
-	return &SaveableCollectionState{
+func NewSaveableCollectionState(state CollectionState, path string) (*SaveableCollectionState, error) {
+	s := &SaveableCollectionState{
 		State: state,
 		mut:   &sync.RWMutex{},
 	}
-}
-
-// Init initializes the SaveableCollectionState with a CollectionTimeRange and a file path
-// if the file exists, it loads the state from the file
-func (s *SaveableCollectionState) Init(collectionTimeRange CollectionTimeRange, path string) error {
+	// set the path to the JSON file
 	s.jsonPath = path
 	// if there is a file at the path, load it
 	if _, err := os.Stat(path); err == nil {
 		if err = s.LoadFromFile(path); err != nil {
-			return err
+			return nil, err
 		}
-		// fall through to ensure the state is initialized
+	}
+	return s, nil
+}
+
+// Init initializes the SaveableCollectionState with a CollectionTimeRange and a file path
+// if the file exists, it loads the state from the file
+func (s *SaveableCollectionState) Init(collectionTimeRange CollectionTimeRange, recollect bool, path string) error {
+	// if we are recollecting, clear BEFORE call to Init, as Init will set the active range
+	// which we must not do until we have cleared the state
+	if recollect {
+		slog.Info("Recollecting data - clearing collection state for collection time range", "from time", collectionTimeRange.From, "to time", collectionTimeRange.To)
+		// if we are recollecting, set the collection state to empty
+		s.State.Clear(collectionTimeRange)
 	}
 
 	s.State.Init(collectionTimeRange)
@@ -190,8 +199,4 @@ func (s *SaveableCollectionState) LoadFromFile(path string) error {
 		return s.State.MigrateFromLegacyState(jsonBytes)
 	}
 	return nil
-}
-
-func (s *SaveableCollectionState) Clear(timeRange CollectionTimeRange) {
-	s.State.Clear(timeRange)
 }

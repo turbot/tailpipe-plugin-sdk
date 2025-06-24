@@ -88,27 +88,27 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 
 	// create empty collection state and wrap in a SaveableCollectionState
 	slog.Info("Creating empty collection state")
-	r.CollectionState = collection_state.NewSaveableCollectionState(r.NewCollectionStateFunc())
-	// initialise the collection state - this will load itself form json (if JSON file exists)
-	timeRange := collection_state.CollectionTimeRange{
-		From:            params.From,
-		To:              params.To,
-		CollectionOrder: r.CollectionOrder,
-	}
-
-	err = r.CollectionState.Init(timeRange, params.CollectionStatePath)
+	r.CollectionState, err = collection_state.NewSaveableCollectionState(r.NewCollectionStateFunc(), params.CollectionStatePath)
 	if err != nil {
 		return err
 	}
-	if params.Recollect {
-		slog.Info("Recollecting data - setting collection state to empty")
-		// if we are recollecting, set the collection state to empty
-		r.CollectionState.Clear(timeRange)
-	}
-	// populate the from time, applying the from time passed in the params
-	// and falling back to the collection state/default value if needed
-	r.setFromTime(params)
+	// store the To time
 	r.ToTime = params.To
+	// resolve the from time, applying the from time passed in the params
+	// and falling back to the collection state/default value if needed
+	r.setFromTime(params.From)
+
+	// initialise the collection state - this will set the active time range for the collection state
+	// NOTE: we pass in the RESOLVED from time (i.e. r.FromTime) rather than the original from time (i.e. params.From)
+	timeRange := collection_state.CollectionTimeRange{
+		From:            r.FromTime,
+		To:              r.ToTime,
+		CollectionOrder: r.CollectionOrder,
+	}
+	err = r.CollectionState.Init(timeRange, params.Recollect, params.CollectionStatePath)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -222,10 +222,13 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 	return nil
 }
 
-func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
-	if !params.From.IsZero() {
+// SetFromTime sets the from time for the data collection
+// If the from time is not set, it will be set to the end time of the collection state
+// If the collection state is empty, it will be set to the default initial collection period
+func (r *RowSourceImpl[S, T]) setFromTime(from time.Time) {
+	if !from.IsZero() {
 		// just set the collection state end time
-		r.FromTime = params.From
+		r.FromTime = from
 		r.FromTimeSource = ""
 		return
 	}
