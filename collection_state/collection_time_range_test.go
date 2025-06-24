@@ -460,149 +460,76 @@ func TestCollectionTimeRange_onOrInsideLowerBoundary(t *testing.T) {
 }
 
 func TestCollectionTimeRange_onOrInsideUpperBoundary(t *testing.T) {
-	type fields struct {
-		From            time.Time
-		To              time.Time
-		CollectionOrder CollectionOrder
-	}
-	type args struct {
-		timestamp time.Time
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
+		name      string
+		timeRange CollectionTimeRange
+		timestamp time.Time
+		want      bool
 	}{
 		{
-			name: "forward - at end time (inclusive)",
-			fields: fields{
-				From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-			},
-			want: true,
+			name:      "forward - at end time (inclusive)",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-01 00:00:00"), To: timeString("2025-04-07 00:00:00")},
+			timestamp: timeString("2025-04-07 00:00:00"),
+			want:      true,
 		},
 		{
-			name: "forward - before end time",
-			fields: fields{
-				From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 6, 0, 0, 0, 0, time.UTC),
-			},
-			want: true,
+			name:      "forward - before end time",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-01 00:00:00"), To: timeString("2025-04-07 00:00:00")},
+			timestamp: timeString("2025-04-06 00:00:00"),
+			want:      true,
 		},
 		{
-			name: "forward - after end time",
-			fields: fields{
-				From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 8, 0, 0, 0, 0, time.UTC),
-			},
-			want: false,
+			name:      "forward - after end time",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-01 00:00:00"), To: timeString("2025-04-07 00:00:00")},
+			timestamp: timeString("2025-04-08 00:00:00"),
+			want:      false,
 		},
 		{
-			name: "forward - at start time",
-			fields: fields{
-				From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-			},
-			want: true,
+			name:      "forward - at start time",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-01 00:00:00"), To: timeString("2025-04-07 00:00:00")},
+			timestamp: timeString("2025-04-01 00:00:00"),
+			want:      true,
 		},
 		{
-			name: "reverse - at start time (inclusive)",
-			fields: fields{
-				From:            time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderReverse,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-			},
-			want: true,
+			name:      "reverse - at start time (inclusive)",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-07 00:00:00"), To: timeString("2025-04-01 00:00:00"), CollectionOrder: CollectionOrderReverse},
+			timestamp: timeString("2025-04-07 00:00:00"),
+			want:      true,
 		},
 		{
-			name: "reverse - after start time",
-			fields: fields{
-				From:            time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderReverse,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 8, 0, 0, 0, 0, time.UTC),
-			},
-			want: true,
+			name:      "reverse - after start time",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-07 00:00:00"), To: timeString("2025-04-01 00:00:00"), CollectionOrder: CollectionOrderReverse},
+			timestamp: timeString("2025-04-08 00:00:00"),
+			want:      true,
 		},
 		{
-			name: "reverse - before start time",
-			fields: fields{
-				From:            time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderReverse,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 6, 0, 0, 0, 0, time.UTC),
-			},
-			want: false,
+			name:      "reverse - before start time",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-07 00:00:00"), To: timeString("2025-04-01 00:00:00"), CollectionOrder: CollectionOrderReverse},
+			timestamp: timeString("2025-04-06 00:00:00"),
+			want:      false,
 		},
 		{
-			name: "reverse - at end time",
-			fields: fields{
-				From:            time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderReverse,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-			},
-			want: false,
+			name:      "reverse - at end time",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-07 00:00:00"), To: timeString("2025-04-01 00:00:00"), CollectionOrder: CollectionOrderReverse},
+			timestamp: timeString("2025-04-01 00:00:00"),
+			want:      false,
 		},
 		{
-			name: "forward - within range",
-			fields: fields{
-				From:            time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 4, 12, 0, 0, 0, time.UTC),
-			},
-			want: true,
+			name:      "forward - within range",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-01 00:00:00"), To: timeString("2025-04-07 00:00:00")},
+			timestamp: timeString("2025-04-04 12:00:00"),
+			want:      true,
 		},
 		{
-			name: "reverse - within range",
-			fields: fields{
-				From:            time.Date(2025, 4, 7, 0, 0, 0, 0, time.UTC),
-				To:              time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC),
-				CollectionOrder: CollectionOrderReverse,
-			},
-			args: args{
-				timestamp: time.Date(2025, 4, 4, 12, 0, 0, 0, time.UTC),
-			},
-			want: false,
+			name:      "reverse - within range",
+			timeRange: CollectionTimeRange{From: timeString("2025-04-07 00:00:00"), To: timeString("2025-04-01 00:00:00"), CollectionOrder: CollectionOrderReverse},
+			timestamp: timeString("2025-04-04 12:00:00"),
+			want:      false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := CollectionTimeRange{
-				From:            tt.fields.From,
-				To:              tt.fields.To,
-				CollectionOrder: tt.fields.CollectionOrder,
-			}
-			if got := r.onOrInsideUpperBoundary(tt.args.timestamp); got != tt.want {
+			if got := tt.timeRange.onOrInsideUpperBoundary(tt.timestamp); got != tt.want {
 				t.Errorf("onOrInsideUpperBoundary() = %v, want %v", got, tt.want)
 			}
 		})
@@ -760,60 +687,44 @@ func TestCollectionTimeRange_IsRangeSubsumed(t *testing.T) {
 		want   bool
 	}{
 		{
-			name: "not_subsumed",
-			range1: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-03 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			range2: CollectionTimeRange{
-				From:            timeString("2025-01-02 00:00:00"),
-				To:              timeString("2025-01-04 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			want: false,
+			/*  1234
+			    AA--
+			    -BB-
+			*/
+			name:   "not_subsumed",
+			range1: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			range2: CollectionTimeRange{From: timeString("2025-01-02 00:00:00"), To: timeString("2025-01-04 00:00:00")},
+			want:   false,
 		},
 		{
-			name: "subsumed",
-			range1: CollectionTimeRange{
-				From:            timeString("2025-01-02 00:00:00"),
-				To:              timeString("2025-01-03 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			range2: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-04 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			want: true,
+			/*  1234
+			    --A-
+			    BBB-
+			*/
+			name:   "subsumed",
+			range1: CollectionTimeRange{From: timeString("2025-01-02 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			range2: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-04 00:00:00")},
+			want:   true,
 		},
 		{
-			name: "exact_match",
-			range1: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-02 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			range2: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-02 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			want: true,
+			/*  1234
+			    A-
+			    B-
+			*/
+			name:   "exact_match",
+			range1: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-02 00:00:00")},
+			range2: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-02 00:00:00")},
+			want:   true,
 		},
 		{
-			name: "same_start_different_end",
-			range1: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-03 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			range2: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-02 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			want: false,
+			/*  123
+			    AA-
+			    B--
+			*/
+			name:   "same_start_different_end",
+			range1: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			range2: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-02 00:00:00")},
+			want:   false,
 		},
 	}
 
@@ -827,189 +738,126 @@ func TestCollectionTimeRange_IsRangeSubsumed(t *testing.T) {
 }
 
 func TestCollectionTimeRange_OverlapsEnd(t1 *testing.T) {
-	type fields struct {
-		From            time.Time
-		To              time.Time
-		CollectionOrder CollectionOrder
-	}
-	type args struct {
-		other CollectionTimeRange
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
+		name  string
+		us    CollectionTimeRange
+		other CollectionTimeRange
+		want  bool
 	}{
 		{
-			name: "our start overlaps other end",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-04 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: true,
+			/*  12345
+			    --AA-
+			    BBB--
+			*/
+			name:  "our start overlaps other end",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-04 00:00:00")},
+			want:  true,
 		},
 		{
-			name: "no overlap - other completely before",
-			fields: fields{
-				From:            timeString("2025-01-05 00:00:00"),
-				To:              timeString("2025-01-07 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-03 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			/*  1234567
+			    ----AA-
+			    BB-----
+			*/
+			name:  "no overlap - other completely before",
+			us:    CollectionTimeRange{From: timeString("2025-01-05 00:00:00"), To: timeString("2025-01-07 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			want:  false,
 		},
 		{
-			name: "no overlap - other completely after",
-			fields: fields{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-03 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-05 00:00:00"),
-					To:              timeString("2025-01-07 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			/*  1234567
+			    AA-----
+			    ----BB-
+			*/
+			name:  "no overlap - other completely after",
+			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-05 00:00:00"), To: timeString("2025-01-07 00:00:00")},
+			want:  false,
 		},
 		{
-			name: "exact boundary match - no overlap",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-03 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			/*  12345
+			    --AA-
+			    BB---
+			*/
+			name:  "exact boundary match - no overlap",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			want:  false,
 		},
 		{
-			name: "other end exactly at our start - no overlap",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-03 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			/*  12345
+			    --AA-
+			    BB---
+			*/
+			name:  "other end exactly at our start - no overlap",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			want:  false,
 		},
 		{
-			name: "other extends beyond our end - no overlap",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-07 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false, // This should be false because other.To is not before our To
+			/*  12345
+			    --AA-
+			    BB---
+			*/
+			name:  "edge case - minimal overlap",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:01"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:02")},
+			want:  true,
 		},
 		{
-			name: "edge case - minimal overlap",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:01"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-03 00:00:02"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: true,
+			/*  12345
+			    --AA-
+			    BB---
+			*/
+			name:  "edge case - other end just after our start",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:01")},
+			want:  true,
 		},
 		{
-			name: "edge case - other end exactly at our start boundary",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-03 00:00:00"),
-					To:              timeString("2025-01-05 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			/*  1234567
+			    --AA---
+			    BBBBB--
+			*/
+			name:  "other extends beyond our end - no overlap",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-07 00:00:00")},
+			want:  false, // This should be false because other.To is not before our To
 		},
 		{
-			name: "edge case - other end just before our start",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-02 23:59:59"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			/*  12345
+			    --AA-
+			    --AA-
+			*/
+			name:  "edge case - other end exactly at our start boundary",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			want:  false,
 		},
 		{
-			name: "edge case - other end just after our start",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-03 00:00:01"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: true,
+			/*  12345
+			    --AA-
+			    B----
+			*/
+			name:  "edge case - other end just before our start",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-02 23:59:59")},
+			want:  false,
+		},
+		{
+			/*  12345
+			    --AA-
+			    BB---
+			*/
+			name:  "edge case - other end just after our start",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:01")},
+			want:  true,
 		},
 	}
 	for _, tt := range tests {
 		t1.Run(tt.name, func(t1 *testing.T) {
-			t := &CollectionTimeRange{
-				From:            tt.fields.From,
-				To:              tt.fields.To,
-				CollectionOrder: tt.fields.CollectionOrder,
-			}
-			if got := t.OverlapsEnd(tt.args.other); got != tt.want {
+			if got := tt.us.OverlapsEnd(tt.other); got != tt.want {
 				t1.Errorf("OverlapsEnd() = %v, want %v", got, tt.want)
 			}
 		})
@@ -1017,158 +865,80 @@ func TestCollectionTimeRange_OverlapsEnd(t1 *testing.T) {
 }
 
 func TestCollectionTimeRange_OverlapsStart(t1 *testing.T) {
-	type fields struct {
-		From            time.Time
-		To              time.Time
-		CollectionOrder CollectionOrder
-	}
-	type args struct {
-		other CollectionTimeRange
-	}
 	tests := []struct {
-		name   string
-		fields fields
-		args   args
-		want   bool
+		name  string
+		us    CollectionTimeRange
+		other CollectionTimeRange
+		want  bool
 	}{
 		{
 			/*  12345
 				AAA-
 			    --BB
 			*/
-			name: "our end overlaps other start",
-			fields: fields{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-04 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-03 00:00:00"),
-					To:              timeString("2025-01-05 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: true,
+			name:  "our end overlaps other start",
+			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-04 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			want:  true,
 		},
 		{
 			/*  1234567
 			    AAAA---
 			    --BBBB--
 			*/
-			name: "other starts overlaps our end",
-			fields: fields{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-03 00:00:00"),
-					To:              timeString("2025-01-07 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: true,
+			name:  "other starts overlaps our end",
+			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-07 00:00:00")},
+			want:  true,
 		},
 		{
 			/*  1234567
 			    ----AA-
 			    BB-----
 			*/
-			name: "no overlap - other completely before",
-			fields: fields{
-				From:            timeString("2025-01-05 00:00:00"),
-				To:              timeString("2025-01-07 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-03 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			name:  "no overlap - other completely before",
+			us:    CollectionTimeRange{From: timeString("2025-01-05 00:00:00"), To: timeString("2025-01-07 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			want:  false,
 		},
 		{
 			/*  1234567
 			    AA-----
 			    ----BB-
 			*/
-			name: "no overlap - other completely after",
-			fields: fields{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-03 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-05 00:00:00"),
-					To:              timeString("2025-01-07 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			name:  "no overlap - other completely after",
+			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-05 00:00:00"), To: timeString("2025-01-07 00:00:00")},
+			want:  false,
 		},
 		{
 			/*  1234567
 			    AA-----
 			    --BB---
 			*/
-			name: "other start exactly at our end - no overlap",
-			fields: fields{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-03 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-03 00:00:00"),
-					To:              timeString("2025-01-05 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			name:  "other start exactly at our end - no overlap",
+			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			want:  false,
 		},
 		{
 			/*  1234567
 			    AA-----
 			    --BB---
 			*/
-			name: "1s overlap at end",
-			fields: fields{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-03 00:00:02"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-03 00:00:01"),
-					To:              timeString("2025-01-05 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: true,
+			name:  "1s overlap at end",
+			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:02")},
+			other: CollectionTimeRange{From: timeString("2025-01-03 00:00:01"), To: timeString("2025-01-05 00:00:00")},
+			want:  true,
 		},
 		{
 			/*  1234567
 			    --AA---
 			    BBBBBB-
 			*/
-			name: "edge case - other subsumes us",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-07 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
+			name:  "edge case - other subsumes us",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-07 00:00:00")},
 			// return false if either range subsumes the other
 			want: false,
 		},
@@ -1178,19 +948,9 @@ func TestCollectionTimeRange_OverlapsStart(t1 *testing.T) {
 				    AAAAAA-
 				    --BB---
 			*/
-			name: "edge case - we subsume other",
-			fields: fields{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-07 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-03 00:00:00"),
-					To:              timeString("2025-01-05 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
+			name:  "edge case - we subsume other",
+			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-07 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
 			// return false if either range subsumes the other
 			want: false,
 		},
@@ -1200,19 +960,9 @@ func TestCollectionTimeRange_OverlapsStart(t1 *testing.T) {
 				    AA-----
 				    BBBB---
 			*/
-			name: "edge case - other starts exactly at our start and subsumes us",
-			fields: fields{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-03 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-05 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
+			name:  "edge case - other starts exactly at our start and subsumes us",
+			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-03 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-05 00:00:00")},
 			// return false if either range subsumes the other
 			want: false,
 		},
@@ -1222,20 +972,10 @@ func TestCollectionTimeRange_OverlapsStart(t1 *testing.T) {
 				    --AA---
 				    BBB----
 			*/
-			name: "other overlaps our start",
-			fields: fields{
-				From:            timeString("2025-01-03 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-01 00:00:00"),
-					To:              timeString("2025-01-04 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: false,
+			name:  "other overlaps our start",
+			us:    CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-04 00:00:00")},
+			want:  false,
 		},
 		{
 			/*
@@ -1243,30 +983,15 @@ func TestCollectionTimeRange_OverlapsStart(t1 *testing.T) {
 				    AAAA---
 				    --BB---
 			*/
-			name: "other overlaps out end but To times the same",
-			fields: fields{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
-				CollectionOrder: CollectionOrderChronological,
-			},
-			args: args{
-				other: CollectionTimeRange{
-					From:            timeString("2025-01-03 00:00:00"),
-					To:              timeString("2025-01-04 00:00:00"),
-					CollectionOrder: CollectionOrderChronological,
-				},
-			},
-			want: true,
+			name:  "other overlaps out end but To times the same",
+			us:    CollectionTimeRange{From: timeString("2025-01-01 00:00:00"), To: timeString("2025-01-05 00:00:00")},
+			other: CollectionTimeRange{From: timeString("2025-01-03 00:00:00"), To: timeString("2025-01-04 00:00:00")},
+			want:  true,
 		},
 	}
 	for _, tt := range tests {
 		t1.Run(tt.name, func(t1 *testing.T) {
-			t := &CollectionTimeRange{
-				From:            tt.fields.From,
-				To:              tt.fields.To,
-				CollectionOrder: tt.fields.CollectionOrder,
-			}
-			if got := t.OverlapsStart(tt.args.other); got != tt.want {
+			if got := tt.us.OverlapsStart(tt.other); got != tt.want {
 				t1.Errorf("OverlapsStart() = %v, want %v", got, tt.want)
 			}
 		})
