@@ -110,6 +110,7 @@ func (t *TimeRangeCollectionState) GetGranularity() time.Duration {
 	return t.Granularity
 }
 
+// GetFromTime returns the earliest time we have data for
 func (t *TimeRangeCollectionState) GetFromTime() time.Time {
 	if len(t.TimeRanges) == 0 {
 		return time.Time{}
@@ -117,6 +118,9 @@ func (t *TimeRangeCollectionState) GetFromTime() time.Time {
 	return t.TimeRanges[0].GetFromTime()
 }
 
+// GetToTime returns the time we have data UNTIL (exclusive)
+// i.e. the end time is the granularity period AFTER thew time we are confident we have all data for
+// When collection if complete, this will be set to the collection end time
 func (t *TimeRangeCollectionState) GetToTime() time.Time {
 	if len(t.TimeRanges) == 0 {
 		return time.Time{}
@@ -125,18 +129,23 @@ func (t *TimeRangeCollectionState) GetToTime() time.Time {
 }
 
 func (t *TimeRangeCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
-	// does the timestamp fall within the current collection time range?
-	// NOTE the upper boundary is exclusive, so we check that the timestamp is on or inside the lower boundary but inside the upper boundary
-	withinCollectionTimeRange := t.currentCollectionTimeRange.onOrInsideLowerBoundary(timestamp) && t.currentCollectionTimeRange.insideUpperBoundary(timestamp)
-	// if the timestamp is outside the current collection time range, we should not collect
-	if !withinCollectionTimeRange {
-		return false
-	}
+	// if we have time information:
+	// - check whether the timestamp falls within the current collection time range
+	// - update the active range for the timestamp
+	if t.Granularity != 0 {
+		// does the timestamp fall within the current collection time range?
+		// NOTE the upper boundary is exclusive, so we check that the timestamp is on or inside the lower boundary but inside the upper boundary
+		withinCollectionTimeRange := t.currentCollectionTimeRange.onOrInsideLowerBoundary(timestamp) && t.currentCollectionTimeRange.insideUpperBoundary(timestamp)
+		// if the timestamp is outside the current collection time range, we should not collect
+		if !withinCollectionTimeRange {
+			return false
+		}
 
-	// get the active range for this timestamp
-	// this will either return the current active range, or create a new one if needed
-	// (it also checks whether the current active range has joined with the next range and is so sets the active range to the next range)
-	t.updateActiveRange(timestamp)
+		// get the active range for this timestamp
+		// this will either return the current active range, or create a new one if needed
+		// (it also checks whether the current active range has joined with the next range and is so sets the active range to the next range)
+		t.updateActiveRange(timestamp)
+	}
 
 	// ask the active range if we should collect
 	if !t.activeRange.ShouldCollect(id, timestamp) {
@@ -228,6 +237,12 @@ func (t *TimeRangeCollectionState) Compare(want *TimeRangeCollectionState) (bool
 
 // Clear updates the state clear any entries for the given time range.
 func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
+	// if we have no granularity, we must clear the whole state
+	if t.Granularity == 0 {
+		slog.Info("Clearing entire collection state as no granularity is set")
+		t.TimeRanges = make([]*TimeRangeObjectState, 0)
+		return
+	}
 
 	// create a new slice to hold the processed ranges
 	var processedRanges []*TimeRangeObjectState

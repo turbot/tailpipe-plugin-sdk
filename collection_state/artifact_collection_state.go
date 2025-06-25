@@ -148,6 +148,15 @@ func (s *ArtifactCollectionState) ShouldCollect(id string, timestamp time.Time) 
 		return false
 	}
 
+	trunkState := s.getTrunkState(id)
+
+	// cache the trunk for this object
+	s.objectTrunkMap[id] = trunkState
+
+	return trunkState.ShouldCollect(id, timestamp)
+}
+
+func (s *ArtifactCollectionState) getTrunkState(id string) *TimeRangeCollectionState {
 	rootChar := "/"
 	var trunkPath string
 
@@ -181,11 +190,7 @@ func (s *ArtifactCollectionState) ShouldCollect(id string, timestamp time.Time) 
 		// write the state back to TrunkStates
 		s.TrunkStates[trunkPath] = trunkState
 	}
-
-	// cache the trunk for this object
-	s.objectTrunkMap[id] = trunkState
-
-	return trunkState.ShouldCollect(id, timestamp)
+	return trunkState
 }
 
 // OnCollected is called when an object has been collected - update our end time and end objects if needed
@@ -239,7 +244,6 @@ func (s *ArtifactCollectionState) Clear(timeRange CollectionTimeRange) {
 	}
 
 	slog.Debug("Collection state after clearing", "state", s.String())
-
 }
 
 // MigrateFromLegacyState attempts to migrate from a legacy collection state
