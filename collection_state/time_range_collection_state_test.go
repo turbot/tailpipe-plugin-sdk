@@ -763,14 +763,10 @@ func TestTimeRangeCollectionState_emulate_collection(t *testing.T) {
 			state := tt.state
 			if state == nil {
 				state = NewTimeRangeCollectionState().(*TimeRangeCollectionState)
-				// TODO need better way of setting order
-				state.Order = tt.order
-				// set the granularity
-				state.Granularity = tt.granularity
 			}
 
 			// Always initialize the state with the collection time range
-			state.Init(CollectionTimeRange{From: tt.from, To: tt.to, CollectionOrder: tt.order}, 0)
+			state.Init(CollectionTimeRange{From: tt.from, To: tt.to, CollectionOrder: tt.order}, tt.granularity)
 
 			// Simulate collection process
 			fileTime := tt.from
@@ -967,7 +963,7 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.state.Init(collectionTimeRange, 0)
+			tt.state.Init(collectionTimeRange, 24*time.Hour)
 			if got := tt.state.ShouldCollect(tt.objectId, tt.objectTimestamp); got != tt.want {
 				t.Errorf("ShouldCollect() = %v, want %v", got, tt.want)
 			}
@@ -1065,7 +1061,7 @@ func TestTimeRangeCollectionState_updateActiveRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.state.Init(collectionTimeRange, 0)
+			tt.state.Init(collectionTimeRange, 24*time.Hour)
 			// if there is a timestamp, update the active range - this will either set the active range  to an existing range or
 			// create a new range with the timestamp as the start time
 			if !tt.timestamp.IsZero() {

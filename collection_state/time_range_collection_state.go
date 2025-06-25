@@ -59,6 +59,8 @@ func NewTimeRangeCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegac
 // (normally the state is compacted before the final save but if the process was killed before that,
 // we may have a collection state with multiple ranges that can be merged)
 func (t *TimeRangeCollectionState) Init(collectionTimeRange CollectionTimeRange, granularity time.Duration) {
+	// set out order from the collection time range
+	t.Order = collectionTimeRange.CollectionOrder
 	// Set granularity
 	// NOTE: no need to set granularity on child time ranges - if we have any time ranges at this point,
 	// this state must have been loaded so they will already have the granularity set

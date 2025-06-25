@@ -252,6 +252,10 @@ func (s *ArtifactCollectionState) MigrateFromLegacyState(bytes []byte) error {
 
 		// Use the new constructor for legacy trunk states
 		s.TrunkStates[trunkPath] = NewTimeRangeCollectionStateFromLegacy(legacyTrunkState)
+		// set the granularity from the legacy state
+		if s.granularity == 0 {
+			s.granularity = legacyTrunkState.Granularity
+		}
 	}
 
 	return nil

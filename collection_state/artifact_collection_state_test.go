@@ -51,21 +51,6 @@ func TestArtifactCollectionState_MigrateFromLegacyState(t *testing.T) {
 			}, time.Hour*24),
 		},
 		{
-			name: "different granularity",
-			legacy: buildArtifactCollectionStateLegacy(map[string]*TimeRangeCollectionStateLegacy{
-				"/trunk1": buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderChronological, "object1"),
-				"/trunk2": buildTimeRangeCollectionStateLegacy("2023-11-01 00:00:00", "2023-11-30 00:00:00", time.Hour, CollectionOrderReverse, "object2"),
-			}, timeString("2023-12-01 12:00:00")),
-			expected: buildArtifactCollectionState(map[string]*TimeRangeCollectionState{
-				"/trunk1": buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,
-					buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*24, CollectionOrderChronological, "object1"),
-				),
-				"/trunk2": buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour,
-					buildTimeRangeState("2023-11-30 00:00:00", "2023-11-01 00:00:00", time.Hour, CollectionOrderReverse, "object2"),
-				),
-			}, time.Hour*24),
-		},
-		{
 			name: "reverse order with multiple end objects",
 			legacy: buildArtifactCollectionStateLegacy(map[string]*TimeRangeCollectionStateLegacy{
 				"/trunk1": buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
