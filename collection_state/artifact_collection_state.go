@@ -40,30 +40,21 @@ func NewArtifactCollectionState() CollectionState {
 }
 
 // Init sets the filepath of the collection state and loads the state from the file if it exists
-func (s *ArtifactCollectionState) Init(collectionTimeRange CollectionTimeRange) {
-	s.currentCollectionTimeRange = &collectionTimeRange
-
-	// call init on all trunk states to ensure they are initialised
-	for _, trunkState := range s.TrunkStates {
-		if trunkState != nil {
-			trunkState.Init(collectionTimeRange)
-		}
-	}
-}
-
-// SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
-// granularity of the time metadata it contains
-func (s *ArtifactCollectionState) SetGranularity(granularity time.Duration) {
+func (s *ArtifactCollectionState) Init(collectionTimeRange CollectionTimeRange, granularity time.Duration) {
 	// ensure the granularity is no smaller than the minimum
 	if granularity < MinArtifactGranularity && granularity != 0 {
 		granularity = MinArtifactGranularity
 	}
 	s.granularity = granularity
-}
 
-// GetGranularity returns the granularity of the collection state
-func (s *ArtifactCollectionState) GetGranularity() time.Duration {
-	return s.granularity
+	s.currentCollectionTimeRange = &collectionTimeRange
+
+	// call init on all trunk states to ensure they are initialised
+	for _, trunkState := range s.TrunkStates {
+		if trunkState != nil {
+			trunkState.Init(collectionTimeRange, granularity)
+		}
+	}
 }
 
 func (s *ArtifactCollectionState) GetFromTime() time.Time {
@@ -183,9 +174,7 @@ func (s *ArtifactCollectionState) getTrunkState(id string) *TimeRangeCollectionS
 		// create a new collection state
 		trunkState = NewTimeRangeCollectionState().(*TimeRangeCollectionState)
 		// initialize the trunk state with the current collection time range
-		trunkState.Init(*s.currentCollectionTimeRange)
-		// set the granularity
-		trunkState.SetGranularity(s.granularity)
+		trunkState.Init(*s.currentCollectionTimeRange, s.granularity)
 
 		// write the state back to TrunkStates
 		s.TrunkStates[trunkPath] = trunkState
@@ -265,16 +254,6 @@ func (s *ArtifactCollectionState) MigrateFromLegacyState(bytes []byte) error {
 		s.TrunkStates[trunkPath] = NewTimeRangeCollectionStateFromLegacy(legacyTrunkState)
 	}
 
-	// Set the granularity from the first trunk state if available
-	if len(s.TrunkStates) > 0 {
-		for _, trunkState := range s.TrunkStates {
-			if trunkState != nil {
-				s.SetGranularity(trunkState.GetGranularity())
-				break
-			}
-		}
-	}
-
 	return nil
 }
 
@@ -306,8 +285,8 @@ func (s *ArtifactCollectionState) Compare(want *ArtifactCollectionState) (bool, 
 			return false, fmt.Sprintf("trunk %v: %s", k, msg)
 		}
 	}
-	if s.GetGranularity() != want.GetGranularity() {
-		return false, fmt.Sprintf("granularity = %v, want %v", s.GetGranularity(), want.GetGranularity())
+	if s.granularity != want.granularity {
+		return false, fmt.Sprintf("granularity = %v, want %v", s.granularity, want.granularity)
 	}
 	return true, ""
 }

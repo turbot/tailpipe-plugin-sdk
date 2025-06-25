@@ -21,7 +21,7 @@ func (s *NilArtifactCollectionState) GetToTime() time.Time {
 func (s *NilArtifactCollectionState) SetEndTime(_ time.Time) {
 }
 
-func (*NilArtifactCollectionState) Init(collection_state.CollectionTimeRange) {
+func (*NilArtifactCollectionState) Init(collection_state.CollectionTimeRange, time.Duration) {
 }
 
 func (s *NilArtifactCollectionState) RegisterPath(_ string, _ map[string]string) {
@@ -33,13 +33,6 @@ func (*NilArtifactCollectionState) ShouldCollect(_ string, _ time.Time) bool {
 
 func (*NilArtifactCollectionState) OnCollected(_ string, _ time.Time) error {
 	return nil
-}
-
-func (*NilArtifactCollectionState) SetGranularity(_ time.Duration) {
-}
-
-func (*NilArtifactCollectionState) GetGranularity() time.Duration {
-	return 0
 }
 
 func (*NilArtifactCollectionState) IsEmpty() bool {

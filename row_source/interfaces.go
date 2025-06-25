@@ -2,9 +2,8 @@ package row_source
 
 import (
 	"context"
-	"github.com/turbot/tailpipe-plugin-sdk/types"
-
 	"github.com/turbot/tailpipe-plugin-sdk/observable"
+	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
 // RowSource is the interface that represents a data source

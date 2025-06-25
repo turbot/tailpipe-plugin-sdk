@@ -20,14 +20,9 @@ type SaveableCollectionState struct {
 	jsonPath     string
 	lastSaveTime time.Time
 	// the time the last artifact was collected
-	// TODO check this
-	// TACTICAL: this is used in GetEndTime called by RowSourceImpl.setFromTime
-	// if there is no timing information in the files, we use this to determine the end time
-	// which we pass to the CLI to use as the --from time (if one has not been passed)
-	// NOTE: this assumes forward collection
-	LastModifiedTime time.Time `json:"last_modified_time,omitempty"`
-
-	mut *sync.RWMutex
+	lastModifiedTime time.Time
+	granularity      time.Duration
+	mut              *sync.RWMutex
 }
 
 func NewSaveableCollectionState(state CollectionState, path string) (*SaveableCollectionState, error) {
@@ -48,7 +43,15 @@ func NewSaveableCollectionState(state CollectionState, path string) (*SaveableCo
 
 // Init initializes the SaveableCollectionState with a CollectionTimeRange and a file path
 // if the file exists, it loads the state from the file
-func (s *SaveableCollectionState) Init(collectionTimeRange CollectionTimeRange, recollect bool, path string) error {
+func (s *SaveableCollectionState) Init(collectionTimeRange CollectionTimeRange, recollect bool, granularity time.Duration) error {
+	// save the granularity
+	s.granularity = granularity
+
+	// NOTE: if granularity is zero, we DO NOT support collecting for a time range so clear the time range
+	if granularity == 0 {
+		slog.Info("Granularity is zero - clearing collection time range")
+		collectionTimeRange = CollectionTimeRange{}
+	}
 	// if we are recollecting, clear BEFORE call to Init, as Init will set the active range
 	// which we must not do until we have cleared the state
 	if recollect {
@@ -57,16 +60,9 @@ func (s *SaveableCollectionState) Init(collectionTimeRange CollectionTimeRange, 
 		s.State.Clear(collectionTimeRange)
 	}
 
-	s.State.Init(collectionTimeRange)
+	s.State.Init(collectionTimeRange, granularity)
+
 	return s.State.Validate()
-}
-
-func (s *SaveableCollectionState) SetGranularity(duration time.Duration) {
-	s.State.SetGranularity(duration)
-}
-
-func (s *SaveableCollectionState) GetGranularity() time.Duration {
-	return s.State.GetGranularity()
 }
 
 func (s *SaveableCollectionState) GetFromTime() time.Time {
@@ -75,11 +71,7 @@ func (s *SaveableCollectionState) GetFromTime() time.Time {
 
 func (s *SaveableCollectionState) GetToTime() time.Time {
 	endTime := s.State.GetToTime()
-	// TODO #CS IS THIS RIGHT???? WHAT ABOUT NO GRANULARITY
-	// if there is NO end time, the end of the last collection
-	if endTime.IsZero() {
-		endTime = s.LastModifiedTime
-	}
+
 	return endTime
 }
 
@@ -88,7 +80,7 @@ func (s *SaveableCollectionState) OnCollectionComplete() error {
 	defer s.mut.Unlock()
 
 	// ensure we save the state
-	s.LastModifiedTime = time.Now()
+	s.lastModifiedTime = time.Now()
 
 	// call the collection state complete method
 	if err := s.State.OnCollectionComplete(); err != nil {
@@ -115,7 +107,7 @@ func (s *SaveableCollectionState) OnCollected(id string, timestamp time.Time) er
 	defer s.mut.Unlock()
 
 	// store modified time to ensure we save the state
-	s.LastModifiedTime = time.Now()
+	s.lastModifiedTime = time.Now()
 
 	return s.State.OnCollected(id, timestamp)
 }
@@ -139,7 +131,7 @@ func (s *SaveableCollectionState) Save() error {
 // NOTE: This method assumes the mutex is already locked by the caller.
 func (s *SaveableCollectionState) save() error {
 	// if the last save time is after the last modified time, then we have nothing to do
-	if s.lastSaveTime.After(s.LastModifiedTime) {
+	if s.lastSaveTime.After(s.lastModifiedTime) {
 		// nothing to do
 		return nil
 	}
@@ -199,4 +191,8 @@ func (s *SaveableCollectionState) LoadFromFile(path string) error {
 		return s.State.MigrateFromLegacyState(jsonBytes)
 	}
 	return nil
+}
+
+func (s *SaveableCollectionState) GetGranularity() time.Duration {
+	return s.granularity
 }

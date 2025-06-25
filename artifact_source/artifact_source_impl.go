@@ -101,6 +101,13 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	}
 	a.TempDir = artifactDir
 
+	// set the func to call to retrieve the granularity for the source
+	// this mechanism avoids a tricky timing problem - we need the granularity within RowSourceImpl.Init to pass to
+	// the CollectionState, but we need the config parsed in order RowSourceImpl.Init to get the granularity,
+	a.RowSourceImpl.GetGranularityFunc = func() time.Duration {
+		return helpers.GetGranularityFromFileLayout(a.Config.GetFileLayout())
+	}
+
 	// call base to apply options and parse config
 	if err := a.RowSourceImpl.Init(ctx, params, opts...); err != nil {
 		slog.Warn("Initializing artifact_row_source.RowSourceImpl failed", "error", err)
@@ -119,10 +126,6 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 		return errors.New("ArtifactSourceImpl.Source must implement ArtifactSource")
 	}
 	a.Source = impl
-
-	// set the granularity of the collection state using the value derived from the file layout
-	granularity := helpers.GetGranularityFromFileLayout(a.Config.GetFileLayout())
-	a.CollectionState.SetGranularity(granularity)
 
 	// setup rate limiter
 	a.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{

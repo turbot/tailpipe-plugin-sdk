@@ -22,6 +22,9 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// DefaultAPIGranularity is the default granularity for API sources
+const DefaultAPIGranularity = 1 * time.Nanosecond
+
 // RowSourceImpl is a base implementation of the [plugin.RowSource] interface
 // It implements the [observable.Observable] interface, as well as providing a default implementation of
 // Close(), and contains the logic to raise a Row event
@@ -52,6 +55,13 @@ type RowSourceImpl[S, T parse.Config] struct {
 	// store errors - we only use this to determine whether the source collection was successful,
 	// and therefore whether we should set the CollectionState EndTime to the collection To time from OnCollectionComplete
 	ErrorCount int32
+
+	// a func to call to retrieve the granularity for the source
+	// this is provided to avoid a tricky timing problem - we want to get the granularity within RowSourceImpl.Init
+	// but ArtifactSourceImpl.Init  needs to use our config to determine the granularity and this is not available
+	// until after the RowSourceImpl.Init is called
+	// so ArtifactSourceImpl.Init will set this func to return the granularity
+	GetGranularityFunc func() time.Duration
 }
 
 // RegisterSource is called by the source implementation to register itself with the base
@@ -64,6 +74,7 @@ func (r *RowSourceImpl[S, T]) RegisterSource(source RowSource) {
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
+// opts are populated based on the table source config
 func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, opts ...RowSourceOption) error {
 	slog.Info(fmt.Sprintf("Initializing RowSourceImpl %p, impl %p", r, r.Source))
 	if r.NewCollectionStateFunc == nil {
@@ -105,7 +116,15 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 		To:              r.ToTime,
 		CollectionOrder: r.CollectionOrder,
 	}
-	err = r.CollectionState.Init(timeRange, params.Recollect, params.CollectionStatePath)
+
+	// if the granularity is not set, default to 1ns (the default for APIs0
+
+	granularity := DefaultAPIGranularity
+	if r.GetGranularityFunc != nil {
+		granularity = r.GetGranularityFunc()
+	}
+
+	err = r.CollectionState.Init(timeRange, params.Recollect, granularity)
 	if err != nil {
 		return err
 	}

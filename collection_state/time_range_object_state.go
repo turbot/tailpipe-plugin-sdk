@@ -37,17 +37,15 @@ type TimeRangeObjectState struct {
 	Granularity time.Duration `json:"granularity"`
 }
 
-func newTimeRangeCollectionState(from time.Time, order CollectionOrder) *TimeRangeObjectState {
+func newTimeRangeCollectionState(from time.Time, order CollectionOrder, granularity time.Duration) *TimeRangeObjectState {
 	return &TimeRangeObjectState{
 		TimeRange: CollectionTimeRange{
 			From:            from,
 			To:              from,
 			CollectionOrder: order,
 		},
-		EndObjects: make(map[string]struct{}),
-		// default granularity is 1 nanosecond - the default for api sources
-		// this will be overridden by ArtifactCollectionState as needed
-		Granularity: 1 * time.Nanosecond,
+		EndObjects:  make(map[string]struct{}),
+		Granularity: granularity,
 	}
 }
 
@@ -131,12 +129,6 @@ func (s *TimeRangeObjectState) GetFromTime() time.Time {
 func (s *TimeRangeObjectState) GetToTime() time.Time {
 	// i.e. the last time period we are sure we have ALL data for
 	return s.TimeRange.To
-}
-
-// SetGranularity sets the granularity of the collection state - this is determined by the file layout and the
-// granularity of the time metadata it contains
-func (s *TimeRangeObjectState) SetGranularity(granularity time.Duration) {
-	s.Granularity = granularity
 }
 
 // GetGranularity returns the granularity of the collection state

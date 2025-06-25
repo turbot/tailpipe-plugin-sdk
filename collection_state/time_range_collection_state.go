@@ -58,7 +58,12 @@ func NewTimeRangeCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegac
 // compact the time ranges in case the previous collection was not completed successfully
 // (normally the state is compacted before the final save but if the process was killed before that,
 // we may have a collection state with multiple ranges that can be merged)
-func (t *TimeRangeCollectionState) Init(collectionTimeRange CollectionTimeRange) {
+func (t *TimeRangeCollectionState) Init(collectionTimeRange CollectionTimeRange, granularity time.Duration) {
+	// Set granularity
+	// NOTE: no need to set granularity on child time ranges - if we have any time ranges at this point,
+	// this state must have been loaded so they will already have the granularity set
+	t.Granularity = granularity
+
 	// initialise the active range - this will create a new range for the collectionTimeRange from time if needed
 	t.setCurrentCollectionTimeRange(collectionTimeRange)
 
@@ -95,15 +100,6 @@ func (t *TimeRangeCollectionState) OnCollectionComplete() error {
 	t.compactForCollectionPeriod()
 
 	return nil
-}
-
-func (t *TimeRangeCollectionState) SetGranularity(granularity time.Duration) {
-	t.Granularity = granularity
-	// set the granularity for all existing time ranges
-	// TODO it would be nice to set the granularity when we create the state - see if we can do this
-	for _, timeRange := range t.TimeRanges {
-		timeRange.SetGranularity(granularity)
-	}
 }
 
 func (t *TimeRangeCollectionState) GetGranularity() time.Duration {
@@ -568,8 +564,8 @@ func (t *TimeRangeCollectionState) rangeForTime(timestamp time.Time) *TimeRangeO
 // addRange creates a new time range for the given timestamp and adds it to the collection in the correct position
 func (t *TimeRangeCollectionState) addRange(timestamp time.Time) *TimeRangeObjectState {
 	// create a new time range
-	newRange := newTimeRangeCollectionState(timestamp, t.Order)
-	newRange.SetGranularity(t.Granularity)
+	newRange := newTimeRangeCollectionState(timestamp, t.Order, t.Granularity)
+
 	// find the appropriate location to insert the new range into our list
 	for i, r := range t.TimeRanges {
 		if r.GetFromTime().After(timestamp) {
