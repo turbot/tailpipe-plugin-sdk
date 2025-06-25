@@ -48,7 +48,7 @@ message CollectRequest {
   // the collection end time
   google.protobuf.Timestamp to_time = 13;
   // recollect all data for the specified time range even if it has been collected already
-  bool recollect = 14;
+  optional bool recollect = 14;
 }
 
 message UpdateCollectionStateRequest {

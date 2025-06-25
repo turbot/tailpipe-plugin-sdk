@@ -85,7 +85,7 @@ type CollectRequest struct {
 	// the collection end time
 	ToTime *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
 	// recollect all data for the specified time range even if it has been collected already
-	Recollect     bool `protobuf:"varint,14,opt,name=recollect,proto3" json:"recollect,omitempty"`
+	Recollect     *bool `protobuf:"varint,14,opt,name=recollect,proto3,oneof" json:"recollect,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -212,8 +212,8 @@ func (x *CollectRequest) GetToTime() *timestamppb.Timestamp {
 }
 
 func (x *CollectRequest) GetRecollect() bool {
-	if x != nil {
-		return x.Recollect
+	if x != nil && x.Recollect != nil {
+		return *x.Recollect
 	}
 	return false
 }
@@ -2929,7 +2929,7 @@ var File_plugin_proto protoreflect.FileDescriptor
 const file_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\fplugin.proto\x12\x05proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\a\n" +
-	"\x05Empty\"\xb9\x05\n" +
+	"\x05Empty\"\xcc\x05\n" +
 	"\x0eCollectRequest\x12\x1d\n" +
 	"\n" +
 	"table_name\x18\x01 \x01(\tR\ttableName\x12%\n" +
@@ -2946,8 +2946,10 @@ const file_plugin_proto_rawDesc = "" +
 	" \x01(\v2\x1b.proto.SourcePluginReattachR\fsourcePlugin\x127\n" +
 	"\tfrom_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x12%\n" +
 	"\x0ftemp_dir_max_mb\x18\f \x01(\x03R\ftempDirMaxMb\x123\n" +
-	"\ato_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\x12\x1c\n" +
-	"\trecollect\x18\x0e \x01(\bR\trecollect\"\xbf\x01\n" +
+	"\ato_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\x12!\n" +
+	"\trecollect\x18\x0e \x01(\bH\x00R\trecollect\x88\x01\x01B\f\n" +
+	"\n" +
+	"_recollect\"\xbf\x01\n" +
 	"\x1cUpdateCollectionStateRequest\x122\n" +
 	"\x15collection_state_path\x18\x01 \x01(\tR\x13collectionStatePath\x122\n" +
 	"\vsource_data\x18\x02 \x01(\v2\x11.proto.ConfigDataR\n" +
@@ -3376,6 +3378,7 @@ func file_plugin_proto_init() {
 	if File_plugin_proto != nil {
 		return
 	}
+	file_plugin_proto_msgTypes[1].OneofWrappers = []any{}
 	file_plugin_proto_msgTypes[14].OneofWrappers = []any{
 		(*Event_StartedEvent)(nil),
 		(*Event_ChunkWrittenEvent)(nil),
