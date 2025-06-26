@@ -117,9 +117,9 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 		CollectionOrder: r.CollectionOrder,
 	}
 
-	// if the granularity is not set, default to 1ns (the default for APIs0
-
+	// if the granularity is not set, default to 1ns (the default for APIs0)
 	granularity := DefaultAPIGranularity
+	// if the GetGranularityFunc is set, call it to get the granularity
 	if r.GetGranularityFunc != nil {
 		granularity = r.GetGranularityFunc()
 	}
