@@ -2518,7 +2518,7 @@ type RowSourceParams struct {
 	// the collection end time
 	ToTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
 	// recollect all data for the specified time range even if it has been collected already
-	Recollect     bool `protobuf:"varint,14,opt,name=recollect,proto3" json:"recollect,omitempty"`
+	Overwrite     bool `protobuf:"varint,14,opt,name=overwrite,proto3" json:"overwrite,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2595,9 +2595,9 @@ func (x *RowSourceParams) GetToTime() *timestamppb.Timestamp {
 	return nil
 }
 
-func (x *RowSourceParams) GetRecollect() bool {
+func (x *RowSourceParams) GetOverwrite() bool {
 	if x != nil {
-		return x.Recollect
+		return x.Overwrite
 	}
 	return false
 }
@@ -3162,7 +3162,7 @@ const file_plugin_proto_rawDesc = "" +
 	"\x13collection_temp_dir\x18\x04 \x01(\tR\x11collectionTempDir\x122\n" +
 	"\x15collection_state_path\x18\x05 \x01(\tR\x13collectionStatePath\x123\n" +
 	"\ato_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\x12\x1c\n" +
-	"\trecollect\x18\x0e \x01(\bR\trecollect\"\xd5\x01\n" +
+	"\toverwrite\x18\x0e \x01(\bR\toverwrite\"\xd5\x01\n" +
 	"\x14ArtifactSourceConfig\x12\x1f\n" +
 	"\vfile_layout\x18\x01 \x01(\tR\n" +
 	"fileLayout\x12E\n" +

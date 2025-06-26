@@ -124,7 +124,7 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 		granularity = r.GetGranularityFunc()
 	}
 
-	err = r.CollectionState.Init(timeRange, params.Recollect, granularity)
+	err = r.CollectionState.Init(timeRange, params.Overwrite, granularity)
 	if err != nil {
 		return err
 	}
