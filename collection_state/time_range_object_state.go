@@ -13,11 +13,6 @@ const (
 	CollectionOrderReverse
 )
 
-// TODO think about artifact source with zero granularity - i.e. no time information - how does source handle this???
-//
-//	do we need a different collection state for this?
-//
-
 // TimeRangeObjectState is a struct that tracks time ranges and objects that have been collected
 // it is used by TimeRangeCollectionState
 // NOTE: we do not implement mutex locking here - it is assumed that the caller will lock the state before calling

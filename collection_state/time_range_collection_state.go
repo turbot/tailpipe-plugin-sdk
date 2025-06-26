@@ -88,22 +88,6 @@ func (t *TimeRangeCollectionState) IsEmpty() bool {
 	return true
 }
 
-// OnCollectionComplete sets the end time of the collect - this is called  after a successful collection
-// we the end time as we know that we have collected all data up to the collection 'to' time
-// it sets the upper boundary (end time) of the active range to the upper boundary time of the collection time range
-func (t *TimeRangeCollectionState) OnCollectionComplete() error {
-	if t.currentCollectionTimeRange == nil {
-		return fmt.Errorf("cannot complete collection - no current collection set, Init must be called first")
-	}
-	// set the upper boundary time of the active range to the upper boundary time of the collection time range
-	t.activeRange.setUpperBoundaryTime(t.currentCollectionTimeRange.upperBoundaryTime())
-
-	// perform a compact to merge any adjacent time ranges that can be merged
-	t.compactForCollectionPeriod()
-
-	return nil
-}
-
 func (t *TimeRangeCollectionState) GetGranularity() time.Duration {
 	return t.Granularity
 }
@@ -166,6 +150,22 @@ func (t *TimeRangeCollectionState) OnCollected(id string, timestamp time.Time) e
 	delete(t.objectRangeMap, id)
 
 	return rangeForObject.OnCollected(id, timestamp)
+}
+
+// OnCollectionComplete sets the end time of the collect - this is called  after a successful collection
+// we the end time as we know that we have collected all data up to the collection 'to' time
+// it sets the upper boundary (end time) of the active range to the upper boundary time of the collection time range
+func (t *TimeRangeCollectionState) OnCollectionComplete() error {
+	if t.currentCollectionTimeRange == nil {
+		return fmt.Errorf("cannot complete collection - no current collection set, Init must be called first")
+	}
+	// set the upper boundary time of the active range to the upper boundary time of the collection time range
+	t.activeRange.setUpperBoundaryTime(t.currentCollectionTimeRange.upperBoundaryTime())
+
+	// perform a compact to merge any adjacent time ranges that can be merged
+	t.compactForCollectionPeriod()
+
+	return nil
 }
 
 // MigrateFromLegacyState attempts to migrate from a legacy collection state

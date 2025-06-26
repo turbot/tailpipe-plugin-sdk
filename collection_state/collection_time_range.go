@@ -12,6 +12,54 @@ type CollectionTimeRange struct {
 	CollectionOrder CollectionOrder `json:"collection_order"`
 }
 
+func (t *CollectionTimeRange) Validate() error {
+	if t.From.IsZero() {
+		return errors.New("from time is zero")
+	}
+	if t.To.IsZero() {
+		return errors.New("to time is zero")
+	}
+	if t.From.After(t.To) {
+		return errors.New("from time is after to time")
+	}
+	if t.CollectionOrder != CollectionOrderChronological && t.CollectionOrder != CollectionOrderReverse {
+		return fmt.Errorf("invalid collection order: %v", t.CollectionOrder)
+	}
+	return nil
+}
+
+// OverlapsEnd returns whether our START overlaps the END of the other time range
+// NOTE:
+// - returns true if our START is within the other range (but not if either range subsumes the other)
+// - returns false if either range completely contains the other
+func (t *CollectionTimeRange) OverlapsEnd(other CollectionTimeRange) bool {
+	// Check if either range subsumes the other - if so, return false
+	if t.IsRangeSubsumed(other) || other.IsRangeSubsumed(*t) {
+		return false
+	}
+
+	// Check if our start time is within the other range
+	// Our start should be after other's start but before other's end
+	return t.From.After(other.From) && t.From.Before(other.To)
+}
+
+// OverlapsStart returns whether our END overlaps the START of the other time range
+// NOTE:
+// - returns true if our END is after the other's start and before the other's end, but not if either range subsumes the other
+func (t *CollectionTimeRange) OverlapsStart(other CollectionTimeRange) bool {
+	// Return false if either range subsumes the other
+	if t.IsRangeSubsumed(other) || other.IsRangeSubsumed(*t) {
+		return false
+	}
+	// Check if our end time overlaps with the other range
+	return t.To.After(other.From) && t.From.Before(other.From)
+}
+
+// IsRangeSubsumed checks if this time range is completely contained within another time range
+func (t *CollectionTimeRange) IsRangeSubsumed(other CollectionTimeRange) bool {
+	return t.From.Compare(other.From) >= 0 && t.To.Compare(other.To) <= 0
+}
+
 // upperBoundaryTime returns the the furthest time in the direction of collection
 // i.e. if we are collecting forwards, the upperBoundaryTime is the end time of the range,
 // if we are collecting backwards, the upperBoundaryTime is the start time of the range
@@ -111,52 +159,4 @@ func (t *CollectionTimeRange) setUpperBoundaryTime(newTime time.Time) {
 			t.From = newTime
 		}
 	}
-}
-
-func (t *CollectionTimeRange) Validate() error {
-	if t.From.IsZero() {
-		return errors.New("from time is zero")
-	}
-	if t.To.IsZero() {
-		return errors.New("to time is zero")
-	}
-	if t.From.After(t.To) {
-		return errors.New("from time is after to time")
-	}
-	if t.CollectionOrder != CollectionOrderChronological && t.CollectionOrder != CollectionOrderReverse {
-		return fmt.Errorf("invalid collection order: %v", t.CollectionOrder)
-	}
-	return nil
-}
-
-// OverlapsEnd returns whether our START overlaps the END of the other time range
-// NOTE:
-// - returns true if our START is within the other range (but not if either range subsumes the other)
-// - returns false if either range completely contains the other
-func (t *CollectionTimeRange) OverlapsEnd(other CollectionTimeRange) bool {
-	// Check if either range subsumes the other - if so, return false
-	if t.IsRangeSubsumed(other) || other.IsRangeSubsumed(*t) {
-		return false
-	}
-
-	// Check if our start time is within the other range
-	// Our start should be after other's start but before other's end
-	return t.From.After(other.From) && t.From.Before(other.To)
-}
-
-// OverlapsStart returns whether our END overlaps the START of the other time range
-// NOTE:
-// - returns true if our END is after the other's start and before the other's end, but not if either range subsumes the other
-func (t *CollectionTimeRange) OverlapsStart(other CollectionTimeRange) bool {
-	// Return false if either range subsumes the other
-	if t.IsRangeSubsumed(other) || other.IsRangeSubsumed(*t) {
-		return false
-	}
-	// Check if our end time overlaps with the other range
-	return t.To.After(other.From) && t.From.Before(other.From)
-}
-
-// IsRangeSubsumed checks if this time range is completely contained within another time range
-func (t *CollectionTimeRange) IsRangeSubsumed(other CollectionTimeRange) bool {
-	return t.From.Compare(other.From) >= 0 && t.To.Compare(other.To) <= 0
 }
