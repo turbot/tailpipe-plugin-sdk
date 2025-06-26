@@ -5,7 +5,6 @@ go 1.24
 //replace github.com/turbot/pipe-fittings/v2 => ../pipe-fittings
 
 require (
-	github.com/aws/aws-sdk-go-v2/config v1.27.11
 	github.com/dustin/go-humanize v1.0.1
 	github.com/elastic/go-grok v0.3.1
 	github.com/hashicorp/go-hclog v1.6.3
@@ -19,7 +18,7 @@ require (
 	github.com/sethvargo/go-retry v0.3.0
 	github.com/stretchr/testify v1.10.0
 	github.com/turbot/go-kit v1.3.0
-	github.com/turbot/pipe-fittings/v2 v2.4.1
+	github.com/turbot/pipe-fittings/v2 v2.5.2
 	github.com/zclconf/go-cty v1.14.4
 	golang.org/x/exp v0.0.0-20250128182459-e0ece0dbea4c
 	golang.org/x/sync v0.12.0
@@ -44,6 +43,7 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/aws/aws-sdk-go v1.44.183 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.30.3 // indirect
+	github.com/aws/aws-sdk-go-v2/config v1.27.11 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.26 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.16.11 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.3.15 // indirect
