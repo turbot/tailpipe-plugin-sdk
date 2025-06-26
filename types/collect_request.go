@@ -32,6 +32,8 @@ type CollectRequest struct {
 	CustomTableSchema *schema.TableSchema
 	// the max space to take with temp files
 	TempDirMaxMb int64
+	// recollect all data for the specified time range even if it has been collected already
+	Recollect bool
 }
 
 func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
@@ -57,11 +59,20 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		SourceData:          sourceData,
 		TempDirMaxMb:        pr.TempDirMaxMb,
 	}
+	// if recollect flag is not present, that means the CLI must be an older version - default to true
+	if pr.Recollect == nil {
+		req.Recollect = true
+	} else {
+		req.Recollect = *pr.Recollect
+	}
 
 	if pr.FromTime != nil {
 		req.From = pr.FromTime.AsTime()
 	}
-	if pr.ToTime != nil {
+	// we default 'to' to now - but DO NOT default from - this will be set once we have loaded the collection state
+	if pr.ToTime == nil {
+		req.To = time.Now()
+	} else {
 		req.To = pr.ToTime.AsTime()
 	}
 
@@ -81,7 +92,6 @@ func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) 
 		req.ConnectionData = connectionData
 	}
 	if pr.CustomTableSchema != nil {
-
 		req.CustomTableSchema = schema.TableSchemaFromProto(pr.CustomTableSchema)
 	}
 

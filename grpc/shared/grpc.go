@@ -52,6 +52,10 @@ func (c TailpipePluginClientWrapper) SourceCollectionComplete() (*proto.Empty, e
 	return c.client.SourceCollectionComplete(context.Background(), &proto.Empty{})
 }
 
+func (c TailpipePluginClientWrapper) GetSupportedOperations() (*proto.GetSupportedOperationsResponse, error) {
+	return c.client.GetSupportedOperations(context.Background(), &proto.Empty{})
+}
+
 // TailpipePluginServerWrapper is the gRPC server that TailpipePluginClient talks to.
 type TailpipePluginServerWrapper struct {
 	proto.UnimplementedTailpipePluginServer
@@ -107,4 +111,8 @@ func (s TailpipePluginServerWrapper) SourceResume(_ context.Context, req *proto.
 
 func (s TailpipePluginServerWrapper) SourceCollectionComplete(_ context.Context, req *proto.Empty) (*proto.Empty, error) {
 	return s.Impl.SourceCollectionComplete(context.Background(), req)
+}
+
+func (s TailpipePluginServerWrapper) GetSupportedOperations(_ context.Context, req *proto.Empty) (*proto.GetSupportedOperationsResponse, error) {
+	return s.Impl.GetSupportedOperations(context.Background(), req)
 }

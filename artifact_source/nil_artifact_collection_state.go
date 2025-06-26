@@ -1,6 +1,7 @@
 package artifact_source
 
 import (
+	"github.com/turbot/tailpipe-plugin-sdk/collection_state"
 	"time"
 )
 
@@ -9,22 +10,18 @@ import (
 type NilArtifactCollectionState struct {
 }
 
-func (s *NilArtifactCollectionState) GetStartTime() time.Time {
+func (s *NilArtifactCollectionState) GetFromTime() time.Time {
 	return time.Time{}
 }
 
-func (s *NilArtifactCollectionState) GetEndTime() time.Time {
+func (s *NilArtifactCollectionState) GetToTime() time.Time {
 	return time.Time{}
 }
 
 func (s *NilArtifactCollectionState) SetEndTime(_ time.Time) {
 }
 
-func (s *NilArtifactCollectionState) Clear() {
-}
-
-func (*NilArtifactCollectionState) Init(_ *NilArtifactSourceConfig, _ string) error {
-	return nil
+func (*NilArtifactCollectionState) Init(collection_state.CollectionTimeRange, time.Duration) {
 }
 
 func (s *NilArtifactCollectionState) RegisterPath(_ string, _ map[string]string) {
@@ -38,17 +35,23 @@ func (*NilArtifactCollectionState) OnCollected(_ string, _ time.Time) error {
 	return nil
 }
 
-func (*NilArtifactCollectionState) SetGranularity(_ time.Duration) {
-}
-
-func (*NilArtifactCollectionState) GetGranularity() time.Duration {
-	return 0
-}
-
 func (*NilArtifactCollectionState) IsEmpty() bool {
 	return true
 }
 
+func (*NilArtifactCollectionState) OnCollectionComplete() error {
+	return nil
+}
+
 func (*NilArtifactCollectionState) Save() error {
 	return nil
+}
+
+func (*NilArtifactCollectionState) MigrateFromLegacyState(_ []byte) error {
+	return nil
+}
+func (*NilArtifactCollectionState) Validate() error {
+	return nil
+}
+func (*NilArtifactCollectionState) Clear(_ collection_state.CollectionTimeRange) {
 }

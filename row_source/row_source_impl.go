@@ -22,6 +22,9 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )
 
+// DefaultAPIGranularity is the default granularity for API sources
+const DefaultAPIGranularity = 1 * time.Nanosecond
+
 // RowSourceImpl is a base implementation of the [plugin.RowSource] interface
 // It implements the [observable.Observable] interface, as well as providing a default implementation of
 // Close(), and contains the logic to raise a Row event
@@ -38,19 +41,27 @@ type RowSourceImpl[S, T parse.Config] struct {
 	Source RowSource
 
 	// the collection state data for this source
-	CollectionState collection_state.CollectionState[S]
+	CollectionState *collection_state.SaveableCollectionState
 	// a function to create empty collection state data
-	NewCollectionStateFunc func() collection_state.CollectionState[S]
+	NewCollectionStateFunc func() collection_state.CollectionState
 	// the start time for the data collection
 	FromTime time.Time
 	// how was from time set (config, collection state, default)
 	FromTimeSource string
 	// the end time for the data collection
 	ToTime time.Time
-
+	// the collection direction
+	CollectionOrder collection_state.CollectionOrder
 	// store errors - we only use this to determine whether the source collection was successful,
 	// and therefore whether we should set the CollectionState EndTime to the collection To time from OnCollectionComplete
 	ErrorCount int32
+
+	// a func to call to retrieve the granularity for the source
+	// this is provided to avoid a tricky timing problem - we want to get the granularity within RowSourceImpl.Init
+	// but ArtifactSourceImpl.Init  needs to use our config to determine the granularity and this is not available
+	// until after the RowSourceImpl.Init is called
+	// so ArtifactSourceImpl.Init will set this func to return the granularity
+	GetGranularityFunc func() time.Duration
 }
 
 // RegisterSource is called by the source implementation to register itself with the base
@@ -59,8 +70,11 @@ func (r *RowSourceImpl[S, T]) RegisterSource(source RowSource) {
 	r.Source = source
 }
 
+// TODO #CS kai how do we set order
+
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
+// opts are populated based on the table source config
 func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, opts ...RowSourceOption) error {
 	slog.Info(fmt.Sprintf("Initializing RowSourceImpl %p, impl %p", r, r.Source))
 	if r.NewCollectionStateFunc == nil {
@@ -83,18 +97,37 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 		return err
 	}
 
-	// create empty collection state
+	// create empty collection state and wrap in a SaveableCollectionState
 	slog.Info("Creating empty collection state")
-	r.CollectionState = r.NewCollectionStateFunc()
-	// initialise the collection state - this will load itself form json (if JSON file exists)
-	err = r.CollectionState.Init(r.Config, params.CollectionStatePath)
+	r.CollectionState, err = collection_state.NewSaveableCollectionState(r.NewCollectionStateFunc(), params.CollectionStatePath)
 	if err != nil {
 		return err
 	}
-	// populate the from time, applying the from time passed in the params
-	// and falling back to the collection state/default value if needed
-	r.setFromTime(params)
+	// store the To time
 	r.ToTime = params.To
+	// resolve the from time, applying the from time passed in the params
+	// and falling back to the collection state/default value if needed
+	r.setFromTime(params.From)
+
+	// initialise the collection state - this will set the active time range for the collection state
+	// NOTE: we pass in the RESOLVED from time (i.e. r.FromTime) rather than the original from time (i.e. params.From)
+	timeRange := collection_state.CollectionTimeRange{
+		From:            r.FromTime,
+		To:              r.ToTime,
+		CollectionOrder: r.CollectionOrder,
+	}
+
+	// if the granularity is not set, default to 1ns (the default for APIs0)
+	granularity := DefaultAPIGranularity
+	// if the GetGranularityFunc is set, call it to get the granularity
+	if r.GetGranularityFunc != nil {
+		granularity = r.GetGranularityFunc()
+	}
+
+	err = r.CollectionState.Init(timeRange, params.Overwrite, granularity)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -185,7 +218,7 @@ func (r *RowSourceImpl[S, T]) PropertiesForType(config any) map[string]*types.Pr
 }
 
 // OnCollectionComplete must be called by the source Collect function when the collection is complete
-// this updates the end time of the collection state to the collection `To` and saves the collection state
+// this updates the end time of the collection state to the collection `to` and saves the collection state
 func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 	if atomic.LoadInt32(&r.ErrorCount) > 0 {
 		slog.Info("OnCollectionComplete: Collection completed with errors - NOT setting end time of collection state to collection 'to' time as we may need to recollect some files")
@@ -195,35 +228,32 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 		slog.Info("OnCollectionComplete: Collection state is nil - not setting end time")
 		return nil
 	}
-	// so the source collection was successful, set the end time of the collection state to the collection `To`
+	// so the source collection was successful, set the end time of the collection state to the collection `to`
 	// this ensures that when we run the next collection, we will start from the end time of the previous collection
-	r.CollectionState.SetEndTime(r.ToTime)
+	if err := r.CollectionState.OnCollectionComplete(); err != nil {
+		return fmt.Errorf("error completing collection state: %w", err)
+	}
 
+	// save the collection state
 	if err := r.CollectionState.Save(); err != nil {
 		return fmt.Errorf("error saving collection state: %w", err)
 	}
 	return nil
 }
 
-func (r *RowSourceImpl[S, T]) NotifyError(ctx context.Context, executionId string, err error) {
-	// increment the error count
-	atomic.AddInt32(&r.ErrorCount, 1)
-	r.ObservableImpl.NotifyError(ctx, executionId, err)
-}
-
-func (r *RowSourceImpl[S, T]) setFromTime(params *RowSourceParams) {
-	if !params.From.IsZero() {
+// SetFromTime sets the from time for the data collection
+// If the from time is not set, it will be set to the end time of the collection state
+// If the collection state is empty, it will be set to the default initial collection period
+func (r *RowSourceImpl[S, T]) setFromTime(from time.Time) {
+	if !from.IsZero() {
 		// just set the collection state end time
-		r.FromTime = params.From
+		r.FromTime = from
 		r.FromTimeSource = ""
-		// set the end tim of the collection state to the DAY BEFORE from time
-		// the from time has a day granularity - we want to collect data up to the end of the day before
-		r.CollectionState.SetEndTime(params.From.Add(-time.Hour * 24))
 		return
 	}
 	// if no from time was passed, set it to the end time of the collection state
 	if !r.CollectionState.IsEmpty() {
-		t := r.CollectionState.GetEndTime()
+		t := r.CollectionState.GetToTime()
 		if !t.IsZero() {
 			slog.Info("Setting from time from collection state end time", "end time", t)
 			r.FromTime = t

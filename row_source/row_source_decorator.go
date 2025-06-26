@@ -61,6 +61,7 @@ func (r *RowSourceDecorator) Collect(ctx context.Context) error {
 	if err := r.rowSource.Collect(ctx); err != nil {
 		return err
 	}
+	// if there was no error, call OnCollectionComplete
 	return r.rowSource.OnCollectionComplete()
 }
 

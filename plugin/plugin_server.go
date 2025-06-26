@@ -132,6 +132,10 @@ func (s PluginServer) SourceCollectionComplete(ctx context.Context, _ *proto.Emp
 	return &proto.Empty{}, nil
 }
 
+func (s PluginServer) GetSupportedOperations(ctx context.Context, _ *proto.Empty) (*proto.GetSupportedOperationsResponse, error) {
+	return s.impl.GetSupportedOperations(ctx)
+}
+
 func (s PluginServer) Serve() error {
 	// use plugin provided in opts
 	ctx := context.Background()

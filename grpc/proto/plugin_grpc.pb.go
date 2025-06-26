@@ -30,6 +30,7 @@ const (
 	TailpipePlugin_SourcePause_FullMethodName              = "/proto.TailpipePlugin/SourcePause"
 	TailpipePlugin_SourceResume_FullMethodName             = "/proto.TailpipePlugin/SourceResume"
 	TailpipePlugin_SourceCollectionComplete_FullMethodName = "/proto.TailpipePlugin/SourceCollectionComplete"
+	TailpipePlugin_GetSupportedOperations_FullMethodName   = "/proto.TailpipePlugin/GetSupportedOperations"
 )
 
 // TailpipePluginClient is the client API for TailpipePlugin service.
@@ -47,6 +48,7 @@ type TailpipePluginClient interface {
 	SourcePause(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	SourceResume(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
 	SourceCollectionComplete(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*Empty, error)
+	GetSupportedOperations(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetSupportedOperationsResponse, error)
 }
 
 type tailpipePluginClient struct {
@@ -176,6 +178,16 @@ func (c *tailpipePluginClient) SourceCollectionComplete(ctx context.Context, in 
 	return out, nil
 }
 
+func (c *tailpipePluginClient) GetSupportedOperations(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*GetSupportedOperationsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetSupportedOperationsResponse)
+	err := c.cc.Invoke(ctx, TailpipePlugin_GetSupportedOperations_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // TailpipePluginServer is the server API for TailpipePlugin service.
 // All implementations must embed UnimplementedTailpipePluginServer
 // for forward compatibility.
@@ -191,6 +203,7 @@ type TailpipePluginServer interface {
 	SourcePause(context.Context, *Empty) (*Empty, error)
 	SourceResume(context.Context, *Empty) (*Empty, error)
 	SourceCollectionComplete(context.Context, *Empty) (*Empty, error)
+	GetSupportedOperations(context.Context, *Empty) (*GetSupportedOperationsResponse, error)
 	mustEmbedUnimplementedTailpipePluginServer()
 }
 
@@ -233,6 +246,9 @@ func (UnimplementedTailpipePluginServer) SourceResume(context.Context, *Empty) (
 }
 func (UnimplementedTailpipePluginServer) SourceCollectionComplete(context.Context, *Empty) (*Empty, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method SourceCollectionComplete not implemented")
+}
+func (UnimplementedTailpipePluginServer) GetSupportedOperations(context.Context, *Empty) (*GetSupportedOperationsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSupportedOperations not implemented")
 }
 func (UnimplementedTailpipePluginServer) mustEmbedUnimplementedTailpipePluginServer() {}
 func (UnimplementedTailpipePluginServer) testEmbeddedByValue()                        {}
@@ -446,6 +462,24 @@ func _TailpipePlugin_SourceCollectionComplete_Handler(srv interface{}, ctx conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _TailpipePlugin_GetSupportedOperations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(Empty)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(TailpipePluginServer).GetSupportedOperations(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: TailpipePlugin_GetSupportedOperations_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(TailpipePluginServer).GetSupportedOperations(ctx, req.(*Empty))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // TailpipePlugin_ServiceDesc is the grpc.ServiceDesc for TailpipePlugin service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -492,6 +526,10 @@ var TailpipePlugin_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SourceCollectionComplete",
 			Handler:    _TailpipePlugin_SourceCollectionComplete_Handler,
+		},
+		{
+			MethodName: "GetSupportedOperations",
+			Handler:    _TailpipePlugin_GetSupportedOperations_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

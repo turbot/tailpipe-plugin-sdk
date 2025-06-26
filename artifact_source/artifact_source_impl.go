@@ -68,9 +68,6 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	// shadow the row_source.RowSourceImpl Source property, but using ArtifactSource interface
 	Source ArtifactSource
 
-	// shadow the CollectionState property, but using ArtifactCollectionStateImpl
-	CollectionState collection_state.ArtifactCollectionState[S]
-
 	defaultConfig *artifact_source_config.ArtifactSourceConfigImpl
 	// map of loaders created, keyed by identifier
 	// an optional extractor which the table may specify
@@ -94,7 +91,7 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 	// if no collection state func has been set by a derived struct,
 	// set it to the default for artifacts
 	if a.NewCollectionStateFunc == nil {
-		a.NewCollectionStateFunc = collection_state.NewArtifactCollectionStateImpl
+		a.NewCollectionStateFunc = collection_state.NewArtifactCollectionState
 	}
 
 	// set the artifact directory
@@ -103,6 +100,13 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 		return err
 	}
 	a.TempDir = artifactDir
+
+	// set the func to call to retrieve the granularity for the source
+	// this mechanism avoids a tricky timing problem - we need the granularity within RowSourceImpl.Init to pass to
+	// the CollectionState, but we need the config parsed in order RowSourceImpl.Init to get the granularity,
+	a.RowSourceImpl.GetGranularityFunc = func() time.Duration {
+		return helpers.GetGranularityFromFileLayout(a.Config.GetFileLayout())
+	}
 
 	// call base to apply options and parse config
 	if err := a.RowSourceImpl.Init(ctx, params, opts...); err != nil {
@@ -122,16 +126,6 @@ func (a *ArtifactSourceImpl[S, T]) Init(ctx context.Context, params *row_source.
 		return errors.New("ArtifactSourceImpl.Source must implement ArtifactSource")
 	}
 	a.Source = impl
-
-	// store the collection state as an ArtifactCollectionState (shadow the base CollectionState property)
-	cs, ok := any(a.RowSourceImpl.CollectionState).(collection_state.ArtifactCollectionState[S])
-	if !ok {
-		return errors.New("ArtifactSourceImpl.CollectionState must implement ArtifactCollectionState")
-	}
-	a.CollectionState = cs
-
-	// set the granularity
-	a.CollectionState.SetGranularity(helpers.GetGranularityFromFileLayout(a.Config.GetFileLayout()))
 
 	// setup rate limiter
 	a.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{
@@ -178,13 +172,13 @@ func (a *ArtifactSourceImpl[S, T]) SetHeaderDelimiter(delimiter string) {
 
 // Collect tells our ArtifactSourceImpl to start discovering artifacts
 // Implements [plugin.RowSource]
-func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) error {
+func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) (err error) {
 	slog.Info("ArtifactSourceImpl Collect")
 	defer slog.Info("ArtifactSourceImpl Collect complete")
 
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
-	err := a.Source.DiscoverArtifacts(ctx)
+	err = a.Source.DiscoverArtifacts(ctx)
 	if err != nil {
 		return err
 	}
@@ -574,9 +568,14 @@ func (a *ArtifactSourceImpl[S, T]) walkFileNode(ctx context.Context, targetPath 
 		return err
 	}
 
-	// if the artifact has a timestamp, and  we have a from time, check if the artifact is newer than the from time
-	if !artifactInfo.Timestamp.IsZero() && !a.FromTime.IsZero() {
-		if artifactInfo.Timestamp.Compare(a.FromTime) < 0 {
+	// if the artifact has a timestamp, check the from and to time
+	if !artifactInfo.Timestamp.IsZero() {
+		// if we have a from time, check if the artifact is newer than the from time
+		if !a.FromTime.IsZero() && artifactInfo.Timestamp.Compare(a.FromTime) < 0 {
+			return nil
+		}
+		// if we have a to time, check if the artifact is older than the to time
+		if !a.ToTime.IsZero() && artifactInfo.Timestamp.Compare(a.ToTime) > 0 {
 			return nil
 		}
 	}

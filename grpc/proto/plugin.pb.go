@@ -83,7 +83,9 @@ type CollectRequest struct {
 	// the max space to take with temp files
 	TempDirMaxMb int64 `protobuf:"varint,12,opt,name=temp_dir_max_mb,json=tempDirMaxMb,proto3" json:"temp_dir_max_mb,omitempty"`
 	// the collection end time
-	ToTime        *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
+	ToTime *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
+	// recollect all data for the specified time range even if it has been collected already
+	Recollect     *bool `protobuf:"varint,14,opt,name=recollect,proto3,oneof" json:"recollect,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -207,6 +209,13 @@ func (x *CollectRequest) GetToTime() *timestamppb.Timestamp {
 		return x.ToTime
 	}
 	return nil
+}
+
+func (x *CollectRequest) GetRecollect() bool {
+	if x != nil && x.Recollect != nil {
+		return *x.Recollect
+	}
+	return false
 }
 
 type UpdateCollectionStateRequest struct {
@@ -2507,7 +2516,9 @@ type RowSourceParams struct {
 	// the path to the collection state file
 	CollectionStatePath string `protobuf:"bytes,5,opt,name=collection_state_path,json=collectionStatePath,proto3" json:"collection_state_path,omitempty"`
 	// the collection end time
-	ToTime        *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
+	ToTime *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=to_time,json=toTime,proto3" json:"to_time,omitempty"`
+	// recollect all data for the specified time range even if it has been collected already
+	Overwrite     bool `protobuf:"varint,14,opt,name=overwrite,proto3" json:"overwrite,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2582,6 +2593,13 @@ func (x *RowSourceParams) GetToTime() *timestamppb.Timestamp {
 		return x.ToTime
 	}
 	return nil
+}
+
+func (x *RowSourceParams) GetOverwrite() bool {
+	if x != nil {
+		return x.Overwrite
+	}
+	return false
 }
 
 // ArtifactSourceConfigBase is a configuration message for an artifact source.
@@ -2862,12 +2880,56 @@ func (x *OperationErrorAggregate) GetCount() int64 {
 	return 0
 }
 
+type GetSupportedOperationsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	TimeRanges    bool                   `protobuf:"varint,1,opt,name=time_ranges,json=timeRanges,proto3" json:"time_ranges,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetSupportedOperationsResponse) Reset() {
+	*x = GetSupportedOperationsResponse{}
+	mi := &file_plugin_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetSupportedOperationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetSupportedOperationsResponse) ProtoMessage() {}
+
+func (x *GetSupportedOperationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_plugin_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetSupportedOperationsResponse.ProtoReflect.Descriptor instead.
+func (*GetSupportedOperationsResponse) Descriptor() ([]byte, []int) {
+	return file_plugin_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *GetSupportedOperationsResponse) GetTimeRanges() bool {
+	if x != nil {
+		return x.TimeRanges
+	}
+	return false
+}
+
 var File_plugin_proto protoreflect.FileDescriptor
 
 const file_plugin_proto_rawDesc = "" +
 	"\n" +
 	"\fplugin.proto\x12\x05proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\a\n" +
-	"\x05Empty\"\x9b\x05\n" +
+	"\x05Empty\"\xcc\x05\n" +
 	"\x0eCollectRequest\x12\x1d\n" +
 	"\n" +
 	"table_name\x18\x01 \x01(\tR\ttableName\x12%\n" +
@@ -2884,7 +2946,10 @@ const file_plugin_proto_rawDesc = "" +
 	" \x01(\v2\x1b.proto.SourcePluginReattachR\fsourcePlugin\x127\n" +
 	"\tfrom_time\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x12%\n" +
 	"\x0ftemp_dir_max_mb\x18\f \x01(\x03R\ftempDirMaxMb\x123\n" +
-	"\ato_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\"\xbf\x01\n" +
+	"\ato_time\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\x12!\n" +
+	"\trecollect\x18\x0e \x01(\bH\x00R\trecollect\x88\x01\x01B\f\n" +
+	"\n" +
+	"_recollect\"\xbf\x01\n" +
 	"\x1cUpdateCollectionStateRequest\x122\n" +
 	"\x15collection_state_path\x18\x01 \x01(\tR\x13collectionStatePath\x122\n" +
 	"\vsource_data\x18\x02 \x01(\v2\x11.proto.ConfigDataR\n" +
@@ -3083,20 +3148,21 @@ const file_plugin_proto_rawDesc = "" +
 	"\x03pid\x18\x04 \x01(\x03R\x03pid\"=\n" +
 	"\aNetAddr\x12\x18\n" +
 	"\aNetwork\x18\x01 \x01(\tR\aNetwork\x12\x18\n" +
-	"\aAddress\x18\x02 \x01(\tR\aAddress\"\x96\x01\n" +
+	"\aAddress\x18\x02 \x01(\tR\aAddress\"\x94\x01\n" +
 	"\x11InitSourceRequest\x12B\n" +
-	"\x0edefault_config\x18\x01 \x01(\v2\x1b.proto.ArtifactSourceConfigR\rdefaultConfig\x12=\n" +
-	"\rsource_params\x18\x02 \x01(\v2\x18.proto.row_source_paramsR\fsourceParams\"J\n" +
+	"\x0edefault_config\x18\x01 \x01(\v2\x1b.proto.ArtifactSourceConfigR\rdefaultConfig\x12;\n" +
+	"\rsource_params\x18\x02 \x01(\v2\x16.proto.RowSourceParamsR\fsourceParams\"J\n" +
 	"\x12InitSourceResponse\x124\n" +
-	"\tfrom_time\x18\x01 \x01(\v2\x17.proto.ResolvedFromTimeR\bfromTime\"\xd5\x02\n" +
-	"\x11row_source_params\x122\n" +
+	"\tfrom_time\x18\x01 \x01(\v2\x17.proto.ResolvedFromTimeR\bfromTime\"\xf1\x02\n" +
+	"\x0fRowSourceParams\x122\n" +
 	"\vsource_data\x18\x01 \x01(\v2\x11.proto.ConfigDataR\n" +
 	"sourceData\x12:\n" +
 	"\x0fconnection_data\x18\x02 \x01(\v2\x11.proto.ConfigDataR\x0econnectionData\x127\n" +
 	"\tfrom_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bfromTime\x12.\n" +
 	"\x13collection_temp_dir\x18\x04 \x01(\tR\x11collectionTempDir\x122\n" +
 	"\x15collection_state_path\x18\x05 \x01(\tR\x13collectionStatePath\x123\n" +
-	"\ato_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\"\xd5\x01\n" +
+	"\ato_time\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x06toTime\x12\x1c\n" +
+	"\toverwrite\x18\x0e \x01(\bR\toverwrite\"\xd5\x01\n" +
 	"\x14ArtifactSourceConfig\x12\x1f\n" +
 	"\vfile_layout\x18\x01 \x01(\tR\n" +
 	"fileLayout\x12E\n" +
@@ -3122,7 +3188,10 @@ const file_plugin_proto_rawDesc = "" +
 	"\x0emissing_fields\x18\x01 \x03(\tR\rmissingFields\x12%\n" +
 	"\x0einvalid_fields\x18\x02 \x03(\tR\rinvalidFields\x12\x1a\n" +
 	"\bmessages\x18\x03 \x03(\tR\bmessages\x12\x14\n" +
-	"\x05count\x18\x04 \x01(\x03R\x05count2\xec\x04\n" +
+	"\x05count\x18\x04 \x01(\x03R\x05count\"A\n" +
+	"\x1eGetSupportedOperationsResponse\x12\x1f\n" +
+	"\vtime_ranges\x18\x01 \x01(\bR\n" +
+	"timeRanges2\xbb\x05\n" +
 	"\x0eTailpipePlugin\x12;\n" +
 	"\bDescribe\x12\x16.proto.DescribeRequest\x1a\x17.proto.DescribeResponse\x12+\n" +
 	"\vAddObserver\x12\f.proto.Empty\x1a\f.proto.Event0\x01\x128\n" +
@@ -3135,7 +3204,8 @@ const file_plugin_proto_rawDesc = "" +
 	"\rSourceCollect\x12\x1b.proto.SourceCollectRequest\x1a\f.proto.Empty\x12)\n" +
 	"\vSourcePause\x12\f.proto.Empty\x1a\f.proto.Empty\x12*\n" +
 	"\fSourceResume\x12\f.proto.Empty\x1a\f.proto.Empty\x126\n" +
-	"\x18SourceCollectionComplete\x12\f.proto.Empty\x1a\f.proto.EmptyB\tZ\a.;protob\x06proto3"
+	"\x18SourceCollectionComplete\x12\f.proto.Empty\x1a\f.proto.Empty\x12M\n" +
+	"\x16GetSupportedOperations\x12\f.proto.Empty\x1a%.proto.GetSupportedOperationsResponseB\tZ\a.;protob\x06proto3"
 
 var (
 	file_plugin_proto_rawDescOnce sync.Once
@@ -3149,62 +3219,63 @@ func file_plugin_proto_rawDescGZIP() []byte {
 	return file_plugin_proto_rawDescData
 }
 
-var file_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 53)
+var file_plugin_proto_msgTypes = make([]protoimpl.MessageInfo, 54)
 var file_plugin_proto_goTypes = []any{
-	(*Empty)(nil),                        // 0: proto.Empty
-	(*CollectRequest)(nil),               // 1: proto.CollectRequest
-	(*UpdateCollectionStateRequest)(nil), // 2: proto.UpdateCollectionStateRequest
-	(*DescribeRequest)(nil),              // 3: proto.DescribeRequest
-	(*DescribeResponse)(nil),             // 4: proto.DescribeResponse
-	(*FormatDescription)(nil),            // 5: proto.FormatDescription
-	(*CollectResponse)(nil),              // 6: proto.CollectResponse
-	(*ResolvedFromTime)(nil),             // 7: proto.ResolvedFromTime
-	(*Schema)(nil),                       // 8: proto.Schema
-	(*ColumnSchema)(nil),                 // 9: proto.ColumnSchema
-	(*FormatData)(nil),                   // 10: proto.FormatData
-	(*ConfigData)(nil),                   // 11: proto.ConfigData
-	(*Range)(nil),                        // 12: proto.Range
-	(*Pos)(nil),                          // 13: proto.Pos
-	(*Event)(nil),                        // 14: proto.Event
-	(*EventStarted)(nil),                 // 15: proto.EventStarted
-	(*EventChunkWritten)(nil),            // 16: proto.EventChunkWritten
-	(*EventError)(nil),                   // 17: proto.EventError
-	(*EventStatus)(nil),                  // 18: proto.EventStatus
-	(*EventComplete)(nil),                // 19: proto.EventComplete
-	(*EventSourceComplete)(nil),          // 20: proto.EventSourceComplete
-	(*EventHeader)(nil),                  // 21: proto.EventHeader
-	(*EventArtifactDiscovered)(nil),      // 22: proto.EventArtifactDiscovered
-	(*EventArtifactDownloaded)(nil),      // 23: proto.EventArtifactDownloaded
-	(*EventArtifactExtracted)(nil),       // 24: proto.EventArtifactExtracted
-	(*ArtifactInfo)(nil),                 // 25: proto.ArtifactInfo
-	(*DownloadedArtifactInfo)(nil),       // 26: proto.DownloadedArtifactInfo
-	(*SourceEnrichment)(nil),             // 27: proto.SourceEnrichment
-	(*SourceMetadata)(nil),               // 28: proto.SourceMetadata
-	(*PropertyMetadata)(nil),             // 29: proto.PropertyMetadata
-	(*SourcePluginReattach)(nil),         // 30: proto.SourcePluginReattach
-	(*ReattachConfig)(nil),               // 31: proto.ReattachConfig
-	(*NetAddr)(nil),                      // 32: proto.NetAddr
-	(*InitSourceRequest)(nil),            // 33: proto.InitSourceRequest
-	(*InitSourceResponse)(nil),           // 34: proto.InitSourceResponse
-	(*RowSourceParams)(nil),              // 35: proto.row_source_params
-	(*ArtifactSourceConfig)(nil),         // 36: proto.ArtifactSourceConfig
-	(*SourceCollectRequest)(nil),         // 37: proto.SourceCollectRequest
-	(*RowErrors)(nil),                    // 38: proto.RowErrors
-	(*RowErrorsByOperation)(nil),         // 39: proto.RowErrorsByOperation
-	(*OperationErrorAggregate)(nil),      // 40: proto.OperationErrorAggregate
-	nil,                                  // 41: proto.DescribeResponse.SchemasEntry
-	nil,                                  // 42: proto.DescribeResponse.SourcesEntry
-	nil,                                  // 43: proto.DescribeResponse.FormatsPresetsEntry
-	nil,                                  // 44: proto.DescribeResponse.CustomFormatsEntry
-	nil,                                  // 45: proto.FormatDescription.PropertiesEntry
-	nil,                                  // 46: proto.EventComplete.MetadataEntry
-	nil,                                  // 47: proto.SourceEnrichment.CommonFieldsEntry
-	nil,                                  // 48: proto.SourceEnrichment.MetadataEntry
-	nil,                                  // 49: proto.SourceMetadata.PropertiesEntry
-	nil,                                  // 50: proto.ArtifactSourceConfig.PatternsEntry
-	nil,                                  // 51: proto.RowErrors.ErrorsEntry
-	nil,                                  // 52: proto.RowErrorsByOperation.OperationErrorsEntry
-	(*timestamppb.Timestamp)(nil),        // 53: google.protobuf.Timestamp
+	(*Empty)(nil),                          // 0: proto.Empty
+	(*CollectRequest)(nil),                 // 1: proto.CollectRequest
+	(*UpdateCollectionStateRequest)(nil),   // 2: proto.UpdateCollectionStateRequest
+	(*DescribeRequest)(nil),                // 3: proto.DescribeRequest
+	(*DescribeResponse)(nil),               // 4: proto.DescribeResponse
+	(*FormatDescription)(nil),              // 5: proto.FormatDescription
+	(*CollectResponse)(nil),                // 6: proto.CollectResponse
+	(*ResolvedFromTime)(nil),               // 7: proto.ResolvedFromTime
+	(*Schema)(nil),                         // 8: proto.Schema
+	(*ColumnSchema)(nil),                   // 9: proto.ColumnSchema
+	(*FormatData)(nil),                     // 10: proto.FormatData
+	(*ConfigData)(nil),                     // 11: proto.ConfigData
+	(*Range)(nil),                          // 12: proto.Range
+	(*Pos)(nil),                            // 13: proto.Pos
+	(*Event)(nil),                          // 14: proto.Event
+	(*EventStarted)(nil),                   // 15: proto.EventStarted
+	(*EventChunkWritten)(nil),              // 16: proto.EventChunkWritten
+	(*EventError)(nil),                     // 17: proto.EventError
+	(*EventStatus)(nil),                    // 18: proto.EventStatus
+	(*EventComplete)(nil),                  // 19: proto.EventComplete
+	(*EventSourceComplete)(nil),            // 20: proto.EventSourceComplete
+	(*EventHeader)(nil),                    // 21: proto.EventHeader
+	(*EventArtifactDiscovered)(nil),        // 22: proto.EventArtifactDiscovered
+	(*EventArtifactDownloaded)(nil),        // 23: proto.EventArtifactDownloaded
+	(*EventArtifactExtracted)(nil),         // 24: proto.EventArtifactExtracted
+	(*ArtifactInfo)(nil),                   // 25: proto.ArtifactInfo
+	(*DownloadedArtifactInfo)(nil),         // 26: proto.DownloadedArtifactInfo
+	(*SourceEnrichment)(nil),               // 27: proto.SourceEnrichment
+	(*SourceMetadata)(nil),                 // 28: proto.SourceMetadata
+	(*PropertyMetadata)(nil),               // 29: proto.PropertyMetadata
+	(*SourcePluginReattach)(nil),           // 30: proto.SourcePluginReattach
+	(*ReattachConfig)(nil),                 // 31: proto.ReattachConfig
+	(*NetAddr)(nil),                        // 32: proto.NetAddr
+	(*InitSourceRequest)(nil),              // 33: proto.InitSourceRequest
+	(*InitSourceResponse)(nil),             // 34: proto.InitSourceResponse
+	(*RowSourceParams)(nil),                // 35: proto.RowSourceParams
+	(*ArtifactSourceConfig)(nil),           // 36: proto.ArtifactSourceConfig
+	(*SourceCollectRequest)(nil),           // 37: proto.SourceCollectRequest
+	(*RowErrors)(nil),                      // 38: proto.RowErrors
+	(*RowErrorsByOperation)(nil),           // 39: proto.RowErrorsByOperation
+	(*OperationErrorAggregate)(nil),        // 40: proto.OperationErrorAggregate
+	(*GetSupportedOperationsResponse)(nil), // 41: proto.GetSupportedOperationsResponse
+	nil,                                    // 42: proto.DescribeResponse.SchemasEntry
+	nil,                                    // 43: proto.DescribeResponse.SourcesEntry
+	nil,                                    // 44: proto.DescribeResponse.FormatsPresetsEntry
+	nil,                                    // 45: proto.DescribeResponse.CustomFormatsEntry
+	nil,                                    // 46: proto.FormatDescription.PropertiesEntry
+	nil,                                    // 47: proto.EventComplete.MetadataEntry
+	nil,                                    // 48: proto.SourceEnrichment.CommonFieldsEntry
+	nil,                                    // 49: proto.SourceEnrichment.MetadataEntry
+	nil,                                    // 50: proto.SourceMetadata.PropertiesEntry
+	nil,                                    // 51: proto.ArtifactSourceConfig.PatternsEntry
+	nil,                                    // 52: proto.RowErrors.ErrorsEntry
+	nil,                                    // 53: proto.RowErrorsByOperation.OperationErrorsEntry
+	(*timestamppb.Timestamp)(nil),          // 54: google.protobuf.Timestamp
 }
 var file_plugin_proto_depIdxs = []int32{
 	11, // 0: proto.CollectRequest.source_data:type_name -> proto.ConfigData
@@ -3212,19 +3283,19 @@ var file_plugin_proto_depIdxs = []int32{
 	8,  // 2: proto.CollectRequest.custom_table_schema:type_name -> proto.Schema
 	10, // 3: proto.CollectRequest.source_format:type_name -> proto.FormatData
 	30, // 4: proto.CollectRequest.source_plugin:type_name -> proto.SourcePluginReattach
-	53, // 5: proto.CollectRequest.from_time:type_name -> google.protobuf.Timestamp
-	53, // 6: proto.CollectRequest.to_time:type_name -> google.protobuf.Timestamp
+	54, // 5: proto.CollectRequest.from_time:type_name -> google.protobuf.Timestamp
+	54, // 6: proto.CollectRequest.to_time:type_name -> google.protobuf.Timestamp
 	11, // 7: proto.UpdateCollectionStateRequest.source_data:type_name -> proto.ConfigData
-	53, // 8: proto.UpdateCollectionStateRequest.from_time:type_name -> google.protobuf.Timestamp
+	54, // 8: proto.UpdateCollectionStateRequest.from_time:type_name -> google.protobuf.Timestamp
 	10, // 9: proto.DescribeRequest.custom_formats:type_name -> proto.FormatData
-	41, // 10: proto.DescribeResponse.schemas:type_name -> proto.DescribeResponse.SchemasEntry
-	42, // 11: proto.DescribeResponse.sources:type_name -> proto.DescribeResponse.SourcesEntry
-	43, // 12: proto.DescribeResponse.formats_presets:type_name -> proto.DescribeResponse.FormatsPresetsEntry
-	44, // 13: proto.DescribeResponse.custom_formats:type_name -> proto.DescribeResponse.CustomFormatsEntry
-	45, // 14: proto.FormatDescription.properties:type_name -> proto.FormatDescription.PropertiesEntry
+	42, // 10: proto.DescribeResponse.schemas:type_name -> proto.DescribeResponse.SchemasEntry
+	43, // 11: proto.DescribeResponse.sources:type_name -> proto.DescribeResponse.SourcesEntry
+	44, // 12: proto.DescribeResponse.formats_presets:type_name -> proto.DescribeResponse.FormatsPresetsEntry
+	45, // 13: proto.DescribeResponse.custom_formats:type_name -> proto.DescribeResponse.CustomFormatsEntry
+	46, // 14: proto.FormatDescription.properties:type_name -> proto.FormatDescription.PropertiesEntry
 	8,  // 15: proto.CollectResponse.schema:type_name -> proto.Schema
 	7,  // 16: proto.CollectResponse.from_time:type_name -> proto.ResolvedFromTime
-	53, // 17: proto.ResolvedFromTime.from_time:type_name -> google.protobuf.Timestamp
+	54, // 17: proto.ResolvedFromTime.from_time:type_name -> google.protobuf.Timestamp
 	9,  // 18: proto.Schema.columns:type_name -> proto.ColumnSchema
 	9,  // 19: proto.ColumnSchema.child_fields:type_name -> proto.ColumnSchema
 	11, // 20: proto.FormatData.config:type_name -> proto.ConfigData
@@ -3242,28 +3313,28 @@ var file_plugin_proto_depIdxs = []int32{
 	20, // 32: proto.Event.source_complete_event:type_name -> proto.EventSourceComplete
 	21, // 33: proto.Event.header_event:type_name -> proto.EventHeader
 	38, // 34: proto.EventStatus.row_errors:type_name -> proto.RowErrors
-	46, // 35: proto.EventComplete.metadata:type_name -> proto.EventComplete.MetadataEntry
+	47, // 35: proto.EventComplete.metadata:type_name -> proto.EventComplete.MetadataEntry
 	25, // 36: proto.EventHeader.artifact_info:type_name -> proto.ArtifactInfo
 	25, // 37: proto.EventArtifactDiscovered.artifact_info:type_name -> proto.ArtifactInfo
 	26, // 38: proto.EventArtifactDownloaded.artifact_info:type_name -> proto.DownloadedArtifactInfo
 	26, // 39: proto.EventArtifactExtracted.artifact_info:type_name -> proto.DownloadedArtifactInfo
 	27, // 40: proto.ArtifactInfo.source_enrichment:type_name -> proto.SourceEnrichment
 	27, // 41: proto.DownloadedArtifactInfo.source_enrichment:type_name -> proto.SourceEnrichment
-	47, // 42: proto.SourceEnrichment.common_fields:type_name -> proto.SourceEnrichment.CommonFieldsEntry
-	48, // 43: proto.SourceEnrichment.metadata:type_name -> proto.SourceEnrichment.MetadataEntry
-	49, // 44: proto.SourceMetadata.properties:type_name -> proto.SourceMetadata.PropertiesEntry
+	48, // 42: proto.SourceEnrichment.common_fields:type_name -> proto.SourceEnrichment.CommonFieldsEntry
+	49, // 43: proto.SourceEnrichment.metadata:type_name -> proto.SourceEnrichment.MetadataEntry
+	50, // 44: proto.SourceMetadata.properties:type_name -> proto.SourceMetadata.PropertiesEntry
 	31, // 45: proto.SourcePluginReattach.reattach_config:type_name -> proto.ReattachConfig
 	32, // 46: proto.ReattachConfig.addr:type_name -> proto.NetAddr
 	36, // 47: proto.InitSourceRequest.default_config:type_name -> proto.ArtifactSourceConfig
-	35, // 48: proto.InitSourceRequest.source_params:type_name -> proto.row_source_params
+	35, // 48: proto.InitSourceRequest.source_params:type_name -> proto.RowSourceParams
 	7,  // 49: proto.InitSourceResponse.from_time:type_name -> proto.ResolvedFromTime
-	11, // 50: proto.row_source_params.source_data:type_name -> proto.ConfigData
-	11, // 51: proto.row_source_params.connection_data:type_name -> proto.ConfigData
-	53, // 52: proto.row_source_params.from_time:type_name -> google.protobuf.Timestamp
-	53, // 53: proto.row_source_params.to_time:type_name -> google.protobuf.Timestamp
-	50, // 54: proto.ArtifactSourceConfig.patterns:type_name -> proto.ArtifactSourceConfig.PatternsEntry
-	51, // 55: proto.RowErrors.errors:type_name -> proto.RowErrors.ErrorsEntry
-	52, // 56: proto.RowErrorsByOperation.operation_errors:type_name -> proto.RowErrorsByOperation.OperationErrorsEntry
+	11, // 50: proto.RowSourceParams.source_data:type_name -> proto.ConfigData
+	11, // 51: proto.RowSourceParams.connection_data:type_name -> proto.ConfigData
+	54, // 52: proto.RowSourceParams.from_time:type_name -> google.protobuf.Timestamp
+	54, // 53: proto.RowSourceParams.to_time:type_name -> google.protobuf.Timestamp
+	51, // 54: proto.ArtifactSourceConfig.patterns:type_name -> proto.ArtifactSourceConfig.PatternsEntry
+	52, // 55: proto.RowErrors.errors:type_name -> proto.RowErrors.ErrorsEntry
+	53, // 56: proto.RowErrorsByOperation.operation_errors:type_name -> proto.RowErrorsByOperation.OperationErrorsEntry
 	8,  // 57: proto.DescribeResponse.SchemasEntry.value:type_name -> proto.Schema
 	28, // 58: proto.DescribeResponse.SourcesEntry.value:type_name -> proto.SourceMetadata
 	5,  // 59: proto.DescribeResponse.FormatsPresetsEntry.value:type_name -> proto.FormatDescription
@@ -3282,19 +3353,21 @@ var file_plugin_proto_depIdxs = []int32{
 	0,  // 72: proto.TailpipePlugin.SourcePause:input_type -> proto.Empty
 	0,  // 73: proto.TailpipePlugin.SourceResume:input_type -> proto.Empty
 	0,  // 74: proto.TailpipePlugin.SourceCollectionComplete:input_type -> proto.Empty
-	4,  // 75: proto.TailpipePlugin.Describe:output_type -> proto.DescribeResponse
-	14, // 76: proto.TailpipePlugin.AddObserver:output_type -> proto.Event
-	6,  // 77: proto.TailpipePlugin.Collect:output_type -> proto.CollectResponse
-	34, // 78: proto.TailpipePlugin.InitSource:output_type -> proto.InitSourceResponse
-	0,  // 79: proto.TailpipePlugin.UpdateCollectionState:output_type -> proto.Empty
-	0,  // 80: proto.TailpipePlugin.CloseSource:output_type -> proto.Empty
-	0,  // 81: proto.TailpipePlugin.SaveCollectionState:output_type -> proto.Empty
-	0,  // 82: proto.TailpipePlugin.SourceCollect:output_type -> proto.Empty
-	0,  // 83: proto.TailpipePlugin.SourcePause:output_type -> proto.Empty
-	0,  // 84: proto.TailpipePlugin.SourceResume:output_type -> proto.Empty
-	0,  // 85: proto.TailpipePlugin.SourceCollectionComplete:output_type -> proto.Empty
-	75, // [75:86] is the sub-list for method output_type
-	64, // [64:75] is the sub-list for method input_type
+	0,  // 75: proto.TailpipePlugin.GetSupportedOperations:input_type -> proto.Empty
+	4,  // 76: proto.TailpipePlugin.Describe:output_type -> proto.DescribeResponse
+	14, // 77: proto.TailpipePlugin.AddObserver:output_type -> proto.Event
+	6,  // 78: proto.TailpipePlugin.Collect:output_type -> proto.CollectResponse
+	34, // 79: proto.TailpipePlugin.InitSource:output_type -> proto.InitSourceResponse
+	0,  // 80: proto.TailpipePlugin.UpdateCollectionState:output_type -> proto.Empty
+	0,  // 81: proto.TailpipePlugin.CloseSource:output_type -> proto.Empty
+	0,  // 82: proto.TailpipePlugin.SaveCollectionState:output_type -> proto.Empty
+	0,  // 83: proto.TailpipePlugin.SourceCollect:output_type -> proto.Empty
+	0,  // 84: proto.TailpipePlugin.SourcePause:output_type -> proto.Empty
+	0,  // 85: proto.TailpipePlugin.SourceResume:output_type -> proto.Empty
+	0,  // 86: proto.TailpipePlugin.SourceCollectionComplete:output_type -> proto.Empty
+	41, // 87: proto.TailpipePlugin.GetSupportedOperations:output_type -> proto.GetSupportedOperationsResponse
+	76, // [76:88] is the sub-list for method output_type
+	64, // [64:76] is the sub-list for method input_type
 	64, // [64:64] is the sub-list for extension type_name
 	64, // [64:64] is the sub-list for extension extendee
 	0,  // [0:64] is the sub-list for field type_name
@@ -3305,6 +3378,7 @@ func file_plugin_proto_init() {
 	if File_plugin_proto != nil {
 		return
 	}
+	file_plugin_proto_msgTypes[1].OneofWrappers = []any{}
 	file_plugin_proto_msgTypes[14].OneofWrappers = []any{
 		(*Event_StartedEvent)(nil),
 		(*Event_ChunkWrittenEvent)(nil),
@@ -3323,7 +3397,7 @@ func file_plugin_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_plugin_proto_rawDesc), len(file_plugin_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   53,
+			NumMessages:   54,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
