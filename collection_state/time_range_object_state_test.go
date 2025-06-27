@@ -185,63 +185,63 @@ func Test_timeRangeObjectState_ShouldCollect(t *testing.T) {
 			want:      true,
 		},
 		{
-			name:      "forward - after To time - day granularity",
+			name:      "forward - after UpperBoundary time - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			id:        "obj1",
 			timestamp: timeString("2025-04-08 00:00:00"),
 			want:      true,
 		},
 		{
-			name:      "forward - after To time - hour granularity",
+			name:      "forward - after UpperBoundary time - hour granularity",
 			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderChronological),
 			id:        "obj1",
 			timestamp: timeString("2025-04-01 15:30:00"),
 			want:      true,
 		},
 		{
-			name:      "forward - after To time - minute granularity",
+			name:      "forward - after UpperBoundary time - minute granularity",
 			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderChronological),
 			id:        "obj1",
 			timestamp: timeString("2025-04-01 12:35:30"),
 			want:      true,
 		},
 		{
-			name:      "reverse - after To time - day granularity",
+			name:      "reverse - after UpperBoundary time - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 			id:        "obj1",
 			timestamp: timeString("2025-04-08 00:00:00"),
 			want:      true,
 		},
 		{
-			name:      "reverse - after To time - hour granularity",
+			name:      "reverse - after UpperBoundary time - hour granularity",
 			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderReverse),
 			id:        "obj1",
 			timestamp: timeString("2025-04-01 15:30:00"),
 			want:      true,
 		},
 		{
-			name:      "reverse - after To time - minute granularity",
+			name:      "reverse - after UpperBoundary time - minute granularity",
 			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderReverse),
 			id:        "obj1",
 			timestamp: timeString("2025-04-01 12:35:30"),
 			want:      true,
 		},
 		{
-			name:      "forward - at To time - object not in end objects - day granularity",
+			name:      "forward - at UpperBoundary time - object not in end objects - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
 			id:        "obj2",
 			timestamp: timeString("2025-04-07 00:00:00"),
 			want:      true,
 		},
 		{
-			name:      "forward - at To time - object not in end objects - hour granularity",
+			name:      "forward - at UpperBoundary time - object not in end objects - hour granularity",
 			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 			id:        "obj2",
 			timestamp: timeString("2025-04-01 15:00:00"),
 			want:      true,
 		},
 		{
-			name:      "forward - at To time - object not in end objects - minute granularity",
+			name:      "forward - at UpperBoundary time - object not in end objects - minute granularity",
 			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderChronological, "obj1"),
 			id:        "obj2",
 			timestamp: timeString("2025-04-01 12:35:00"),
@@ -269,21 +269,21 @@ func Test_timeRangeObjectState_ShouldCollect(t *testing.T) {
 			want:      true,
 		},
 		{
-			name:      "forward - at To time - object in end objects - day granularity",
+			name:      "forward - at UpperBoundary time - object in end objects - day granularity",
 			state:     buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
 			id:        "obj1",
 			timestamp: timeString("2025-04-07 00:00:00"),
 			want:      false,
 		},
 		{
-			name:      "forward - at To time - object in end objects - hour granularity",
+			name:      "forward - at UpperBoundary time - object in end objects - hour granularity",
 			state:     buildTimeRangeState("2025-04-01 12:00:00", "2025-04-01 15:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 			id:        "obj1",
 			timestamp: timeString("2025-04-01 15:00:00"),
 			want:      false,
 		},
 		{
-			name:      "forward - at To time - object in end objects - minute granularity",
+			name:      "forward - at UpperBoundary time - object in end objects - minute granularity",
 			state:     buildTimeRangeState("2025-04-01 12:30:00", "2025-04-01 12:35:00", time.Minute, CollectionOrderChronological, "obj1"),
 			id:        "obj1",
 			timestamp: timeString("2025-04-01 12:35:00"),
@@ -351,7 +351,7 @@ func Test_timeRangeObjectState_IsEmpty(t *testing.T) {
 			want:  true,
 		},
 		{
-			name:  "empty state - zero To time",
+			name:  "empty state - zero UpperBoundary time",
 			state: buildTimeRangeState("2025-04-01 00:00:00", "0001-01-01 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			want:  true,
 		},
@@ -410,7 +410,7 @@ func Test_timeRangeObjectState_OnCollected(t *testing.T) {
 		expectedState *TimeRangeObjectState
 	}{
 		{
-			name:          "forward - collect within range (between from and To)",
+			name:          "forward - collect within range (between from and UpperBoundary)",
 			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			id:            "obj1",
 			timestamp:     timeString("2025-04-03 00:00:00"),
@@ -426,7 +426,7 @@ func Test_timeRangeObjectState_OnCollected(t *testing.T) {
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
 		{
-			name:          "forward - collect at To boundary (exactly at end time)",
+			name:          "forward - collect at UpperBoundary boundary (exactly at end time)",
 			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			id:            "obj1",
 			timestamp:     timeString("2025-04-07 00:00:00"),
@@ -442,7 +442,7 @@ func Test_timeRangeObjectState_OnCollected(t *testing.T) {
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 		},
 		{
-			name:          "forward - collect after To time (extends range)",
+			name:          "forward - collect after UpperBoundary time (extends range)",
 			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			id:            "obj1",
 			timestamp:     timeString("2025-04-08 00:00:00"),
@@ -450,7 +450,7 @@ func Test_timeRangeObjectState_OnCollected(t *testing.T) {
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-08 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
 		},
 		{
-			name:          "reverse - collect within range (between from and To)",
+			name:          "reverse - collect within range (between from and UpperBoundary)",
 			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 			id:            "obj1",
 			timestamp:     timeString("2025-04-03 00:00:00"),
@@ -458,7 +458,7 @@ func Test_timeRangeObjectState_OnCollected(t *testing.T) {
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 		},
 		{
-			name:          "reverse - collect at To boundary (exactly at end time)",
+			name:          "reverse - collect at UpperBoundary boundary (exactly at end time)",
 			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 			id:            "obj1",
 			timestamp:     timeString("2025-04-07 00:00:00"),
@@ -474,7 +474,7 @@ func Test_timeRangeObjectState_OnCollected(t *testing.T) {
 			expectedState: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse, "obj1"),
 		},
 		{
-			name:          "reverse - collect after To time (outside range)",
+			name:          "reverse - collect after UpperBoundary time (outside range)",
 			startState:    buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderReverse),
 			id:            "obj1",
 			timestamp:     timeString("2025-04-08 00:00:00"),
@@ -566,9 +566,9 @@ func buildTimeRangeState(fromStr, toStr string, granularity time.Duration, order
 		endObjectsMap[obj] = struct{}{}
 	}
 	return &TimeRangeObjectState{
-		TimeRange: CollectionTimeRange{
-			From:            from,
-			To:              to,
+		TimeRange: DirectionalTimeRange{
+			LowerBoundary:   from,
+			UpperBoundary:   to,
 			CollectionOrder: order,
 		},
 		EndObjects:  endObjectsMap,

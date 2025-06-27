@@ -111,9 +111,9 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 
 	// initialise the collection state - this will set the active time range for the collection state
 	// NOTE: we pass in the RESOLVED from time (i.e. r.FromTime) rather than the original from time (i.e. params.From)
-	timeRange := collection_state.CollectionTimeRange{
-		From:            r.FromTime,
-		To:              r.ToTime,
+	timeRange := collection_state.DirectionalTimeRange{
+		LowerBoundary:   r.FromTime,
+		UpperBoundary:   r.ToTime,
 		CollectionOrder: r.CollectionOrder,
 	}
 

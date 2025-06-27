@@ -41,21 +41,21 @@ func NewSaveableCollectionState(state CollectionState, path string) (*SaveableCo
 	return s, nil
 }
 
-// Init initializes the SaveableCollectionState with a CollectionTimeRange and a file path
+// Init initializes the SaveableCollectionState with a DirectionalTimeRange and a file path
 // if the file exists, it loads the state from the file
-func (s *SaveableCollectionState) Init(collectionTimeRange CollectionTimeRange, recollect bool, granularity time.Duration) error {
+func (s *SaveableCollectionState) Init(collectionTimeRange DirectionalTimeRange, recollect bool, granularity time.Duration) error {
 	// save the granularity
 	s.granularity = granularity
 
 	// NOTE: if granularity is zero, we DO NOT support collecting for a time range so clear the time range
 	if granularity == 0 {
 		slog.Info("Granularity is zero - clearing collection time range")
-		collectionTimeRange = CollectionTimeRange{}
+		collectionTimeRange = DirectionalTimeRange{}
 	}
 	// if we are recollecting, clear BEFORE call to Init, as Init will set the active range
 	// which we must not do until we have cleared the state
 	if recollect {
-		slog.Info("Recollecting data - clearing collection state for collection time range", "from time", collectionTimeRange.From, "to time", collectionTimeRange.To)
+		slog.Info("Recollecting data - clearing collection state for collection time range", "lower boundary time", collectionTimeRange.LowerBoundary, "upper boundary time", collectionTimeRange.UpperBoundary)
 		// if we are recollecting, set the collection state to empty
 		s.State.Clear(collectionTimeRange)
 	}

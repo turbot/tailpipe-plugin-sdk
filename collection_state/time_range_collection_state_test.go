@@ -92,9 +92,9 @@ func TestTimeRangeCollectionState_GetFromTime(t *testing.T) {
 			fields: fields{
 				TimeRanges: []*TimeRangeObjectState{
 					{
-						TimeRange: CollectionTimeRange{
-							From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-							To:              time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						TimeRange: DirectionalTimeRange{
+							LowerBoundary:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+							UpperBoundary:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 							CollectionOrder: CollectionOrderChronological,
 						},
 					},
@@ -110,18 +110,18 @@ func TestTimeRangeCollectionState_GetFromTime(t *testing.T) {
 
 				TimeRanges: []*TimeRangeObjectState{
 					{
-						TimeRange: CollectionTimeRange{
-							From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-							To:              time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						TimeRange: DirectionalTimeRange{
+							LowerBoundary:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+							UpperBoundary:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 							CollectionOrder: CollectionOrderChronological,
 						},
 						EndObjects:  map[string]struct{}{"obj1": {}},
 						Granularity: time.Hour,
 					},
 					{
-						TimeRange: CollectionTimeRange{
-							From:            time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
-							To:              time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
+						TimeRange: DirectionalTimeRange{
+							LowerBoundary:   time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+							UpperBoundary:   time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
 							CollectionOrder: CollectionOrderChronological,
 						},
 						EndObjects:  map[string]struct{}{"obj2": {}},
@@ -173,9 +173,9 @@ func TestTimeRangeCollectionState_IsEmpty(t *testing.T) {
 			fields: fields{
 				TimeRanges: []*TimeRangeObjectState{
 					{
-						TimeRange: CollectionTimeRange{
-							From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-							To:              time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						TimeRange: DirectionalTimeRange{
+							LowerBoundary:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+							UpperBoundary:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 							CollectionOrder: CollectionOrderChronological,
 						},
 						EndObjects:  map[string]struct{}{"obj1": {}},
@@ -192,18 +192,18 @@ func TestTimeRangeCollectionState_IsEmpty(t *testing.T) {
 			fields: fields{
 				TimeRanges: []*TimeRangeObjectState{
 					{
-						TimeRange: CollectionTimeRange{
-							From:            time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-							To:              time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
+						TimeRange: DirectionalTimeRange{
+							LowerBoundary:   time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+							UpperBoundary:   time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
 							CollectionOrder: CollectionOrderChronological,
 						},
 						EndObjects:  map[string]struct{}{"obj1": {}},
 						Granularity: time.Hour,
 					},
 					{
-						TimeRange: CollectionTimeRange{
-							From:            time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
-							To:              time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
+						TimeRange: DirectionalTimeRange{
+							LowerBoundary:   time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+							UpperBoundary:   time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC),
 							CollectionOrder: CollectionOrderChronological,
 						},
 						EndObjects:  map[string]struct{}{"obj2": {}},
@@ -339,7 +339,7 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 	tests := []struct {
 		name              string
 		state             *TimeRangeCollectionState
-		currentCollection *CollectionTimeRange
+		currentCollection *DirectionalTimeRange
 		expectedRanges    []*TimeRangeObjectState
 	}{
 		{
@@ -349,9 +349,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				time.Nanosecond,
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-20 12:00:00"),
-				To:              timeString("2025-05-30 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-20 12:00:00"),
+				UpperBoundary:   timeString("2025-05-30 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -366,9 +366,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-20 12:00:00"),
-				To:              timeString("2025-05-30 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-20 12:00:00"),
+				UpperBoundary:   timeString("2025-05-30 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -383,9 +383,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-20 12:00:00"),
-				To:              timeString("2025-05-30 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-20 12:00:00"),
+				UpperBoundary:   timeString("2025-05-30 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -401,9 +401,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-03 12:00:00", "2025-05-10 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj1"),
 				buildTimeRangeState("2025-05-11 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-04 12:00:00"),
-				To:              timeString("2025-05-21 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-04 12:00:00"),
+				UpperBoundary:   timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -419,9 +419,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-08 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-13 12:00:00", "2025-05-20 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-20 12:00:00"),
-				To:              timeString("2025-05-30 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-20 12:00:00"),
+				UpperBoundary:   timeString("2025-05-30 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -434,9 +434,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				CollectionOrderChronological,
 				time.Nanosecond,
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-03 12:00:00"),
-				To:              timeString("2025-05-10 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-03 12:00:00"),
+				UpperBoundary:   timeString("2025-05-10 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{},
@@ -450,9 +450,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-04 12:00:00"),
-				To:              timeString("2025-05-21 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-04 12:00:00"),
+				UpperBoundary:   timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -468,9 +468,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Nanosecond, CollectionOrderChronological, "obj3"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-01 12:00:00"),
-				To:              timeString("2025-05-25 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-01 12:00:00"),
+				UpperBoundary:   timeString("2025-05-25 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -486,9 +486,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Minute, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Minute, CollectionOrderChronological, "obj3"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-04 12:00:00"),
-				To:              timeString("2025-05-21 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-04 12:00:00"),
+				UpperBoundary:   timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -504,9 +504,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-04 12:00:00"),
-				To:              timeString("2025-05-21 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-04 12:00:00"),
+				UpperBoundary:   timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -522,9 +522,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", 24*time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", 24*time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-04 12:00:00"),
-				To:              timeString("2025-05-21 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-04 12:00:00"),
+				UpperBoundary:   timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -540,9 +540,9 @@ func TestTimeRangeCollectionState_compactForCollectionPeriod(t *testing.T) {
 				buildTimeRangeState("2025-05-10 12:00:00", "2025-05-15 12:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-05-20 12:00:00", "2025-05-25 12:00:00", time.Second, CollectionOrderChronological, "obj3"),
 			),
-			currentCollection: &CollectionTimeRange{
-				From:            timeString("2025-05-04 12:00:00"),
-				To:              timeString("2025-05-21 12:00:00"),
+			currentCollection: &DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-05-04 12:00:00"),
+				UpperBoundary:   timeString("2025-05-21 12:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expectedRanges: []*TimeRangeObjectState{
@@ -766,7 +766,7 @@ func TestTimeRangeCollectionState_emulate_collection(t *testing.T) {
 			}
 
 			// Always initialize the state with the collection time range
-			state.Init(CollectionTimeRange{From: tt.from, To: tt.to, CollectionOrder: tt.order}, tt.granularity)
+			state.Init(DirectionalTimeRange{LowerBoundary: tt.from, UpperBoundary: tt.to, CollectionOrder: tt.order}, tt.granularity)
 
 			// Simulate collection process
 			fileTime := tt.from
@@ -956,9 +956,9 @@ func TestTimeRangeCollectionState_ShouldCollect(t *testing.T) {
 			want:            false,
 		},
 	}
-	collectionTimeRange := CollectionTimeRange{
-		From:            timeString("2025-04-01 00:00:00"),
-		To:              timeString("2025-04-30 00:00:00"),
+	collectionTimeRange := DirectionalTimeRange{
+		LowerBoundary:   timeString("2025-04-01 00:00:00"),
+		UpperBoundary:   timeString("2025-04-30 00:00:00"),
 		CollectionOrder: CollectionOrderChronological,
 	}
 	for _, tt := range tests {
@@ -1053,9 +1053,9 @@ func TestTimeRangeCollectionState_updateActiveRange(t *testing.T) {
 		},
 	}
 
-	collectionTimeRange := CollectionTimeRange{
-		From:            timeString("2025-04-01 00:00:00"),
-		To:              timeString("2025-04-30 00:00:00"),
+	collectionTimeRange := DirectionalTimeRange{
+		LowerBoundary:   timeString("2025-04-01 00:00:00"),
+		UpperBoundary:   timeString("2025-04-30 00:00:00"),
 		CollectionOrder: CollectionOrderChronological,
 	}
 
@@ -1135,7 +1135,7 @@ func TestTimeRangeCollectionState_upperBoundaryTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.state.upperBoundaryTime(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("upperBoundaryTime() = %v, want %v", got, tt.want)
+				t.Errorf("endTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1201,7 +1201,7 @@ func TestTimeRangeCollectionState_lowerBoundaryTime(t1 *testing.T) {
 	for _, tt := range tests {
 		t1.Run(tt.name, func(t1 *testing.T) {
 			if got := tt.state.lowerBoundaryTime(); !reflect.DeepEqual(got, tt.want) {
-				t1.Errorf("lowerBoundaryTime() = %v, want %v", got, tt.want)
+				t1.Errorf("startTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1552,7 +1552,7 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 	tests := []struct {
 		name       string
 		state      *TimeRangeCollectionState
-		clearRange CollectionTimeRange
+		clearRange DirectionalTimeRange
 		expected   *TimeRangeCollectionState
 	}{
 		{
@@ -1563,9 +1563,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-02 00:00:00", time.Hour, CollectionOrderChronological),
 				buildTimeRangeState("2025-01-03 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-05 00:00:00"),
-				To:              timeString("2025-01-06 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-05 00:00:00"),
+				UpperBoundary:   timeString("2025-01-06 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1582,9 +1582,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				time.Hour,
 				buildTimeRangeState("2025-01-02 00:00:00", "2025-01-03 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-04 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-01 00:00:00"),
+				UpperBoundary:   timeString("2025-01-04 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour),
@@ -1596,9 +1596,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				time.Hour,
 				buildTimeRangeState("2025-01-10 00:00:00", "2025-01-14 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-02 00:00:00"),
-				To:              timeString("2025-01-12 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-02 00:00:00"),
+				UpperBoundary:   timeString("2025-01-12 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1615,9 +1615,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				time.Hour,
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-04 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-02 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-02 00:00:00"),
+				UpperBoundary:   timeString("2025-01-05 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1633,9 +1633,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				time.Hour,
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-10 00:00:00", time.Hour, CollectionOrderChronological, "obj1"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-02 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-02 00:00:00"),
+				UpperBoundary:   timeString("2025-01-05 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1653,9 +1653,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				24*time.Hour,
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-10 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-10 00:00:00"),
-				To:              timeString("2025-01-10 04:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-10 00:00:00"),
+				UpperBoundary:   timeString("2025-01-10 04:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1673,9 +1673,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-12 00:00:00"),
-				To:              timeString("2025-01-14 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-12 00:00:00"),
+				UpperBoundary:   timeString("2025-01-14 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1695,9 +1695,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-11 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-01 00:00:00"),
+				UpperBoundary:   timeString("2025-01-11 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1717,9 +1717,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-13 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-01 00:00:00"),
+				UpperBoundary:   timeString("2025-01-13 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1738,9 +1738,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-15 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-01 00:00:00"),
+				UpperBoundary:   timeString("2025-01-15 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1759,9 +1759,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-11 00:00:00"),
-				To:              timeString("2025-01-13 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-11 00:00:00"),
+				UpperBoundary:   timeString("2025-01-13 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1781,9 +1781,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-13 00:00:00"),
-				To:              timeString("2025-01-15 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-13 00:00:00"),
+				UpperBoundary:   timeString("2025-01-15 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1803,9 +1803,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-11 00:00:00"),
-				To:              timeString("2025-01-15 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-11 00:00:00"),
+				UpperBoundary:   timeString("2025-01-15 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1825,9 +1825,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-11 00:00:00"),
-				To:              timeString("2025-01-17 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-11 00:00:00"),
+				UpperBoundary:   timeString("2025-01-17 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1846,9 +1846,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-11 00:00:00"),
-				To:              timeString("2025-01-19 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-11 00:00:00"),
+				UpperBoundary:   timeString("2025-01-19 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1867,9 +1867,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-17 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-01 00:00:00"),
+				UpperBoundary:   timeString("2025-01-17 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1887,9 +1887,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-25 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-01 00:00:00"),
+				UpperBoundary:   timeString("2025-01-25 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour),
@@ -1903,9 +1903,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-17 00:00:00"),
-				To:              timeString("2025-01-19 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-17 00:00:00"),
+				UpperBoundary:   timeString("2025-01-19 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1925,9 +1925,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-19 00:00:00"),
-				To:              timeString("2025-01-21 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-19 00:00:00"),
+				UpperBoundary:   timeString("2025-01-21 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1947,9 +1947,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-15 00:00:00"),
-				To:              timeString("2025-01-15 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-15 00:00:00"),
+				UpperBoundary:   timeString("2025-01-15 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1970,9 +1970,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-13 00:00:00"),
-				To:              timeString("2025-01-17 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-13 00:00:00"),
+				UpperBoundary:   timeString("2025-01-17 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -1991,9 +1991,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-11 00:00:00"),
-				To:              timeString("2025-01-19 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-11 00:00:00"),
+				UpperBoundary:   timeString("2025-01-19 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2012,9 +2012,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-10 00:00:00"),
-				To:              timeString("2025-01-12 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-10 00:00:00"),
+				UpperBoundary:   timeString("2025-01-12 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2033,9 +2033,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-14 00:00:00"),
-				To:              timeString("2025-01-16 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-14 00:00:00"),
+				UpperBoundary:   timeString("2025-01-16 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2054,9 +2054,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-18 00:00:00"),
-				To:              timeString("2025-01-20 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-18 00:00:00"),
+				UpperBoundary:   timeString("2025-01-20 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2075,9 +2075,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-01 00:00:00"),
-				To:              timeString("2025-01-05 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-01 00:00:00"),
+				UpperBoundary:   timeString("2025-01-05 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2097,9 +2097,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-25 00:00:00"),
-				To:              timeString("2025-01-30 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-25 00:00:00"),
+				UpperBoundary:   timeString("2025-01-30 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2119,9 +2119,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-08 00:00:00"),
-				To:              timeString("2025-01-09 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-08 00:00:00"),
+				UpperBoundary:   timeString("2025-01-09 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2141,9 +2141,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-21 00:00:00"),
-				To:              timeString("2025-01-23 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-21 00:00:00"),
+				UpperBoundary:   timeString("2025-01-23 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2163,9 +2163,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-10 00:00:00"),
-				To:              timeString("2025-01-11 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-10 00:00:00"),
+				UpperBoundary:   timeString("2025-01-11 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2185,9 +2185,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-11 00:00:00"),
-				To:              timeString("2025-01-12 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-11 00:00:00"),
+				UpperBoundary:   timeString("2025-01-12 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2207,9 +2207,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-14 00:00:00"),
-				To:              timeString("2025-01-15 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-14 00:00:00"),
+				UpperBoundary:   timeString("2025-01-15 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2229,9 +2229,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-15 00:00:00"),
-				To:              timeString("2025-01-16 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-15 00:00:00"),
+				UpperBoundary:   timeString("2025-01-16 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2251,9 +2251,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-18 00:00:00"),
-				To:              timeString("2025-01-19 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-18 00:00:00"),
+				UpperBoundary:   timeString("2025-01-19 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2273,9 +2273,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-19 00:00:00"),
-				To:              timeString("2025-01-20 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-19 00:00:00"),
+				UpperBoundary:   timeString("2025-01-20 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2295,9 +2295,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-12 00:00:00"),
-				To:              timeString("2025-01-13 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-12 00:00:00"),
+				UpperBoundary:   timeString("2025-01-13 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
@@ -2317,9 +2317,9 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-14 00:00:00", "2025-01-16 00:00:00", time.Hour, CollectionOrderChronological, "obj2"),
 				buildTimeRangeState("2025-01-18 00:00:00", "2025-01-20 00:00:00", time.Hour, CollectionOrderChronological, "obj3"),
 			),
-			clearRange: CollectionTimeRange{
-				From:            timeString("2025-01-16 00:00:00"),
-				To:              timeString("2025-01-17 00:00:00"),
+			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-16 00:00:00"),
+				UpperBoundary:   timeString("2025-01-17 00:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
