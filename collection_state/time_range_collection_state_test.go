@@ -1135,7 +1135,7 @@ func TestTimeRangeCollectionState_upperBoundaryTime(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if got := tt.state.upperBoundaryTime(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("endTime() = %v, want %v", got, tt.want)
+				t.Errorf("EndTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -1201,7 +1201,7 @@ func TestTimeRangeCollectionState_lowerBoundaryTime(t1 *testing.T) {
 	for _, tt := range tests {
 		t1.Run(tt.name, func(t1 *testing.T) {
 			if got := tt.state.lowerBoundaryTime(); !reflect.DeepEqual(got, tt.want) {
-				t1.Errorf("startTime() = %v, want %v", got, tt.want)
+				t1.Errorf("StartTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}

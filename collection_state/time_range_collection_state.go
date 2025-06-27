@@ -117,7 +117,7 @@ func (t *TimeRangeCollectionState) ShouldCollect(id string, timestamp time.Time)
 	if t.Granularity != 0 {
 		// does the timestamp fall within the current collection time range?
 		// NOTE the upper boundary is exclusive, so we check that the timestamp is on or inside the lower boundary but inside the upper boundary
-		withinCollectionTimeRange := t.currentCollectionTimeRange.onOrAfterStart(timestamp) && t.currentCollectionTimeRange.beforeEnd(timestamp)
+		withinCollectionTimeRange := t.currentCollectionTimeRange.OnOrAfterStart(timestamp) && t.currentCollectionTimeRange.BeforeEnd(timestamp)
 		// if the timestamp is outside the current collection time range, we should not collect
 		if !withinCollectionTimeRange {
 			return false
@@ -160,7 +160,7 @@ func (t *TimeRangeCollectionState) OnCollectionComplete() error {
 		return fmt.Errorf("cannot complete collection - no current collection set, Init must be called first")
 	}
 	// set the upper boundary time of the active range to the upper boundary time of the collection time range
-	t.activeRange.setUpperBoundaryTime(t.currentCollectionTimeRange.endTime())
+	t.activeRange.setUpperBoundaryTime(t.currentCollectionTimeRange.EndTime())
 
 	// perform a compact to merge any adjacent time ranges that can be merged
 	t.compactForCollectionPeriod()
@@ -377,7 +377,7 @@ func (t *TimeRangeCollectionState) setCurrentCollectionTimeRange(tr DirectionalT
 	t.currentCollectionTimeRange = &tr
 	// rather than pass 'from'  time (which we use for forward collection), pass the 'lower boundary time of the range
 	// this resolves to the 'from' time for forward collection and the 'to' time for reverse collection
-	t.updateActiveRange(t.currentCollectionTimeRange.startTime())
+	t.updateActiveRange(t.currentCollectionTimeRange.StartTime())
 }
 
 // upperBoundaryTime returns the the furthest time in the direction of collection
@@ -417,12 +417,12 @@ func (t *TimeRangeCollectionState) updateActiveRange(timestamp time.Time) {
 		if rangeForTimestamp != nil && rangeForTimestamp != t.activeRange {
 			slog.Info("Updating active range for time",
 				"timestamp", timestamp,
-				"active range upper boundary time", t.activeRange.TimeRange.endTime(),
-				"range for timestamp lower boundary time", rangeForTimestamp.TimeRange.startTime())
+				"active range upper boundary time", t.activeRange.TimeRange.EndTime(),
+				"range for timestamp lower boundary time", rangeForTimestamp.TimeRange.StartTime())
 			// if the range for the timestamp is different from the active range, we need to update the active range
 			// set the end time of the active range to the start time of the next range so we merge them next time we
 			// compact the state
-			t.activeRange.setUpperBoundaryTime(rangeForTimestamp.TimeRange.startTime())
+			t.activeRange.setUpperBoundaryTime(rangeForTimestamp.TimeRange.StartTime())
 			// use the next range as the active
 			t.activeRange = rangeForTimestamp
 		}
@@ -555,7 +555,7 @@ func (t *TimeRangeCollectionState) rangeForTime(timestamp time.Time) *TimeRangeO
 	for _, r := range t.TimeRanges {
 		// if the timestamp is within the range, return the range
 		// NOTE: in this case the upper boundary IS included - as we will extend the range to include the timestamp
-		if r.TimeRange.onOrAfterStart(timestamp) && r.TimeRange.onOrBeforeEnd(timestamp) {
+		if r.TimeRange.OnOrAfterStart(timestamp) && r.TimeRange.OnOrBeforeEnd(timestamp) {
 			return r
 		}
 	}

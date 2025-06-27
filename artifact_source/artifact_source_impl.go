@@ -538,8 +538,10 @@ func (a *ArtifactSourceImpl[S, T]) getMetadataAndApplyFilters(targetPath string,
 	satisfied := match && metadataSatisfiesFilters(metadata, filterMap)
 
 	// if we have a from time, check whether that excludes this directory
-	if satisfied && isDir && !a.FromTime.IsZero() {
-		satisfied = dirSatisfiesFromTime(a.FromTime, metadata)
+	// NOTE: we only support forward collection for artifacts, so we only check the LowerBoundary
+	// - we do not need the directional logic here
+	if satisfied && isDir {
+		satisfied = dirSatisfiesFromTime(a.CollectionTimeRange.LowerBoundary, metadata)
 	}
 
 	return metadata, satisfied, nil
@@ -570,12 +572,14 @@ func (a *ArtifactSourceImpl[S, T]) walkFileNode(ctx context.Context, targetPath 
 
 	// if the artifact has a timestamp, check the from and to time
 	if !artifactInfo.Timestamp.IsZero() {
+		from := a.CollectionTimeRange.LowerBoundary
+		to := a.CollectionTimeRange.UpperBoundary
 		// if we have a from time, check if the artifact is newer than the from time
-		if !a.FromTime.IsZero() && artifactInfo.Timestamp.Compare(a.FromTime) < 0 {
+		if !from.IsZero() && artifactInfo.Timestamp.Compare(from) < 0 {
 			return nil
 		}
 		// if we have a to time, check if the artifact is older than the to time
-		if !a.ToTime.IsZero() && artifactInfo.Timestamp.Compare(a.ToTime) > 0 {
+		if !to.IsZero() && artifactInfo.Timestamp.Compare(to) > 0 {
 			return nil
 		}
 	}

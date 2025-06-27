@@ -76,8 +76,8 @@ func TestDirectionalTimeRange_afterStart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.timeRange.afterStart(tt.timestamp); got != tt.want {
-				t.Errorf("afterStart() = %v, want %v", got, tt.want)
+			if got := tt.timeRange.AfterStart(tt.timestamp); got != tt.want {
+				t.Errorf("AfterStart() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -153,8 +153,8 @@ func TestDirectionalTimeRange_beforeEnd(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.timeRange.beforeEnd(tt.timestamp); got != tt.want {
-				t.Errorf("beforeEnd() = %v, want %v", got, tt.want)
+			if got := tt.timeRange.BeforeEnd(tt.timestamp); got != tt.want {
+				t.Errorf("BeforeEnd() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -230,8 +230,8 @@ func TestDirectionalTimeRange_beforeStart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.timeRange.beforeStart(tt.timestamp); got != tt.want {
-				t.Errorf("beforeStart() = %v, want %v", got, tt.want)
+			if got := tt.timeRange.BeforeStart(tt.timestamp); got != tt.want {
+				t.Errorf("BeforeStart() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -307,8 +307,8 @@ func TestDirectionalTimeRange_afterEnd(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.timeRange.afterEnd(tt.timestamp); got != tt.want {
-				t.Errorf("afterEnd() = %v, want %v", got, tt.want)
+			if got := tt.timeRange.AfterEnd(tt.timestamp); got != tt.want {
+				t.Errorf("AfterEnd() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -341,8 +341,8 @@ func TestDirectionalTimeRange_startTime(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.timeRange.startTime(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("startTime() = %v, want %v", got, tt.want)
+			if got := tt.timeRange.StartTime(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("StartTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -375,8 +375,8 @@ func TestDirectionalTimeRange_endTime(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.timeRange.endTime(); !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("endTime() = %v, want %v", got, tt.want)
+			if got := tt.timeRange.EndTime(); !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("EndTime() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -452,8 +452,8 @@ func TestDirectionalTimeRange_onOrBeforeStart(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.timeRange.onOrAfterStart(tt.timestamp); got != tt.want {
-				t.Errorf("onOrAfterStart() = %v, want %v", got, tt.want)
+			if got := tt.timeRange.OnOrAfterStart(tt.timestamp); got != tt.want {
+				t.Errorf("OnOrAfterStart() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -529,8 +529,8 @@ func TestDirectionalTimeRange_onOrBeforeEnd(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.timeRange.onOrBeforeEnd(tt.timestamp); got != tt.want {
-				t.Errorf("onOrBeforeEnd() = %v, want %v", got, tt.want)
+			if got := tt.timeRange.OnOrBeforeEnd(tt.timestamp); got != tt.want {
+				t.Errorf("OnOrBeforeEnd() = %v, want %v", got, tt.want)
 			}
 		})
 	}

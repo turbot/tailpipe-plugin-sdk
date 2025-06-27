@@ -61,14 +61,14 @@ func (s *TimeRangeObjectState) ShouldCollect(id string, timestamp time.Time) boo
 
 	// if the time is between the lowe and upper boundary we should NOT collect
 	// (as have already collected it- assuming consistent artifact ordering)
-	if s.TimeRange.onOrAfterStart(timestamp) && s.TimeRange.beforeEnd(timestamp) {
+	if s.TimeRange.OnOrAfterStart(timestamp) && s.TimeRange.BeforeEnd(timestamp) {
 		slog.Debug("ShouldCollect called with time inside the current time range - not collecting", "object", id, "timestamp", timestamp)
 		return false
 	}
 
 	// if the time within a granularity period of the upper boundary time, we must check if we have already collected it
 	// (as we have reached the limit of the granularity)
-	if timestamp.Sub(s.TimeRange.endTime()) <= s.Granularity {
+	if timestamp.Sub(s.TimeRange.EndTime()) <= s.Granularity {
 		gotObject := s.endObjectsContain(id)
 		slog.Debug("ShouldCollect called with time within granularity of upper boundary - checking end objects", "object", id, "timestamp", timestamp, "got object", gotObject, "should collect", !gotObject)
 		return !gotObject
@@ -96,11 +96,11 @@ func (s *TimeRangeObjectState) OnCollected(id string, timestamp time.Time) error
 	}
 
 	switch {
-	case s.TimeRange.beforeEnd(timestamp):
+	case s.TimeRange.BeforeEnd(timestamp):
 		// if the timestamp is INSIDE the upper boundary we have nothing to do
 		// (this may be caused by a concurrent download of a later file completing first)
 		break
-	case s.TimeRange.afterEnd(timestamp):
+	case s.TimeRange.AfterEnd(timestamp):
 		// set the upper boundary time to the timestamp
 		s.setUpperBoundaryTime(timestamp)
 		// clear the end objects map and add the object to the end objects
@@ -168,7 +168,7 @@ func (s *TimeRangeObjectState) setUpperBoundaryTime(newTime time.Time) {
 	// truncate the time to the granularity (this will be necessary if the end time is the now-time of a collection)
 	newTime = newTime.Truncate(s.Granularity)
 
-	if s.TimeRange.beforeEnd(newTime) {
+	if s.TimeRange.BeforeEnd(newTime) {
 		slog.Debug("extendEndTime called with a time that is before or equal UpperBoundary the current end time - ignoring", "new end time", newTime, "current end time", s.TimeRange.UpperBoundary)
 		return
 	}
