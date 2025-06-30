@@ -96,8 +96,8 @@ func (s *SaveableCollectionState) OnCollectionComplete() error {
 }
 
 func (s *SaveableCollectionState) ShouldCollect(id string, timestamp time.Time) bool {
-	s.mut.RLock()
-	defer s.mut.RUnlock()
+	s.mut.Lock()
+	defer s.mut.Unlock()
 
 	return s.State.ShouldCollect(id, timestamp)
 }
