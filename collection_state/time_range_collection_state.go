@@ -26,7 +26,7 @@ type TimeRangeCollectionState struct {
 	// (this is required because we do not want to have to recompute the range for each object on every OnCollected call)
 	// NOTE: the map entry is cleared after OnCollected is called to minimise memory usage
 	objectRangeMap             map[string]*TimeRangeObjectState
-	currentCollectionTimeRange *CollectionTimeRange
+	currentCollectionTimeRange *DirectionalTimeRange
 }
 
 func NewTimeRangeCollectionState() CollectionState {
@@ -58,7 +58,7 @@ func NewTimeRangeCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegac
 // compact the time ranges in case the previous collection was not completed successfully
 // (normally the state is compacted before the final save but if the process was killed before that,
 // we may have a collection state with multiple ranges that can be merged)
-func (t *TimeRangeCollectionState) Init(collectionTimeRange CollectionTimeRange, granularity time.Duration) {
+func (t *TimeRangeCollectionState) Init(collectionTimeRange DirectionalTimeRange, granularity time.Duration) {
 	// set out order from the collection time range
 	t.Order = collectionTimeRange.CollectionOrder
 	// Set granularity
@@ -117,7 +117,7 @@ func (t *TimeRangeCollectionState) ShouldCollect(id string, timestamp time.Time)
 	if t.Granularity != 0 {
 		// does the timestamp fall within the current collection time range?
 		// NOTE the upper boundary is exclusive, so we check that the timestamp is on or inside the lower boundary but inside the upper boundary
-		withinCollectionTimeRange := t.currentCollectionTimeRange.onOrInsideLowerBoundary(timestamp) && t.currentCollectionTimeRange.insideUpperBoundary(timestamp)
+		withinCollectionTimeRange := t.currentCollectionTimeRange.OnOrAfterStart(timestamp) && t.currentCollectionTimeRange.BeforeEnd(timestamp)
 		// if the timestamp is outside the current collection time range, we should not collect
 		if !withinCollectionTimeRange {
 			return false
@@ -160,7 +160,7 @@ func (t *TimeRangeCollectionState) OnCollectionComplete() error {
 		return fmt.Errorf("cannot complete collection - no current collection set, Init must be called first")
 	}
 	// set the upper boundary time of the active range to the upper boundary time of the collection time range
-	t.activeRange.setUpperBoundaryTime(t.currentCollectionTimeRange.upperBoundaryTime())
+	t.activeRange.setUpperBoundaryTime(t.currentCollectionTimeRange.EndTime())
 
 	// perform a compact to merge any adjacent time ranges that can be merged
 	t.compactForCollectionPeriod()
@@ -234,7 +234,7 @@ func (t *TimeRangeCollectionState) Compare(want *TimeRangeCollectionState) (bool
 }
 
 // Clear updates the state clear any entries for the given time range.
-func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
+func (t *TimeRangeCollectionState) Clear(clearRange DirectionalTimeRange) {
 	// if we have no granularity, we must clear the whole state
 	if t.Granularity == 0 {
 		slog.Info("Clearing entire collection state as no granularity is set")
@@ -245,19 +245,19 @@ func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 	// create a new slice to hold the processed ranges
 	var processedRanges []*TimeRangeObjectState
 
-	// NOTE: truncate the clear time range 'To' to the granularity
+	// NOTE: truncate the clear time range 'UpperBoundary' to the granularity
 	// this is to handle the case when we are recollecting for just today.
 	// For example, when collecting with no from time at 2023-10-10T12:00:00
 	// 		granularity: 1 day
 	// 		collection state from: 2023-10-01T00:00:00, to: 2023-10-10T00:00:00
 	// 		clear range from: 2023-10-10T00:00:00 to 2023-10-10T12:00:00
 	//
-	// we truncate the clear 'To' time by granularity of 1 day, so it becomes 2023-10-10T00:00:00
+	// we truncate the clear 'UpperBoundary' time by granularity of 1 day, so it becomes 2023-10-10T00:00:00
 	// this then falls into the clearRange.IsRangeSubsumed case, which results in the end objects being cleared
 	// but no other changes being made to the range
-	clearRange.To = clearRange.To.Truncate(t.Granularity)
+	clearRange.UpperBoundary = clearRange.UpperBoundary.Truncate(t.Granularity)
 
-	slog.Info("Clear collection state for time range", "from", clearRange.From, "to", clearRange.To)
+	slog.Info("Clear collection state for time range", "from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
 	defer slog.Info("Finished clearing collection state", "original_ranges", len(t.TimeRanges), "final_ranges", len(processedRanges))
 
 	for _, timeRangeObjectState := range t.TimeRanges {
@@ -269,11 +269,11 @@ func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 
 		switch {
 		case timeRangeObjectState.TimeRange.IsRangeSubsumed(clearRange):
-			slog.Debug("Time range object state is subsumed by clear range - deleting", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
+			slog.Debug("Time range object state is subsumed by clear range - deleting", "time range from", timeRangeObjectState.TimeRange.LowerBoundary, "to", timeRangeObjectState.TimeRange.UpperBoundary, "clear range from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
 			// this timeRangeObjectState is entirely within the clear range - delete (i.e. do not add to processedRanges)
 			continue
 		case clearRange.IsRangeSubsumed(timeRangeObjectState.TimeRange):
-			slog.Debug("Clear range is subsumed by time range object state - splitting into two ranges", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
+			slog.Debug("Clear range is subsumed by time range object state - splitting into two ranges", "time range from", timeRangeObjectState.TimeRange.LowerBoundary, "to", timeRangeObjectState.TimeRange.UpperBoundary, "clear range from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
 
 			// if the clear range is totally contained within the timeRangeObjectState, we ned toi create 2 new ranges:
 			// 1. a new range from the start of timeRangeObjectState to the start of clearRange
@@ -283,14 +283,14 @@ func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 			// clone the timeRangeObjectState to create a new range
 			startRange := timeRangeObjectState.Clone()
 			// set the to time to the start of the clear range
-			startRange.TimeRange.To = clearRange.From
+			startRange.TimeRange.UpperBoundary = clearRange.LowerBoundary
 			// clear the end objects as they are not relevant for this range
 			startRange.EndObjects = make(map[string]struct{})
 
 			// and the end range
 			endRange := timeRangeObjectState.Clone()
 			// set the from time to the end of the clear range
-			endRange.TimeRange.From = clearRange.To
+			endRange.TimeRange.LowerBoundary = clearRange.UpperBoundary
 
 			// add the  ranges to the processed ranges
 			// NOTE: if the clear range starts or ends on our start or end time,
@@ -306,20 +306,20 @@ func (t *TimeRangeCollectionState) Clear(clearRange CollectionTimeRange) {
 			// if the clear range START overlaps the END of the timeRangeObjectState, we need to update the end time
 			// update our end time to the start of the clear range
 			// and clear our end objects
-			slog.Debug("Time range object state overlaps start of clear range - updating end time and clearing end objects", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
-			timeRangeObjectState.TimeRange.To = clearRange.From
+			slog.Debug("Time range object state overlaps start of clear range - updating end time and clearing end objects", "time range from", timeRangeObjectState.TimeRange.LowerBoundary, "to", timeRangeObjectState.TimeRange.UpperBoundary, "clear range from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
+			timeRangeObjectState.TimeRange.UpperBoundary = clearRange.LowerBoundary
 			timeRangeObjectState.EndObjects = make(map[string]struct{})
 			processedRanges = append(processedRanges, timeRangeObjectState)
 
 		case clearRange.OverlapsStart(timeRangeObjectState.TimeRange):
 			// if the clear range END overlaps the START of the timeRangeObjectState, we need to update the start time
-			slog.Debug("Time range object state overlaps end of clear range - updating start time and keeping end objects", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
-			timeRangeObjectState.TimeRange.From = clearRange.To
+			slog.Debug("Time range object state overlaps end of clear range - updating start time and keeping end objects", "time range from", timeRangeObjectState.TimeRange.LowerBoundary, "to", timeRangeObjectState.TimeRange.UpperBoundary, "clear range from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
+			timeRangeObjectState.TimeRange.LowerBoundary = clearRange.UpperBoundary
 			// we do not clear the end objects as they are still relevant for this range
 			processedRanges = append(processedRanges, timeRangeObjectState)
 
 		default:
-			slog.Debug("Time range object state does not overlap with clear range - keeping as is", "time range from", timeRangeObjectState.TimeRange.From, "to", timeRangeObjectState.TimeRange.To, "clear range from", clearRange.From, "to", clearRange.To)
+			slog.Debug("Time range object state does not overlap with clear range - keeping as is", "time range from", timeRangeObjectState.TimeRange.LowerBoundary, "to", timeRangeObjectState.TimeRange.UpperBoundary, "clear range from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
 			// If we get here, the timeRangeObjectState does not overlap with the clearRange
 			// add the timeRangeObjectState to the processed ranges as-is and continue
 			processedRanges = append(processedRanges, timeRangeObjectState)
@@ -336,24 +336,24 @@ func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectio
 	t.Order = legacy.CollectionOrder
 	t.Granularity = legacy.Granularity
 
-	// Determine the From and to times based on the legacy structure
+	// Determine the LowerBoundary and to times based on the legacy structure
 	var fromTime, toTime time.Time
 
 	if legacy.CollectionOrder == CollectionOrderChronological {
-		// For chronological order, use FirstEntryTime as From and EndTime as to
+		// For chronological order, use FirstEntryTime as LowerBoundary and EndTime as to
 		fromTime = legacy.FirstEntryTime
 		toTime = legacy.EndTime
 	} else {
-		// For reverse order, use LastEntryTime as From and FirstEntryTime as to
+		// For reverse order, use LastEntryTime as LowerBoundary and FirstEntryTime as to
 		fromTime = legacy.LastEntryTime
 		toTime = legacy.FirstEntryTime
 	}
 
 	// Create the new time range object state
 	newRange := &TimeRangeObjectState{
-		TimeRange: CollectionTimeRange{
-			From:            fromTime,
-			To:              toTime,
+		TimeRange: DirectionalTimeRange{
+			LowerBoundary:   fromTime,
+			UpperBoundary:   toTime,
 			CollectionOrder: legacy.CollectionOrder,
 		},
 		EndObjects:  legacy.EndObjects,
@@ -373,11 +373,11 @@ func (t *TimeRangeCollectionState) populateFromReverseOrderLegacy(legacy *Revers
 }
 
 // setCurrentCollectionTimeRange sets the current collection time range and updates the active range to the start of the collection time range
-func (t *TimeRangeCollectionState) setCurrentCollectionTimeRange(tr CollectionTimeRange) {
+func (t *TimeRangeCollectionState) setCurrentCollectionTimeRange(tr DirectionalTimeRange) {
 	t.currentCollectionTimeRange = &tr
 	// rather than pass 'from'  time (which we use for forward collection), pass the 'lower boundary time of the range
 	// this resolves to the 'from' time for forward collection and the 'to' time for reverse collection
-	t.updateActiveRange(t.currentCollectionTimeRange.lowerBoundaryTime())
+	t.updateActiveRange(t.currentCollectionTimeRange.StartTime())
 }
 
 // upperBoundaryTime returns the the furthest time in the direction of collection
@@ -417,12 +417,12 @@ func (t *TimeRangeCollectionState) updateActiveRange(timestamp time.Time) {
 		if rangeForTimestamp != nil && rangeForTimestamp != t.activeRange {
 			slog.Info("Updating active range for time",
 				"timestamp", timestamp,
-				"active range upper boundary time", t.activeRange.TimeRange.upperBoundaryTime(),
-				"range for timestamp lower boundary time", rangeForTimestamp.TimeRange.lowerBoundaryTime())
+				"active range upper boundary time", t.activeRange.TimeRange.EndTime(),
+				"range for timestamp lower boundary time", rangeForTimestamp.TimeRange.StartTime())
 			// if the range for the timestamp is different from the active range, we need to update the active range
 			// set the end time of the active range to the start time of the next range so we merge them next time we
 			// compact the state
-			t.activeRange.setUpperBoundaryTime(rangeForTimestamp.TimeRange.lowerBoundaryTime())
+			t.activeRange.setUpperBoundaryTime(rangeForTimestamp.TimeRange.StartTime())
 			// use the next range as the active
 			t.activeRange = rangeForTimestamp
 		}
@@ -517,8 +517,8 @@ func (t *TimeRangeCollectionState) compactForCollectionPeriod() {
 
 		rangesOverlap := currentRange.GetToTime().Compare(nextRange.GetFromTime()) >= 0
 
-		rangesFallWithinCollectionPeriod := currentRange.GetToTime().After(t.currentCollectionTimeRange.From) &&
-			nextRange.GetFromTime().Before(t.currentCollectionTimeRange.To)
+		rangesFallWithinCollectionPeriod := currentRange.GetToTime().After(t.currentCollectionTimeRange.LowerBoundary) &&
+			nextRange.GetFromTime().Before(t.currentCollectionTimeRange.UpperBoundary)
 
 		// if the ranges do not overlap and do not fall within the collection period, we can add the current range to compacted ranges
 		if !rangesOverlap && !rangesFallWithinCollectionPeriod {
@@ -555,7 +555,7 @@ func (t *TimeRangeCollectionState) rangeForTime(timestamp time.Time) *TimeRangeO
 	for _, r := range t.TimeRanges {
 		// if the timestamp is within the range, return the range
 		// NOTE: in this case the upper boundary IS included - as we will extend the range to include the timestamp
-		if r.TimeRange.onOrInsideLowerBoundary(timestamp) && r.TimeRange.onOrInsideUpperBoundary(timestamp) {
+		if r.TimeRange.OnOrAfterStart(timestamp) && r.TimeRange.OnOrBeforeEnd(timestamp) {
 			return r
 		}
 	}
