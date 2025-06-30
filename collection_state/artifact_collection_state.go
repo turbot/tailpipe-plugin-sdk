@@ -79,7 +79,6 @@ func (s *ArtifactCollectionState) GetFromTime() time.Time {
 // (we may have collected some data after this - within the granularity period)
 // return the earliest end time of all the trunk states
 func (s *ArtifactCollectionState) GetToTime() time.Time {
-	// TODO #CS KAI think about continuation for reverse order
 	// find the earliest end time of all the trunk states
 	var endTime time.Time
 	for _, trunkState := range s.TrunkStates {

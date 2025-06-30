@@ -178,7 +178,7 @@ func (s *TimeRangeObjectState) setUpperBoundaryTime(newTime time.Time) {
 	// if the upper boundary time is NOT today, clear the end objects
 	// - we know we have collected all data for that time period
 	// (if it is today, we may not have colleceted all data for today yet)
-	// TODO #CS take delivery delay into account
+	gi // TODO take delivery delay into account https://github.com/turbot/tailpipe-plugin-sdk/issues/245
 	if newTime.Sub(time.Now().Truncate(s.Granularity)) != 0 {
 		s.EndObjects = make(map[string]struct{})
 	}
