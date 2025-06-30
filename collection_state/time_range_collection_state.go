@@ -141,13 +141,22 @@ func (t *TimeRangeCollectionState) ShouldCollect(id string, timestamp time.Time)
 }
 
 func (t *TimeRangeCollectionState) OnCollected(id string, timestamp time.Time) error {
-	// we should have stored a collection state mapping for this object
+	// check if we have stored the range for this object - there is usuall ya mapping from object if to time range
+	// we store this in ShouldCollect _except_ in the instance that this is the first item collected for the stream
+	// - in that case there will only be a single range in the collection state
+	// NOTE: the first time we collect for a state, we will NOT have cached the
 	rangeForObject, ok := t.objectRangeMap[id]
-	if !ok {
-		return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", id)
+	if ok {
+		// clear the mapping
+		delete(t.objectRangeMap, id)
+	} else {
+		// there wa no mapping - if there is  more than one range, this is an error
+		if len(t.TimeRanges) != 1 {
+			return fmt.Errorf("no collection state mapping found for item '%s' - this should have been set in ShouldCollect", id)
+		}
+		// use the one and only range
+		rangeForObject = t.TimeRanges[0]
 	}
-	// clear the mapping
-	delete(t.objectRangeMap, id)
 
 	return rangeForObject.OnCollected(id, timestamp)
 }
