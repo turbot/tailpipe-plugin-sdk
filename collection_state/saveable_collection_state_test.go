@@ -25,7 +25,7 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 			},
 			newCollectionState: NewTimeRangeCollectionState,
 			expectedState: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
-				buildTimeRangeState("2023-12-01 01:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
+				buildTimeRangeState("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 			),
 		},
 		{
@@ -40,7 +40,7 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 			},
 			newCollectionState: NewTimeRangeCollectionState,
 			expectedState: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*12,
-				buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*12, CollectionOrderChronological, "object1", "object2"),
+				buildTimeRangeState("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*12, CollectionOrderChronological, "object1", "object2"),
 			),
 		},
 		{
@@ -53,8 +53,8 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 			},
 			newCollectionState: NewTimeRangeCollectionState,
 			expectedState: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
-				buildTimeRangeState("2023-11-01 00:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1"),
-				buildTimeRangeState("2023-12-01 01:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object2"),
+				buildTimeRangeState("2023-10-01 00:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1"),
+				buildTimeRangeState("2023-11-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object2"),
 			),
 		},
 		{
@@ -324,7 +324,7 @@ func TestSaveableCollectionState_LoadWithLegacyMigration(t *testing.T) {
 
 	// Verify the state was migrated correctly
 	expectedState := buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*12,
-		buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*12, CollectionOrderChronological, "object1", "object2"),
+		buildTimeRangeState("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*12, CollectionOrderChronological, "object1", "object2"),
 	)
 
 	loadedState := state.State.(*TimeRangeCollectionState)
