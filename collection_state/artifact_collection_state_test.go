@@ -16,7 +16,7 @@ func TestArtifactCollectionState_MigrateFromLegacyState(t *testing.T) {
 			name: "migrate two trunks with different orders",
 			legacy: buildArtifactCollectionStateLegacy(map[string]*TimeRangeCollectionStateLegacy{
 				"/trunk1": buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
-				"/trunk2": buildTimeRangeCollectionStateLegacy("2023-11-01 00:00:00", "2023-11-30 00:00:00", time.Hour*24, CollectionOrderReverse, "object3"),
+				"/trunk2": buildTimeRangeCollectionStateLegacy("2023-11-01 00:00:00", "2023-12-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object3"),
 			}, timeString("2023-12-01 12:00:00")),
 			expected: buildArtifactCollectionState(map[string]*TimeRangeCollectionState{
 				"/trunk1": buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,

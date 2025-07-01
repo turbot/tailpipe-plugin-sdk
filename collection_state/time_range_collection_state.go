@@ -343,13 +343,16 @@ func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectio
 	if legacy.CollectionOrder == CollectionOrderChronological {
 		// For chronological order, use FirstEntryTime as LowerBoundary and LastEntryTime as to
 		fromTime = legacy.FirstEntryTime
-		toTime = legacy.LastEntryTime
+		// on the legacy state, the EndTime is inclusive but now it is exclusive
+		//
+		// is end time is after last entry time use that
 		if legacy.EndTime.After(legacy.LastEntryTime) {
-			// If the EndTime is after LastEntryTime, use that (this is not unexpected -
-			// it just means there was no data up until the end time of the prev collection)
 			toTime = legacy.EndTime
-			// TODO round down by granularity
+		} else {
+			// otherwise use LastEntryTime
+			toTime = legacy.LastEntryTime
 		}
+		toTime = legacy.LastEntryTime
 	} else {
 		// For reverse order, use LastEntryTime as LowerBoundary and FirstEntryTime as to
 		fromTime = legacy.LastEntryTime
