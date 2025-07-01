@@ -350,7 +350,6 @@ func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectio
 		// otherwise use LastEntryTime
 		upperBoundary = legacy.LastEntryTime
 	}
-	upperBoundary = legacy.LastEntryTime
 
 	// Create the new time range object state
 	newRange := &TimeRangeObjectState{
