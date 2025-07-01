@@ -1510,7 +1510,7 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 		{
 			name:     "empty object",
 			legacy:   map[string]interface{}{},
-			expected: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24),
+			expected: buildTimeRangeCollectionState(CollectionOrderReverse, 0),
 		},
 	}
 
