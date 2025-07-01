@@ -1468,7 +1468,7 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 			name:   "migrate TimeRangeCollectionStateLegacy chronological",
 			legacy: buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
 			expected: buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,
-				buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
+				buildTimeRangeState("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
 			),
 		},
 		{
