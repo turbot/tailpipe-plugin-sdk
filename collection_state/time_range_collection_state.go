@@ -341,13 +341,17 @@ func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectio
 	var lowerBoundary, upperBoundary time.Time
 
 	lowerBoundary = legacy.FirstEntryTime
-	// on the legacy state, the EndTime is inclusive but now it is exclusive
-	//
-	// is end time is after last entry time use that
-	if legacy.EndTime.After(legacy.LastEntryTime) {
+	// if end time is on or after last entry time use that
+	// this is the normal case for a collection that has been completed successfully
+	if legacy.EndTime.Compare(legacy.LastEntryTime) >= 0 {
 		upperBoundary = legacy.EndTime
+		// for forward collection, convert upper boundary inclusive to exclusive (by adding the granularity)
+		// (unless there are end objects in which case the day is not complete)
+		if t.Order == CollectionOrderChronological && len(legacy.EndObjects) == 0 {
+			upperBoundary = upperBoundary.Add(t.Granularity)
+		}
 	} else {
-		// otherwise use LastEntryTime
+		// otherwise use LastEntryTime - for some reaons
 		upperBoundary = legacy.LastEntryTime
 	}
 

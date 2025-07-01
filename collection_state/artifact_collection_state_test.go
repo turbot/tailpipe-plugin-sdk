@@ -31,6 +31,7 @@ func TestArtifactCollectionState_MigrateFromLegacyState(t *testing.T) {
 			}, timeString("2023-12-01 12:00:00")),
 			expected: buildArtifactCollectionState(map[string]*TimeRangeCollectionState{
 				"/trunk1": buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,
+
 					buildTimeRangeState("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderChronological),
 				),
 			}, time.Hour*24),
@@ -87,6 +88,7 @@ func buildArtifactCollectionStateLegacy(trunks map[string]*TimeRangeCollectionSt
 	}
 }
 
+// TODO update this to set end time on or after last entry time to me more realistic
 // buildTimeRangeCollectionStateLegacy constructs a legacy time range collection state for tests
 func buildTimeRangeCollectionStateLegacy(fromStr, toStr string, granularity time.Duration, order CollectionOrder, endObjects ...string) *TimeRangeCollectionStateLegacy {
 	from, err := time.Parse("2006-01-02 15:04:05", fromStr)
