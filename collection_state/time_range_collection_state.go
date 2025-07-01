@@ -347,6 +347,11 @@ func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectio
 		upperBoundary = legacy.EndTime
 		// for forward collection, convert upper boundary inclusive to exclusive (by adding the granularity)
 		// (unless there are end objects in which case the day is not complete)
+		//
+		// this works around an issue in prev collection state where the end objects are cleared on collection complete,
+		// even if the day is not complete. This could lead to duplicate objects being collected once after migration.
+		//
+		// To avoid this, shift the collection end time forward by one granularity period
 		if t.Order == CollectionOrderChronological && len(legacy.EndObjects) == 0 {
 			upperBoundary = upperBoundary.Add(t.Granularity)
 		}
