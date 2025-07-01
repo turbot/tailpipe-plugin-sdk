@@ -36,24 +36,6 @@ func NewTimeRangeCollectionState() CollectionState {
 	}
 }
 
-// NewReverseOrderTimeRangeSliceCollectionState creates a new TimeRangeCollectionState with reverse order
-func NewReverseOrderTimeRangeSliceCollectionState() CollectionState {
-	return &TimeRangeCollectionState{
-		objectRangeMap: make(map[string]*TimeRangeObjectState),
-		Order:          CollectionOrderReverse,
-	}
-}
-
-// NewTimeRangeCollectionStateFromLegacy constructs a new TimeRangeCollectionState from a legacy state
-func NewTimeRangeCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegacy) *TimeRangeCollectionState {
-	state := &TimeRangeCollectionState{
-		objectRangeMap: make(map[string]*TimeRangeObjectState),
-	}
-	// Convert the single legacy time range to the new format
-	state.addRangeFromLegacy(legacy)
-	return state
-}
-
 // Init is called after loading a collection state
 // compact the time ranges in case the previous collection was not completed successfully
 // (normally the state is compacted before the final save but if the process was killed before that,
@@ -205,6 +187,16 @@ func (t *TimeRangeCollectionState) MigrateFromLegacyState(bytes []byte) error {
 	return fmt.Errorf("failed to unmarshal legacy collection state - not a recognized legacy format")
 }
 
+// NewTimeRangeCollectionStateFromLegacy constructs a new TimeRangeCollectionState from a legacy state
+func NewTimeRangeCollectionStateFromLegacy(legacy *TimeRangeCollectionStateLegacy) *TimeRangeCollectionState {
+	state := &TimeRangeCollectionState{
+		objectRangeMap: make(map[string]*TimeRangeObjectState),
+	}
+	// Convert the single legacy time range to the new format
+	state.addRangeFromLegacy(legacy)
+	return state
+}
+
 func (t *TimeRangeCollectionState) Validate() error {
 	var errorList []error
 	for _, timeRange := range t.TimeRanges {
@@ -349,9 +341,15 @@ func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectio
 	var fromTime, toTime time.Time
 
 	if legacy.CollectionOrder == CollectionOrderChronological {
-		// For chronological order, use FirstEntryTime as LowerBoundary and EndTime as to
+		// For chronological order, use FirstEntryTime as LowerBoundary and LastEntryTime as to
 		fromTime = legacy.FirstEntryTime
-		toTime = legacy.EndTime
+		toTime = legacy.LastEntryTime
+		if legacy.EndTime.After(legacy.LastEntryTime) {
+			// If the EndTime is after LastEntryTime, use that (this is not unexpected -
+			// it just means there was no data up until the end time of the prev collection)
+			toTime = legacy.EndTime
+			// TODO round down by granularity
+		}
 	} else {
 		// For reverse order, use LastEntryTime as LowerBoundary and FirstEntryTime as to
 		fromTime = legacy.LastEntryTime
