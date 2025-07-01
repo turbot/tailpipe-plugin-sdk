@@ -45,6 +45,8 @@ func newTimeRangeCollectionState(from time.Time, order CollectionOrder, granular
 }
 
 func (s *TimeRangeObjectState) IsEmpty() bool {
+	//return s.TimeRange.UpperBoundary.Equal(s.TimeRange.LowerBoundary) || (s.TimeRange.LowerBoundary.IsZero() || s.TimeRange.UpperBoundary.IsZero()) && len(s.EndObjects) == 0
+
 	// if we have any end objects, we are not empty
 	if len(s.EndObjects) > 0 {
 		return false

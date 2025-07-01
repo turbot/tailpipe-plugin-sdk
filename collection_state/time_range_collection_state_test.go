@@ -1654,13 +1654,32 @@ func TestTimeRangeCollectionState_Clear(t *testing.T) {
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-10 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
 			),
 			clearRange: DirectionalTimeRange{
+				LowerBoundary:   timeString("2025-01-09 00:00:00"),
+				UpperBoundary:   timeString("2025-01-10 04:00:00"),
+				CollectionOrder: CollectionOrderChronological,
+			},
+			expected: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				24*time.Hour,
+				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-09 00:00:00", 24*time.Hour, CollectionOrderChronological),
+			),
+		},
+		{
+			// this test simulates collecting for just today
+			name: "clear_range_overruns_state_by_less_than_granularity (starting on end time)",
+			state: buildTimeRangeCollectionState(
+				CollectionOrderChronological,
+				24*time.Hour,
+				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-10 00:00:00", 24*time.Hour, CollectionOrderChronological, "obj1"),
+			),
+			clearRange: DirectionalTimeRange{
 				LowerBoundary:   timeString("2025-01-10 00:00:00"),
 				UpperBoundary:   timeString("2025-01-10 04:00:00"),
 				CollectionOrder: CollectionOrderChronological,
 			},
 			expected: buildTimeRangeCollectionState(
 				CollectionOrderChronological,
-				time.Hour,
+				24*time.Hour,
 				buildTimeRangeState("2025-01-01 00:00:00", "2025-01-10 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			),
 		},
