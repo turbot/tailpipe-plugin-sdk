@@ -338,32 +338,25 @@ func (t *TimeRangeCollectionState) addRangeFromLegacy(legacy *TimeRangeCollectio
 	t.Granularity = legacy.Granularity
 
 	// Determine the LowerBoundary and to times based on the legacy structure
-	var fromTime, toTime time.Time
+	var lowerBoundary, upperBoundary time.Time
 
-	if legacy.CollectionOrder == CollectionOrderChronological {
-		// For chronological order, use FirstEntryTime as LowerBoundary and LastEntryTime as to
-		fromTime = legacy.FirstEntryTime
-		// on the legacy state, the EndTime is inclusive but now it is exclusive
-		//
-		// is end time is after last entry time use that
-		if legacy.EndTime.After(legacy.LastEntryTime) {
-			toTime = legacy.EndTime
-		} else {
-			// otherwise use LastEntryTime
-			toTime = legacy.LastEntryTime
-		}
-		toTime = legacy.LastEntryTime
+	lowerBoundary = legacy.FirstEntryTime
+	// on the legacy state, the EndTime is inclusive but now it is exclusive
+	//
+	// is end time is after last entry time use that
+	if legacy.EndTime.After(legacy.LastEntryTime) {
+		upperBoundary = legacy.EndTime
 	} else {
-		// For reverse order, use LastEntryTime as LowerBoundary and FirstEntryTime as to
-		fromTime = legacy.LastEntryTime
-		toTime = legacy.FirstEntryTime
+		// otherwise use LastEntryTime
+		upperBoundary = legacy.LastEntryTime
 	}
+	upperBoundary = legacy.LastEntryTime
 
 	// Create the new time range object state
 	newRange := &TimeRangeObjectState{
 		TimeRange: DirectionalTimeRange{
-			LowerBoundary:   fromTime,
-			UpperBoundary:   toTime,
+			LowerBoundary:   lowerBoundary,
+			UpperBoundary:   upperBoundary,
 			CollectionOrder: legacy.CollectionOrder,
 		},
 		EndObjects:  legacy.EndObjects,
