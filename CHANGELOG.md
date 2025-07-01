@@ -1,7 +1,7 @@
 ## v0.9.0 [tbd]
 _Whats new_
 
-- Refactor collection state to support time ranges, enabling `--to` flag support. ([#241](https://github.com/turbot/tailpipe-plugin-sdk/issues/241), [#212](https://github.com/turbot/tailpipe-plugin-sdk/issues/212), [#84](https://github.com/turbot/tailpipe-plugin-sdk/issues/84)) 
+- Refactor collection state to support time ranges, enabling `--to` flag support. ([#241](https://github.com/turbot/tailpipe-plugin-sdk/issues/241)) 
   - TimeRangeCollectionState supports array of time ranges
   - ShouldCollect ensures that the gaps between the ranges are filled but we do not collect for times we have already collected
   - The time ranges, of type DirectionalTimeRange, are direction aware and work for collection in forwards or backwards direction
