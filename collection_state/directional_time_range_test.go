@@ -730,8 +730,8 @@ func TestDirectionalTimeRange_IsRangeSubsumed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := tt.range1.IsRangeSubsumed(tt.range2); got != tt.want {
-				t.Errorf("IsRangeSubsumed() = %v, want %v", got, tt.want)
+			if got := tt.range1.IsSubsumedBy(tt.range2); got != tt.want {
+				t.Errorf("IsSubsumedBy() = %v, want %v", got, tt.want)
 			}
 		})
 	}

@@ -62,7 +62,7 @@ func TestTimeRangeCollectionState_migrate(t1 *testing.T) {
 			source: map[string]interface{}{
 				"invalid_field": "invalid_value",
 			},
-			expectedState:      buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24),
+			expectedState:      buildTimeRangeCollectionState(CollectionOrderReverse, 0),
 			newCollectionState: NewTimeRangeCollectionState,
 			expectError:        false,
 		},

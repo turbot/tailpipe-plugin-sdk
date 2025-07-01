@@ -40,7 +40,7 @@ func (t *DirectionalTimeRange) Validate() error {
 // - returns false if either range completely contains the other
 func (t *DirectionalTimeRange) OverlapsEnd(other DirectionalTimeRange) bool {
 	// Check if either range subsumes the other - if so, return false
-	if t.IsRangeSubsumed(other) || other.IsRangeSubsumed(*t) {
+	if t.IsSubsumedBy(other) || other.IsSubsumedBy(*t) {
 		return false
 	}
 
@@ -54,15 +54,15 @@ func (t *DirectionalTimeRange) OverlapsEnd(other DirectionalTimeRange) bool {
 // - returns true if our END is after the other's start and before the other's end, but not if either range subsumes the other
 func (t *DirectionalTimeRange) OverlapsStart(other DirectionalTimeRange) bool {
 	// Return false if either range subsumes the other
-	if t.IsRangeSubsumed(other) || other.IsRangeSubsumed(*t) {
+	if t.IsSubsumedBy(other) || other.IsSubsumedBy(*t) {
 		return false
 	}
 	// Check if our end time overlaps with the other range
 	return t.UpperBoundary.After(other.LowerBoundary) && t.LowerBoundary.Before(other.LowerBoundary)
 }
 
-// IsRangeSubsumed checks if this time range is completely contained within another time range
-func (t *DirectionalTimeRange) IsRangeSubsumed(other DirectionalTimeRange) bool {
+// IsSubsumedBy checks if this time range is completely contained within another time range
+func (t *DirectionalTimeRange) IsSubsumedBy(other DirectionalTimeRange) bool {
 	return t.LowerBoundary.Compare(other.LowerBoundary) >= 0 && t.UpperBoundary.Compare(other.UpperBoundary) <= 0
 }
 

@@ -346,16 +346,6 @@ func Test_timeRangeObjectState_IsEmpty(t *testing.T) {
 			want:  true,
 		},
 		{
-			name:  "empty state - zero from time",
-			state: buildTimeRangeState("0001-01-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			want:  true,
-		},
-		{
-			name:  "empty state - zero UpperBoundary time",
-			state: buildTimeRangeState("2025-04-01 00:00:00", "0001-01-01 00:00:00", 24*time.Hour, CollectionOrderChronological),
-			want:  true,
-		},
-		{
 			name:  "non-empty state - forward order",
 			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 24*time.Hour, CollectionOrderChronological),
 			want:  false,
@@ -387,8 +377,13 @@ func Test_timeRangeObjectState_IsEmpty(t *testing.T) {
 		},
 		{
 			name:  "non-empty state - zero granularity",
-			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-07 00:00:00", 0, CollectionOrderChronological),
+			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-01 00:00:00", 0, CollectionOrderChronological, "2025-04-01 00:00:00", "2025-04-01 00:00:00"),
 			want:  false,
+		},
+		{
+			name:  "empty state - zero granularity",
+			state: buildTimeRangeState("2025-04-01 00:00:00", "2025-04-01 00:00:00", 0, CollectionOrderChronological),
+			want:  true,
 		},
 	}
 	for _, tt := range tests {

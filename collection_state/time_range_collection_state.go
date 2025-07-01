@@ -231,6 +231,9 @@ func (t *TimeRangeCollectionState) Compare(want *TimeRangeCollectionState) (bool
 			return false, fmt.Sprintf("active range mismatch: %s", msg)
 		}
 	}
+	if t.Granularity != want.Granularity {
+		return false, fmt.Sprintf("granularity = %v, want %v", t.Granularity, want.Granularity)
+	}
 	return true, ""
 }
 
@@ -246,18 +249,6 @@ func (t *TimeRangeCollectionState) Clear(clearRange DirectionalTimeRange) {
 	// create a new slice to hold the processed ranges
 	var processedRanges []*TimeRangeObjectState
 
-	// NOTE: truncate the clear time range 'UpperBoundary' to the granularity
-	// this is to handle the case when we are recollecting for just today.
-	// For example, when collecting with no from time at 2023-10-10T12:00:00
-	// 		granularity: 1 day
-	// 		collection state from: 2023-10-01T00:00:00, to: 2023-10-10T00:00:00
-	// 		clear range from: 2023-10-10T00:00:00 to 2023-10-10T12:00:00
-	//
-	// we truncate the clear 'UpperBoundary' time by granularity of 1 day, so it becomes 2023-10-10T00:00:00
-	// this then falls into the clearRange.IsRangeSubsumed case, which results in the end objects being cleared
-	// but no other changes being made to the range
-	clearRange.UpperBoundary = clearRange.UpperBoundary.Truncate(t.Granularity)
-
 	slog.Info("Clear collection state for time range", "from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
 	defer slog.Info("Finished clearing collection state", "original_ranges", len(t.TimeRanges), "final_ranges", len(processedRanges))
 
@@ -268,12 +259,18 @@ func (t *TimeRangeCollectionState) Clear(clearRange DirectionalTimeRange) {
 		// 3. the clearRange overlaps the start of timeRangeObjectState
 		// 4. the clearRange overlaps the end of timeRangeObjectState
 
+		// first check if the clear range, when truncated to the granularity, has the same end time as the timeRangeObjectState
+		// if so, delete end objects
+		if clearRange.UpperBoundary.Truncate(t.Granularity).Equal(timeRangeObjectState.TimeRange.UpperBoundary.Truncate(t.Granularity)) {
+			timeRangeObjectState.EndObjects = make(map[string]struct{})
+		}
+
 		switch {
-		case timeRangeObjectState.TimeRange.IsRangeSubsumed(clearRange):
+		case timeRangeObjectState.TimeRange.IsSubsumedBy(clearRange):
 			slog.Debug("Time range object state is subsumed by clear range - deleting", "time range from", timeRangeObjectState.TimeRange.LowerBoundary, "to", timeRangeObjectState.TimeRange.UpperBoundary, "clear range from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
 			// this timeRangeObjectState is entirely within the clear range - delete (i.e. do not add to processedRanges)
 			continue
-		case clearRange.IsRangeSubsumed(timeRangeObjectState.TimeRange):
+		case clearRange.IsSubsumedBy(timeRangeObjectState.TimeRange):
 			slog.Debug("Clear range is subsumed by time range object state - splitting into two ranges", "time range from", timeRangeObjectState.TimeRange.LowerBoundary, "to", timeRangeObjectState.TimeRange.UpperBoundary, "clear range from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
 
 			// if the clear range is totally contained within the timeRangeObjectState, we ned toi create 2 new ranges:
@@ -318,8 +315,8 @@ func (t *TimeRangeCollectionState) Clear(clearRange DirectionalTimeRange) {
 			timeRangeObjectState.TimeRange.LowerBoundary = clearRange.UpperBoundary
 			// we do not clear the end objects as they are still relevant for this range
 			processedRanges = append(processedRanges, timeRangeObjectState)
-
 		default:
+
 			slog.Debug("Time range object state does not overlap with clear range - keeping as is", "time range from", timeRangeObjectState.TimeRange.LowerBoundary, "to", timeRangeObjectState.TimeRange.UpperBoundary, "clear range from", clearRange.LowerBoundary, "to", clearRange.UpperBoundary)
 			// If we get here, the timeRangeObjectState does not overlap with the clearRange
 			// add the timeRangeObjectState to the processed ranges as-is and continue
