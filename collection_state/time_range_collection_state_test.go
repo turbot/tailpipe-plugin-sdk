@@ -1475,7 +1475,7 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 			name:   "migrate TimeRangeCollectionStateLegacy reverse",
 			legacy: buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 			expected: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
-				buildTimeRangeState("2023-12-01 01:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
+				buildTimeRangeState("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 			),
 		},
 		{
@@ -1486,7 +1486,7 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 				},
 			},
 			expected: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
-				buildTimeRangeState("2023-12-01 01:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
+				buildTimeRangeState("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 			),
 		},
 		{
@@ -1498,8 +1498,8 @@ func TestTimeRangeCollectionState_MigrateFromLegacyState(t *testing.T) {
 				},
 			},
 			expected: buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
-				buildTimeRangeState("2023-11-01 00:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1"),
-				buildTimeRangeState("2023-12-01 01:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object2"),
+				buildTimeRangeState("2023-10-01 00:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1"),
+				buildTimeRangeState("2023-11-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object2"),
 			),
 		},
 		{
