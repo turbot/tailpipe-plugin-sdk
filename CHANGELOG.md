@@ -1,4 +1,4 @@
-## v0.9.0 [tbd]
+## v0.9.0 [2025-07-02]
 _Whats new_
 
 - Refactor collection state to support time ranges, enabling `--to` flag support. ([#241](https://github.com/turbot/tailpipe-plugin-sdk/issues/241)) 
