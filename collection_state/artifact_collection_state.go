@@ -26,7 +26,7 @@ type ArtifactCollectionState struct {
 	granularity time.Duration
 
 	// the time range for the underway collection - populated by Init
-	currentCollectionTimeRange *CollectionTimeRange
+	currentCollectionTimeRange *DirectionalTimeRange
 	// map of the trunk state for each object which has been passed to ShouldCollect
 	// this is to avoid recomputing the trunk state for each object on every OnCollected call
 	objectTrunkMap map[string]*TimeRangeCollectionState
@@ -40,7 +40,7 @@ func NewArtifactCollectionState() CollectionState {
 }
 
 // Init sets the filepath of the collection state and loads the state from the file if it exists
-func (s *ArtifactCollectionState) Init(collectionTimeRange CollectionTimeRange, granularity time.Duration) {
+func (s *ArtifactCollectionState) Init(collectionTimeRange DirectionalTimeRange, granularity time.Duration) {
 	// ensure the granularity is no smaller than the minimum
 	if granularity < MinArtifactGranularity && granularity != 0 {
 		granularity = MinArtifactGranularity
@@ -79,7 +79,6 @@ func (s *ArtifactCollectionState) GetFromTime() time.Time {
 // (we may have collected some data after this - within the granularity period)
 // return the earliest end time of all the trunk states
 func (s *ArtifactCollectionState) GetToTime() time.Time {
-	// TODO #CS KAI think about continuation for reverse order
 	// find the earliest end time of all the trunk states
 	var endTime time.Time
 	for _, trunkState := range s.TrunkStates {
@@ -223,7 +222,7 @@ func (s *ArtifactCollectionState) IsEmpty() bool {
 	return true
 }
 
-func (s *ArtifactCollectionState) Clear(timeRange CollectionTimeRange) {
+func (s *ArtifactCollectionState) Clear(timeRange DirectionalTimeRange) {
 	for _, trunkState := range s.TrunkStates {
 		if trunkState == nil {
 			continue

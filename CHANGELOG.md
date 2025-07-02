@@ -1,3 +1,20 @@
+## v0.9.0 [2025-07-02]
+_Whats new_
+
+- Refactor collection state to support time ranges, enabling `--to` flag support. ([#241](https://github.com/turbot/tailpipe-plugin-sdk/issues/241)) 
+  - TimeRangeCollectionState supports array of time ranges
+  - ShouldCollect ensures that the gaps between the ranges are filled but we do not collect for times we have already collected
+  - The time ranges, of type DirectionalTimeRange, are direction aware and work for collection in forwards or backwards direction
+  - A Clear function allows clearing the state for a specified time range
+  - Move all persistence logic into SaveableCollectionState
+  - Added `overwrite` parameter to CollectRequest - if set, clear collection state becore collecting
+  - Added migration support for legacy collection states
+
+_Bug fixes_
+* Fix issue where collection state end-objects are cleared when collection is complete,
+  meaning no further data will be collected for that day. ([#250](https://github.com/turbot/tailpipe-plugin-sdk/issues/250))
+
+
 ## v0.8.0 [2025-06-23]
 _Whats new_
 * Remove row validation and rely entirely on CLI to execute validation. ([#202](https://github.com/turbot/tailpipe-plugin-sdk/issues/202))

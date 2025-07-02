@@ -6,7 +6,7 @@ import (
 
 type CollectionState interface {
 	IsEmpty() bool
-	Init(CollectionTimeRange, time.Duration)
+	Init(DirectionalTimeRange, time.Duration)
 	ShouldCollect(id string, timestamp time.Time) bool
 	OnCollected(id string, timestamp time.Time) error
 	GetFromTime() time.Time
@@ -17,7 +17,7 @@ type CollectionState interface {
 	OnCollectionComplete() error
 	MigrateFromLegacyState(bytes []byte) error
 	Validate() error
-	Clear(CollectionTimeRange)
+	Clear(DirectionalTimeRange)
 }
 
 type CollectionStateWithPaths interface {

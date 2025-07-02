@@ -13,21 +13,6 @@ func TestArtifactCollectionState_MigrateFromLegacyState(t *testing.T) {
 		expected *ArtifactCollectionState
 	}{
 		{
-			name: "migrate two trunks with different orders",
-			legacy: buildArtifactCollectionStateLegacy(map[string]*TimeRangeCollectionStateLegacy{
-				"/trunk1": buildTimeRangeCollectionStateLegacy("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
-				"/trunk2": buildTimeRangeCollectionStateLegacy("2023-11-01 00:00:00", "2023-11-30 00:00:00", time.Hour*24, CollectionOrderReverse, "object3"),
-			}, timeString("2023-12-01 12:00:00")),
-			expected: buildArtifactCollectionState(map[string]*TimeRangeCollectionState{
-				"/trunk1": buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,
-					buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*24, CollectionOrderChronological, "object1", "object2"),
-				),
-				"/trunk2": buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
-					buildTimeRangeState("2023-11-30 00:00:00", "2023-11-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object3"),
-				),
-			}, time.Hour*24),
-		},
-		{
 			name:     "empty trunks",
 			legacy:   buildArtifactCollectionStateLegacy(map[string]*TimeRangeCollectionStateLegacy{}, timeString("2023-12-01 12:00:00")),
 			expected: buildArtifactCollectionState(map[string]*TimeRangeCollectionState{}, 0),
@@ -46,7 +31,8 @@ func TestArtifactCollectionState_MigrateFromLegacyState(t *testing.T) {
 			}, timeString("2023-12-01 12:00:00")),
 			expected: buildArtifactCollectionState(map[string]*TimeRangeCollectionState{
 				"/trunk1": buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,
-					buildTimeRangeState("2023-10-01 00:00:00", "2023-11-30 01:00:00", time.Hour*24, CollectionOrderChronological),
+
+					buildTimeRangeState("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderChronological),
 				),
 			}, time.Hour*24),
 		},
@@ -57,7 +43,7 @@ func TestArtifactCollectionState_MigrateFromLegacyState(t *testing.T) {
 			}, timeString("2023-12-01 12:00:00")),
 			expected: buildArtifactCollectionState(map[string]*TimeRangeCollectionState{
 				"/trunk1": buildTimeRangeCollectionState(CollectionOrderReverse, time.Hour*24,
-					buildTimeRangeState("2023-12-01 01:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
+					buildTimeRangeState("2023-10-01 00:00:00", "2023-12-01 01:00:00", time.Hour*24, CollectionOrderReverse, "object1", "object2"),
 				),
 			}, time.Hour*24),
 		},
@@ -68,7 +54,7 @@ func TestArtifactCollectionState_MigrateFromLegacyState(t *testing.T) {
 			}, timeString("2023-12-01 12:00:00")),
 			expected: buildArtifactCollectionState(map[string]*TimeRangeCollectionState{
 				"/trunk1": buildTimeRangeCollectionState(CollectionOrderChronological, time.Hour*24,
-					buildTimeRangeState("2023-10-01 00:00:00", "2023-10-01 00:00:00", time.Hour*24, CollectionOrderChronological, "object1"),
+					buildTimeRangeState("2023-10-01 00:00:00", "2023-10-02 00:00:00", time.Hour*24, CollectionOrderChronological, "object1"),
 				),
 			}, time.Hour*24),
 		},
@@ -102,6 +88,7 @@ func buildArtifactCollectionStateLegacy(trunks map[string]*TimeRangeCollectionSt
 	}
 }
 
+// TODO update this to set end time on or after last entry time to me more realistic
 // buildTimeRangeCollectionStateLegacy constructs a legacy time range collection state for tests
 func buildTimeRangeCollectionStateLegacy(fromStr, toStr string, granularity time.Duration, order CollectionOrder, endObjects ...string) *TimeRangeCollectionStateLegacy {
 	from, err := time.Parse("2006-01-02 15:04:05", fromStr)

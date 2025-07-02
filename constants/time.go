@@ -2,5 +2,6 @@ package constants
 
 import "time"
 
-// collect for 7 days for first colection
+// DefaultInitialCollectionPeriod defines the default initial collection period for a row source.
+// (collect for 7 days for first collection)
 const DefaultInitialCollectionPeriod = 7 * 24 * time.Hour

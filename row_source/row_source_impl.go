@@ -44,18 +44,17 @@ type RowSourceImpl[S, T parse.Config] struct {
 	CollectionState *collection_state.SaveableCollectionState
 	// a function to create empty collection state data
 	NewCollectionStateFunc func() collection_state.CollectionState
-	// the start time for the data collection
-	FromTime time.Time
-	// how was from time set (config, collection state, default)
-	FromTimeSource string
-	// the end time for the data collection
-	ToTime time.Time
-	// the collection direction
-	CollectionOrder collection_state.CollectionOrder
 	// store errors - we only use this to determine whether the source collection was successful,
 	// and therefore whether we should set the CollectionState EndTime to the collection To time from OnCollectionComplete
 	ErrorCount int32
 
+	// the collection direction (this defaults to forwards - reverse order sources should set this in their Init method)
+	CollectionOrder collection_state.CollectionOrder
+	// the start time for the data collection
+	//FromTime time.Time
+	// how was from time set (config, collection state, default)
+	FromTimeSource      string
+	CollectionTimeRange collection_state.DirectionalTimeRange
 	// a func to call to retrieve the granularity for the source
 	// this is provided to avoid a tricky timing problem - we want to get the granularity within RowSourceImpl.Init
 	// but ArtifactSourceImpl.Init  needs to use our config to determine the granularity and this is not available
@@ -69,8 +68,6 @@ type RowSourceImpl[S, T parse.Config] struct {
 func (r *RowSourceImpl[S, T]) RegisterSource(source RowSource) {
 	r.Source = source
 }
-
-// TODO #CS kai how do we set order
 
 // Init is called when the row source is created
 // it is responsible for parsing the source config and configuring the source
@@ -103,19 +100,6 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	if err != nil {
 		return err
 	}
-	// store the To time
-	r.ToTime = params.To
-	// resolve the from time, applying the from time passed in the params
-	// and falling back to the collection state/default value if needed
-	r.setFromTime(params.From)
-
-	// initialise the collection state - this will set the active time range for the collection state
-	// NOTE: we pass in the RESOLVED from time (i.e. r.FromTime) rather than the original from time (i.e. params.From)
-	timeRange := collection_state.CollectionTimeRange{
-		From:            r.FromTime,
-		To:              r.ToTime,
-		CollectionOrder: r.CollectionOrder,
-	}
 
 	// if the granularity is not set, default to 1ns (the default for APIs0)
 	granularity := DefaultAPIGranularity
@@ -124,7 +108,15 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 		granularity = r.GetGranularityFunc()
 	}
 
-	err = r.CollectionState.Init(timeRange, params.Overwrite, granularity)
+	// populate the collection time range
+	// this will resolve to the from time, using the collection state if needed
+	// it will also adjust the from and to time if the collection order is reverse
+	r.setCollectionTimeRange(params, granularity)
+
+	// init the collection state with the time range and granularity
+	// NOTE: the collection state will set it;s collection order based on the time range collection order
+	// (which we set from our CollectionOrder field)
+	err = r.CollectionState.Init(r.CollectionTimeRange, params.Overwrite, granularity)
 	if err != nil {
 		return err
 	}
@@ -160,7 +152,7 @@ func (r *RowSourceImpl[S, T]) OnRow(ctx context.Context, row *types.RowData) err
 // (config, collection state or default)
 func (r *RowSourceImpl[S, T]) GetFromTime() *ResolvedFromTime {
 	return &ResolvedFromTime{
-		Time:   r.FromTime,
+		Time:   r.CollectionTimeRange.LowerBoundary,
 		Source: r.FromTimeSource,
 	}
 }
@@ -241,35 +233,6 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 	return nil
 }
 
-// SetFromTime sets the from time for the data collection
-// If the from time is not set, it will be set to the end time of the collection state
-// If the collection state is empty, it will be set to the default initial collection period
-func (r *RowSourceImpl[S, T]) setFromTime(from time.Time) {
-	if !from.IsZero() {
-		// just set the collection state end time
-		r.FromTime = from
-		r.FromTimeSource = ""
-		return
-	}
-	// if no from time was passed, set it to the end time of the collection state
-	if !r.CollectionState.IsEmpty() {
-		t := r.CollectionState.GetToTime()
-		if !t.IsZero() {
-			slog.Info("Setting from time from collection state end time", "end time", t)
-			r.FromTime = t
-			r.FromTimeSource = "last collection date"
-			return
-		}
-	}
-
-	slog.Info("Setting from time to default", "default", constants.DefaultInitialCollectionPeriod)
-
-	// if from is not set (either by explicitly passing is as an arg, or from the collection state end time) set it now
-	// to the default (7 days
-	r.FromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)
-	r.FromTimeSource = fmt.Sprintf("initial collection, default %d days", int(constants.DefaultInitialCollectionPeriod.Hours()/24))
-}
-
 func (r *RowSourceImpl[S, T]) initialiseConfig(configData types.ConfigData) error {
 	// default to empty config
 	c := utils.InstanceOf[S]()
@@ -307,4 +270,51 @@ func (r *RowSourceImpl[S, T]) initialiseConnection(connectionData types.ConfigDa
 		return fmt.Errorf("invalid connection: %w", err)
 	}
 	return nil
+}
+
+func (r *RowSourceImpl[S, T]) setCollectionTimeRange(params *RowSourceParams, granularity time.Duration) {
+	// resolve the from time, applying the from time passed in the params
+	// and falling back to the collection state/default value if needed
+	from, fromSource := r.resolveFromTime(params.From)
+
+	r.CollectionTimeRange = collection_state.DirectionalTimeRange{
+		LowerBoundary:   from,
+		UpperBoundary:   params.To,
+		CollectionOrder: r.CollectionOrder,
+	}
+	r.FromTimeSource = fromSource
+
+	slog.Info("Collection time range", "from", from, "to", params.To, "order", r.CollectionOrder)
+}
+
+// the from time source is the reason why the from time was set - it will be displayed as message on the CLI
+var fromTimeSourceCollectionStateEndTime = "collection state end time"
+var fromTimeSourceDefault = fmt.Sprintf("initial collection, default %d days", int(constants.DefaultInitialCollectionPeriod.Hours()/24))
+
+// no messaqe for user specified from time - use empty string
+var fromTimeSourceUserSpecified = ""
+
+// SetFromTime sets the from time for the data collection
+// If the from time is not set, it will be set to the end time of the collection state
+// If the collection state is empty, it will be set to the default initial collection period
+func (r *RowSourceImpl[S, T]) resolveFromTime(from time.Time) (fromTime time.Time, fromTimeSource string) {
+	if !from.IsZero() {
+		// a from time pass passed as a pram - use it
+		return from, fromTimeSourceUserSpecified
+	}
+	// if no from time was passed, set it to the end time of the collection state
+	if !r.CollectionState.IsEmpty() {
+		t := r.CollectionState.GetToTime()
+		if !t.IsZero() {
+			slog.Info("Setting from time from collection state end time", "end time", t)
+			return t, fromTimeSourceCollectionStateEndTime
+		}
+	}
+
+	slog.Info("Setting from time to default", "default", constants.DefaultInitialCollectionPeriod)
+
+	// if from is not set (either by explicitly passing is as an arg, or from the collection state end time) set it now
+	// to the default (7 days
+	fromTime = time.Now().Add(-constants.DefaultInitialCollectionPeriod)
+	return fromTime, fromTimeSourceDefault
 }

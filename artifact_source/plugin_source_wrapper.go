@@ -87,10 +87,15 @@ func (w *PluginSourceWrapper) Init(ctx context.Context, params *row_source.RowSo
 	if err != nil {
 		return err
 	}
+	// the init call returns the resolved from time - use to store on the wrapper
 	// set the from time
 	fromTime := row_source.ResolvedFromTimeFromProto(resp.FromTime)
 
-	w.FromTime = fromTime.Time
+	// store the collection time range
+	w.CollectionTimeRange = collection_state.DirectionalTimeRange{
+		LowerBoundary: fromTime.Time,
+		UpperBoundary: params.To,
+	}
 	w.FromTimeSource = fromTime.Source
 
 	return nil
