@@ -284,24 +284,6 @@ func (r *RowSourceImpl[S, T]) setCollectionTimeRange(params *RowSourceParams, gr
 	}
 	r.FromTimeSource = fromSource
 
-	// NOTE for reverse order collection we need to adjust the time range by shifting it 1 granularity period backwards
-	// this is because the 'from' arg is inclusive and the 'to' arg is exclusive.
-	// However for reverse order inclusive start time of the collection is the 'to' time MINUS the granularity period
-	// and the exclusive end time of collection is the 'from' time MINUS the granularity period.
-	if r.CollectionOrder == collection_state.CollectionOrderReverse {
-		r.CollectionTimeRange.UpperBoundary = r.CollectionTimeRange.UpperBoundary.Add(-granularity)
-		slog.Info("Adjusting collection time range for reverse order collection", "granularity", granularity)
-		slog.Info("To time adjusted", "adjusted to", r.CollectionTimeRange.UpperBoundary)
-		// NOTE: we only adjust the FROM time range if it was explicitly specified, in which case the from reason will be empty
-		if r.FromTimeSource == fromTimeSourceUserSpecified {
-			r.CollectionTimeRange.LowerBoundary = r.CollectionTimeRange.LowerBoundary.Add(-granularity)
-			slog.Info("User provided From time adjusted", "adjusted from", r.CollectionTimeRange.LowerBoundary)
-		} else {
-			slog.Info("From time not user specified, not adjusting from time for reverse order collection", "from time source", r.FromTimeSource)
-		}
-	}
-
-	//
 	slog.Info("Collection time range", "from", from, "to", params.To, "order", r.CollectionOrder)
 }
 
