@@ -150,6 +150,12 @@ func (t *TimeRangeCollectionState) OnCollectionComplete() error {
 	if t.currentCollectionTimeRange == nil {
 		return fmt.Errorf("cannot complete collection - no current collection set, Init must be called first")
 	}
+	// if we have no granularity we have nothing to do
+	if t.Granularity == 0 {
+		slog.Info("Granularity is zero - no collection complete action required")
+		return nil
+	}
+
 	// set the upper boundary time of the active range to the upper boundary time of the collection time range
 	t.activeRange.setUpperBoundaryTime(t.currentCollectionTimeRange.EndTime())
 

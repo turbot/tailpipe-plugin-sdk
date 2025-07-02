@@ -145,6 +145,9 @@ func (s *TimeRangeObjectState) GetGranularity() time.Duration {
 }
 
 func (s *TimeRangeObjectState) Validate() error {
+	if s.Granularity == 0 {
+		return nil
+	}
 	return s.TimeRange.Validate()
 }
 
