@@ -1,6 +1,9 @@
 package schema
 
-import "golang.org/x/exp/maps"
+import (
+	"github.com/turbot/tailpipe-plugin-sdk/helpers"
+	"golang.org/x/exp/maps"
+)
 
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
 type SourceColumnDef struct {
@@ -69,21 +72,50 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 
 	// now set the source columns
 	r.SourceColumns = maps.Values(sourceColumns)
+
+	// sort the columns alphabetically, with tp_ fields at the end
+	r.sortColumnNames()
 	return r
 }
 
 func NewConversionSchema(tableSchema *TableSchema) *ConversionSchema {
+	clonedSchema := tableSchema.Clone()
 	// initialize the conversion schema from the table schema def
 	r := &ConversionSchema{
-		TableSchema: *tableSchema,
+		TableSchema: *clonedSchema,
 	}
 	var sourceColumns []SourceColumnDef
 
+	// First add the source column for all columns the table schema (unless there is transform)
 	for _, c := range tableSchema.Columns {
-		// store source columns
+		if c.Transform != "" {
+			// skip this column - it is a transform so the source column will not be used
+			continue
+		}
 		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 	}
 
+	// sort the columns alphabetically, with tp_ fields at the end
 	r.SourceColumns = sourceColumns
+	r.sortColumnNames()
+
 	return r
+}
+
+// sortColumNames sorts the columns in the ConversionSchema alphabetically, with tp_ prefixed fields at the end
+func (c *ConversionSchema) sortColumnNames() {
+	// sort the columns, alphabetically with tp fields at end
+
+	// first put into a map
+	columnMap := map[string]*ColumnSchema{}
+	for _, c := range c.Columns {
+		// store source columns
+		columnMap[c.ColumnName] = c
+	}
+	sortedColumnNames := helpers.SortColumnsAlphabetically(maps.Keys(columnMap))
+
+	c.Columns = make([]*ColumnSchema, len(sortedColumnNames))
+	for i, columnName := range sortedColumnNames {
+		c.Columns[i] = columnMap[columnName]
+	}
 }
