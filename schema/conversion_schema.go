@@ -1,8 +1,10 @@
 package schema
 
 import (
+	"fmt"
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 	"golang.org/x/exp/maps"
+	"strings"
 )
 
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
@@ -30,6 +32,8 @@ type ConversionSchema struct {
 	// the source columns - these are the columns in the source data
 	// this is to ensure we have the inputs required for any transforms
 	SourceColumns []SourceColumnDef
+
+	ColumnString string
 }
 
 // NewConversionSchemaWithInferredSchema populates a ConversionSchema schema using a table schema and an inferred row schema
@@ -74,7 +78,7 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 	r.SourceColumns = maps.Values(sourceColumns)
 
 	// sort the columns alphabetically, with tp_ fields at the end
-	r.sortColumnNames()
+	r.initColumns()
 	return r
 }
 
@@ -97,13 +101,14 @@ func NewConversionSchema(tableSchema *TableSchema) *ConversionSchema {
 
 	// sort the columns alphabetically, with tp_ fields at the end
 	r.SourceColumns = sourceColumns
-	r.sortColumnNames()
+	r.initColumns()
 
 	return r
 }
 
-// sortColumNames sorts the columns in the ConversionSchema alphabetically, with tp_ prefixed fields at the end
-func (c *ConversionSchema) sortColumnNames() {
+// initColumns sorts the columns in the ConversionSchema alphabetically, with tp_ prefixed fields at the end
+// it also populates the ColumnString field with a comma-separated list of quoted column names
+func (c *ConversionSchema) initColumns() {
 	// sort the columns, alphabetically with tp fields at end
 
 	// first put into a map
@@ -114,8 +119,13 @@ func (c *ConversionSchema) sortColumnNames() {
 	}
 	sortedColumnNames := helpers.SortColumnsAlphabetically(maps.Keys(columnMap))
 
+	columnNames := make([]string, len(c.SourceColumns))
 	c.Columns = make([]*ColumnSchema, len(sortedColumnNames))
 	for i, columnName := range sortedColumnNames {
 		c.Columns[i] = columnMap[columnName]
+		columnNames[i] = fmt.Sprintf(`"%s"`, columnName)
 	}
+
+	c.ColumnString = strings.Join(columnNames, ", ")
+
 }
