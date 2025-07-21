@@ -115,8 +115,8 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 
 	// After setting the collection time range, trim nil trunk states
 	// NOTE: this is done here so that the collection state is clean before we call Init on it.
-	// This is important as it may have nil trunk states if the previous collection was done using
-	// version of the code
+	// This is important as we may have nil trunk states in the collection state file if the previous
+	// collection was done using older version of the code
 	if artifactState, ok := r.CollectionState.State.(*collection_state.ArtifactCollectionState); ok {
 		artifactState.TrimNilTrunkStates()
 	}
