@@ -80,6 +80,58 @@ func TestArtifactCollectionState_MigrateFromLegacyState(t *testing.T) {
 	}
 }
 
+func TestArtifactCollectionState_Validate_NilTrunks(t *testing.T) {
+	t.Run("all nil trunks", func(t *testing.T) {
+		state := &ArtifactCollectionState{
+			TrunkStates: map[string]*TimeRangeCollectionState{
+				"/trunk1": nil,
+				"/trunk2": nil,
+			},
+		}
+		err := state.Validate()
+		if err != nil {
+			t.Errorf("expected Validate to return nil for all nil trunks, got: %v", err)
+		}
+	})
+
+	t.Run("mixed nil and valid trunks", func(t *testing.T) {
+		valid := &TimeRangeCollectionState{
+			TimeRanges: []*TimeRangeObjectState{},
+		}
+		state := &ArtifactCollectionState{
+			TrunkStates: map[string]*TimeRangeCollectionState{
+				"/trunk1": nil,
+				"/trunk2": valid,
+			},
+		}
+		err := state.Validate()
+		if err != nil {
+			t.Errorf("expected Validate to return nil for valid trunks, got: %v", err)
+		}
+	})
+
+	t.Run("mixed nil and invalid trunks", func(t *testing.T) {
+		invalid := &TimeRangeCollectionState{
+			TimeRanges: []*TimeRangeObjectState{
+				{
+					Granularity: 1,
+					TimeRange:   DirectionalTimeRange{}, // invalid
+				},
+			},
+		}
+		state := &ArtifactCollectionState{
+			TrunkStates: map[string]*TimeRangeCollectionState{
+				"/trunk1": nil,
+				"/trunk2": invalid,
+			},
+		}
+		err := state.Validate()
+		if err == nil {
+			t.Errorf("expected Validate to return error for invalid trunks, got nil")
+		}
+	})
+}
+
 // buildArtifactCollectionStateLegacy constructs a legacy artifact collection state for tests
 func buildArtifactCollectionStateLegacy(trunks map[string]*TimeRangeCollectionStateLegacy, lastModifiedTime time.Time) *ArtifactCollectionStateLegacy {
 	return &ArtifactCollectionStateLegacy{
