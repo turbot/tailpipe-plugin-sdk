@@ -113,6 +113,14 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	// it will also adjust the from and to time if the collection order is reverse
 	r.setCollectionTimeRange(params, granularity)
 
+	// After setting the collection time range, trim nil trunk states
+	// NOTE: this is done here so that the collection state is clean before we call Init on it.
+	// This is important as it may have nil trunk states if the previous collection was done using
+	// version of the code
+	if artifactState, ok := r.CollectionState.State.(*collection_state.ArtifactCollectionState); ok {
+		artifactState.TrimNilTrunkStates()
+	}
+
 	// init the collection state with the time range and granularity
 	// NOTE: the collection state will set it;s collection order based on the time range collection order
 	// (which we set from our CollectionOrder field)
@@ -220,6 +228,12 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 		slog.Info("OnCollectionComplete: Collection state is nil - not setting end time")
 		return nil
 	}
+
+	// Before saving, trim nil trunk states
+	if artifactState, ok := r.CollectionState.State.(*collection_state.ArtifactCollectionState); ok {
+		artifactState.TrimNilTrunkStates()
+	}
+
 	// so the source collection was successful, set the end time of the collection state to the collection `to`
 	// this ensures that when we run the next collection, we will start from the end time of the previous collection
 	if err := r.CollectionState.OnCollectionComplete(); err != nil {
