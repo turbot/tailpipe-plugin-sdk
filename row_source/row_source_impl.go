@@ -296,6 +296,8 @@ func (r *RowSourceImpl[S, T]) setCollectionTimeRange(params *RowSourceParams, gr
 	// and falling back to the collection state/default value if needed
 	from, fromSource := r.resolveFromTime(params.From)
 
+	slog.Info("Resolved from time", "from", from, "source", fromSource)
+
 	r.CollectionTimeRange = collection_state.DirectionalTimeRange{
 		LowerBoundary:   from,
 		UpperBoundary:   params.To,
@@ -303,6 +305,7 @@ func (r *RowSourceImpl[S, T]) setCollectionTimeRange(params *RowSourceParams, gr
 	}
 	r.FromTimeSource = fromSource
 
+	slog.Info("Setting collection time range", "from", r.CollectionTimeRange.LowerBoundary, "to", r.CollectionTimeRange.UpperBoundary, "order", r.CollectionOrder)
 	slog.Info("Collection time range", "from", from, "to", params.To, "order", r.CollectionOrder)
 }
 
@@ -317,7 +320,14 @@ var fromTimeSourceUserSpecified = ""
 // If the from time is not set, it will be set to the end time of the collection state
 // If the collection state is empty, it will be set to the default initial collection period
 func (r *RowSourceImpl[S, T]) resolveFromTime(from time.Time) (fromTime time.Time, fromTimeSource string) {
+	defer func() {
+		fromTimeCopy := fromTime
+		fromTimeSourceCopy := fromTimeSource
+		slog.Info("Resolved from time", "from", fromTimeCopy, "source", fromTimeSourceCopy)
+	}()
 	if !from.IsZero() {
+		slog.Info("Setting from time from user specified value", "from time", from)
+		slog.Debug("From time source", "source", fromTimeSourceUserSpecified)
 		// a from time pass passed as a pram - use it
 		return from, fromTimeSourceUserSpecified
 	}
