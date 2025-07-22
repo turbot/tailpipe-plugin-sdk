@@ -230,6 +230,11 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 	}
 
 	// Before saving, trim nil trunk states
+	// Having a null trunk state in the collection state file is valid. There might be some locations in the
+	// bucket which have no files in them, which would result in null trunk states, as there is no way to know
+	// this in advance we add the null trunk states to the collection state.
+	// However, we don't want to save these null trunk states to the collection state file as they do not
+	// make sense. So we trim them before saving.
 	if artifactState, ok := r.CollectionState.State.(*collection_state.ArtifactCollectionState); ok {
 		artifactState.TrimNilTrunkStates()
 	}
