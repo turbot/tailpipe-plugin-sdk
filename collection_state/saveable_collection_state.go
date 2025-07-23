@@ -47,6 +47,11 @@ func (s *SaveableCollectionState) Init(collectionTimeRange DirectionalTimeRange,
 	// save the granularity
 	s.granularity = granularity
 
+	// NOTE: if granularity is zero, we DO NOT support collecting for a time range so clear the time range
+	if granularity == 0 {
+		slog.Info("Granularity is zero - clearing collection time range")
+		collectionTimeRange = DirectionalTimeRange{}
+	}
 	// if we are recollecting, clear BEFORE call to Init, as Init will set the active range
 	// which we must not do until we have cleared the state
 	if recollect {
