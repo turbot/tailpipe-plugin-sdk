@@ -263,6 +263,9 @@ func (s *ArtifactCollectionState) MigrateFromLegacyState(bytes []byte) error {
 func (s *ArtifactCollectionState) Validate() error {
 	var errorList []error
 	for _, trunkState := range s.TrunkStates {
+		if trunkState == nil {
+			continue // skip nil trunk states
+		}
 		if trunkErr := trunkState.Validate(); trunkErr != nil {
 			errorList = append(errorList, trunkErr)
 		}
@@ -319,4 +322,13 @@ func (s *ArtifactCollectionState) String() any {
 		stringBuilder.WriteString(fmt.Sprintf("  %s: %s\n", trunkPath, trunkState.String()))
 	}
 	return stringBuilder.String()
+}
+
+// TrimNilTrunkStates removes all entries from TrunkStates where the value is nil.
+func (s *ArtifactCollectionState) TrimNilTrunkStates() {
+	for k, v := range s.TrunkStates {
+		if v == nil {
+			delete(s.TrunkStates, k)
+		}
+	}
 }
