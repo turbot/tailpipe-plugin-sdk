@@ -113,6 +113,14 @@ func (r *RowSourceImpl[S, T]) Init(_ context.Context, params *RowSourceParams, o
 	// it will also adjust the from and to time if the collection order is reverse
 	r.setCollectionTimeRange(params, granularity)
 
+	// After setting the collection time range, trim nil trunk states
+	// NOTE: this is done here so that the collection state is clean before we call Init on it.
+	// This is important as we may have nil trunk states in the collection state file if the previous
+	// collection was done using older version of the code
+	if artifactState, ok := r.CollectionState.State.(*collection_state.ArtifactCollectionState); ok {
+		artifactState.TrimNilTrunkStates()
+	}
+
 	// init the collection state with the time range and granularity
 	// NOTE: the collection state will set it;s collection order based on the time range collection order
 	// (which we set from our CollectionOrder field)
@@ -220,6 +228,17 @@ func (r *RowSourceImpl[S, T]) OnCollectionComplete() error {
 		slog.Info("OnCollectionComplete: Collection state is nil - not setting end time")
 		return nil
 	}
+
+	// Before saving, trim nil trunk states
+	// Having a null trunk state in the collection state file is valid. There might be some locations in the
+	// bucket which have no files in them, which would result in null trunk states, as there is no way to know
+	// this in advance we add the null trunk states to the collection state.
+	// However, we don't want to save these null trunk states to the collection state file as they do not
+	// make sense. So we trim them before saving.
+	if artifactState, ok := r.CollectionState.State.(*collection_state.ArtifactCollectionState); ok {
+		artifactState.TrimNilTrunkStates()
+	}
+
 	// so the source collection was successful, set the end time of the collection state to the collection `to`
 	// this ensures that when we run the next collection, we will start from the end time of the previous collection
 	if err := r.CollectionState.OnCollectionComplete(); err != nil {

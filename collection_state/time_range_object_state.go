@@ -52,11 +52,6 @@ func (s *TimeRangeObjectState) IsEmpty() bool {
 
 	// so we have no end objects
 
-	// if we have no time information and no end objects then we are empty
-	if s.Granularity == 0 {
-		return true
-	}
-
 	// if the start time equals the end time (the initial state) then we are empty
 	return s.TimeRange.UpperBoundary.Equal(s.TimeRange.LowerBoundary)
 }
