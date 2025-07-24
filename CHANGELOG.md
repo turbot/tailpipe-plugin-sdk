@@ -1,3 +1,11 @@
+## v0.9.2 [2025-07-24]
+_Bug fixes_
+* Fix issue where a collection for zero-granularity data was missing collection boundaries which was causing incorrect collection ranges. ([#264](https://github.com/turbot/tailpipe-plugin-sdk/issues/264))
+* Fix the crash when a collection state had null trunk states. ([#261](https://github.com/turbot/tailpipe-plugin-sdk/issues/261))
+
+_Dependencies_
+* Upgrade `golang.org/x/oauth2` to remediate high vulnerabilities. 
+
 ## v0.9.1 [2025-07-02]
 _Bug fixes_
 * Do not clear end objects in TimeRangeCollectionState.OnCollectionComplete if granularity is zero. Closes  ([#251](https://github.com/turbot/tailpipe-plugin-sdk/issues/251))
