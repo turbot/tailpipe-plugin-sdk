@@ -15,7 +15,7 @@ type MapInitialisedRow interface {
 type Mapper[R any] interface {
 	Identifier() string
 	// Map converts raw rows to the desired format (type 'R')
-	Map(context.Context, any, ...MapOption[R]) (R, error)
+	Map(context.Context, any, ...MapOption) (R, error)
 }
 
 // HeaderHandler is an interface which provides a method for handling the header row

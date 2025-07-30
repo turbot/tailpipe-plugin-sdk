@@ -49,13 +49,14 @@ func (c *GrokMapper[T]) Identifier() string {
 	return "grok_mapper"
 }
 
-func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, error) {
+func (c *GrokMapper[T]) Map(_ context.Context, a any, opts ...MapOption) (T, error) {
 	var empty T
 
+	var config = &MapConfig{}
+	// apply opts - this may set a schema
 	for _, opt := range opts {
-		opt(c)
+		opt(config)
 	}
-
 	// Validate input type is string
 	input, ok := a.(string)
 	if !ok {

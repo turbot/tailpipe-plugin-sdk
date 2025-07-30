@@ -30,13 +30,14 @@ func (c *RegexMapper[T]) Identifier() string {
 	return "row_regex_mapper"
 }
 
-func (c *RegexMapper[T]) Map(_ context.Context, a any, opts ...MapOption[T]) (T, error) {
+func (c *RegexMapper[T]) Map(_ context.Context, a any, opts ...MapOption) (T, error) {
 	var empty T
 	var err error
 
+	var config = &MapConfig{}
 	// apply opts - this may set a schema
 	for _, opt := range opts {
-		opt(c)
+		opt(config)
 	}
 
 	// Validate input type is string

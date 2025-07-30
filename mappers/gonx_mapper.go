@@ -24,10 +24,11 @@ func (c *GonxMapper[T]) Identifier() string {
 	return "row_pattern_mapper"
 }
 
-func (c *GonxMapper[T]) Map(_ context.Context, a any, opts_ ...MapOption[T]) (T, error) {
+func (c *GonxMapper[T]) Map(_ context.Context, a any, opts ...MapOption) (T, error) {
+	var config = &MapConfig{}
 	// apply opts - this may set a schema
-	for _, opt := range opts_ {
-		opt(c)
+	for _, opt := range opts {
+		opt(config)
 	}
 
 	var parsed *gonx.Entry
