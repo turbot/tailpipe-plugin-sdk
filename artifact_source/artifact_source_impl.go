@@ -316,7 +316,7 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		return fmt.Errorf("%s: loading failed: %w", info.Name, err)
 	}
 
-	var count int64 = 0
+	var rowCount int64 = 0
 
 	// the loader will return one or more data objects (depending on whether RowPerLine flag is set)
 	// range over the data channel and apply extractor if needed
@@ -332,13 +332,15 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		}
 
 		for _, rawRow := range rawRaws {
-			count++
+			rowCount++
 
 			// if we're skipping the header row, skip the first row
 			// (note: as we already incremented count we check for 1)
-			if a.SkipHeaderRow && count == 1 {
+			if a.SkipHeaderRow && rowCount == 1 {
 				// raise an event with the header, in case anyone downstream needs it
 				// (for example a mapper which uses the header to build a format)
+				// (NOTE: If the WithHeaderRowNotification option was not used, the header delimiter will be empty,
+				// so no event will be raised)
 				if err := a.onHeader(ctx, info, rawRow); err != nil {
 					return fmt.Errorf("error processing header row: %w", err)
 				}
@@ -352,17 +354,17 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 
 	// if we skipped the header row, decrement the count to ensure logged row count is accurate
 	if a.SkipHeaderRow {
-		count--
+		rowCount--
 	}
 
 	// notify observers of extraction (if any rows were extracted)
-	if count > 0 {
-		if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info, count)); err != nil {
+	if rowCount > 0 {
+		if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info, rowCount)); err != nil {
 			return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
 		}
 	}
 
-	slog.Debug("RowSourceImpl processArtifact complete", "artifact", info.LocalName, "rows", count)
+	slog.Debug("RowSourceImpl processArtifact complete", "artifact", info.LocalName, "rows", rowCount)
 
 	return nil
 }

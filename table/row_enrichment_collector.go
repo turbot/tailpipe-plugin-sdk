@@ -249,14 +249,14 @@ func (c *RowEnrichmentCollector[R]) handleRowExtractedEvent(ctx context.Context,
 
 // mapRow applies any configured mappers to the raw rows
 func (c *RowEnrichmentCollector[R]) mapRow(ctx context.Context, rawRow any, sourceLocation string) (R, error) {
-	var opts []mappers.MapOption[R]
+	var opts []mappers.MapOption
 
 	// see if we have headers for this source location
 	c.headersMut.RLock()
 	header, ok := c.headers[sourceLocation]
 	c.headersMut.RUnlock()
 	if ok {
-		opts = append(opts, mappers.WithHeader[R](header))
+		opts = append(opts, mappers.WithHeader(header))
 	}
 
 	var empty R
