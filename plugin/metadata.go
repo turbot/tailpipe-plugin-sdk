@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/turbot/pipe-fittings/v2/app_specific"
-	"github.com/turbot/pipe-fittings/v2/ociinstaller"
-	"github.com/turbot/pipe-fittings/v2/versionfile"
+	"github.com/turbot/pipe-helpers/app_specific"
+	"github.com/turbot/pipe-helpers/ociinstaller"
+	"github.com/turbot/pipe-helpers/versionfile"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 )

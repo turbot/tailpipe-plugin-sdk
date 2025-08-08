@@ -2,9 +2,9 @@ package artifact_source_config
 
 import (
 	"github.com/hashicorp/hcl/v2"
-	"github.com/turbot/go-kit/helpers"
-	typehelpers "github.com/turbot/go-kit/types"
-	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/pipe-helpers/helpers"
+	typehelpers "github.com/turbot/pipe-helpers/types"
+	"github.com/turbot/pipe-helpers/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 

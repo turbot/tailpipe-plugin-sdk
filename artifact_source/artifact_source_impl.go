@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/maps"
 	"io/fs"
 	"log/slog"
 	"path/filepath"
@@ -12,8 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/exp/maps"
+
 	"github.com/elastic/go-grok"
-	"github.com/turbot/pipe-fittings/v2/filter"
+	"github.com/turbot/pipe-helpers/filter"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
 	"github.com/turbot/tailpipe-plugin-sdk/collection_state"

@@ -2,12 +2,13 @@ package logging
 
 import (
 	"fmt"
-	"github.com/turbot/pipe-fittings/v2/constants"
-	"github.com/turbot/pipe-fittings/v2/sanitize"
 	"io"
 	"log/slog"
 	"os"
 	"strings"
+
+	"github.com/turbot/pipe-helpers/constants"
+	"github.com/turbot/pipe-helpers/sanitize"
 )
 
 func Initialize(pluginName string) {

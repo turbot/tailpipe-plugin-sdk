@@ -1,12 +1,13 @@
 package helpers
 
 import (
-	"github.com/turbot/pipe-fittings/v2/utils"
-	"github.com/turbot/tailpipe-plugin-sdk/constants"
-	"golang.org/x/exp/maps"
 	"log/slog"
 	"regexp"
 	"time"
+
+	"github.com/turbot/pipe-helpers/utils"
+	"github.com/turbot/tailpipe-plugin-sdk/constants"
+	"golang.org/x/exp/maps"
 )
 
 // ExtractNamedGroupsFromGrok extracts named groups from a Grok pattern
