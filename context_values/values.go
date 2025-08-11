@@ -3,7 +3,8 @@ package context_values
 import (
 	"context"
 	"fmt"
-	"github.com/turbot/pipe-fittings/v2/contexthelpers"
+
+	"github.com/turbot/pipe-helpers/contexthelpers"
 )
 
 var (

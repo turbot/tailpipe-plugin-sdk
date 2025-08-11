@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/turbot/go-kit/helpers"
+	"github.com/turbot/pipe-helpers/helpers"
 	"google.golang.org/grpc"
 	//_ "net/http/pprof"
 )

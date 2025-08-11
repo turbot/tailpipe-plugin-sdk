@@ -11,8 +11,8 @@ import (
 	"unsafe"
 
 	"github.com/elastic/go-grok"
-	"github.com/turbot/go-kit/helpers"
-	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/pipe-helpers/helpers"
+	"github.com/turbot/pipe-helpers/utils"
 )
 
 type GrokMapper[T MapInitialisedRow] struct {

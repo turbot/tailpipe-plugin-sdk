@@ -1,7 +1,7 @@
 package schema
 
 import (
-	typehelpers "github.com/turbot/go-kit/types"
+	typehelpers "github.com/turbot/pipe-helpers/types"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 )
 

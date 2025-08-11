@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/satyrius/gonx"
-	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/pipe-helpers/utils"
 )
 
 type GonxMapper[T MapInitialisedRow] struct {

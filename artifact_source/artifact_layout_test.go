@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/elastic/go-grok"
-	maphelpers "github.com/turbot/go-kit/helpers"
+	maphelpers "github.com/turbot/pipe-helpers/helpers"
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 )
 

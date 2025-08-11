@@ -3,17 +3,18 @@ package parse
 import (
 	"fmt"
 
+	"log/slog"
+
 	"github.com/hashicorp/hcl/v2"
 	"github.com/hashicorp/hcl/v2/gohcl"
 	"github.com/hashicorp/hcl/v2/hclsyntax"
-	"github.com/turbot/go-kit/helpers"
-	"github.com/turbot/pipe-fittings/v2/error_helpers"
-	pf_parse "github.com/turbot/pipe-fittings/v2/parse"
-	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/pipe-helpers/error_helpers"
+	phclhelpers "github.com/turbot/pipe-helpers/hclhelpers"
+	"github.com/turbot/pipe-helpers/helpers"
+	"github.com/turbot/pipe-helpers/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"github.com/zclconf/go-cty/cty"
 	"github.com/zclconf/go-cty/cty/function"
-	"log/slog"
 )
 
 // ParseConfig parses the HCL config and returns the struct
@@ -69,7 +70,7 @@ func decodeHclBodyWithNestedStructs(body hcl.Body, evalCtx *hcl.EvalContext, res
 		}
 	}()
 
-	nestedStructs, moreDiags := pf_parse.GetNestedStructValsRecursive(resource)
+	nestedStructs, moreDiags := phclhelpers.GetNestedStructValsRecursive(resource)
 	diags = append(diags, moreDiags...)
 
 	moreDiags = gohcl.DecodeBody(body, evalCtx, resource)

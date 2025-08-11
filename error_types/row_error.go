@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/dustin/go-humanize"
-	"github.com/turbot/pipe-fittings/v2/utils"
+	"github.com/turbot/pipe-helpers/utils"
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
 	"golang.org/x/exp/maps"
 )

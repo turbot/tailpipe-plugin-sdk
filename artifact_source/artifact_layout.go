@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/elastic/go-grok"
-	"github.com/turbot/go-kit/helpers"
-	"github.com/turbot/pipe-fittings/v2/filter"
+	"github.com/turbot/pipe-helpers/filter"
+	"github.com/turbot/pipe-helpers/helpers"
 )
 
 func ExpandPatternIntoOptionalAlternatives(pattern string) []string {
