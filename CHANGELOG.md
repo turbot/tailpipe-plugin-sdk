@@ -8,7 +8,7 @@ _Dependencies_
 
 ## v0.9.1 [2025-07-02]
 _Bug fixes_
-* Do not clear end objects in TimeRangeCollectionState.OnCollectionComplete if granularity is zero. Closes  ([#251](https://github.com/turbot/tailpipe-plugin-sdk/issues/251))
+* Do not clear end objects in TimeRangeCollectionState.OnCollectionComplete if granularity is zero. ([#251](https://github.com/turbot/tailpipe-plugin-sdk/issues/251))
 * TimeRangeObjectState.Validate does not validate TimeRange if granularity is zero
 
 ## v0.9.0 [2025-07-02]
