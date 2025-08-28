@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/sethvargo/go-retry"
+	"github.com/turbot/tailpipe-plugin-sdk/artifact_source"
 	"github.com/turbot/tailpipe-plugin-sdk/context_values"
 	"github.com/turbot/tailpipe-plugin-sdk/events"
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
@@ -106,9 +107,16 @@ func (c *CollectorImpl[R]) initSource(ctx context.Context, req *types.CollectReq
 		Overwrite:           req.Recollect,
 	}
 
+	// prepare source options, including content validator if specified
+	options := sourceMetadata.Options
+	if sourceMetadata.ValidateContent != nil {
+		// add the content validator option
+		options = append(options, artifact_source.WithContentValidator(sourceMetadata.ValidateContent))
+	}
+
 	// ask factory to create and initialise the source for us
 	// NOTE: we pass the original
-	source, err := row_source.Factory.GetRowSource(ctx, params, sourceMetadata.Options...)
+	source, err := row_source.Factory.GetRowSource(ctx, params, options...)
 	if err != nil {
 		return err
 	}

@@ -1,18 +1,24 @@
 package artifact_source
 
 import (
+	"archive/zip"
+	"compress/gzip"
 	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/maps"
+	"io"
 	"io/fs"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"golang.org/x/exp/maps"
+
 	"github.com/elastic/go-grok"
+	"github.com/klauspost/compress/zstd"
 	"github.com/turbot/pipe-fittings/v2/filter"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_loader"
 	"github.com/turbot/tailpipe-plugin-sdk/artifact_source_config"
@@ -72,6 +78,8 @@ type ArtifactSourceImpl[S artifact_source_config.ArtifactSourceConfig, T parse.C
 	// map of loaders created, keyed by identifier
 	// an optional extractor which the table may specify
 	extractor Extractor
+	// optional content validator function to validate artifact content before processing
+	contentValidator ContentValidator
 
 	// this is populated lazily if we infer the loader from the file type
 	loaders    map[string]artifact_loader.Loader
@@ -168,6 +176,11 @@ func (a *ArtifactSourceImpl[S, T]) SetSkipHeaderRow() {
 func (a *ArtifactSourceImpl[S, T]) SetHeaderDelimiter(delimiter string) {
 	a.SkipHeaderRow = true
 	a.HeaderRowDelimiter = delimiter
+}
+
+// SetContentValidator sets the content validation function for the source
+func (a *ArtifactSourceImpl[S, T]) SetContentValidator(validator ContentValidator) {
+	a.contentValidator = validator
 }
 
 // Collect tells our ArtifactSourceImpl to start discovering artifacts
@@ -302,6 +315,26 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 	if err != nil {
 		return err
 	}
+
+	// if a content validator is specified, validate the full artifact content BEFORE any processing
+	if a.contentValidator != nil {
+		// decompress and read the full file content based on file extension
+		// this ensures validators get actual CSV content, not compressed bytes
+		fullContent, err := a.decompressFileContent(info.LocalName)
+		if err != nil {
+			return fmt.Errorf("error reading/decompressing file for validation: %w", err)
+		}
+
+		// call the validator with the decompressed content and enrichment metadata
+		if !a.contentValidator(ctx, fullContent, info.SourceEnrichment) {
+			slog.Warn("Content validation failed, skipping artifact", "artifact", info.LocalName, "fileSize", info.Size, "contentSize", len(fullContent))
+			// skip processing this artifact entirely by returning without error
+			// this will move to the next artifact
+			return nil
+		}
+		slog.Info("Content validation passed", "artifact", info.LocalName, "contentSize", len(fullContent))
+	}
+
 	// load artifact data
 	// resolve the loader
 	loader, err := a.resolveLoader(info)
@@ -360,6 +393,10 @@ func (a *ArtifactSourceImpl[S, T]) processArtifact(ctx context.Context, info *ty
 		if err := a.NotifyObservers(ctx, events.NewArtifactExtractedEvent(executionId, info, count)); err != nil {
 			return fmt.Errorf("error notifying observers of extracted artifact: %w", err)
 		}
+		slog.Info("Artifact processed successfully", "artifact", info.LocalName, "rows", count)
+	} else {
+		// Log when no rows are extracted to help debug processing issues
+		slog.Warn("Artifact processed but no rows extracted", "artifact", info.LocalName, "fileSize", info.Size)
 	}
 
 	slog.Debug("RowSourceImpl processArtifact complete", "artifact", info.LocalName, "rows", count)
@@ -469,6 +506,101 @@ func (a *ArtifactSourceImpl[S, T]) resolveLoader(info *types.DownloadedArtifactI
 	a.loaders[key] = l
 
 	return l, nil
+}
+
+// decompressFileContent reads and decompresses file content based on file extension
+// Returns the uncompressed content so validators receive actual file content, not compressed bytes
+func (a *ArtifactSourceImpl[S, T]) decompressFileContent(filePath string) ([]byte, error) {
+	ext := strings.ToLower(filepath.Ext(filePath))
+
+	switch ext {
+	case ".gz":
+		return a.decompressGzipFile(filePath)
+	case ".zip":
+		return a.decompressZipFile(filePath)
+	case ".zst", ".zstd":
+		return a.decompressZstdFile(filePath)
+	default:
+		// Not compressed, read file directly
+		return os.ReadFile(filePath)
+	}
+}
+
+// decompressGzipFile decompresses a gzip file and returns the content
+func (a *ArtifactSourceImpl[S, T]) decompressGzipFile(filePath string) ([]byte, error) {
+	gzFile, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening gzip file %s: %w", filePath, err)
+	}
+	defer gzFile.Close()
+
+	gzReader, err := gzip.NewReader(gzFile)
+	if err != nil {
+		return nil, fmt.Errorf("error creating gzip reader for %s: %w", filePath, err)
+	}
+	defer gzReader.Close()
+
+	content, err := io.ReadAll(gzReader)
+	if err != nil {
+		return nil, fmt.Errorf("error reading gzip file %s: %w", filePath, err)
+	}
+
+	return content, nil
+}
+
+// decompressZipFile decompresses a zip file and returns the content of the first file
+func (a *ArtifactSourceImpl[S, T]) decompressZipFile(filePath string) ([]byte, error) {
+	zipFile, err := zip.OpenReader(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening zip file %s: %w", filePath, err)
+	}
+	defer zipFile.Close()
+
+	if len(zipFile.File) == 0 {
+		return nil, fmt.Errorf("zip file %s is empty", filePath)
+	}
+
+	// For validation, we read the first file in the zip
+	// This matches the behavior of ZipLoader
+	if len(zipFile.File) > 1 {
+		slog.Warn("Zip file contains multiple files, validating first file only", "path", filePath, "fileCount", len(zipFile.File))
+	}
+
+	f := zipFile.File[0]
+	rc, err := f.Open()
+	if err != nil {
+		return nil, fmt.Errorf("error opening file inside zip %s: %w", f.Name, err)
+	}
+	defer rc.Close()
+
+	content, err := io.ReadAll(rc)
+	if err != nil {
+		return nil, fmt.Errorf("error reading file inside zip %s: %w", f.Name, err)
+	}
+
+	return content, nil
+}
+
+// decompressZstdFile decompresses a zstd file and returns the content
+func (a *ArtifactSourceImpl[S, T]) decompressZstdFile(filePath string) ([]byte, error) {
+	zstFile, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening zstd file %s: %w", filePath, err)
+	}
+	defer zstFile.Close()
+
+	zstReader, err := zstd.NewReader(zstFile)
+	if err != nil {
+		return nil, fmt.Errorf("error creating zstd reader for %s: %w", filePath, err)
+	}
+	defer zstReader.Close()
+
+	content, err := io.ReadAll(zstReader)
+	if err != nil {
+		return nil, fmt.Errorf("error reading zstd file %s: %w", filePath, err)
+	}
+
+	return content, nil
 }
 
 // functions which must be implemented by structs embedding ArtifactSourceImpl

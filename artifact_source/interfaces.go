@@ -26,6 +26,7 @@ type ArtifactSource interface {
 	SetSkipHeaderRow()
 	SetHeaderDelimiter(b string)
 	SetDefaultConfig(config *artifact_source_config.ArtifactSourceConfigImpl)
+	SetContentValidator(validator ContentValidator)
 }
 
 // Extractor is an interface which provides a method for extracting rows from an artifact

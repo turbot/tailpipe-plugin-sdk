@@ -37,6 +37,8 @@ func Serve(opts *ServeOpts) error {
 		slog.Info("Starting plugin")
 	}
 
+	// time.Sleep(30 * time.Second)
+
 	defer func() {
 		if r := recover(); r != nil {
 			msg := fmt.Sprintf("%s%s", PluginStartupFailureMessage, helpers.ToError(r).Error())
