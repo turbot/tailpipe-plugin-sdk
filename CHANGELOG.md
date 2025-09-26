@@ -1,3 +1,7 @@
+## v0.9.4 [2025-09-26]
+_Whats new_
+* Add support for Azure Blob Storage as an artifact source.
+
 ## v0.9.3 [2025-09-11]
 _Whats new_
 * ConversionSchema updated to sort columns and exposers ColumnStrings property.
