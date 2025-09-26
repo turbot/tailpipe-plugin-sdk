@@ -117,6 +117,7 @@ func IsArtifactSource(sourceType string) bool {
 		"aws_s3_bucket":      {},
 		"file":               {},
 		"gcp_storage_bucket": {},
+		"azure_blob_storage": {},
 	}
 	_, ok := artifactSources[sourceType]
 	return ok
