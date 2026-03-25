@@ -9,6 +9,9 @@ on:
   workflow_dispatch:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   golangci:
     name: Test Linting
@@ -16,14 +19,14 @@ jobs:
     steps:
 
       - name: Checkout Pipe Fittings Components repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           repository: turbot/pipe-fittings
           path: pipe-fittings
           ref: develop
 
       - name: Checkout Tailpipe plugin SDK repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
           path: tailpipe-plugin-sdk
 
@@ -34,7 +37,7 @@ jobs:
           cache: false # setup-go v4 caches by default, do not change this parameter, check golangci-lint-action doc: https://github.com/golangci/golangci-lint-action/pull/704
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
+        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6
         with:
           version: latest
           args: --timeout=10m
