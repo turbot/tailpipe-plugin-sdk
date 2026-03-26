@@ -1,0 +1,389 @@
+syntax = "proto3";
+package proto;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = ".;proto";
+
+service TailpipePlugin {
+  rpc Describe(DescribeRequest) returns (DescribeResponse);
+  rpc AddObserver(Empty) returns (stream Event);
+  rpc Collect(CollectRequest) returns (CollectResponse);
+  rpc InitSource(InitSourceRequest) returns (InitSourceResponse); ;
+  rpc UpdateCollectionState(UpdateCollectionStateRequest) returns (Empty);
+  rpc CloseSource(Empty) returns (Empty);
+  rpc SaveCollectionState(Empty) returns (Empty);
+  rpc SourceCollect(SourceCollectRequest) returns (Empty);
+  rpc SourcePause(Empty) returns (Empty);
+  rpc SourceResume(Empty) returns (Empty);
+  rpc SourceCollectionComplete(Empty) returns (Empty);
+  rpc GetSupportedOperations(Empty) returns (GetSupportedOperationsResponse);
+}
+
+message Empty{}
+
+message CollectRequest {
+  string table_name = 1;
+  string partition_name = 2;
+  // unique identifier for collection execution this will be used as base for the filename for the resulting JSONL files
+  string execution_id = 3;
+  //  the temporary directory to use for the collection
+  string collection_temp_dir= 4;
+  // the path to the collection state file
+  string collection_state_path = 5;
+  // the source to use (with raw config)
+  ConfigData source_data = 6;
+  // the raw hcl of the connection
+  ConfigData connection_data = 7;
+  // if this is custom table, schema contains the source format and table schema
+  Schema custom_table_schema  = 8;
+  // optional: the source format
+  FormatData source_format = 9;
+  // optional: the reattach config to connect to the plugin providing the source
+  SourcePluginReattach source_plugin = 10;
+  // optional: the collection start time
+  google.protobuf.Timestamp from_time = 11;
+  // the max space to take with temp files
+  int64 temp_dir_max_mb= 12;
+  // the collection end time
+  google.protobuf.Timestamp to_time = 13;
+  // recollect all data for the specified time range even if it has been collected already
+  optional bool recollect = 14;
+}
+
+message UpdateCollectionStateRequest {
+  // the path to the collection state file
+  string collection_state_path = 1;
+  // the source to use (with raw config)
+  ConfigData source_data = 2;
+  // the collection start time
+  google.protobuf.Timestamp from_time = 3;
+}
+
+message DescribeRequest {
+  repeated FormatData custom_formats = 1;
+  // only include the specified format types - no other descriptions will be returned
+  bool custom_formats_only  = 2;
+}
+
+message DescribeResponse {
+  // Map of schemas keyed by collection name
+  map<string, Schema> schemas = 1;
+  map<string, SourceMetadata> sources = 2;
+  map<string, FormatDescription> formats_presets = 3;
+  // map string to array of custom format descriptions
+  map<string, FormatDescription> custom_formats = 4;
+  // list of all format types provided by the plugin
+  repeated string format_types = 5;
+}
+
+message FormatDescription {
+  // format type
+  string type = 1;
+  // format instance name
+  string name = 2;
+  // format description
+  string description = 3;
+  // format properties
+  map<string, string> properties = 4;
+  // regex
+  string regex = 5;
+}
+
+message CollectResponse {
+  string execution_id = 1;
+
+  // partition schema
+  Schema schema = 2;
+
+  // resolved from time
+  ResolvedFromTime from_time = 3;
+}
+
+message ResolvedFromTime {
+  google.protobuf.Timestamp from_time = 1;
+  string source = 2;
+}
+// schema
+message Schema {
+  // Map of source field name to column name and type
+  repeated ColumnSchema columns = 1;
+  // deprecated: use source_columns
+  bool automap_source_fields = 2 [deprecated = true];
+  // deprecated: use source_columns
+  repeated string exclude_source_fields = 3 [deprecated = true];
+  // table description
+  string description = 4;
+  // the default null value to use for the table
+  string null_value = 5;
+  // the table name
+  string name = 6;
+  // a pattern to select which source columns to auto map
+  repeated string map_fields = 7;
+}
+
+message ColumnSchema {
+  // The type of the column - must be a valid DuckDB type
+  string type = 1;
+  // The name of the source field
+  string source_name = 2;
+  // The name of the column
+  string column_name = 3;
+  // child fields (for a struct)
+  repeated ColumnSchema child_fields = 4;
+  // column description
+  string description = 5;
+  // is the column required
+  bool required = 6;
+  // the null value to use for the column
+  string null_value = 7;
+  // the duckdb function to use to map the column
+  string transform = 8;
+}
+
+message FormatData {
+  ConfigData config = 1;
+  string name = 2;
+  string preset_name = 3;
+  string regex = 4;
+}
+
+
+message ConfigData {
+  // the name of the config target
+  string target = 1;
+  // raw hcl for collection specific config
+  bytes hcl = 2;
+  Range range = 3;
+}
+
+message Range{
+  string filename = 1;
+  Pos start = 2;
+  Pos end = 3;
+}
+
+message Pos{
+  int64 line = 1;
+  int64 column = 2;
+  int64 byte = 3;
+}
+
+
+// events
+
+// Define the Event message with oneof and enum
+message Event {
+  oneof event {
+    EventStarted started_event = 1;
+    EventChunkWritten chunk_written_event = 2;
+    EventComplete complete_event = 3;
+    EventError error_event = 4;
+    EventStatus status_event = 5;
+    EventArtifactDiscovered artifact_discovered_event = 6;
+    EventArtifactDownloaded artifact_downloaded_event = 7;
+    EventArtifactExtracted artifact_extracted_event = 8;
+    EventSourceComplete source_complete_event = 9;
+    EventHeader header_event = 10;
+  }
+}
+
+message EventStarted {
+  string execution_id = 1;
+}
+
+message EventChunkWritten {
+  string execution_id = 1;
+  int32 chunk_number = 2;
+}
+
+message EventError {
+  string execution_id = 1;
+  string error = 2;
+}
+
+message EventStatus {
+  string latest_artifact_path = 1;
+  int64 artifacts_discovered = 2;
+  int64 artifacts_downloaded = 3;
+  int64 artifacts_downloaded_bytes = 4;
+  int64 artifacts_extracted = 5;
+  int64 artifact_errors = 6;
+  int64 rows_received = 7;
+  int64 rows_enriched = 8;
+  int64 errors = 9;
+  RowErrors row_errors = 10;
+  repeated string source_errors = 11;
+}
+
+message EventComplete {
+  string execution_id = 1;
+  int64 row_count=2;
+  int32 chunk_count=3;
+  map<string, string> metadata = 4;
+  string error = 6;
+}
+
+
+message EventSourceComplete {
+  string execution_id = 1;
+  string error = 6;
+}
+
+message EventHeader {
+  string execution_id = 1;
+  ArtifactInfo artifact_info = 2;
+  repeated string header = 3;
+}
+
+message EventArtifactDiscovered{
+  string execution_id = 1;
+  ArtifactInfo artifact_info = 2;
+}
+
+message EventArtifactDownloaded{
+  string execution_id = 1;
+  DownloadedArtifactInfo artifact_info = 2;
+  int64 size = 3;
+}
+
+message EventArtifactExtracted{
+  string execution_id = 1;
+  DownloadedArtifactInfo artifact_info = 2;
+}
+
+// ArtifactInfo is a message representing artifact metadata.
+message ArtifactInfo {
+  // The local path of the downloaded artifact.
+  string local_name = 1;
+
+  // The original path of the artifact.
+  string original_name = 2;
+
+  // Any enrichment fields provided by the source.
+  SourceEnrichment source_enrichment = 3;
+}
+
+// ArtifactInfo is a message representing artifact metadata.
+message DownloadedArtifactInfo {
+  // The local path of the downloaded artifact.
+  string local_name = 1;
+
+  // The original path of the artifact.
+  string original_name = 2;
+
+  // Any enrichment fields provided by the source.
+  SourceEnrichment source_enrichment = 3;
+
+  int64 size = 4;
+}
+
+message SourceEnrichment{
+  map<string, string> common_fields = 1;
+  map<string, string> metadata = 2;
+}
+
+message SourceMetadata{
+  string name = 1;
+  string description = 2;
+  map<string, PropertyMetadata> properties = 3;
+}
+
+message PropertyMetadata{
+  string description = 1;
+  string type = 2;
+  bool required = 3;
+  string default = 4;
+}
+
+message SourcePluginReattach {
+  ReattachConfig reattach_config = 1;
+  string source_type      = 2;
+  string plugin           = 3;
+}
+
+message ReattachConfig {
+  string protocol         = 1;
+  int64  protocol_version = 2;
+  NetAddr addr            = 3;
+  int64 pid               = 4;
+}
+
+message NetAddr {
+  string Network = 1; // name of the network (for example, "tcp", "udp")
+  string Address = 2; // string form of address (for example, "192.0.2.1:25", "[2001:db8::1]:80")
+}
+
+// source functions
+message InitSourceRequest{
+  // the default config for the source
+  ArtifactSourceConfig default_config = 1;
+  // params to use for the source
+  RowSourceParams source_params = 2;
+}
+
+
+message InitSourceResponse {
+  // resolved from time
+  ResolvedFromTime from_time = 1;
+}
+
+message RowSourceParams{
+  // the source to use (with raw config)
+  ConfigData source_data = 1;
+  // the raw hcl of the connection
+  ConfigData connection_data = 2;
+  // the collection start time
+  google.protobuf.Timestamp from_time = 3;
+  // the collection temporary directory
+  string collection_temp_dir = 4;
+  // the path to the collection state file
+  string collection_state_path = 5;
+  // the collection end time
+  google.protobuf.Timestamp to_time = 6;
+  // recollect all data for the specified time range even if it has been collected already
+  bool overwrite = 14;
+}
+
+// ArtifactSourceConfigBase is a configuration message for an artifact source.
+message ArtifactSourceConfig {
+  // File layout grok string defining the file layout and allowing metadata extraction.
+  string file_layout = 1;
+
+  // Grok patterns to add to the grok parser used to parse the layout.
+  map<string, string> patterns = 2;
+
+  // List of filters to apply to the path segments.
+  // Note: each filter must refer to a single property only.
+  repeated string filters = 3;
+}
+
+message SourceCollectRequest{
+  // unique identifier for collection execution
+  string execution_id = 1;
+}
+
+// RowErrors is an aggregation of row errors
+message RowErrors {
+  int64 total = 1;
+
+  // source -> operation
+  map<string, RowErrorsByOperation> errors = 2;
+}
+
+message RowErrorsByOperation {
+  // operation -> error aggregate
+  map<string, OperationErrorAggregate> operation_errors = 1;
+}
+
+// aggregate of missing/invalid fields, messages and a row count
+message OperationErrorAggregate {
+  repeated string missing_fields = 1;
+  repeated string invalid_fields = 2;
+  repeated string messages = 3;
+  int64 count = 4;
+}
+
+message GetSupportedOperationsResponse {
+  bool time_ranges = 1;
+}

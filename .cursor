@@ -1,0 +1,84 @@
+# Cursor AI Instructions
+
+## Project Context
+This is the Tailpipe Plugin SDK, a Go library for building data collection plugins. The project focuses on handling data transformations, schema management, and data collection. It provides the tools and utilities needed to create plugins that integrate with the Tailpipe ecosystem. For more information about Tailpipe's capabilities and usage, see the [official documentation](https://tailpipe.io/docs).
+
+## Related Repositories and Dependencies
+- tailpipe: Main Tailpipe application
+- tailpipe-plugin-core: Core plugin functionality
+- pipe-fittings: Data transformation components
+- DuckDB: Used for SQL operations and data transformations
+- Go standard library: Core functionality
+- Other dependencies as specified in go.mod
+
+## Response Behavior
+- NEVER make code changes without explicit user request
+- ONLY write code or make changes when specifically asked
+- For questions, provide explanations and guidance without making changes
+- When asked about code, explain the current implementation without modifying it
+- If code changes are needed, wait for explicit request before proceeding
+- Always explain proposed changes before implementing them
+- Get confirmation before making any code modifications
+
+## Code Style Guidelines
+- Follow Go best practices and idioms
+- Use clear, descriptive variable and function names
+- Include comments for complex logic
+- Write comprehensive tests for new functionality
+- Keep functions focused and single-purpose
+
+## Testing Guidelines
+- Write table-driven tests for multiple scenarios
+- Test both success and error cases
+- Use descriptive test case names
+- Include edge cases in test coverage
+- Test with realistic data formats and schemas
+
+## Documentation Requirements
+- Add comments for exported functions and types
+- Include examples in documentation where appropriate
+- Document any assumptions or limitations
+- Keep documentation up to date with code changes
+
+## Error Handling
+- Return meaningful errors with context
+- Use custom error types when appropriate
+- Handle edge cases gracefully
+- Log errors with sufficient detail for debugging
+
+## Performance Considerations
+- Optimize for large datasets
+- Minimize memory allocations
+- Consider streaming for large files
+- Profile code for performance bottlenecks
+
+## Security Guidelines
+- Never expose sensitive data in logs or errors
+- Validate all input data
+- Use secure defaults
+- Follow security best practices for data handling
+
+## Response Format
+- Provide clear, concise explanations
+- Include code examples when relevant
+- Format responses in markdown
+- Use backticks for code references
+- Break down complex solutions into steps
+
+## File Organization
+- Keep related code together
+- Use appropriate package structure
+- Follow Go project layout conventions
+- Maintain clear separation of concerns
+
+## Version Control
+- Write clear commit messages
+- Keep commits focused and atomic
+- Update tests with code changes
+- Document breaking changes
+
+## Review Process
+- Self-review code before submitting
+- Ensure all tests pass
+- Check for linting issues
+- Verify documentation is complete 

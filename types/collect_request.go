@@ -1,0 +1,99 @@
+package types
+
+import (
+	"fmt"
+	"github.com/turbot/tailpipe-plugin-sdk/grpc/proto"
+	"github.com/turbot/tailpipe-plugin-sdk/schema"
+	"time"
+)
+
+// CollectRequest is an sdk type which is mapped from the proto.CollectRequest
+type CollectRequest struct {
+	TableName     string
+	PartitionName string
+
+	// unique identifier for collection execution this will be used as base for the filename fo the resultiung JSONL files
+	ExecutionId string
+	// the parent folder for all collection related files (JSONL files, temp source files)
+	CollectionTempDir string
+	// the filepath for the collection state json file
+	CollectionStatePath string
+	// the source to use (with raw config)
+	SourceData *SourceConfigData
+	// the source format to use (with either raw hcl config, or the preset name)
+	SourceFormat *FormatConfigData
+	// the raw hcl of the connection
+	ConnectionData *ConnectionConfigData
+	// the collection start time
+	From time.Time
+	// the collection end time
+	To time.Time
+	// the custom table definition, if specified
+	CustomTableSchema *schema.TableSchema
+	// the max space to take with temp files
+	TempDirMaxMb int64
+	// recollect all data for the specified time range even if it has been collected already
+	Recollect bool
+}
+
+func CollectRequestFromProto(pr *proto.CollectRequest) (*CollectRequest, error) {
+	if pr.SourceData == nil {
+		return nil, fmt.Errorf("source data is required")
+	}
+	sourceData, err := ConfigDataFromProto[*SourceConfigData](pr.SourceData)
+	if err != nil {
+		return nil, err
+	}
+
+	// NOTE: add the (possibly nil) SourcePluginReattach to the source data
+	if pr.SourcePlugin != nil {
+		sourceData.SetReattach(pr.SourcePlugin)
+	}
+
+	req := &CollectRequest{
+		TableName:           pr.TableName,
+		PartitionName:       pr.PartitionName,
+		ExecutionId:         pr.ExecutionId,
+		CollectionTempDir:   pr.CollectionTempDir,
+		CollectionStatePath: pr.CollectionStatePath,
+		SourceData:          sourceData,
+		TempDirMaxMb:        pr.TempDirMaxMb,
+	}
+	// if recollect flag is not present, that means the CLI must be an older version - default to true
+	if pr.Recollect == nil {
+		req.Recollect = true
+	} else {
+		req.Recollect = *pr.Recollect
+	}
+
+	if pr.FromTime != nil {
+		req.From = pr.FromTime.AsTime()
+	}
+	// we default 'to' to now - but DO NOT default from - this will be set once we have loaded the collection state
+	if pr.ToTime == nil {
+		req.To = time.Now()
+	} else {
+		req.To = pr.ToTime.AsTime()
+	}
+
+	if pr.SourceFormat != nil {
+		sourceFormat, err := FormatConfigDataFromProto(pr.SourceFormat)
+		if err != nil {
+			return nil, err
+		}
+		req.SourceFormat = sourceFormat
+	}
+
+	if pr.ConnectionData != nil {
+		connectionData, err := ConfigDataFromProto[*ConnectionConfigData](pr.ConnectionData)
+		if err != nil {
+			return nil, err
+		}
+		req.ConnectionData = connectionData
+	}
+	if pr.CustomTableSchema != nil {
+		req.CustomTableSchema = schema.TableSchemaFromProto(pr.CustomTableSchema)
+	}
+
+	return req, nil
+}

@@ -1,0 +1,25 @@
+package mappers
+
+import (
+	"context"
+)
+
+// MapInitialisedRow is an interface which provides a means to initialise a row struct from a string map
+// this is used in combination with the GonxMapper/GrokMapper
+type MapInitialisedRow interface {
+	InitialiseFromMap(m map[string]string) error
+}
+
+// Mapper is a generic interface which provides a method for mapping raw source data into row structs
+// R is the type of the row struct which the mapperFunc outputs
+type Mapper[R any] interface {
+	Identifier() string
+	// Map converts raw rows to the desired format (type 'R')
+	Map(context.Context, any, ...MapOption[R]) (R, error)
+}
+
+// HeaderHandler is an interface which provides a method for handling the header row
+// it should be implemented by any mapper which wishes to be notified of the header row
+type HeaderHandler interface {
+	OnHeader(header []string)
+}
