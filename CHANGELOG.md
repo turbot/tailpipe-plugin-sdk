@@ -1,3 +1,8 @@
+## v0.9.5 [2026-07-10]
+_Dependencies_
+* Bump `pipe-fittings` to v2.9.3, removing the EOL `containerd` dependency and clearing govulncheck advisories GO-2026-5622, GO-2026-5338, and GO-2026-5064.
+* Bump `go-getter` to 1.7.9, `xz` to 0.5.14, and `mapstructure` to 2.4.0.
+
 ## v0.9.4 [2025-09-26]
 _Whats new_
 * Add support for Azure Blob Storage as an artifact source.
