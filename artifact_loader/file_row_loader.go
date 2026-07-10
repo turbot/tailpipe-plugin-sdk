@@ -10,7 +10,7 @@ import (
 
 const FileRowLoaderIdentifier = "file_row_loader"
 
-// FileRowLoader is an Loader that can loads a file from a path and extracts the content a line at a time
+// FileRowLoader is an Loader that can loads a file from a path and extracts the contenst a line at a time
 type FileRowLoader struct {
 }
 

@@ -447,9 +447,9 @@ func (t *TimeRangeCollectionState) updateActiveRange(timestamp time.Time) {
 	if rangeForTimestamp == nil {
 		// no range for the timestamp - create a new one
 		rangeForTimestamp = t.addRange(timestamp)
-		slog.Debug("Created new active range for time", "timestamp", timestamp, "active range start time", rangeForTimestamp.GetFromTime(), "active range end time", rangeForTimestamp.GetToTime())
+		slog.Info("Created new active range for time", "timestamp", timestamp, "active range start time", rangeForTimestamp.GetFromTime(), "active range end time", rangeForTimestamp.GetToTime())
 	} else {
-		slog.Debug("Found existing active range for time", "timestamp", timestamp, "active range start time", rangeForTimestamp.GetFromTime(), "active range end time", rangeForTimestamp.GetToTime())
+		slog.Info("Found existing active range for time", "timestamp", timestamp, "active range start time", rangeForTimestamp.GetFromTime(), "active range end time", rangeForTimestamp.GetToTime())
 	}
 
 	// now update the active range to the range for the timestamp
@@ -483,7 +483,7 @@ func (t *TimeRangeCollectionState) compact() {
 
 		// tell currentRange to merge with nextRange
 		currentRange.merge(nextRange)
-		slog.Debug("Merging adjacent time ranges",
+		slog.Info("Merging adjacent time ranges",
 			"left range end time", currentRange.GetToTime(),
 			"right range start time", nextRange.GetFromTime(),
 			"right range end time", nextRange.GetToTime(),
@@ -539,7 +539,7 @@ func (t *TimeRangeCollectionState) compactForCollectionPeriod() {
 
 		// tell currentRange to merge with nextRange
 		currentRange.merge(nextRange)
-		slog.Debug("Merging time ranges within collection period",
+		slog.Info("Merging time ranges within collection period",
 			"left range end time", currentRange.GetToTime(),
 			"right range start time", nextRange.GetFromTime(),
 			"right range end time", nextRange.GetToTime(),
