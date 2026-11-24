@@ -208,7 +208,7 @@ func (w *PluginSourceWrapper) Pause() error {
 
 // Resume is called to resume collection of source data
 func (w *PluginSourceWrapper) Resume() error {
-	_, err := w.client.SourcePause()
+	_, err := w.client.SourceResume()
 	if err != nil {
 		return err
 	}
