@@ -6,8 +6,10 @@
   "secrets": {},
   "releasePr": {
     "workflow": "shipyard-release.yml",
-    "base": "main"
+    "base": "main",
+    "via": "router"
   },
+  "releasePrep": { "via": "router" },
   "chores": {
     "security-audit": {
       "when": "mon week 4",
