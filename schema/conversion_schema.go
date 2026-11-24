@@ -1,11 +1,6 @@
 package schema
 
-import (
-	"fmt"
-	"github.com/turbot/tailpipe-plugin-sdk/helpers"
-	"golang.org/x/exp/maps"
-	"strings"
-)
+import "golang.org/x/exp/maps"
 
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
 type SourceColumnDef struct {
@@ -32,8 +27,6 @@ type ConversionSchema struct {
 	// the source columns - these are the columns in the source data
 	// this is to ensure we have the inputs required for any transforms
 	SourceColumns []SourceColumnDef
-
-	ColumnString string
 }
 
 // NewConversionSchemaWithInferredSchema populates a ConversionSchema schema using a table schema and an inferred row schema
@@ -76,56 +69,21 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 
 	// now set the source columns
 	r.SourceColumns = maps.Values(sourceColumns)
-
-	// sort the columns alphabetically, with tp_ fields at the end
-	r.initColumns()
 	return r
 }
 
 func NewConversionSchema(tableSchema *TableSchema) *ConversionSchema {
-	clonedSchema := tableSchema.Clone()
 	// initialize the conversion schema from the table schema def
 	r := &ConversionSchema{
-		TableSchema: *clonedSchema,
+		TableSchema: *tableSchema,
 	}
 	var sourceColumns []SourceColumnDef
 
-	// First add the source column for all columns the table schema (unless there is transform)
 	for _, c := range tableSchema.Columns {
-		if c.Transform != "" {
-			// skip this column - it is a transform so the source column will not be used
-			continue
-		}
+		// store source columns
 		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 	}
 
-	// sort the columns alphabetically, with tp_ fields at the end
 	r.SourceColumns = sourceColumns
-	r.initColumns()
-
 	return r
-}
-
-// initColumns sorts the columns in the ConversionSchema alphabetically, with tp_ prefixed fields at the end
-// it also populates the ColumnString field with a comma-separated list of quoted column names
-func (c *ConversionSchema) initColumns() {
-	// sort the columns, alphabetically with tp fields at end
-
-	// first put into a map
-	columnMap := map[string]*ColumnSchema{}
-	for _, c := range c.Columns {
-		// store source columns
-		columnMap[c.ColumnName] = c
-	}
-	sortedColumnNames := helpers.SortColumnsAlphabetically(maps.Keys(columnMap))
-
-	columnNames := make([]string, len(c.SourceColumns))
-	c.Columns = make([]*ColumnSchema, len(sortedColumnNames))
-	for i, columnName := range sortedColumnNames {
-		c.Columns[i] = columnMap[columnName]
-		columnNames[i] = fmt.Sprintf(`"%s"`, columnName)
-	}
-
-	c.ColumnString = strings.Join(columnNames, ", ")
-
 }
