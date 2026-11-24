@@ -106,7 +106,7 @@ func (s TailpipePluginServerWrapper) SourcePause(_ context.Context, req *proto.E
 }
 
 func (s TailpipePluginServerWrapper) SourceResume(_ context.Context, req *proto.Empty) (*proto.Empty, error) {
-	return s.Impl.SourcePause(context.Background(), req)
+	return s.Impl.SourceResume(context.Background(), req)
 }
 
 func (s TailpipePluginServerWrapper) SourceCollectionComplete(_ context.Context, req *proto.Empty) (*proto.Empty, error) {
