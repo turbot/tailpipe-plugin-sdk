@@ -48,6 +48,25 @@ func (s *failingExtractSource) DownloadArtifact(ctx context.Context, info *types
 	return s.OnArtifactDownloaded(ctx, types.NewDownloadedArtifactInfo(info, s.localName, 0))
 }
 
+// listingErrorSource discovers one artifact, whose download takes a while and fails, and then fails its listing
+type listingErrorSource struct {
+	ArtifactSourceImpl[*NilArtifactSourceConfig, *NilConfig]
+}
+
+func (s *listingErrorSource) Identifier() string { return "listing_error" }
+
+func (s *listingErrorSource) DiscoverArtifacts(ctx context.Context) error {
+	if err := s.OnArtifactDiscovered(ctx, &types.ArtifactInfo{Name: "a.log"}); err != nil {
+		return err
+	}
+	return fmt.Errorf("listing failed")
+}
+
+func (s *listingErrorSource) DownloadArtifact(context.Context, *types.ArtifactInfo) error {
+	time.Sleep(50 * time.Millisecond)
+	return fmt.Errorf("download failed")
+}
+
 // collectedState is a collection state that accepts every collected artifact
 type collectedState struct {
 	collection_state.CollectionState
@@ -104,4 +123,21 @@ func TestArtifactSourceImpl_ExtractionErrorIsSentBeforeCollectReturns(t *testing
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	assert.Len(t, r.errors, 1)
+}
+
+// When the listing fails, Collect still waits for the artifacts it already discovered, so their events are sent before
+// the collection completes.
+func TestArtifactSourceImpl_ListingErrorWaitsForDiscoveredArtifacts(t *testing.T) {
+	s := &listingErrorSource{}
+	s.Source = s
+	s.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{Name: "test", MaxConcurrency: 1})
+	r := &slowErrorRecorder{}
+	require.NoError(t, s.AddObserver(r))
+
+	err := s.Collect(context_values.WithExecutionId(context.Background(), "exec"))
+	require.EqualError(t, err, "listing failed")
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	assert.Equal(t, []string{"download failed"}, r.errors)
 }

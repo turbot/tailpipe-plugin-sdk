@@ -118,12 +118,15 @@ func TestPluginImpl_SecondCollectionReachesItsOwnStream(t *testing.T) {
 				p := NewPluginImpl("test")
 				first, second := &recorder{}, &recorder{}
 				require.NoError(t, p.AddObserver(first))
+				p.collectionBegins()
 				notify(t, &p, started("p1"), end("p1"))
 
 				if streamFirst {
 					require.NoError(t, p.AddObserver(second))
+					p.collectionBegins()
 					notify(t, &p, started("p2"), end("p2"))
 				} else {
+					p.collectionBegins()
 					notify(t, &p, started("p2"), end("p2"))
 					require.NoError(t, p.AddObserver(second))
 				}
@@ -136,15 +139,18 @@ func TestPluginImpl_SecondCollectionReachesItsOwnStream(t *testing.T) {
 }
 
 // A collection that ends before its stream attaches: the stream gets that collection's events, completion included,
-// and is then retired, so what follows waits for the next stream.
+// and is then retired, so the next collection's events wait for the next stream.
 func TestPluginImpl_HeldCompletionRetiresTheStream(t *testing.T) {
 	p := NewPluginImpl("test")
-	notify(t, &p, started("p1"), complete("p1"), started("p2"))
+	p.collectionBegins()
+	notify(t, &p, started("p1"), complete("p1"))
 
 	first, second := &recorder{}, &recorder{}
 	require.NoError(t, p.AddObserver(first))
 	assert.Equal(t, []string{"p1", "complete p1"}, first.got())
 
+	p.collectionBegins()
+	notify(t, &p, started("p2"))
 	require.NoError(t, p.AddObserver(second))
 	notify(t, &p, complete("p2"))
 	assert.Equal(t, []string{"p2", "complete p2"}, second.got())
@@ -181,6 +187,32 @@ func TestPluginImpl_StreamAttachingAfterItsCollectFailedIsNotUsed(t *testing.T) 
 
 	assert.Empty(t, first.got())
 	assert.Equal(t, []string{"p2", "complete p2"}, second.got())
+}
+
+// An event a finished collection sends after its completion is not given to the next collection's stream.
+func TestPluginImpl_LateEventOfAFinishedCollectionIsDropped(t *testing.T) {
+	for _, streamFirst := range []bool{true, false} {
+		t.Run(fmt.Sprintf("next stream attaches before the next collection begins=%v", streamFirst), func(t *testing.T) {
+			p := NewPluginImpl("test")
+			first, second := &recorder{}, &recorder{}
+			require.NoError(t, p.AddObserver(first))
+			p.collectionBegins()
+			notify(t, &p, sourceComplete("p1"), started("late p1"))
+
+			if streamFirst {
+				require.NoError(t, p.AddObserver(second))
+				notify(t, &p, started("late p1 again"))
+				p.collectionBegins()
+			} else {
+				p.collectionBegins()
+				require.NoError(t, p.AddObserver(second))
+			}
+			notify(t, &p, sourceComplete("p2"))
+
+			assert.Equal(t, []string{"source complete p1"}, first.got())
+			assert.Equal(t, []string{"source complete p2"}, second.got())
+		})
+	}
 }
 
 // failingObserver is a stream whose sends fail, as when the caller's connection has gone
@@ -354,11 +386,13 @@ func TestPluginServer_SecondCollectionOnOnePlugin(t *testing.T) {
 
 			first, err := client.AddObserver(ctx, &proto.Empty{})
 			require.NoError(t, err)
+			impl.collectionBegins()
 			notify(t, &impl.PluginImpl, started("p1"), end("p1"))
 			receive(t, first, run, "p1", label(end("p1")))
 
 			second, err := client.AddObserver(ctx, &proto.Empty{})
 			require.NoError(t, err)
+			impl.collectionBegins()
 			notify(t, &impl.PluginImpl, started("p2"), end("p2"))
 			receive(t, second, run, "p2", label(end("p2")))
 			cancel()
@@ -416,6 +450,7 @@ func TestPluginServer_LateStreamOfAFailedCollectAfterACompletedOne(t *testing.T)
 		first, err := client.AddObserver(ctx, &proto.Empty{})
 		require.NoError(t, err)
 		waitForStream(t, &impl.PluginImpl)
+		impl.collectionBegins()
 		notify(t, &impl.PluginImpl, started("p1"), complete("p1"))
 		receive(t, first, run, "p1", "complete p1")
 
@@ -428,6 +463,7 @@ func TestPluginServer_LateStreamOfAFailedCollectAfterACompletedOne(t *testing.T)
 
 		third, err := client.AddObserver(ctx, &proto.Empty{})
 		require.NoError(t, err)
+		impl.collectionBegins()
 		notify(t, &impl.PluginImpl, started("p3"), complete("p3"))
 		receive(t, third, run, "p3", "complete p3")
 		cancel()

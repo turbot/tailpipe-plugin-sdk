@@ -179,14 +179,12 @@ func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) (err error) {
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
 	err = a.Source.DiscoverArtifacts(ctx)
-	if err != nil {
-		return err
-	}
 
-	// now wait for all extractions
+	// now wait for all extractions - also when discovery failed, so the artifacts already discovered send their
+	// events before the collection completes
 	a.artifactExtractWg.Wait()
 
-	return nil
+	return err
 }
 
 func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {

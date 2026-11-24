@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/turbot/tailpipe-plugin-sdk/events"
@@ -30,16 +31,12 @@ func (p *PluginImpl) AddObserver(o observable.Observer) error {
 	}
 	p.hasStream = true
 
+	// send the held events; nothing is held after a completion, so a held completion, which retires the stream, is last
 	held := p.heldEvents
 	p.heldEvents = nil
-	for i, h := range held {
+	for _, h := range held {
 		if err := p.sendLocked(h.ctx, h.event); err != nil {
 			slog.Error("error sending a held event to the new event stream", "error", err)
-		}
-		if !p.hasStream {
-			// the stream was sent its collection's completion event: hold the rest for the next stream
-			p.heldEvents = held[i+1:]
-			break
 		}
 	}
 	return nil
@@ -50,6 +47,13 @@ func (p *PluginImpl) NotifyObservers(ctx context.Context, e events.Event) error 
 	p.eventLock.Lock()
 	defer p.eventLock.Unlock()
 
+	if p.completed {
+		slog.Debug("dropping an event sent after its collection completed", "event", fmt.Sprintf("%T", e))
+		return nil
+	}
+	if isCompletion(e) {
+		p.completed = true
+	}
 	if _, ok := e.(*events.Complete); ok {
 		p.collectionRunning = false
 	}
@@ -94,11 +98,17 @@ func (p *PluginImpl) retireStreamLocked() {
 	p.streamRetiredSinceBegin = true
 }
 
-// collectionBegins is called as a Collect or SourceCollect request arrives
+// collectionBegins is called as a Collect or SourceCollect request arrives: the plugin sends events again. Events
+// still held then belong to an earlier collection whose caller has stopped reading, so they are dropped.
 func (p *PluginImpl) collectionBegins() {
 	p.eventLock.Lock()
 	defer p.eventLock.Unlock()
+	p.completed = false
 	p.streamRetiredSinceBegin = false
+	if len(p.heldEvents) > 0 {
+		slog.Warn("dropping events held for an earlier collection", "count", len(p.heldEvents))
+		p.heldEvents = nil
+	}
 }
 
 // collectionStarted records that a collection's goroutine is starting: its completion event will retire its stream

@@ -32,8 +32,11 @@ type PluginImpl struct {
 	hasStream bool
 	// the events sent while there was no stream, held for the next stream to attach
 	heldEvents []heldEvent
-	// collectionRunning is true from the start of a collection's goroutine until its completion event is sent
+	// collectionRunning is true from the start of a collection's goroutine until its completion event is sent or held
 	collectionRunning bool
+	// completed is true from a collection's completion event until the next collection begins: a completion is the
+	// last event of its collection, and what its collection sends after it has no reader
+	completed bool
 	// streamRetiredSinceBegin is true once a stream has been retired since the current collection began
 	streamRetiredSinceBegin bool
 	// spentStreamsToCome counts the streams of failed collections that had not attached when their collection failed:
