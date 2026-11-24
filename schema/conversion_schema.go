@@ -57,6 +57,12 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 		sourceColumns[c.SourceName] = NewSourceColumnDef(c)
 	}
 
+	// the columns the table declares: an inferred column of the same name never replaces one
+	declaredColumns := make(map[string]struct{}, len(r.Columns))
+	for _, c := range r.Columns {
+		declaredColumns[c.ColumnName] = struct{}{}
+	}
+
 	// now populate the source columns from the inferred schema
 	for _, c := range inferredSchema.Columns {
 		// if we do not already have this column, add it
@@ -69,7 +75,7 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 
 		// only add the inferred column to 'Columns' if it satisfies MapFields
 		// does this column match the any of the map fields?
-		if r.ShouldMapSourceColumn(c.ColumnName) {
+		if _, declared := declaredColumns[c.ColumnName]; !declared && r.ShouldMapSourceColumn(c.ColumnName) {
 			r.Columns = append(r.Columns, c)
 		}
 	}

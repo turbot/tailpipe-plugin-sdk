@@ -115,7 +115,7 @@ func Test_NewConversionSchemaWithInferredSchema_LeavesTableSchema(t *testing.T) 
 	assert.Nil(t, backing[2], "the table schema's spare capacity was written to")
 }
 
-// A column name that holds a double quote is escaped in ColumnString, so it stays one identifier in the CLI's SQL.
+// A column name that holds a double quote is escaped in ColumnString, so it stays one identifier there.
 func Test_NewConversionSchemaWithInferredSchema_QuotesColumnNames(t *testing.T) {
 	tableSchema := &TableSchema{
 		Columns:   []*ColumnSchema{{ColumnName: "tp_timestamp", Type: "timestamp", SourceName: "tp_timestamp"}},
@@ -128,4 +128,55 @@ func Test_NewConversionSchemaWithInferredSchema_QuotesColumnNames(t *testing.T) 
 	result := NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema)
 
 	assert.Equal(t, `"a"", ""b", "tp_timestamp"`, result.ColumnString)
+}
+
+// A declared column keeps its transform when the source data has a field of the same name, which the transform reads.
+func Test_NewConversionSchemaWithInferredSchema_TransformSharesSourceName(t *testing.T) {
+	tableSchema := &TableSchema{
+		Columns: []*ColumnSchema{
+			{ColumnName: "tp_timestamp", Type: "timestamp", SourceName: "tp_timestamp"},
+			{ColumnName: "level", Type: "varchar", Transform: "upper(level)"},
+		},
+		MapFields: []string{"*"},
+	}
+	inferredSchema := &TableSchema{
+		Columns: []*ColumnSchema{
+			{ColumnName: "level", Type: "varchar", SourceName: "level"},
+			{ColumnName: "tp_timestamp", Type: "timestamp", SourceName: "tp_timestamp"},
+		},
+	}
+
+	result := NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema)
+
+	assert.Equal(t, []string{"level", "tp_timestamp"}, columnNamesOf(result))
+	assert.Equal(t, "upper(level)", result.Columns[0].Transform)
+	assert.Equal(t, `"level", "tp_timestamp"`, result.ColumnString)
+	// the transform's input is still read from the source data
+	assert.Contains(t, result.SourceColumns, SourceColumnDef{Name: "level", Type: "varchar"})
+}
+
+// A declared column keeps its source and type when the source data also has a field named like the column.
+func Test_NewConversionSchemaWithInferredSchema_RenamedColumnSharesName(t *testing.T) {
+	tableSchema := &TableSchema{
+		Columns: []*ColumnSchema{
+			{ColumnName: "tp_timestamp", Type: "timestamp", SourceName: "tp_timestamp"},
+			{ColumnName: "user", Type: "varchar", SourceName: "raw_user"},
+		},
+		MapFields: []string{"*"},
+	}
+	inferredSchema := &TableSchema{
+		Columns: []*ColumnSchema{
+			{ColumnName: "raw_user", Type: "varchar", SourceName: "raw_user"},
+			{ColumnName: "user", Type: "bigint", SourceName: "user"},
+			{ColumnName: "tp_timestamp", Type: "timestamp", SourceName: "tp_timestamp"},
+		},
+	}
+
+	result := NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema)
+
+	// raw_user feeds the declared column, so it is not also mapped as a column of its own
+	assert.Equal(t, []string{"user", "tp_timestamp"}, columnNamesOf(result))
+	user := result.Columns[0]
+	assert.Equal(t, "raw_user", user.SourceName)
+	assert.Equal(t, "varchar", user.Type)
 }
