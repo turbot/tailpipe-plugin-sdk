@@ -1,10 +1,10 @@
 package schema
 
 import (
-	"fmt"
+	"strings"
+
 	"github.com/turbot/tailpipe-plugin-sdk/helpers"
 	"golang.org/x/exp/maps"
-	"strings"
 )
 
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
@@ -40,9 +40,9 @@ type ConversionSchema struct {
 // this is called from the CLI after receiving the first JSONL file
 // If a 'Select' pattern is provided, it will be used to select source fields to include in the schema
 func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSchema) *ConversionSchema {
-	// initialize the conversion schema from the table schema def
+	// initialize the conversion schema from a copy of the table schema def, so the caller's schema is left as it is
 	r := &ConversionSchema{
-		TableSchema: *tableSchema,
+		TableSchema: *tableSchema.Clone(),
 	}
 
 	// build a list of source columns - these are the columns to read from the JSONL
@@ -99,33 +99,35 @@ func NewConversionSchema(tableSchema *TableSchema) *ConversionSchema {
 		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 	}
 
-	// sort the columns alphabetically, with tp_ fields at the end
 	r.SourceColumns = sourceColumns
+
+	// sort the columns alphabetically, with tp_ fields at the end
 	r.initColumns()
 
 	return r
 }
 
 // initColumns sorts the columns in the ConversionSchema alphabetically, with tp_ prefixed fields at the end
-// it also populates the ColumnString field with a comma-separated list of quoted column names
+// it also populates the ColumnString field with a comma-separated list of the quoted column names, in that order
 func (c *ConversionSchema) initColumns() {
-	// sort the columns, alphabetically with tp fields at end
-
 	// first put into a map
-	columnMap := map[string]*ColumnSchema{}
-	for _, c := range c.Columns {
-		// store source columns
-		columnMap[c.ColumnName] = c
+	columnMap := make(map[string]*ColumnSchema, len(c.Columns))
+	for _, col := range c.Columns {
+		columnMap[col.ColumnName] = col
 	}
 	sortedColumnNames := helpers.SortColumnsAlphabetically(maps.Keys(columnMap))
 
-	columnNames := make([]string, len(c.SourceColumns))
 	c.Columns = make([]*ColumnSchema, len(sortedColumnNames))
+	quotedNames := make([]string, len(sortedColumnNames))
 	for i, columnName := range sortedColumnNames {
 		c.Columns[i] = columnMap[columnName]
-		columnNames[i] = fmt.Sprintf(`"%s"`, columnName)
+		quotedNames[i] = quoteIdentifier(columnName)
 	}
 
-	c.ColumnString = strings.Join(columnNames, ", ")
+	c.ColumnString = strings.Join(quotedNames, ", ")
+}
 
+// quoteIdentifier quotes a column name for DuckDB, doubling any double quote it holds
+func quoteIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }
