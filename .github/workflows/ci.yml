@@ -1,5 +1,5 @@
-# The SDK's checks. Its `ci` job is the one check `develop` requires, and Shipyard's release record runs this workflow by hand on a
-# release PR into `main`.
+# The SDK's checks. Its `ci` job is the check develop's ruleset requires once this file is on develop, and Shipyard's release
+# record runs this workflow by hand on a release PR into `main`.
 name: CI
 
 on:
@@ -45,7 +45,7 @@ jobs:
       - name: Unit tests
         run: go test -race -count=1 -timeout 900s ./...
 
-  # The check develop requires: it needs every job above, so adding, renaming or splitting a job never changes the rule.
+  # The check develop's ruleset requires: it needs every job above, so adding, renaming or splitting a job never changes the rule.
   ci:
     name: ci
     needs: [lint, test]
