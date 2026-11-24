@@ -28,6 +28,13 @@ func (p *ObservableImpl) AddObserver(o Observer) error {
 	return nil
 }
 
+// RemoveObservers removes every observer
+func (p *ObservableImpl) RemoveObservers() {
+	p.observerLock.Lock()
+	p.Observers = nil
+	p.observerLock.Unlock()
+}
+
 func (p *ObservableImpl) NotifyObservers(ctx context.Context, e events.Event) error {
 	p.observerLock.RLock()
 	defer p.observerLock.RUnlock()

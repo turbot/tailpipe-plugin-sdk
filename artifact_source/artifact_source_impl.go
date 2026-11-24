@@ -179,14 +179,12 @@ func (a *ArtifactSourceImpl[S, T]) Collect(ctx context.Context) (err error) {
 	// tell out source to discover artifacts
 	// it will notify us of each artifact discovered
 	err = a.Source.DiscoverArtifacts(ctx)
-	if err != nil {
-		return err
-	}
 
-	// now wait for all extractions
+	// now wait for all extractions - also when discovery failed, so the artifacts already discovered send their
+	// events before the collection completes
 	a.artifactExtractWg.Wait()
 
-	return nil
+	return err
 }
 
 func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, info *types.ArtifactInfo) error {
@@ -206,6 +204,8 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.Name)
 	err = a.artifactDownloadLimiter.Wait(ctx)
 	if err != nil {
+		// no download starts, so release the wait group here
+		a.artifactExtractWg.Done()
 		return fmt.Errorf("error acquiring rate limiter: %w", err)
 	}
 	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.Name)
@@ -221,12 +221,13 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 		a.BlockWhilePaused(ctx)
 
 		// cast the source to an ArtifactSource and download the artifact
-		err = a.Source.DownloadArtifact(ctx, info)
+		err := a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
+			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
+			// report the error before releasing the wait group, so it is sent before the collection completes
+			a.NotifyError(ctx, executionId, err)
 			// if the downloading failed, we will not have called OnArtifactDownloaded so the wait group will not be decremented
 			a.artifactExtractWg.Done()
-			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
-			a.NotifyError(ctx, executionId, err)
 		}
 	}()
 
@@ -273,13 +274,14 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 			activeDuration := time.Since(extractStart)
 			slog.Debug("ArtifactDownloaded - extraction complete", "artifact", info.LocalName, "duration (ms)", activeDuration.Milliseconds())
 
-			// close wait group whether there is an error or not
-			a.artifactExtractWg.Done()
-
 			if err != nil {
 				slog.Error("error processing artifact", "artifact", info.Name, "error", err)
+				// report the error before releasing the wait group, so it is sent before the collection completes
 				a.NotifyError(ctx, executionId, err)
 			}
+
+			// close wait group whether there is an error or not
+			a.artifactExtractWg.Done()
 		}()
 	}
 

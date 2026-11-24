@@ -20,7 +20,7 @@ type TailpipePlugin interface {
 	// this must be implemented by the plugin implementation
 	Describe(ctx context.Context, req *proto.DescribeRequest) (*proto.DescribeResponse, error)
 
-	// AddObserver adda an observer to the plugin to receive status events
+	// AddObserver attaches the event stream that receives the plugin's events, replacing any earlier stream
 	// this is implemented by plugin.PluginImpl and should not be overridden
 	AddObserver(observable.Observer) error
 
