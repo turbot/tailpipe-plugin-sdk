@@ -369,10 +369,16 @@ func TestPluginServer_SecondCollectionOnOnePlugin(t *testing.T) {
 // waitForStream waits until the plugin has a stream attached
 func waitForStream(t *testing.T, p *PluginImpl) {
 	t.Helper()
+	waitFor(t, p, func() bool { return p.hasStream })
+}
+
+// waitFor waits until the condition, read under the plugin's event lock, holds
+func waitFor(t *testing.T, p *PluginImpl, condition func() bool) {
+	t.Helper()
 	require.Eventually(t, func() bool {
 		p.eventLock.Lock()
 		defer p.eventLock.Unlock()
-		return p.hasStream
+		return condition()
 	}, 10*time.Second, time.Millisecond)
 }
 
@@ -395,6 +401,35 @@ func TestPluginServer_CollectionAfterAFailedCollect(t *testing.T) {
 		require.NoError(t, err)
 		notify(t, &impl.PluginImpl, started("p2"), complete("p2"))
 		receive(t, second, run, "p2", "complete p2")
+		cancel()
+	}
+}
+
+// Over a real GRPC stream: a collection completes, the next Collect fails before its stream attaches, and that stream
+// then attaches late. It is left unused, and the collection after gets its events on its own stream.
+func TestPluginServer_LateStreamOfAFailedCollectAfterACompletedOne(t *testing.T) {
+	for run := 0; run < 20; run++ {
+		impl := &eventPlugin{PluginImpl: NewPluginImpl("test")}
+		client := servePlugin(t, impl)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+		first, err := client.AddObserver(ctx, &proto.Empty{})
+		require.NoError(t, err)
+		waitForStream(t, &impl.PluginImpl)
+		notify(t, &impl.PluginImpl, started("p1"), complete("p1"))
+		receive(t, first, run, "p1", "complete p1")
+
+		_, err = client.Collect(ctx, &proto.CollectRequest{TableName: "no_such_table", ExecutionId: "p2"})
+		require.Error(t, err)
+		// the failed collection's stream, attaching only now
+		_, err = client.AddObserver(ctx, &proto.Empty{})
+		require.NoError(t, err)
+		waitFor(t, &impl.PluginImpl, func() bool { return impl.spentStreamsToCome == 0 })
+
+		third, err := client.AddObserver(ctx, &proto.Empty{})
+		require.NoError(t, err)
+		notify(t, &impl.PluginImpl, started("p3"), complete("p3"))
+		receive(t, third, run, "p3", "complete p3")
 		cancel()
 	}
 }
