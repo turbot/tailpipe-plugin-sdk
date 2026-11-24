@@ -221,12 +221,13 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 		a.BlockWhilePaused(ctx)
 
 		// cast the source to an ArtifactSource and download the artifact
-		err = a.Source.DownloadArtifact(ctx, info)
+		err := a.Source.DownloadArtifact(ctx, info)
 		if err != nil {
+			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
+			// report the error before releasing the wait group, so it is sent before the collection completes
+			a.NotifyError(ctx, executionId, err)
 			// if the downloading failed, we will not have called OnArtifactDownloaded so the wait group will not be decremented
 			a.artifactExtractWg.Done()
-			slog.Error("Error downloading artifact", "artifact", info.Name, "error", err)
-			a.NotifyError(ctx, executionId, err)
 		}
 	}()
 
@@ -273,13 +274,14 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDownloaded(ctx context.Context, inf
 			activeDuration := time.Since(extractStart)
 			slog.Debug("ArtifactDownloaded - extraction complete", "artifact", info.LocalName, "duration (ms)", activeDuration.Milliseconds())
 
-			// close wait group whether there is an error or not
-			a.artifactExtractWg.Done()
-
 			if err != nil {
 				slog.Error("error processing artifact", "artifact", info.Name, "error", err)
+				// report the error before releasing the wait group, so it is sent before the collection completes
 				a.NotifyError(ctx, executionId, err)
 			}
+
+			// close wait group whether there is an error or not
+			a.artifactExtractWg.Done()
 		}()
 	}
 

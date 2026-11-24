@@ -183,6 +183,46 @@ func TestPluginImpl_StreamAttachingAfterItsCollectFailedIsNotUsed(t *testing.T) 
 	assert.Equal(t, []string{"p2", "complete p2"}, second.got())
 }
 
+// failingObserver is a stream whose sends fail, as when the caller's connection has gone
+type failingObserver struct{}
+
+func (failingObserver) Notify(context.Context, events.Event) error {
+	return fmt.Errorf("transport is closing")
+}
+
+// A source collection whose completion event fails to send: the stream is retired by that event, and the failure that
+// SourceCollect then returns does not leave the next caller's stream unused.
+func TestPluginImpl_FailedSendOfCompletionKeepsTheNextStream(t *testing.T) {
+	p := NewPluginImpl("test")
+	require.NoError(t, p.AddObserver(failingObserver{}))
+	p.collectionBegins()
+	require.Error(t, p.Notify(context.Background(), sourceComplete("p1")))
+	p.collectionFailed()
+
+	second := &recorder{}
+	require.NoError(t, p.AddObserver(second))
+	p.collectionBegins()
+	notify(t, &p, sourceComplete("p2"))
+	assert.Equal(t, []string{"source complete p2"}, second.got())
+}
+
+// A Collect that fails after its collection completed (and retired its stream) does not leave the next stream unused.
+func TestPluginImpl_FailedCollectAfterItsCompletionKeepsTheNextStream(t *testing.T) {
+	p := NewPluginImpl("test")
+	first, second := &recorder{}, &recorder{}
+	require.NoError(t, p.AddObserver(first))
+	p.collectionBegins()
+	p.collectionStarted()
+	notify(t, &p, started("p1"), complete("p1"))
+	p.collectionFailed()
+
+	require.NoError(t, p.AddObserver(second))
+	p.collectionBegins()
+	notify(t, &p, started("p2"), complete("p2"))
+	assert.Equal(t, []string{"p1", "complete p1"}, first.got())
+	assert.Equal(t, []string{"p2", "complete p2"}, second.got())
+}
+
 // When Collect fails after its collection has started, that collection's completion event still retires the stream.
 func TestPluginImpl_FailedCollectWithRunningCollectionKeepsTheStream(t *testing.T) {
 	p := NewPluginImpl("test")

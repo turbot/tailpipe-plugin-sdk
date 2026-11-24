@@ -91,6 +91,14 @@ func isCompletion(e events.Event) bool {
 func (p *PluginImpl) retireStreamLocked() {
 	p.ObservableImpl.RemoveObservers()
 	p.hasStream = false
+	p.streamRetiredSinceBegin = true
+}
+
+// collectionBegins is called as a Collect or SourceCollect request arrives
+func (p *PluginImpl) collectionBegins() {
+	p.eventLock.Lock()
+	defer p.eventLock.Unlock()
+	p.streamRetiredSinceBegin = false
 }
 
 // collectionStarted records that a collection's goroutine is starting: its completion event will retire its stream
@@ -102,17 +110,19 @@ func (p *PluginImpl) collectionStarted() {
 
 // collectionFailed is called when Collect or SourceCollect returns an error, after which the caller no longer reads
 // the stream it opened for the collection. With no collection running, no completion event will retire that stream:
-// retire it now, or, when it has not attached yet, leave it unused when it does. Either way, drop what the failed
-// collection held. A running collection's own completion event retires its stream.
+// retire it now or, when it has not attached yet, leave it unused when it does. (A stream already retired since the
+// collection began was this collection's, retired by its completion.) Either way, drop what the failed collection
+// held. A running collection's own completion event retires its stream.
 func (p *PluginImpl) collectionFailed() {
 	p.eventLock.Lock()
 	defer p.eventLock.Unlock()
 	if p.collectionRunning {
 		return
 	}
-	if p.hasStream {
+	switch {
+	case p.hasStream:
 		p.retireStreamLocked()
-	} else {
+	case !p.streamRetiredSinceBegin:
 		p.spentStreamsToCome++
 	}
 	p.heldEvents = nil
