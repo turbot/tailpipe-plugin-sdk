@@ -1,0 +1,24 @@
+# How Shipyard releases the Tailpipe plugin SDK. It is a Go library: merging the approved release PR makes the tag, and the tag
+# is the publish, since the Go proxy serves a version once its tag exists.
+kind: go-library
+product: Tailpipe Plugin SDK
+# The first is the main consumer, built against each release candidate: the CLI runs the conversion schema the SDK builds.
+consumers:
+  - turbot/tailpipe
+  - turbot/tailpipe-plugin-aws
+  - turbot/tailpipe-plugin-core
+ask:
+  channel: "#tailpipe"
+notShipped:
+  - .claude/
+  - .cursor
+  - .github/
+  - docs/
+  - "**/*_test.go"
+  - CLAUDE.md
+  - README.md
+  - Makefile
+  - .golangci.yml
+  - .gitignore
+notes:
+  internalTerms: ["turbot-ops", "clitesting", "SPIPETOOLS"]

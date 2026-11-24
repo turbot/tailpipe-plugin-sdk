@@ -1,0 +1,67 @@
+# The SDK's checks. Its `ci` job is the one check `develop` requires, and Shipyard's release record runs this workflow by hand on a
+# release PR into `main`.
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@55c2c1448f86e01eaae002a5a3a9624417608d84 # v6
+        with:
+          version: v1.64.8
+          # Built with the Go that go.mod names, so a newer go line in go.mod still loads.
+          install-mode: goinstall
+          args: --timeout=10m
+          skip-cache: true
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Build
+        run: go build ./...
+      - name: Unit tests
+        run: go test -race -count=1 -timeout 900s ./...
+
+  # The check develop requires: it needs every job above, so adding, renaming or splitting a job never changes the rule.
+  ci:
+    name: ci
+    needs: [lint, test]
+    # Always runs, so a failed or cancelled job needed above fails it instead of leaving it skipped.
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check every job this gates
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          # A job skipped on purpose is fine; anything but success or skipped fails.
+          bad=$(echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success" and .value.result != "skipped") | "\(.key): \(.value.result)"')
+          if [ -n "$bad" ]; then
+            echo "::error title=ci::A job this gates did not pass"
+            echo "$bad"
+            exit 1
+          fi
+          echo "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'

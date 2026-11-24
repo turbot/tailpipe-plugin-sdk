@@ -1,0 +1,49 @@
+# .github/workflows/shipyard-release.yml — identical in every repo. Do not edit.
+# https://github.com/turbot/shipyard-workflows
+name: Shipyard release
+run-name: Shipyard release ${{ github.event_name }}
+on:
+  push:
+    branches: [main, 'main-*']
+    tags: ['**']
+  pull_request:
+    branches: [main, 'main-*']
+  pull_request_review:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: The release flow to run (prep, record, check, gate, ask, shipped, reship, prerelease or announce)
+        type: string
+        required: true
+      args:
+        description: The flow's arguments, one JSON object
+        type: string
+        required: false
+        default: '{}'
+permissions: {}
+jobs:
+  release:
+    if: >-
+      github.event_name == 'pull_request'
+      || (github.event_name == 'pull_request_review'
+      && (github.event.pull_request.base.ref == 'main' || startsWith(github.event.pull_request.base.ref, 'main-')))
+      || ((github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && (github.actor == 'github-actions[bot]' || github.actor == 'turbot-agent-fleet[bot]' || !endsWith(github.actor, '[bot]'))
+      && (github.triggering_actor == 'github-actions[bot]' || github.triggering_actor == 'turbot-agent-fleet[bot]' || !endsWith(github.triggering_actor, '[bot]')))
+    permissions:
+      actions: write
+      attestations: write
+      checks: read
+      contents: write
+      deployments: read
+      id-token: write
+      issues: write
+      packages: write
+      pull-requests: write
+      statuses: write
+    secrets:
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+      SHIPYARD_SLACK_BOT_TOKEN: ${{ secrets.SHIPYARD_SLACK_BOT_TOKEN }}
+      SHIPYARD_ORG_TOKEN: ${{ secrets.SHIPYARD_ORG_TOKEN }}
+      WEB_BUILDS_APP_PRIVATE_KEY: ${{ secrets.WEB_BUILDS_APP_PRIVATE_KEY }}
+    uses: turbot/shipyard-workflows/.github/workflows/router.yml@v0
