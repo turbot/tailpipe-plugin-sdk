@@ -14,6 +14,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
+	"sync"
 )
 
 // PluginImpl should be created via NewPluginImpl method.
@@ -24,6 +25,17 @@ type PluginImpl struct {
 
 	// if the plugin is being used as a source, this will be set
 	source row_source.RowSource
+
+	// the events sent before the first observer attached, held for it (see AddObserver)
+	heldLock   sync.Mutex
+	heldEvents []heldEvent
+	observed   bool
+}
+
+// heldEvent is an event sent before the plugin had an observer, with the context it was sent with
+type heldEvent struct {
+	ctx   context.Context
+	event events.Event
 }
 
 // NewPluginImpl creates a new PluginImpl instance with the given identifier.
