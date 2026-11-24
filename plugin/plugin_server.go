@@ -104,6 +104,7 @@ func (s PluginServer) CloseSource(ctx context.Context, _ *proto.Empty) (*proto.E
 func (s PluginServer) SourceCollect(ctx context.Context, req *proto.SourceCollectRequest) (*proto.Empty, error) {
 	err := s.impl.SourceCollect(ctx, req)
 	if err != nil {
+		s.impl.Impl().collectionFailed()
 		return nil, err
 	}
 	return &proto.Empty{}, nil

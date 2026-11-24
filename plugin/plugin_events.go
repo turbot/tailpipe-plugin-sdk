@@ -12,11 +12,17 @@ import (
 // A caller opens a stream and at once starts a collection, and the stream's handler may attach it after the
 // collection has sent its first events. So the plugin holds the events it sends while it has no stream, and sends
 // them, in order, to the next stream that attaches. A new stream replaces any earlier one, and a stream is retired
-// once it is sent a collection's completion event: the CLI opens a stream for each collection, and stops reading it
-// after that collection's completion event.
+// once it is sent a collection's completion event: the CLI, and a plugin using this plugin as its source, open a
+// stream for each collection and stop reading it after that collection's completion event.
 func (p *PluginImpl) AddObserver(o observable.Observer) error {
 	p.eventLock.Lock()
 	defer p.eventLock.Unlock()
+
+	if p.spentStreamsToCome > 0 {
+		// the stream of a collection that has already failed: its caller no longer reads it
+		p.spentStreamsToCome--
+		return nil
+	}
 
 	p.ObservableImpl.RemoveObservers()
 	if err := p.ObservableImpl.AddObserver(o); err != nil {
@@ -66,10 +72,19 @@ func (p *PluginImpl) NotifyError(ctx context.Context, executionId string, err er
 // The caller holds eventLock.
 func (p *PluginImpl) sendLocked(ctx context.Context, e events.Event) error {
 	err := p.ObservableImpl.NotifyObservers(ctx, e)
-	if _, ok := e.(*events.Complete); ok {
+	if isCompletion(e) {
 		p.retireStreamLocked()
 	}
 	return err
+}
+
+// isCompletion reports whether the event ends a collection: a table's (Complete) or a source's (SourceComplete)
+func isCompletion(e events.Event) bool {
+	switch e.(type) {
+	case *events.Complete, *events.SourceComplete:
+		return true
+	}
+	return false
 }
 
 // retireStreamLocked detaches the stream, so later events are held for the next one. The caller holds eventLock.
@@ -85,16 +100,22 @@ func (p *PluginImpl) collectionStarted() {
 	p.collectionRunning = true
 }
 
-// collectionFailed is called when Collect returns an error, after which the caller no longer reads the stream it
-// opened for the collection. With no collection running, no completion event will retire that stream, so retire it
-// now, and drop what the failed collection held. A running collection's own completion event retires its stream.
+// collectionFailed is called when Collect or SourceCollect returns an error, after which the caller no longer reads
+// the stream it opened for the collection. With no collection running, no completion event will retire that stream:
+// retire it now, or, when it has not attached yet, leave it unused when it does. Either way, drop what the failed
+// collection held. A running collection's own completion event retires its stream.
 func (p *PluginImpl) collectionFailed() {
 	p.eventLock.Lock()
 	defer p.eventLock.Unlock()
-	if !p.collectionRunning {
-		p.retireStreamLocked()
-		p.heldEvents = nil
+	if p.collectionRunning {
+		return
 	}
+	if p.hasStream {
+		p.retireStreamLocked()
+	} else {
+		p.spentStreamsToCome++
+	}
+	p.heldEvents = nil
 }
 
 // Notify implements observable.Observer

@@ -34,6 +34,9 @@ type PluginImpl struct {
 	heldEvents []heldEvent
 	// collectionRunning is true from the start of a collection's goroutine until its completion event is sent
 	collectionRunning bool
+	// spentStreamsToCome counts the streams of failed collections that had not attached when their collection failed:
+	// each is spent before it attaches, so it is not used
+	spentStreamsToCome int
 }
 
 // heldEvent is an event sent while the plugin had no event stream, with the context it was sent with

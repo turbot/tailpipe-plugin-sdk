@@ -44,14 +44,17 @@ func label(e events.Event) string {
 		return e.ExecutionId
 	case *events.Complete:
 		return "complete " + e.ExecutionId
+	case *events.SourceComplete:
+		return "source complete " + e.ExecutionId
 	case *events.Error:
 		return "error " + e.Err.Error()
 	}
 	return fmt.Sprintf("%T", e)
 }
 
-func started(id string) events.Event  { return events.NewStartedEvent(id) }
-func complete(id string) events.Event { return events.NewCompletedEvent(id, 0, 0, nil) }
+func started(id string) events.Event        { return events.NewStartedEvent(id) }
+func complete(id string) events.Event       { return events.NewCompletedEvent(id, 0, 0, nil) }
+func sourceComplete(id string) events.Event { return events.NewSourceCompleteEvent(id, nil) }
 
 func notify(t *testing.T, p *PluginImpl, evs ...events.Event) {
 	t.Helper()
@@ -105,25 +108,30 @@ func TestPluginImpl_NewStreamReplacesTheOld(t *testing.T) {
 
 // The CLI opens a stream for each collection and stops reading it after the collection's completion event. The next
 // collection's events, sent before or after its own stream attaches, reach that stream and never the spent one.
+// The same holds for a plugin used as a source by another plugin: a stream for each source collection, read until
+// its source completion event.
 func TestPluginImpl_SecondCollectionReachesItsOwnStream(t *testing.T) {
-	for _, streamFirst := range []bool{true, false} {
-		t.Run(fmt.Sprintf("stream attaches first=%v", streamFirst), func(t *testing.T) {
-			p := NewPluginImpl("test")
-			first, second := &recorder{}, &recorder{}
-			require.NoError(t, p.AddObserver(first))
-			notify(t, &p, started("p1"), complete("p1"))
+	for _, end := range []func(string) events.Event{complete, sourceComplete} {
+		for _, streamFirst := range []bool{true, false} {
+			name := fmt.Sprintf("%s, stream attaches first=%v", label(end("")), streamFirst)
+			t.Run(name, func(t *testing.T) {
+				p := NewPluginImpl("test")
+				first, second := &recorder{}, &recorder{}
+				require.NoError(t, p.AddObserver(first))
+				notify(t, &p, started("p1"), end("p1"))
 
-			if streamFirst {
-				require.NoError(t, p.AddObserver(second))
-				notify(t, &p, started("p2"), complete("p2"))
-			} else {
-				notify(t, &p, started("p2"), complete("p2"))
-				require.NoError(t, p.AddObserver(second))
-			}
+				if streamFirst {
+					require.NoError(t, p.AddObserver(second))
+					notify(t, &p, started("p2"), end("p2"))
+				} else {
+					notify(t, &p, started("p2"), end("p2"))
+					require.NoError(t, p.AddObserver(second))
+				}
 
-			assert.Equal(t, []string{"p1", "complete p1"}, first.got())
-			assert.Equal(t, []string{"p2", "complete p2"}, second.got())
-		})
+				assert.Equal(t, []string{"p1", label(end("p1"))}, first.got())
+				assert.Equal(t, []string{"p2", label(end("p2"))}, second.got())
+			})
+		}
 	}
 }
 
@@ -150,6 +158,22 @@ func TestPluginImpl_FailedCollectRetiresTheStream(t *testing.T) {
 	first, second := &recorder{}, &recorder{}
 	require.NoError(t, p.AddObserver(first))
 	p.collectionFailed()
+
+	notify(t, &p, started("p2"))
+	require.NoError(t, p.AddObserver(second))
+	notify(t, &p, complete("p2"))
+
+	assert.Empty(t, first.got())
+	assert.Equal(t, []string{"p2", "complete p2"}, second.got())
+}
+
+// When Collect fails before its stream has attached, that stream is not used when it attaches: the next stream gets
+// the next collection's events.
+func TestPluginImpl_StreamAttachingAfterItsCollectFailedIsNotUsed(t *testing.T) {
+	p := NewPluginImpl("test")
+	first, second := &recorder{}, &recorder{}
+	p.collectionFailed()
+	require.NoError(t, p.AddObserver(first))
 
 	notify(t, &p, started("p2"))
 	require.NoError(t, p.AddObserver(second))
@@ -248,6 +272,9 @@ func receive(t *testing.T, stream proto.TailpipePlugin_AddObserverClient, run in
 		if c := e.GetCompleteEvent(); c != nil {
 			got = "complete " + c.GetExecutionId()
 		}
+		if c := e.GetSourceCompleteEvent(); c != nil {
+			got = "source complete " + c.GetExecutionId()
+		}
 		require.Equal(t, w, got, "run %d: event %d", run, i)
 	}
 }
@@ -276,27 +303,42 @@ func TestPluginServer_EventsSentAsTheStreamOpensArrive(t *testing.T) {
 
 // Over a real GRPC stream, as a `tailpipe collect` of two partitions on one plugin: a stream for each collection,
 // the first left unread after its completion event, and the second collection's events sent as its stream opens.
+// The same as a plugin used as a source for two partitions: the CLI keeps the source plugin running, and the calling
+// plugin opens a stream for each source collection and stops reading it after the source completion event.
 func TestPluginServer_SecondCollectionOnOnePlugin(t *testing.T) {
-	for run := 0; run < 50; run++ {
-		impl := &eventPlugin{PluginImpl: NewPluginImpl("test")}
-		client := servePlugin(t, impl)
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	for _, end := range []func(string) events.Event{complete, sourceComplete} {
+		for run := 0; run < 50; run++ {
+			impl := &eventPlugin{PluginImpl: NewPluginImpl("test")}
+			client := servePlugin(t, impl)
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 
-		first, err := client.AddObserver(ctx, &proto.Empty{})
-		require.NoError(t, err)
-		notify(t, &impl.PluginImpl, started("p1"), complete("p1"))
-		receive(t, first, run, "p1", "complete p1")
+			first, err := client.AddObserver(ctx, &proto.Empty{})
+			require.NoError(t, err)
+			notify(t, &impl.PluginImpl, started("p1"), end("p1"))
+			receive(t, first, run, "p1", label(end("p1")))
 
-		second, err := client.AddObserver(ctx, &proto.Empty{})
-		require.NoError(t, err)
-		notify(t, &impl.PluginImpl, started("p2"), complete("p2"))
-		receive(t, second, run, "p2", "complete p2")
-		cancel()
+			second, err := client.AddObserver(ctx, &proto.Empty{})
+			require.NoError(t, err)
+			notify(t, &impl.PluginImpl, started("p2"), end("p2"))
+			receive(t, second, run, "p2", label(end("p2")))
+			cancel()
+		}
 	}
 }
 
+// waitForStream waits until the plugin has a stream attached
+func waitForStream(t *testing.T, p *PluginImpl) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		p.eventLock.Lock()
+		defer p.eventLock.Unlock()
+		return p.hasStream
+	}, 10*time.Second, time.Millisecond)
+}
+
 // Over a real GRPC stream: a Collect that fails (an unknown table) leaves its stream unread, and the next collection's
-// events, sent as its stream opens, reach the next stream.
+// events, sent as its stream opens, reach the next stream. (The failed collection's stream attaching only after the
+// failure is TestPluginImpl_StreamAttachingAfterItsCollectFailedIsNotUsed.)
 func TestPluginServer_CollectionAfterAFailedCollect(t *testing.T) {
 	for run := 0; run < 50; run++ {
 		impl := &eventPlugin{PluginImpl: NewPluginImpl("test")}
@@ -305,6 +347,7 @@ func TestPluginServer_CollectionAfterAFailedCollect(t *testing.T) {
 
 		_, err := client.AddObserver(ctx, &proto.Empty{})
 		require.NoError(t, err)
+		waitForStream(t, &impl.PluginImpl)
 		_, err = client.Collect(ctx, &proto.CollectRequest{TableName: "no_such_table", ExecutionId: "p1"})
 		require.Error(t, err)
 
