@@ -1,0 +1,30 @@
+# What a change to the Tailpipe plugin SDK must run and show before an agent's PR counts as done.
+#
+# Left out on purpose:
+# - golangci-lint: workers do not all have it. The `ci` workflow runs it on every PR.
+
+ci_is_proof: false
+
+never_run:
+  # Releases
+  - gh workflow run
+  - gh release
+  - git tag
+  # Installs into the machine's own tailpipe install (~/.tailpipe)
+  - tailpipe plugin install*
+
+checks:
+  build: {run: "go build ./...", cost: 1}
+  unit: {run: "go test -race -count=1 -timeout 900s ./...", cost: 1}
+
+kinds:
+  code:
+    paths: ["**/*.go", "go.mod", "go.sum", "grpc/**", "Makefile", ".golangci.yml"]
+    checks: [build, unit]
+    show: [test]
+  workflows:
+    paths: [".github/**", ".gitignore"]
+    show: [none]
+  docs:
+    paths: ["**/*.md", "docs/**", ".claude/**", ".cursor", "LICENSE"]
+    show: [none]

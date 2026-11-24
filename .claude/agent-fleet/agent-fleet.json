@@ -1,0 +1,29 @@
+{
+  "warm": "go mod download",
+  "warmProbe": "go.sum",
+  "platforms": ["darwin", "linux"],
+  "tools": ["go"],
+  "secrets": {},
+  "releasePr": {
+    "workflow": "shipyard-release.yml",
+    "base": "main"
+  },
+  "chores": {
+    "security-audit": {
+      "when": "mon week 4",
+      "areas": [
+        "the gRPC plugin server and its request handling (grpc/, plugin/)",
+        "a source served by another plugin, and the events it streams back (artifact_source/plugin_source_wrapper.go)",
+        "artifact loaders: decompression and archive handling of untrusted files (artifact_loader/)",
+        "source config and format parsing (parse/, formats/, artifact_source_config/)",
+        "the conversion SQL built from table and column names (schema/, table/)",
+        "collection state files written and read on disk (collection_state/)",
+        "logging, including what reaches logs (logging/)"
+      ],
+      "off": true
+    },
+    "secret-scan": { "off": true },
+    "dependencies": { "off": true },
+    "dependabot-cant-fix": { "off": true }
+  }
+}
