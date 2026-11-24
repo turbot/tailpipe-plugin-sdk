@@ -96,7 +96,8 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 		return nil, nil, err
 	}
 
-	// the collection starts here: its completion event, from now on, retires its stream
+	// the collection starts here: from now on its own completion event retires its stream, also when Collect then
+	// returns an error
 	p.collectionStarted()
 
 	// signal we have started
