@@ -17,9 +17,10 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 )
 
-// pauseRecorder is a source plugin that records the pause and resume calls it gets
+// pauseRecorder is a source plugin's implementation that records the pause and resume calls it gets. The methods it
+// does not define are never called here.
 type pauseRecorder struct {
-	proto.UnimplementedTailpipePluginServer
+	shared.TailpipePluginServer
 	mu    sync.Mutex
 	calls []string
 }
@@ -39,12 +40,13 @@ func (r *pauseRecorder) SourceResume(context.Context, *proto.Empty) (*proto.Empt
 	return r.record("resume")
 }
 
-// A paused source in another plugin is resumed: Resume sends the source plugin a resume, not a second pause.
+// A paused source in another plugin is resumed: Resume reaches the source plugin's implementation as a resume, not a
+// second pause, through the same GRPC client and server wrappers a real source plugin is served with.
 func TestPluginSourceWrapper_ResumeResumesTheSourcePlugin(t *testing.T) {
 	listener := bufconn.Listen(1 << 20)
 	server := googlegrpc.NewServer()
 	sourcePlugin := &pauseRecorder{}
-	proto.RegisterTailpipePluginServer(server, sourcePlugin)
+	require.NoError(t, (&shared.TailpipeGRPCPlugin{Impl: sourcePlugin}).GRPCServer(nil, server))
 	go func() { _ = server.Serve(listener) }()
 	t.Cleanup(server.Stop)
 
