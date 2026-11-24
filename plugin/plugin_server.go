@@ -51,6 +51,7 @@ func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer)
 func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*proto.CollectResponse, error) {
 	fromTime, schema, err := s.impl.Collect(ctx, req)
 	if err != nil {
+		s.impl.Impl().collectionFailed()
 		return nil, err
 	}
 	// build response

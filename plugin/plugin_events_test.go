@@ -19,101 +19,191 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/grpc/shared"
 )
 
-// recorder is an observer that keeps every event it is sent
+// recorder is an observer that keeps a label for every event it is sent
 type recorder struct {
 	mu     sync.Mutex
-	events []events.Event
+	labels []string
 }
 
 func (r *recorder) Notify(_ context.Context, e events.Event) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.events = append(r.events, e)
+	r.labels = append(r.labels, label(e))
 	return nil
 }
 
-func (r *recorder) executionIds() []string {
+func (r *recorder) got() []string {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	ids := make([]string, len(r.events))
-	for i, e := range r.events {
-		ids[i] = e.(*events.Started).ExecutionId
-	}
-	return ids
+	return append([]string{}, r.labels...)
 }
 
-func TestPluginImpl_EventsBeforeObserverAreSentToIt(t *testing.T) {
+func label(e events.Event) string {
+	switch e := e.(type) {
+	case *events.Started:
+		return e.ExecutionId
+	case *events.Complete:
+		return "complete " + e.ExecutionId
+	case *events.Error:
+		return "error " + e.Err.Error()
+	}
+	return fmt.Sprintf("%T", e)
+}
+
+func started(id string) events.Event  { return events.NewStartedEvent(id) }
+func complete(id string) events.Event { return events.NewCompletedEvent(id, 0, 0, nil) }
+
+func notify(t *testing.T, p *PluginImpl, evs ...events.Event) {
+	t.Helper()
+	for _, e := range evs {
+		require.NoError(t, p.Notify(context.Background(), e))
+	}
+}
+
+func TestPluginImpl_EventsBeforeStreamAreSentToIt(t *testing.T) {
 	p := NewPluginImpl("test")
 	ctx, cancel := context.WithCancel(context.Background())
 	for i := 0; i < 100; i++ {
-		require.NoError(t, p.Notify(ctx, events.NewStartedEvent(fmt.Sprint(i))))
+		require.NoError(t, p.Notify(ctx, started(fmt.Sprint(i))))
 	}
-	// the context the events were sent with has ended before the observer attaches
+	// the context the events were sent with has ended before the stream attaches
 	cancel()
 
 	r := &recorder{}
 	require.NoError(t, p.AddObserver(r))
-	require.NoError(t, p.Notify(context.Background(), events.NewStartedEvent("100")))
+	notify(t, &p, started("100"))
 
 	want := make([]string, 101)
 	for i := range want {
 		want[i] = fmt.Sprint(i)
 	}
-	assert.Equal(t, want, r.executionIds())
+	assert.Equal(t, want, r.got())
 }
 
-func TestPluginImpl_ErrorBeforeObserverIsSentToIt(t *testing.T) {
+func TestPluginImpl_ErrorBeforeStreamIsSentToIt(t *testing.T) {
 	p := NewPluginImpl("test")
 	p.NotifyError(context.Background(), "exec", fmt.Errorf("boom"))
 
 	r := &recorder{}
 	require.NoError(t, p.AddObserver(r))
 
-	require.Len(t, r.events, 1)
-	e, ok := r.events[0].(*events.Error)
-	require.True(t, ok)
-	assert.Equal(t, "boom", e.Err.Error())
+	assert.Equal(t, []string{"error boom"}, r.got())
 }
 
-func TestPluginImpl_OnlyTheFirstObserverGetsHeldEvents(t *testing.T) {
+// A new stream replaces the one before it: later events go to the new stream only.
+func TestPluginImpl_NewStreamReplacesTheOld(t *testing.T) {
 	p := NewPluginImpl("test")
-	require.NoError(t, p.Notify(context.Background(), events.NewStartedEvent("held")))
+	first, second := &recorder{}, &recorder{}
+	require.NoError(t, p.AddObserver(first))
+	notify(t, &p, started("a"))
+	require.NoError(t, p.AddObserver(second))
+	notify(t, &p, started("b"))
+
+	assert.Equal(t, []string{"a"}, first.got())
+	assert.Equal(t, []string{"b"}, second.got())
+}
+
+// The CLI opens a stream for each collection and stops reading it after the collection's completion event. The next
+// collection's events, sent before or after its own stream attaches, reach that stream and never the spent one.
+func TestPluginImpl_SecondCollectionReachesItsOwnStream(t *testing.T) {
+	for _, streamFirst := range []bool{true, false} {
+		t.Run(fmt.Sprintf("stream attaches first=%v", streamFirst), func(t *testing.T) {
+			p := NewPluginImpl("test")
+			first, second := &recorder{}, &recorder{}
+			require.NoError(t, p.AddObserver(first))
+			notify(t, &p, started("p1"), complete("p1"))
+
+			if streamFirst {
+				require.NoError(t, p.AddObserver(second))
+				notify(t, &p, started("p2"), complete("p2"))
+			} else {
+				notify(t, &p, started("p2"), complete("p2"))
+				require.NoError(t, p.AddObserver(second))
+			}
+
+			assert.Equal(t, []string{"p1", "complete p1"}, first.got())
+			assert.Equal(t, []string{"p2", "complete p2"}, second.got())
+		})
+	}
+}
+
+// A collection that ends before its stream attaches: the stream gets that collection's events, completion included,
+// and is then retired, so what follows waits for the next stream.
+func TestPluginImpl_HeldCompletionRetiresTheStream(t *testing.T) {
+	p := NewPluginImpl("test")
+	notify(t, &p, started("p1"), complete("p1"), started("p2"))
 
 	first, second := &recorder{}, &recorder{}
 	require.NoError(t, p.AddObserver(first))
-	require.NoError(t, p.AddObserver(second))
-	require.NoError(t, p.Notify(context.Background(), events.NewStartedEvent("after")))
+	assert.Equal(t, []string{"p1", "complete p1"}, first.got())
 
-	assert.Equal(t, []string{"held", "after"}, first.executionIds())
-	assert.Equal(t, []string{"after"}, second.executionIds())
+	require.NoError(t, p.AddObserver(second))
+	notify(t, &p, complete("p2"))
+	assert.Equal(t, []string{"p2", "complete p2"}, second.got())
+	assert.Equal(t, []string{"p1", "complete p1"}, first.got())
 }
 
-// Events sent from several goroutines while the observer attaches each reach it once, in each sender's order.
-func TestPluginImpl_EventsSentWhileObserverAttaches(t *testing.T) {
+// When Collect fails before a collection starts, no completion event will come, and the caller stops reading the
+// stream it opened. The next collection's events wait for the next stream instead of going to that one.
+func TestPluginImpl_FailedCollectRetiresTheStream(t *testing.T) {
+	p := NewPluginImpl("test")
+	first, second := &recorder{}, &recorder{}
+	require.NoError(t, p.AddObserver(first))
+	p.collectionFailed()
+
+	notify(t, &p, started("p2"))
+	require.NoError(t, p.AddObserver(second))
+	notify(t, &p, complete("p2"))
+
+	assert.Empty(t, first.got())
+	assert.Equal(t, []string{"p2", "complete p2"}, second.got())
+}
+
+// When Collect fails after its collection has started, that collection's completion event still retires the stream.
+func TestPluginImpl_FailedCollectWithRunningCollectionKeepsTheStream(t *testing.T) {
+	p := NewPluginImpl("test")
+	first := &recorder{}
+	require.NoError(t, p.AddObserver(first))
+	p.collectionStarted()
+	p.collectionFailed()
+
+	notify(t, &p, complete("p1"))
+	assert.Equal(t, []string{"complete p1"}, first.got())
+}
+
+// Senders that sent before the stream attached and go on sending while it attaches: every event arrives once, in
+// each sender's order, with the held events first.
+func TestPluginImpl_EventsSentWhileStreamAttaches(t *testing.T) {
 	for run := 0; run < 50; run++ {
 		p := NewPluginImpl("test")
 		const senders, perSender = 4, 200
-		var wg sync.WaitGroup
-		start := make(chan struct{})
+		var sentHalf, done sync.WaitGroup
+		attach := make(chan struct{})
 		for s := 0; s < senders; s++ {
-			wg.Add(1)
+			sentHalf.Add(1)
+			done.Add(1)
 			go func(s int) {
-				defer wg.Done()
-				<-start
+				defer done.Done()
 				for i := 0; i < perSender; i++ {
-					_ = p.Notify(context.Background(), events.NewStartedEvent(fmt.Sprintf("%d-%d", s, i)))
+					if i == perSender/2 {
+						sentHalf.Done()
+						<-attach
+					}
+					_ = p.Notify(context.Background(), started(fmt.Sprintf("%d-%d", s, i)))
 				}
 			}(s)
 		}
+		// every sender has sent half its events with no stream; the rest race the stream attaching
+		sentHalf.Wait()
 		r := &recorder{}
-		close(start)
+		close(attach)
 		require.NoError(t, p.AddObserver(r))
-		wg.Wait()
+		done.Wait()
 
-		ids := r.executionIds()
-		require.Len(t, ids, senders*perSender, "run %d", run)
+		got := r.got()
+		require.Len(t, got, senders*perSender, "run %d", run)
 		next := make([]int, senders)
-		for _, id := range ids {
+		for _, id := range got {
 			var s, i int
 			_, err := fmt.Sscanf(id, "%d-%d", &s, &i)
 			require.NoError(t, err)
@@ -132,42 +222,96 @@ func (p *eventPlugin) Describe(context.Context, *proto.DescribeRequest) (*proto.
 	return &proto.DescribeResponse{}, nil
 }
 
+// servePlugin serves the plugin over an in-memory GRPC connection and returns a client for it
+func servePlugin(t *testing.T, impl TailpipePlugin) proto.TailpipePluginClient {
+	t.Helper()
+	listener := bufconn.Listen(1 << 20)
+	server := grpc.NewServer()
+	proto.RegisterTailpipePluginServer(server, shared.TailpipePluginServerWrapper{Impl: PluginServer{impl: impl}})
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(server.Stop)
+
+	conn, err := grpc.NewClient("passthrough:///bufnet",
+		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial() }),
+		grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+	return proto.NewTailpipePluginClient(conn)
+}
+
+func receive(t *testing.T, stream proto.TailpipePlugin_AddObserverClient, run int, want ...string) {
+	t.Helper()
+	for i, w := range want {
+		e, err := stream.Recv()
+		require.NoError(t, err, "run %d: event %d (%s) never arrived", run, i, w)
+		got := e.GetStartedEvent().GetExecutionId()
+		if c := e.GetCompleteEvent(); c != nil {
+			got = "complete " + c.GetExecutionId()
+		}
+		require.Equal(t, w, got, "run %d: event %d", run, i)
+	}
+}
+
 // Over a real GRPC stream: the caller opens the event stream and the plugin sends its events at once, as a source
 // plugin does when the calling plugin starts the collection straight after opening the stream. Every event arrives.
 func TestPluginServer_EventsSentAsTheStreamOpensArrive(t *testing.T) {
 	for run := 0; run < 50; run++ {
 		impl := &eventPlugin{PluginImpl: NewPluginImpl("test")}
-
-		listener := bufconn.Listen(1 << 20)
-		server := grpc.NewServer()
-		proto.RegisterTailpipePluginServer(server, shared.TailpipePluginServerWrapper{Impl: PluginServer{impl: impl}})
-		go func() { _ = server.Serve(listener) }()
-
-		conn, err := grpc.NewClient("passthrough:///bufnet",
-			grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) { return listener.Dial() }),
-			grpc.WithTransportCredentials(insecure.NewCredentials()))
-		require.NoError(t, err)
+		client := servePlugin(t, impl)
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		stream, err := proto.NewTailpipePluginClient(conn).AddObserver(ctx, &proto.Empty{})
+
+		stream, err := client.AddObserver(ctx, &proto.Empty{})
 		require.NoError(t, err)
-
-		const n = 20
-		for i := 0; i < n; i++ {
-			require.NoError(t, impl.Notify(ctx, events.NewStartedEvent(fmt.Sprint(i))))
+		var want []string
+		for i := 0; i < 20; i++ {
+			require.NoError(t, impl.Notify(ctx, started(fmt.Sprint(i))))
+			want = append(want, fmt.Sprint(i))
 		}
-		require.NoError(t, impl.Notify(ctx, events.NewSourceCompleteEvent("exec", nil)))
+		require.NoError(t, impl.Notify(ctx, complete("exec")))
 
-		for i := 0; i < n; i++ {
-			e, err := stream.Recv()
-			require.NoError(t, err, "run %d: event %d", run, i)
-			require.Equal(t, fmt.Sprint(i), e.GetStartedEvent().GetExecutionId(), "run %d", run)
-		}
-		e, err := stream.Recv()
-		require.NoError(t, err, "run %d: the completion event", run)
-		require.NotNil(t, e.GetSourceCompleteEvent(), "run %d", run)
-
+		receive(t, stream, run, append(want, "complete exec")...)
 		cancel()
-		_ = conn.Close()
-		server.Stop()
+	}
+}
+
+// Over a real GRPC stream, as a `tailpipe collect` of two partitions on one plugin: a stream for each collection,
+// the first left unread after its completion event, and the second collection's events sent as its stream opens.
+func TestPluginServer_SecondCollectionOnOnePlugin(t *testing.T) {
+	for run := 0; run < 50; run++ {
+		impl := &eventPlugin{PluginImpl: NewPluginImpl("test")}
+		client := servePlugin(t, impl)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+		first, err := client.AddObserver(ctx, &proto.Empty{})
+		require.NoError(t, err)
+		notify(t, &impl.PluginImpl, started("p1"), complete("p1"))
+		receive(t, first, run, "p1", "complete p1")
+
+		second, err := client.AddObserver(ctx, &proto.Empty{})
+		require.NoError(t, err)
+		notify(t, &impl.PluginImpl, started("p2"), complete("p2"))
+		receive(t, second, run, "p2", "complete p2")
+		cancel()
+	}
+}
+
+// Over a real GRPC stream: a Collect that fails (an unknown table) leaves its stream unread, and the next collection's
+// events, sent as its stream opens, reach the next stream.
+func TestPluginServer_CollectionAfterAFailedCollect(t *testing.T) {
+	for run := 0; run < 50; run++ {
+		impl := &eventPlugin{PluginImpl: NewPluginImpl("test")}
+		client := servePlugin(t, impl)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+
+		_, err := client.AddObserver(ctx, &proto.Empty{})
+		require.NoError(t, err)
+		_, err = client.Collect(ctx, &proto.CollectRequest{TableName: "no_such_table", ExecutionId: "p1"})
+		require.Error(t, err)
+
+		second, err := client.AddObserver(ctx, &proto.Empty{})
+		require.NoError(t, err)
+		notify(t, &impl.PluginImpl, started("p2"), complete("p2"))
+		receive(t, second, run, "p2", "complete p2")
+		cancel()
 	}
 }

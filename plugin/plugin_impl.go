@@ -26,13 +26,17 @@ type PluginImpl struct {
 	// if the plugin is being used as a source, this will be set
 	source row_source.RowSource
 
-	// the events sent before the first observer attached, held for it (see AddObserver)
-	heldLock   sync.Mutex
+	// eventLock orders the events sent to the event stream and every change of stream (see AddObserver)
+	eventLock sync.Mutex
+	// hasStream is true while an event stream is attached and has not been sent its collection's completion event
+	hasStream bool
+	// the events sent while there was no stream, held for the next stream to attach
 	heldEvents []heldEvent
-	observed   bool
+	// collectionRunning is true from the start of a collection's goroutine until its completion event is sent
+	collectionRunning bool
 }
 
-// heldEvent is an event sent before the plugin had an observer, with the context it was sent with
+// heldEvent is an event sent while the plugin had no event stream, with the context it was sent with
 type heldEvent struct {
 	ctx   context.Context
 	event events.Event
@@ -92,6 +96,7 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 
 	// start a goroutine to do the collection
 	// - this allows the Collect GRPC call to return asynchronously, returning the schema
+	p.collectionStarted()
 	go func() {
 		// ensure we close the collector when done
 		// NOTE - we do this _within the goroutine_ to ensure wait for completion before closing
