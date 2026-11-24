@@ -32,7 +32,7 @@ type PluginImpl struct {
 	hasStream bool
 	// the events sent while there was no stream, held for the next stream to attach
 	heldEvents []heldEvent
-	// collectionRunning is true from the start of a collection's goroutine until its completion event is sent or held
+	// collectionRunning is true from the start of a collection until its completion event is sent or held
 	collectionRunning bool
 	// completed is true from a collection's completion event until the next collection begins: a completion is the
 	// last event of its collection, and what its collection sends after it has no reader
@@ -96,6 +96,9 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 		return nil, nil, err
 	}
 
+	// the collection starts here: its completion event, from now on, retires its stream
+	p.collectionStarted()
+
 	// signal we have started
 	if err := p.OnStarted(ctx, collectRequest.ExecutionId); err != nil {
 		err := fmt.Errorf("error signalling started: %w", err)
@@ -104,7 +107,6 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 
 	// start a goroutine to do the collection
 	// - this allows the Collect GRPC call to return asynchronously, returning the schema
-	p.collectionStarted()
 	go func() {
 		// ensure we close the collector when done
 		// NOTE - we do this _within the goroutine_ to ensure wait for completion before closing

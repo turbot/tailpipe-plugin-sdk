@@ -67,6 +67,27 @@ func (s *listingErrorSource) DownloadArtifact(context.Context, *types.ArtifactIn
 	return fmt.Errorf("download failed")
 }
 
+// cancellingListSource lists under a context it cancels at its first error, as an errgroup does, and discovers an
+// artifact after that
+type cancellingListSource struct {
+	ArtifactSourceImpl[*NilArtifactSourceConfig, *NilConfig]
+}
+
+func (s *cancellingListSource) Identifier() string { return "cancelling_list" }
+
+func (s *cancellingListSource) DiscoverArtifacts(ctx context.Context) error {
+	listCtx, cancel := context.WithCancel(ctx)
+	cancel()
+	if err := s.OnArtifactDiscovered(listCtx, &types.ArtifactInfo{Name: "a.log"}); err != nil {
+		return err
+	}
+	return fmt.Errorf("listing failed")
+}
+
+func (s *cancellingListSource) DownloadArtifact(context.Context, *types.ArtifactInfo) error {
+	return nil
+}
+
 // collectedState is a collection state that accepts every collected artifact
 type collectedState struct {
 	collection_state.CollectionState
@@ -140,4 +161,21 @@ func TestArtifactSourceImpl_ListingErrorWaitsForDiscoveredArtifacts(t *testing.T
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	assert.Equal(t, []string{"download failed"}, r.errors)
+}
+
+// A listing whose context is cancelled before a discovered artifact's download can start still lets Collect return.
+func TestArtifactSourceImpl_CancelledListingReturns(t *testing.T) {
+	s := &cancellingListSource{}
+	s.Source = s
+	s.artifactDownloadLimiter = rate_limiter.NewAPILimiter(&rate_limiter.Definition{Name: "test", MaxConcurrency: 1})
+	require.NoError(t, s.AddObserver(&slowErrorRecorder{}))
+
+	done := make(chan error, 1)
+	go func() { done <- s.Collect(context_values.WithExecutionId(context.Background(), "exec")) }()
+	select {
+	case err := <-done:
+		require.ErrorContains(t, err, "error acquiring rate limiter")
+	case <-time.After(5 * time.Second):
+		t.Fatal("Collect did not return")
+	}
 }

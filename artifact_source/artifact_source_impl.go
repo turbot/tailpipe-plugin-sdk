@@ -204,6 +204,8 @@ func (a *ArtifactSourceImpl[S, T]) OnArtifactDiscovered(ctx context.Context, inf
 	slog.Debug("ArtifactDiscovered - rate limiter waiting", "artifact", info.Name)
 	err = a.artifactDownloadLimiter.Wait(ctx)
 	if err != nil {
+		// no download starts, so release the wait group here
+		a.artifactExtractWg.Done()
 		return fmt.Errorf("error acquiring rate limiter: %w", err)
 	}
 	slog.Debug("ArtifactDiscovered - rate limiter acquired", "duration", time.Since(t), "artifact", info.Name)
