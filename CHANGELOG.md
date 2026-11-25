@@ -1,3 +1,17 @@
+## [0.10.0] - 2026-11-25
+
+### Security
+
+- Bump google.golang.org/grpc from 1.79.3 to 1.83.2 in the go_modules group across 1 directory. (#288)
+- Bump the go_modules group across 1 directory with 8 updates. (#296)
+  - Update needs: If your plugin builds with a Go older than 1.26, move it to Go 1.26 before you take this version. The SDK's go.mod now says go 1.26.0, and your module's Go version rises to match.
+
+### Bug fixes
+
+- A table's columns are ordered alphabetically, with the `tp_` columns last, and `ConversionSchema.ColumnString` lists them, quoted, for the CLI's insert. A custom table whose `map_fields` leaves out some source fields now saves its rows: with SDK v0.9.3 and v0.9.4 every insert failed with a syntax error, though collect still exited 0. (#297)
+- A collection through another plugin's source, such as the aws plugin reading files through the core plugin's file source, now resumes after it pauses to free temp space, instead of waiting forever. Both plugins need building with this version: the calling plugin sends the resume, and the source plugin acts on it. (#299)
+- A plugin that collects through another plugin's source, such as the aws plugin reading CloudTrail files through the core plugin's file source, now gets every file's rows and always finishes, once both plugins are built with this version. (#300)
+
 ## v0.9.5 [2026-07-10]
 _Dependencies_
 * Bump `pipe-fittings` to v2.9.3, removing the EOL `containerd` dependency and clearing govulncheck advisories GO-2026-5622, GO-2026-5338, and GO-2026-5064.
