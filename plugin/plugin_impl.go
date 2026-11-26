@@ -14,6 +14,7 @@ import (
 	"github.com/turbot/tailpipe-plugin-sdk/table"
 	"github.com/turbot/tailpipe-plugin-sdk/types"
 	"log/slog"
+	"sync"
 )
 
 // PluginImpl should be created via NewPluginImpl method.
@@ -24,6 +25,29 @@ type PluginImpl struct {
 
 	// if the plugin is being used as a source, this will be set
 	source row_source.RowSource
+
+	// eventLock orders the events sent to the event stream and every change of stream (see AddObserver)
+	eventLock sync.Mutex
+	// hasStream is true while an event stream is attached and has not been sent its collection's completion event
+	hasStream bool
+	// the events sent while there was no stream, held for the next stream to attach
+	heldEvents []heldEvent
+	// collectionRunning is true from the start of a collection until its completion event is sent or held
+	collectionRunning bool
+	// completed is true from a collection's completion event until the next collection begins: a completion is the
+	// last event of its collection, and what its collection sends after it has no reader
+	completed bool
+	// streamRetiredSinceBegin is true once a stream has been retired since the current collection began
+	streamRetiredSinceBegin bool
+	// spentStreamsToCome counts the streams of failed collections that had not attached when their collection failed:
+	// each is spent before it attaches, so it is not used
+	spentStreamsToCome int
+}
+
+// heldEvent is an event sent while the plugin had no event stream, with the context it was sent with
+type heldEvent struct {
+	ctx   context.Context
+	event events.Event
 }
 
 // NewPluginImpl creates a new PluginImpl instance with the given identifier.
@@ -71,6 +95,10 @@ func (p *PluginImpl) Collect(ctx context.Context, req *proto.CollectRequest) (*r
 		slog.Error("add observer error", "error", err)
 		return nil, nil, err
 	}
+
+	// the collection starts here: from now on its own completion event retires its stream, also when Collect then
+	// returns an error
+	p.collectionStarted()
 
 	// signal we have started
 	if err := p.OnStarted(ctx, collectRequest.ExecutionId); err != nil {

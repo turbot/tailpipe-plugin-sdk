@@ -1,6 +1,11 @@
 package schema
 
-import "golang.org/x/exp/maps"
+import (
+	"strings"
+
+	"github.com/turbot/tailpipe-plugin-sdk/helpers"
+	"golang.org/x/exp/maps"
+)
 
 // SourceColumnDef is a simple struct to hold the column name and type for a source column
 type SourceColumnDef struct {
@@ -27,15 +32,17 @@ type ConversionSchema struct {
 	// the source columns - these are the columns in the source data
 	// this is to ensure we have the inputs required for any transforms
 	SourceColumns []SourceColumnDef
+
+	ColumnString string
 }
 
 // NewConversionSchemaWithInferredSchema populates a ConversionSchema schema using a table schema and an inferred row schema
 // this is called from the CLI after receiving the first JSONL file
 // If a 'Select' pattern is provided, it will be used to select source fields to include in the schema
 func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSchema) *ConversionSchema {
-	// initialize the conversion schema from the table schema def
+	// initialize the conversion schema from a copy of the table schema def, so the caller's schema is left as it is
 	r := &ConversionSchema{
-		TableSchema: *tableSchema,
+		TableSchema: *tableSchema.Clone(),
 	}
 
 	// build a list of source columns - these are the columns to read from the JSONL
@@ -50,6 +57,12 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 		sourceColumns[c.SourceName] = NewSourceColumnDef(c)
 	}
 
+	// the columns the table declares: an inferred column of the same name never replaces one
+	declaredColumns := make(map[string]struct{}, len(r.Columns))
+	for _, c := range r.Columns {
+		declaredColumns[c.ColumnName] = struct{}{}
+	}
+
 	// now populate the source columns from the inferred schema
 	for _, c := range inferredSchema.Columns {
 		// if we do not already have this column, add it
@@ -62,28 +75,65 @@ func NewConversionSchemaWithInferredSchema(tableSchema, inferredSchema *TableSch
 
 		// only add the inferred column to 'Columns' if it satisfies MapFields
 		// does this column match the any of the map fields?
-		if r.ShouldMapSourceColumn(c.ColumnName) {
+		if _, declared := declaredColumns[c.ColumnName]; !declared && r.ShouldMapSourceColumn(c.ColumnName) {
 			r.Columns = append(r.Columns, c)
 		}
 	}
 
 	// now set the source columns
 	r.SourceColumns = maps.Values(sourceColumns)
+
+	// sort the columns alphabetically, with tp_ fields at the end
+	r.initColumns()
 	return r
 }
 
 func NewConversionSchema(tableSchema *TableSchema) *ConversionSchema {
+	clonedSchema := tableSchema.Clone()
 	// initialize the conversion schema from the table schema def
 	r := &ConversionSchema{
-		TableSchema: *tableSchema,
+		TableSchema: *clonedSchema,
 	}
 	var sourceColumns []SourceColumnDef
 
+	// First add the source column for all columns the table schema (unless there is transform)
 	for _, c := range tableSchema.Columns {
-		// store source columns
+		if c.Transform != "" {
+			// skip this column - it is a transform so the source column will not be used
+			continue
+		}
 		sourceColumns = append(sourceColumns, NewSourceColumnDef(c))
 	}
 
 	r.SourceColumns = sourceColumns
+
+	// sort the columns alphabetically, with tp_ fields at the end
+	r.initColumns()
+
 	return r
+}
+
+// initColumns sorts the columns in the ConversionSchema alphabetically, with tp_ prefixed fields at the end
+// it also populates the ColumnString field with a comma-separated list of the quoted column names, in that order
+func (c *ConversionSchema) initColumns() {
+	// first put into a map
+	columnMap := make(map[string]*ColumnSchema, len(c.Columns))
+	for _, col := range c.Columns {
+		columnMap[col.ColumnName] = col
+	}
+	sortedColumnNames := helpers.SortColumnsAlphabetically(maps.Keys(columnMap))
+
+	c.Columns = make([]*ColumnSchema, len(sortedColumnNames))
+	quotedNames := make([]string, len(sortedColumnNames))
+	for i, columnName := range sortedColumnNames {
+		c.Columns[i] = columnMap[columnName]
+		quotedNames[i] = quoteIdentifier(columnName)
+	}
+
+	c.ColumnString = strings.Join(quotedNames, ", ")
+}
+
+// quoteIdentifier quotes a column name for DuckDB, doubling any double quote it holds
+func quoteIdentifier(name string) string {
+	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 }

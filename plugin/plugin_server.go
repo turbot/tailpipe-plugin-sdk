@@ -49,8 +49,10 @@ func (s PluginServer) AddObserver(stream proto.TailpipePlugin_AddObserverServer)
 }
 
 func (s PluginServer) Collect(ctx context.Context, req *proto.CollectRequest) (*proto.CollectResponse, error) {
+	s.impl.Impl().collectionBegins()
 	fromTime, schema, err := s.impl.Collect(ctx, req)
 	if err != nil {
+		s.impl.Impl().collectionFailed()
 		return nil, err
 	}
 	// build response
@@ -101,8 +103,10 @@ func (s PluginServer) CloseSource(ctx context.Context, _ *proto.Empty) (*proto.E
 }
 
 func (s PluginServer) SourceCollect(ctx context.Context, req *proto.SourceCollectRequest) (*proto.Empty, error) {
+	s.impl.Impl().collectionBegins()
 	err := s.impl.SourceCollect(ctx, req)
 	if err != nil {
+		s.impl.Impl().collectionFailed()
 		return nil, err
 	}
 	return &proto.Empty{}, nil
