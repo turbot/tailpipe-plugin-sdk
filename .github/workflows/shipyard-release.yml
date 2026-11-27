@@ -28,8 +28,8 @@ jobs:
       || (github.event_name == 'pull_request_review'
       && (github.event.pull_request.base.ref == 'main' || startsWith(github.event.pull_request.base.ref, 'main-')))
       || ((github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-      && (github.actor == 'github-actions[bot]' || github.actor == 'turbot-agent-fleet[bot]' || !endsWith(github.actor, '[bot]'))
-      && (github.triggering_actor == 'github-actions[bot]' || github.triggering_actor == 'turbot-agent-fleet[bot]' || !endsWith(github.triggering_actor, '[bot]')))
+      && (github.actor_id == '340042353' || github.actor_id == '340045443' || github.actor_id == '41898282' || !endsWith(github.actor, '[bot]'))
+      && (github.triggering_actor == github.actor || !endsWith(github.triggering_actor, '[bot]')))
     permissions:
       actions: write
       attestations: write
